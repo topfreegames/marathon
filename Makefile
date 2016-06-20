@@ -39,37 +39,37 @@ install:
 run:
 	@go run main.go start -d -c ./config/local.yaml
 
-build-docker:
-	@docker build -t marathon .
+#build-docker:
+	#@docker build -t marathon .
 
-run-docker:
-	#TODO: REPLACE IP here
-	@docker run -i -t --rm -e "MARATHON_REDIS_HOST=10.0.20.81" -p 8080:8080 marathon
+#run-docker:
+	##TODO: REPLACE IP here
+	#@docker run -i -t --rm -e "MARATHON_REDIS_HOST=10.0.20.81" -p 8080:8080 marathon
 
-kill-redis:
-	-redis-cli -p 7575 shutdown
+#kill-redis:
+	#-redis-cli -p 7575 shutdown
 
-redis: kill-redis
-	redis-server ./redis.conf; sleep 1
-	redis-cli -p 7575 info > /dev/null
+#redis: kill-redis
+	#redis-server ./redis.conf; sleep 1
+	#redis-cli -p 7575 info > /dev/null
 
-flush-redis:
-	redis-cli -p 7575 FLUSHDB
+#flush-redis:
+	#redis-cli -p 7575 FLUSHDB
 
-kill-redis-test:
-	-redis-cli -p 57575 shutdown
+#kill-redis-test:
+	#-redis-cli -p 57575 shutdown
 
-redis-test: kill_redis_test
-	redis-server ./redis_test.conf; sleep 1
-	redis-cli -p 57575 info > /dev/null
+#redis-test: kill_redis_test
+	#redis-server ./redis_test.conf; sleep 1
+	#redis-cli -p 57575 info > /dev/null
 
-flush-redis-test:
-	redis-cli -p 57575 FLUSHDB
+#flush-redis-test:
+	#redis-cli -p 57575 FLUSHDB
 
-test: drop-test db-test
+test: run-zookeeper run-kafka
 	@go test $(PACKAGES)
 
-coverage: drop-test db-test
+coverage:
 	@echo "mode: count" > coverage-all.out
 	@$(foreach pkg,$(PACKAGES),\
 		go test -coverprofile=coverage.out -covermode=count $(pkg);\
@@ -103,3 +103,16 @@ pmd-full:
 	@for pkg in $(GODIRS) ; do \
 		/tmp/pmd-bin-5.4.2/bin/run.sh cpd --minimum-tokens 30 --files $$pkg --language go ; \
     done
+
+run-zookeeper: kill-zookeeper
+	@zookeeper-server-start ./tests/zookeeper.properties 2>&1 > /tmp/marathon-zookeeper.log &
+
+kill-zookeeper:
+	@ps aux | egrep "./tests/zookeeper.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
+	
+run-kafka: kill-kafka
+	@kafka-server-start ./tests/server.properties 2>&1 > /tmp/marathon-kafka.log &
+
+kill-kafka:
+	@ps aux | egrep "./tests/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
+	
