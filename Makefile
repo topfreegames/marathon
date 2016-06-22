@@ -55,7 +55,7 @@ db-local-migrate:
 	@go run main.go migrate -c ./config/local.yaml
 	@echo "Database migrated successfully!"
 
-test: db-test-create db-test-migrate run-kafka-zookeeper
+test: run-kafka-zookeeper
 	@go test $(PACKAGES)
 
 coverage: run-kafka-zookeeper
