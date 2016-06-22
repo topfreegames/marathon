@@ -1,0 +1,8 @@
+postgres:
+  user: "marathon"
+  dbName: "marathon"
+  host: "localhost"
+  port: 5432
+  sslMode: "disable"
+healthcheck:
+  workingText: "WORKING"
