@@ -8,13 +8,6 @@ import (
 	"gopkg.in/gorp.v1"
 )
 
-// OrganizationByName allows sorting organizations by name
-type OrganizationByName []*Organization
-
-func (a OrganizationByName) Len() int           { return len(a) }
-func (a OrganizationByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a OrganizationByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-
 // Organization identifies uniquely one organization
 type Organization struct {
 	ID        string `db:"id"`
@@ -42,7 +35,7 @@ func (o *Organization) PreUpdate(s gorp.SqlExecutor) error {
 func GetOrganizationByID(db DB, id string) (*Organization, error) {
 	obj, err := db.Get(Organization{}, id)
 	if err != nil || obj == nil {
-		return nil, &ModelNotFoundError{"App", id}
+		return nil, &ModelNotFoundError{"Organization", "id", id}
 	}
 	return obj.(*Organization), nil
 }
@@ -52,7 +45,7 @@ func GetOrganizationByName(db DB, name string) (*Organization, error) {
 	var organization Organization
 	err := db.SelectOne(&organization, "SELECT * FROM organizations WHERE name=$1", name)
 	if err != nil || &organization == nil {
-		return nil, &ModelNotFoundError{"Organization", name}
+		return nil, &ModelNotFoundError{"Organization", "name", name}
 	}
 	return &organization, nil
 }
