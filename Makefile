@@ -39,43 +39,32 @@ install:
 run:
 	@go run main.go start -d -c ./config/local.yaml
 
-#build-docker:
-	#@docker build -t marathon .
+db-test-create:
+	@psql -d postgres -f db/drop-test.sql > /dev/null
+	@echo "Test database created successfully!"
 
-#run-docker:
-	##TODO: REPLACE IP here
-	#@docker run -i -t --rm -e "MARATHON_REDIS_HOST=10.0.20.81" -p 8080:8080 marathon
+db-test-migrate:
+	@go run main.go migrate -c ./config/test.yaml > /dev/null
+	@echo "Test database migrated successfully!"
 
-#kill-redis:
-	#-redis-cli -p 7575 shutdown
+db-local-create:
+	@psql -d postgres -f db/drop.sql > /dev/null
+	@echo "Database created successfully!"
 
-#redis: kill-redis
-	#redis-server ./redis.conf; sleep 1
-	#redis-cli -p 7575 info > /dev/null
+db-local-migrate:
+	@go run main.go migrate -c ./config/local.yaml
+	@echo "Database migrated successfully!"
 
-#flush-redis:
-	#redis-cli -p 7575 FLUSHDB
-
-#kill-redis-test:
-	#-redis-cli -p 57575 shutdown
-
-#redis-test: kill_redis_test
-	#redis-server ./redis_test.conf; sleep 1
-	#redis-cli -p 57575 info > /dev/null
-
-#flush-redis-test:
-	#redis-cli -p 57575 FLUSHDB
-
-test: run-zookeeper run-kafka
+test: db-test-create db-test-migrate run-kafka-zookeeper
 	@go test $(PACKAGES)
 
-coverage:
+coverage: run-kafka-zookeeper
 	@echo "mode: count" > coverage-all.out
 	@$(foreach pkg,$(PACKAGES),\
 		go test -coverprofile=coverage.out -covermode=count $(pkg);\
 		tail -n +2 coverage.out >> coverage-all.out;)
 
-coverage-html:
+coverage-html: run-kafka-zookeeper
 	@go tool cover -html=coverage-all.out
 
 static:
@@ -104,15 +93,26 @@ pmd-full:
 		/tmp/pmd-bin-5.4.2/bin/run.sh cpd --minimum-tokens 30 --files $$pkg --language go ; \
     done
 
-run-zookeeper: kill-zookeeper
+run-kafka-zookeeper: kill-kafka-zookeeper run-zookeeper run-kafka
+
+kill-kafka-zookeeper: kill-kafka kill-zookeeper
+
+run-zookeeper:
 	@zookeeper-server-start ./tests/zookeeper.properties 2>&1 > /tmp/marathon-zookeeper.log &
 
 kill-zookeeper:
 	@ps aux | egrep "./tests/zookeeper.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
-	
-run-kafka: kill-kafka
+	@rm -rf /tmp/marathon-zookeeper
+
+
+run-kafka:
 	@kafka-server-start ./tests/server.properties 2>&1 > /tmp/marathon-kafka.log &
+	@sleep 2
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-1 --zookeeper localhost:3535 2>&1 > /dev/null
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-2 --zookeeper localhost:3535 2>&1 > /dev/null
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-3 --zookeeper localhost:3535 2>&1 > /dev/null
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-producer-1 --zookeeper localhost:3535 2>&1 > /dev/null
 
 kill-kafka:
 	@ps aux | egrep "./tests/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
-	
+	@rm -rf /tmp/marathon-kafka-logs

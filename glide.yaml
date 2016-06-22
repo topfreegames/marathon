@@ -1,2 +1,18 @@
 package: git.topfreegames.com/topfreegames/marathon
-import: []
+import:
+- package: github.com/cbroglie/mustache
+- package: github.com/bsm/sarama-cluster
+- package: github.com/franela/goblin
+- package: github.com/onsi/gomega
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: github.com/topfreegames/goose
+  subpackages:
+  - lib/goose
+- package: github.com/bluele/factory-go
+  subpackages:
+  - factory
+- package: github.com/Pallinder/go-randomdata
+- package: github.com/satori/go.uuid
+- package: github.com/google/glog
+- package: github.com/golang/glog
