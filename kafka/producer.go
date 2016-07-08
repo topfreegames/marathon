@@ -1,18 +1,21 @@
 package kafka
 
 import (
-	"github.com/golang/glog"
-
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
+	"github.com/uber-go/zap"
 )
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
 func Producer(kafkaConfig *ProducerConfig, inChan <-chan *messages.KafkaMessage) {
+
 	saramaConfig := sarama.NewConfig()
 	producer, err := sarama.NewSyncProducer(kafkaConfig.Brokers, saramaConfig)
 	if err != nil {
-		glog.Errorf("Failed to start kafka produces: %v", err)
+		Logger.Error(
+			"Failed to start kafka produces",
+			zap.Error(err),
+		)
 		return
 	}
 	defer producer.Close()
@@ -25,9 +28,15 @@ func Producer(kafkaConfig *ProducerConfig, inChan <-chan *messages.KafkaMessage)
 
 		_, _, err = producer.SendMessage(saramaMessage)
 		if err != nil {
-			glog.Errorf("Error sending message %+v", saramaMessage)
+			Logger.Error(
+				"Error sending message",
+				zap.Error(err),
+			)
 		} else {
-			glog.Infof("Sent message to topic: %s", msg.Topic)
+			Logger.Info(
+				"Sent message",
+				zap.String("topic", msg.Topic),
+			)
 		}
 	}
 }

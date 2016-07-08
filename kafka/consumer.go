@@ -5,10 +5,13 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
-	"github.com/golang/glog"
+	"github.com/uber-go/zap"
 )
 
-// ReadError is cool
+// Logger is the consumer logger
+var Logger = zap.NewJSON(zap.WarnLevel)
+
+// consumeError is an error generated during data consumption
 type consumeError struct {
 	Message string
 }
@@ -35,25 +38,34 @@ func Consumer(consumerConfig *ConsumerConfig, outChan chan<- string, done <-chan
 		clusterConfig,
 	)
 	if consumerErr != nil {
-		glog.Errorf("Could not create consumer due to: %+v\n", consumerErr)
+		Logger.Error(
+			"Could not create consumer",
+			zap.String("error", consumerErr.Error()),
+		)
 		return
 	}
 	defer consumer.Close()
 
 	go func() {
 		for err := range consumer.Errors() {
-			glog.Errorf("Consumer error: %+v\n", err)
+			Logger.Error(
+				"Consumer error",
+				zap.String("error", err.Error()),
+			)
 		}
 	}()
 
 	go func() {
 		for notif := range consumer.Notifications() {
-			glog.Info("Rebalanced: %+v\n", notif)
+			Logger.Info(
+				"Rebalanced",
+				zap.String("", fmt.Sprintf("%+v", notif)),
+			)
 		}
 	}()
-	glog.Info("Starting kafka consumer")
+	Logger.Info("Starting kafka consumer")
 	MainLoop(consumer, outChan, done)
-	glog.Info("Stopped kafka consumer")
+	Logger.Info("Stopped kafka consumer")
 }
 
 // MainLoop to read messages from Kafka and send them forward in the pipeline
@@ -64,12 +76,18 @@ func MainLoop(consumer *cluster.Consumer, outChan chan<- string, done <-chan str
 			return // breaks out of the for
 		case msg, ok := <-consumer.Messages():
 			if !ok {
-				glog.Errorf("Not ok consuming from Kafka: %+v\n", msg)
+				Logger.Error(
+					"Not ok consuming from Kafka",
+					zap.String("msg", fmt.Sprintf("%+v", msg)),
+				)
 				return // breaks out of the for
 			}
 			strMsg, err := Consume(msg)
 			if err != nil {
-				glog.Errorf("Error reading kafka message: %+v", err)
+				Logger.Error(
+					"Error reading kafka message",
+					zap.Error(err),
+				)
 				continue
 			}
 			consumer.MarkOffset(msg, "")
@@ -80,10 +98,17 @@ func MainLoop(consumer *cluster.Consumer, outChan chan<- string, done <-chan str
 
 // Consume extracts the message from the consumer message
 func Consume(kafkaMsg *sarama.ConsumerMessage) (string, error) {
+	Logger.Info(
+		"Consume message",
+		zap.String("msg", fmt.Sprintf("%+v", kafkaMsg)),
+	)
 	msg := string(kafkaMsg.Value)
 	if msg == "" {
 		return "", consumeError{"Empty message"}
 	}
-	glog.Info("Read message: %+v\n", msg)
+	Logger.Info(
+		"Consumed message",
+		zap.String("msg", msg),
+	)
 	return msg, nil
 }

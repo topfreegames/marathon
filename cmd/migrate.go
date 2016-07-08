@@ -7,11 +7,11 @@ import (
 
 	"gopkg.in/gorp.v1"
 
-  "github.com/golang/glog"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/goose/lib/goose"
+	"github.com/uber-go/zap"
 )
 
 var migrationVersion int64
@@ -24,9 +24,13 @@ func getDatabase() (*gorp.DbMap, error) {
 	port := viper.GetInt("postgres.port")
 	sslMode := viper.GetString("postgres.sslMode")
 
-	glog.Infof(
-		"\nConnecting to %s:%d as %s using sslMode=%s to db %s...\n\n",
-		host, port, user, sslMode, dbName,
+	Logger.Info(
+		"Connecting to postgres...",
+		zap.String("host", host),
+		zap.Int("port", port),
+		zap.String("user", user),
+		zap.String("dbName", dbName),
+		zap.String("sslMode", sslMode),
 	)
 	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
 	return db.(*gorp.DbMap), err
@@ -84,7 +88,10 @@ func runMigrations(migrationsDir string, migrationVersion int64) error {
 	if err != nil {
 		return &MigrationError{fmt.Sprintf("could not run migrations to %d: %s", targetVersion, err.Error())}
 	}
-	glog.Info("Migrated database successfully to version %d.\n", targetVersion)
+	Logger.Info(
+		"Migrated database successfully to version",
+		zap.Int64("targetVersion", targetVersion),
+	)
 	return nil
 }
 

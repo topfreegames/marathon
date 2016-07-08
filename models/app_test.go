@@ -1,196 +1,203 @@
-package models
+package models_test
 
 import (
-	"testing"
-
+	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/Pallinder/go-randomdata"
-	. "github.com/franela/goblin"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
 )
 
-func TestAppModel(t *testing.T) {
-	g := Goblin(t)
-	db, dbErr := GetTestDB()
-	g.Assert(dbErr).Equal(nil)
+var _ = Describe("Models", func() {
+	var (
+		db models.DB
+	)
+	BeforeEach(func() {
+		_db, dbErr := models.GetTestDB()
+		Expect(dbErr).To(BeNil())
+		Expect(_db).NotTo(BeNil())
+		db = _db
+	})
 
-	g.Describe("App Model", func() {
-		g.Describe("Create app", func() {
-			g.It("Should create an app through a factory", func() {
+	Describe("App", func() {
+
+		Describe("Create app", func() {
+			It("Should create an app through a factory", func() {
 				app, appErr := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr).Equal(nil)
+				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
-				g.Assert(insertAppErr).Equal(nil)
+				Expect(insertAppErr).To(BeNil())
 
-				dbApp, dbAppErr := GetAppByID(db, app.ID)
-				g.Assert(dbAppErr).Equal(nil)
-				g.Assert(dbApp.Name).Equal(app.Name)
-				g.Assert(dbApp.AppGroup).Equal(app.AppGroup)
-				g.Assert(dbApp.OrganizationID).Equal(app.OrganizationID)
+				dbApp, dbAppErr := models.GetAppByID(db, app.ID)
+				Expect(dbAppErr).To(BeNil())
+				Expect(dbApp.Name).To(Equal(app.Name))
+				Expect(dbApp.AppGroup).To(Equal(app.AppGroup))
+				Expect(dbApp.OrganizationID).To(Equal(app.OrganizationID))
 			})
 
-			g.It("Should create an app", func() {
+			It("Should create an app", func() {
 				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				g.Assert(organizationErr).Equal(nil)
+				Expect(organizationErr).To(BeNil())
 				insertOrganizationErr := db.Insert(organization)
-				g.Assert(insertOrganizationErr).Equal(nil)
+				Expect(insertOrganizationErr).To(BeNil())
 
 				name := randomdata.SillyName()
 				appGroup := randomdata.SillyName()
 				organizationID := organization.ID
 
-				createdApp, createdAppErr := CreateApp(db, name, organizationID, appGroup)
-				g.Assert(createdAppErr).Equal(nil)
-				dbApp, dbAppErr := GetAppByID(db, createdApp.ID)
-				g.Assert(dbAppErr).Equal(nil)
-				g.Assert(dbApp.Name).Equal(createdApp.Name)
-				g.Assert(dbApp.AppGroup).Equal(createdApp.AppGroup)
-				g.Assert(dbApp.OrganizationID).Equal(createdApp.OrganizationID)
+				createdApp, createdAppErr := models.CreateApp(db, name, organizationID, appGroup)
+				Expect(createdAppErr).To(BeNil())
+				dbApp, dbAppErr := models.GetAppByID(db, createdApp.ID)
+				Expect(dbAppErr).To(BeNil())
+				Expect(dbApp.Name).To(Equal(createdApp.Name))
+				Expect(dbApp.AppGroup).To(Equal(createdApp.AppGroup))
+				Expect(dbApp.OrganizationID).To(Equal(createdApp.OrganizationID))
 			})
 
-			g.It("Should not create an app with repeated name", func() {
+			It("Should not create an app with repeated name", func() {
 				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				g.Assert(organizationErr).Equal(nil)
+				Expect(organizationErr).To(BeNil())
 				insertOrganizationErr := db.Insert(organization)
-				g.Assert(insertOrganizationErr).Equal(nil)
+				Expect(insertOrganizationErr).To(BeNil())
 
 				name1 := randomdata.SillyName()
 				appGroup1 := randomdata.SillyName()
 				organizationID1 := organization.ID
 
-				createdApp, createdAppErr := CreateApp(db, name1, organizationID1, appGroup1)
-				g.Assert(createdAppErr).Equal(nil)
-				_, dbAppErr1 := GetAppByID(db, createdApp.ID)
-				g.Assert(dbAppErr1).Equal(nil)
+				createdApp, createdAppErr := models.CreateApp(db, name1, organizationID1, appGroup1)
+				Expect(createdAppErr).To(BeNil())
+				_, dbAppErr1 := models.GetAppByID(db, createdApp.ID)
+				Expect(dbAppErr1).To(BeNil())
 
 				name2 := name1
 				appGroup2 := randomdata.SillyName()
 				organizationID2 := organization.ID
 
-				_, createdAppErr2 := CreateApp(db, name2, organizationID2, appGroup2)
-				g.Assert(createdAppErr2 != nil).IsTrue()
+				_, createdAppErr2 := models.CreateApp(db, name2, organizationID2, appGroup2)
+				Expect(createdAppErr2).NotTo(BeNil())
 			})
 		})
 
-		g.Describe("Update app", func() {
-			g.It("Should update an app for an existent id", func() {
+		Describe("Update app", func() {
+			It("Should update an app for an existent id", func() {
 				app, appErr := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr).Equal(nil)
+				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
-				g.Assert(insertAppErr).Equal(nil)
+				Expect(insertAppErr).To(BeNil())
 
 				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				g.Assert(organizationErr).Equal(nil)
+				Expect(organizationErr).To(BeNil())
 				insertOrganizationErr := db.Insert(organization)
-				g.Assert(insertOrganizationErr).Equal(nil)
+				Expect(insertOrganizationErr).To(BeNil())
 
 				newName := randomdata.SillyName()
 				newOrganizationID := organization.ID
 				newAppGroup := randomdata.SillyName()
 
-				updatedApp, updatedAppErr := UpdateApp(db, app.ID, newName, newOrganizationID, newAppGroup)
-				g.Assert(updatedAppErr).Equal(nil)
-				dbApp, dbAppErr := GetAppByID(db, app.ID)
-				g.Assert(dbAppErr).Equal(nil)
+				updatedApp, updatedAppErr := models.UpdateApp(db, app.ID, newName, newOrganizationID, newAppGroup)
+				Expect(updatedAppErr).To(BeNil())
+				dbApp, dbAppErr := models.GetAppByID(db, app.ID)
+				Expect(dbAppErr).To(BeNil())
 
-				g.Assert(updatedApp.Name).Equal(dbApp.Name)
-				g.Assert(updatedApp.AppGroup).Equal(dbApp.AppGroup)
-				g.Assert(updatedApp.OrganizationID).Equal(dbApp.OrganizationID)
+				Expect(updatedApp.Name).To(Equal(dbApp.Name))
+				Expect(updatedApp.AppGroup).To(Equal(dbApp.AppGroup))
+				Expect(updatedApp.OrganizationID).To(Equal(dbApp.OrganizationID))
 			})
 
-			g.It("Should not update an app with repeated name", func() {
+			It("Should not update an app with repeated name", func() {
 				app1, appErr1 := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr1).Equal(nil)
+				Expect(appErr1).To(BeNil())
 				insertAppErr1 := db.Insert(app1)
-				g.Assert(insertAppErr1).Equal(nil)
+				Expect(insertAppErr1).To(BeNil())
 
 				app2, appErr2 := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr2).Equal(nil)
+				Expect(appErr2).To(BeNil())
 				insertAppErr2 := db.Insert(app2)
-				g.Assert(insertAppErr2).Equal(nil)
+				Expect(insertAppErr2).To(BeNil())
 
 				newName := app1.Name
 				newOrganizationID := app2.OrganizationID
 				newAppGroup := app2.AppGroup
 
-				_, updatedAppErr := UpdateApp(db, app2.ID, newName, newOrganizationID, newAppGroup)
-				g.Assert(updatedAppErr != nil).IsTrue()
+				_, updatedAppErr := models.UpdateApp(db, app2.ID, newName, newOrganizationID, newAppGroup)
+				Expect(updatedAppErr).NotTo(BeNil())
 			})
 
-			g.It("Should not update an app for an unexistent id", func() {
+			It("Should not update an app for an unexistent id", func() {
 				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				g.Assert(organizationErr).Equal(nil)
+				Expect(organizationErr).To(BeNil())
 				insertOrganizationErr := db.Insert(organization)
-				g.Assert(insertOrganizationErr).Equal(nil)
+				Expect(insertOrganizationErr).To(BeNil())
 
 				newName := randomdata.SillyName()
 				newOrganizationID := organization.ID
 				newAppGroup := randomdata.SillyName()
 
 				invalidID := uuid.NewV4().String()
-				_, updatedAppErr := UpdateApp(db, invalidID, newName, newOrganizationID, newAppGroup)
-				g.Assert(updatedAppErr != nil).IsTrue()
+				_, updatedAppErr := models.UpdateApp(db, invalidID, newName, newOrganizationID, newAppGroup)
+				Expect(updatedAppErr).NotTo(BeNil())
 			})
 		})
 
-		g.Describe("Get app", func() {
-			g.It("Should retrieve an app for an existent id", func() {
+		Describe("Get app", func() {
+			It("Should retrieve an app for an existent id", func() {
 				app, appErr := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr).Equal(nil)
+				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
-				g.Assert(insertAppErr).Equal(nil)
+				Expect(insertAppErr).To(BeNil())
 
-				dbApp, dbAppErr := GetAppByID(db, app.ID)
-				g.Assert(dbAppErr).Equal(nil)
-				g.Assert(dbApp.Name).Equal(app.Name)
-				g.Assert(dbApp.AppGroup).Equal(app.AppGroup)
-				g.Assert(dbApp.OrganizationID).Equal(app.OrganizationID)
+				dbApp, dbAppErr := models.GetAppByID(db, app.ID)
+				Expect(dbAppErr).To(BeNil())
+				Expect(dbApp.Name).To(Equal(app.Name))
+				Expect(dbApp.AppGroup).To(Equal(app.AppGroup))
+				Expect(dbApp.OrganizationID).To(Equal(app.OrganizationID))
 			})
 
-			g.It("Should not retrieve an app for an unexistent id", func() {
+			It("Should not retrieve an app for an unexistent id", func() {
 				invalidID := uuid.NewV4().String()
-				_, dbAppErr := GetAppByID(db, invalidID)
-				g.Assert(dbAppErr != nil).IsTrue()
+				_, dbAppErr := models.GetAppByID(db, invalidID)
+				Expect(dbAppErr).NotTo(BeNil())
 			})
 
-			g.It("Should retrieve an app for an existent name", func() {
+			It("Should retrieve an app for an existent name", func() {
 				app, appErr := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr).Equal(nil)
+				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
-				g.Assert(insertAppErr).Equal(nil)
+				Expect(insertAppErr).To(BeNil())
 
-				dbApp, dbAppErr := GetAppByName(db, app.Name)
-				g.Assert(dbAppErr).Equal(nil)
-				g.Assert(dbApp.Name).Equal(app.Name)
-				g.Assert(dbApp.AppGroup).Equal(app.AppGroup)
-				g.Assert(dbApp.OrganizationID).Equal(app.OrganizationID)
+				dbApp, dbAppErr := models.GetAppByName(db, app.Name)
+				Expect(dbAppErr).To(BeNil())
+				Expect(dbApp.Name).To(Equal(app.Name))
+				Expect(dbApp.AppGroup).To(Equal(app.AppGroup))
+				Expect(dbApp.OrganizationID).To(Equal(app.OrganizationID))
 			})
 
-			g.It("Should not retrieve an app for an unexistent name", func() {
+			It("Should not retrieve an app for an unexistent name", func() {
 				invalidName := randomdata.SillyName()
-				_, dbAppErr := GetAppByName(db, invalidName)
-				g.Assert(dbAppErr != nil).IsTrue()
+				_, dbAppErr := models.GetAppByName(db, invalidName)
+				Expect(dbAppErr).NotTo(BeNil())
 			})
 
-			g.It("Should retrieve all apps for an existent group", func() {
+			It("Should retrieve all apps for an existent group", func() {
 				app, appErr := CreateAppFactory(db, map[string]interface{}{})
-				g.Assert(appErr).Equal(nil)
+				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
-				g.Assert(insertAppErr).Equal(nil)
+				Expect(insertAppErr).To(BeNil())
 
-				dbApps, dbAppsErr := GetAppsByGroup(db, app.AppGroup)
-				g.Assert(dbAppsErr).Equal(nil)
+				dbApps, dbAppsErr := models.GetAppsByGroup(db, app.AppGroup)
+				Expect(dbAppsErr).To(BeNil())
 				for eachApp := range dbApps {
-					g.Assert(dbApps[eachApp].Name).Equal(app.Name)
-					g.Assert(dbApps[eachApp].AppGroup).Equal(app.AppGroup)
-					g.Assert(dbApps[eachApp].OrganizationID).Equal(app.OrganizationID)
+					Expect(dbApps[eachApp].Name).To(Equal(app.Name))
+					Expect(dbApps[eachApp].AppGroup).To(Equal(app.AppGroup))
+					Expect(dbApps[eachApp].OrganizationID).To(Equal(app.OrganizationID))
 				}
 			})
 
-			g.It("Should not retrieve an app for an unexistent group", func() {
+			It("Should not retrieve an app for an unexistent group", func() {
 				invalidGroup := randomdata.SillyName()
-				_, dbAppsErr := GetAppsByGroup(db, invalidGroup)
-				g.Assert(dbAppsErr != nil).IsTrue()
+				_, dbAppsErr := models.GetAppsByGroup(db, invalidGroup)
+				Expect(dbAppsErr).NotTo(BeNil())
 			})
 		})
 	})
-}
+})

@@ -2,7 +2,6 @@ package: git.topfreegames.com/topfreegames/marathon
 import:
 - package: github.com/cbroglie/mustache
 - package: github.com/bsm/sarama-cluster
-- package: github.com/franela/goblin
 - package: github.com/onsi/gomega
 - package: github.com/spf13/cobra
 - package: github.com/spf13/viper
@@ -14,5 +13,8 @@ import:
   - factory
 - package: github.com/Pallinder/go-randomdata
 - package: github.com/satori/go.uuid
-- package: github.com/google/glog
-- package: github.com/golang/glog
+- package: github.com/onsi/ginkgo
+  version: ^1.2.0
+  subpackages:
+  - ginkgo
+- package: github.com/uber-go/zap

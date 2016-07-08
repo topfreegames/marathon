@@ -1,14 +1,14 @@
-package template
+package template_test
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
-	"testing"
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
-
-	. "github.com/franela/goblin"
+	"git.topfreegames.com/topfreegames/marathon/template"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TrimSuffix(s, suffix string) string {
@@ -70,205 +70,205 @@ func compareMapRequestMessage(valMap map[string]string, msg messages.RequestMess
 	return true
 }
 
-func TestTemplate(t *testing.T) {
-	g := Goblin(t)
+var _ = Describe("Template", func() {
+	Describe("Parser", func() {
+		Describe("Parse", func() {
+			It("Should parse a templated message correctly", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
 
-	g.Describe("Parser.Parse", func() {
-		g.It("Should parse a templated message correctly", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
+				message := buildMessage(valMap)
+				msg, err := template.Parse(message)
+				Expect(err).To(BeNil())
+				Expect(compareMapRequestMessage(valMap, *msg)).To(Equal(true))
+			})
 
-			message := buildMessage(valMap)
-			msg, err := Parse(message)
-			g.Assert(err == nil).IsTrue()
-			g.Assert(compareMapRequestMessage(valMap, *msg)).IsTrue()
+			It("Should parse a plain text message correctly", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"message":     "push message",
+				}
+
+				message := buildMessage(valMap)
+				msg, err := template.Parse(message)
+				Expect(err).To(BeNil())
+				Expect(compareMapRequestMessage(valMap, *msg)).To(Equal(true))
+			})
+
+			It("Should not parse an invalid templated message", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+				}
+
+				message := buildMessage(valMap)
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("Should not parse a [plain text + templated] message", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"message":     "push message",
+				}
+
+				message := buildMessage(valMap)
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("Should not parse a message without template and plan text", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+				}
+
+				message := buildMessage(valMap)
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("Should not parse a message which is not a json", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
+
+				message := buildMessage(valMap)
+				message = TrimSuffix(message, "}")
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("Should not parse a message with no App", func() {
+				valMap := map[string]string{
+					"app":         "",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
+
+				message := buildMessage(valMap)
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("Should not parse a message with no Token", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
+
+				message := buildMessage(valMap)
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("Should not parse a message with no Type", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
+
+				message := buildMessage(valMap)
+				_, err := template.Parse(message)
+				Expect(err).NotTo(BeNil())
+			})
 		})
 
-		g.It("Should parse a plain text message correctly", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"message":     "push message",
-			}
+		Describe("", func() {
+			It("Should parse messages correctly", func() {
+				valMap := map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
+				message1 := buildMessage(valMap)
+				valMap = map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+				}
+				message2 := buildMessage(valMap)
+				valMap = map[string]string{
+					"app":         "app_name",
+					"token":       "token_id",
+					"type":        "apns_or_gcm",
+					"push_expiry": "0",
+					"template":    "template_name",
+					"params":      `{"param1": "value1"}`,
+					"locale":      "en",
+					"metadata":    `{"meta": "data"}`,
+				}
+				message3 := buildMessage(valMap)
 
-			message := buildMessage(valMap)
-			msg, err := Parse(message)
-			g.Assert(err == nil).IsTrue()
-			g.Assert(compareMapRequestMessage(valMap, *msg)).IsTrue()
-		})
+				inChan := make(chan string, 1)
+				defer close(inChan)
+				outChan := make(chan *messages.RequestMessage, 1)
+				defer close(outChan)
 
-		g.It("Should not parse an invalid templated message", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-			}
+				go func() {
+					inChan <- message1
+					inChan <- message2
+					inChan <- message3
+				}()
 
-			message := buildMessage(valMap)
-			_, err := Parse(message)
-			g.Assert(err != nil).IsTrue()
-		})
+				go template.Parser(inChan, outChan)
+				out1 := <-outChan
+				out2 := <-outChan
 
-		g.It("Should not parse a [plain text + templated] message", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"message":     "push message",
-			}
-
-			message := buildMessage(valMap)
-			_, err := Parse(message)
-			g.Assert(err != nil).IsTrue()
-		})
-
-		g.It("Should not parse a message without template and plan text", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-			}
-
-			message := buildMessage(valMap)
-			_, err := Parse(message)
-			g.Assert(err != nil).IsTrue()
-		})
-
-		g.It("Should not parse a message which is not a json", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
-
-			message := buildMessage(valMap)
-			message = TrimSuffix(message, "}")
-			_, err := Parse(message)
-			g.Assert(err == nil).IsFalse()
-		})
-
-		g.It("Should not parse a message with no App", func() {
-			valMap := map[string]string{
-				"app":         "",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
-
-			message := buildMessage(valMap)
-			_, err := Parse(message)
-			g.Assert(err == nil).IsFalse()
-		})
-
-		g.It("Should not parse a message with no Token", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
-
-			message := buildMessage(valMap)
-			_, err := Parse(message)
-			g.Assert(err == nil).IsFalse()
-		})
-
-		g.It("Should not parse a message with no Type", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
-
-			message := buildMessage(valMap)
-			_, err := Parse(message)
-			g.Assert(err == nil).IsFalse()
+				Expect(compareMapRequestMessage(valMap, *out1)).To(Equal(true))
+				Expect(compareMapRequestMessage(valMap, *out2)).To(Equal(true))
+			})
 		})
 	})
-
-	g.Describe("Parser", func() {
-		g.It("Should parse messages correctly", func() {
-			valMap := map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
-			message1 := buildMessage(valMap)
-			valMap = map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-			}
-			message2 := buildMessage(valMap)
-			valMap = map[string]string{
-				"app":         "app_name",
-				"token":       "token_id",
-				"type":        "apns_or_gcm",
-				"push_expiry": "0",
-				"template":    "template_name",
-				"params":      `{"param1": "value1"}`,
-				"locale":      "en",
-				"metadata":    `{"meta": "data"}`,
-			}
-			message3 := buildMessage(valMap)
-
-			inChan := make(chan string, 1)
-			defer close(inChan)
-			outChan := make(chan *messages.RequestMessage, 1)
-			defer close(outChan)
-
-			go func() {
-				inChan <- message1
-				inChan <- message2
-				inChan <- message3
-			}()
-
-			go Parser(inChan, outChan)
-			out1 := <-outChan
-			out2 := <-outChan
-
-			g.Assert(compareMapRequestMessage(valMap, *out1)).IsTrue()
-			g.Assert(compareMapRequestMessage(valMap, *out2)).IsTrue()
-		})
-	})
-}
+})

@@ -4,9 +4,13 @@ import (
 	"time"
 
 	"github.com/satori/go.uuid"
+	"github.com/uber-go/zap"
 
 	"gopkg.in/gorp.v1"
 )
+
+// Logger is the models logger
+var Logger = zap.NewJSON(zap.WarnLevel)
 
 // App identifies uniquely one app
 type App struct {

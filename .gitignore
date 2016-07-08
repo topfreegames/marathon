@@ -23,5 +23,7 @@ _testmain.go
 *.test
 *.prof
 coverage*.out
+*.coverprofile**
+_build
 vendor/
 /marathon

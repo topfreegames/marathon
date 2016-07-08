@@ -7,11 +7,10 @@ import (
 	"gopkg.in/gorp.v1"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
-	"github.com/golang/glog"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
 	"github.com/kataras/iris"
-	"github.com/kataras/iris/middleware/logger"
 	"github.com/spf13/viper"
+	"github.com/uber-go/zap"
 )
 
 // Application is a struct that represents a Marathon API Applicationlication
@@ -23,6 +22,7 @@ type Application struct {
 	Application *iris.Framework
 	Db          models.DB
 	Config      *viper.Viper
+	Logger      zap.Logger
 }
 
 // GetApplication returns a new Marathon API Applicationlication
@@ -40,6 +40,7 @@ func GetApplication(host string, port int, configPath string, debug bool) *Appli
 
 // Configure instantiates the required dependencies for Marathon Api Applicationlication
 func (application *Application) Configure() {
+	application.Logger = zap.NewJSON(zap.WarnLevel)
 	application.setConfigurationDefaults()
 	application.loadConfiguration()
 	application.connectDatabase()
@@ -62,7 +63,10 @@ func (application *Application) loadConfiguration() {
 	application.Config.AutomaticEnv()
 
 	if err := application.Config.ReadInConfig(); err == nil {
-		glog.Info("Using config file:", application.Config.ConfigFileUsed())
+		application.Logger.Info(
+			"Using config file",
+			zap.String("file", application.Config.ConfigFileUsed()),
+		)
 	} else {
 		panic(fmt.Sprintf("Could not load configuration file from: %s", application.ConfigPath))
 	}
@@ -79,9 +83,13 @@ func (application *Application) connectDatabase() {
 	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
 
 	if err != nil {
-		glog.Errorf(
-			"Could not connect to Postgres at %s:%d with user %s and db %s with password %s (%s)\n",
-			host, port, user, dbName, password, err,
+		application.Logger.Error(
+			"Could not connect to postgres...",
+			zap.String("host", host),
+			zap.Int("port", port),
+			zap.String("user", user),
+			zap.String("dbName", dbName),
+			zap.Error(err),
 		)
 		panic(err)
 	}
@@ -92,10 +100,6 @@ func (application *Application) configureApplicationlication() {
 	application.Application = iris.New()
 	a := application.Application
 
-	if application.Debug {
-		a.Use(logger.New(iris.Logger))
-	}
-	// a.Use(recovery.New(os.Stderr))
 	a.Use(&TransactionMiddleware{Application: application})
 
 	a.Get("/healthcheck", HealthCheckHandler(application))

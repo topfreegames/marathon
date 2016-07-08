@@ -7,8 +7,11 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/cbroglie/mustache"
-	"github.com/golang/glog"
+	"github.com/uber-go/zap"
 )
+
+// Logger is the consumer logger
+var Logger = zap.NewJSON(zap.WarnLevel)
 
 type buildError struct {
 	Message string
@@ -24,29 +27,40 @@ func MessageBuilder(inChan <-chan *messages.RequestMessage, outChan chan<- *mess
 	for inReq := range inChan {
 		kafkaMsg, err := BuildMessage(inReq)
 		if err != nil {
-			glog.Errorf("Error building message: %+v", err)
+			Logger.Error(
+				"Error building message",
+				zap.Error(err),
+			)
 			continue
 		}
 		outChan <- kafkaMsg
 	}
 }
 
-// replaceTemplate replaces the template parameters from message with the
+// ReplaceTemplate replaces the template parameters from message with the
 // values of the keys in params. The function returns the built string
-func replaceTemplate(message string, params *map[string]string) string {
+func ReplaceTemplate(message string, params *map[string]string) (string, error) {
 	tmpl, tplErr := mustache.ParseString(message)
 	if tplErr != nil {
-		glog.Errorf("Template error")
+		Logger.Error(
+			"Template Error",
+			zap.Error(tplErr),
+		)
+		return "", tplErr
 	}
 	var buf bytes.Buffer
 	msg, rndrErr := tmpl.Render(*params, &buf)
 	if rndrErr != nil {
-		glog.Errorf("Render error")
+		Logger.Error(
+			"Render error",
+			zap.Error(rndrErr),
+		)
 	}
-	return msg
+	return msg, nil
 }
 
-func buildApnsMsg(request *messages.RequestMessage, content string) string {
+// BuildApnsMsg builds an apns message
+func BuildApnsMsg(request *messages.RequestMessage, content string) (string, error) {
 	msg := newApnsMessage()
 	msg.DeviceToken = request.Token
 	msg.PushExpiry = request.PushExpiry
@@ -57,21 +71,30 @@ func buildApnsMsg(request *messages.RequestMessage, content string) string {
 
 	b, err := json.Marshal(msg)
 	if err != nil {
-		glog.Errorf("Error building apns msg: %+v", err)
-		return ""
+		Logger.Error(
+			"Error building apns msg",
+			zap.String("msg", fmt.Sprintf("%+v", msg)),
+			zap.Error(err),
+		)
+		return "", err
 	}
 	strMsg := string(b)
-	return strMsg
+	return strMsg, nil
 }
 
-func buildGcmMsg(request *messages.RequestMessage, content string) string {
+// BuildGcmMsg builds a GCM message
+func BuildGcmMsg(request *messages.RequestMessage, content string) (string, error) {
 	msg := newGcmMessage()
 	msg.To = request.Token
 	msg.PushExpiry = request.PushExpiry
 	err := json.Unmarshal([]byte(content), &msg.Data)
 	if err != nil {
-		glog.Errorf("Error building gcm msg: %+v", err)
-		return ""
+		Logger.Error(
+			"Error building gcm msg",
+			zap.String("msg", fmt.Sprintf("%+v", msg)),
+			zap.Error(err),
+		)
+		return "", err
 	}
 	if len(request.Metadata) > 0 {
 		msg.Data["m"] = request.Metadata
@@ -79,11 +102,15 @@ func buildGcmMsg(request *messages.RequestMessage, content string) string {
 
 	b, err := json.Marshal(msg)
 	if err != nil {
-		glog.Errorf("Error building gcm msg: %+v", err)
-		return ""
+		Logger.Error(
+			"Error building gcm msg",
+			zap.String("msg", fmt.Sprintf("%+v", msg)),
+			zap.Error(err),
+		)
+		return "", err
 	}
 	strMsg := string(b)
-	return strMsg
+	return strMsg, nil
 }
 
 // BuildMessage receives a RequestMessage with Message filled with the message
@@ -91,14 +118,31 @@ func buildGcmMsg(request *messages.RequestMessage, content string) string {
 // should have already been fetched and placed into the Message field.
 func BuildMessage(request *messages.RequestMessage) (*messages.KafkaMessage, error) {
 	// Replace template
-	content := replaceTemplate(request.Message, &request.Params)
+	content, rplTplerr := ReplaceTemplate(request.Message, &request.Params)
+	if rplTplerr != nil {
+		Logger.Error(
+			"Template replacing error",
+			zap.Error(rplTplerr),
+		)
+		return nil, rplTplerr
+	}
+
 	topic := request.App
 
-	var message string
+	var (
+		message string
+		msgErr  error
+	)
 	if request.Type == "apns" {
-		message = buildApnsMsg(request, content)
+		message, msgErr = BuildApnsMsg(request, content)
+		if msgErr != nil {
+			return nil, msgErr
+		}
 	} else if request.Type == "gcm" {
-		message = buildGcmMsg(request, content)
+		message, msgErr = BuildGcmMsg(request, content)
+		if msgErr != nil {
+			return nil, msgErr
+		}
 	} else {
 		return nil, buildError{"Unknown request message type"}
 	}

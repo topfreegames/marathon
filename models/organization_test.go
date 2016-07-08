@@ -1,40 +1,46 @@
-package models
+package models_test
 
 import (
-	"testing"
-
+	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/Pallinder/go-randomdata"
-	. "github.com/franela/goblin"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func TestOrganizationModel(t *testing.T) {
-	g := Goblin(t)
-	db, err := GetTestDB()
-	g.Assert(err).Equal(nil)
+var _ = Describe("Models", func() {
+	var (
+		db models.DB
+	)
+	BeforeEach(func() {
+		_db, dbErr := models.GetTestDB()
+		Expect(dbErr).To(BeNil())
+		Expect(_db).NotTo(BeNil())
+		db = _db
+	})
 
-	g.Describe("Organization Model", func() {
-		g.Describe("Basic Operations", func() {
-			g.It("Should create an organization through a factory", func() {
+	Describe("Organization", func() {
+		Describe("Basic Operations", func() {
+			It("Should create an organization through a factory", func() {
 				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				g.Assert(organizationErr).Equal(nil)
+				Expect(organizationErr).To(BeNil())
 				insertOrganizationErr := db.Insert(organization)
-				g.Assert(insertOrganizationErr).Equal(nil)
+				Expect(insertOrganizationErr).To(BeNil())
 
-				dbOrganization, dbOrganizationErr := GetOrganizationByID(db, organization.ID)
-				g.Assert(dbOrganizationErr).Equal(nil)
-				g.Assert(dbOrganization.Name).Equal(organization.Name)
+				dbOrganization, dbOrganizationErr := models.GetOrganizationByID(db, organization.ID)
+				Expect(dbOrganizationErr).To(BeNil())
+				Expect(dbOrganization.Name).To(Equal(organization.Name))
 			})
 
-			g.It("Should create an organization", func() {
+			It("Should create an organization", func() {
 				name := randomdata.SillyName()
 
-				createdOrganization, createdOrganizationErr := CreateOrganization(db, name)
-				g.Assert(createdOrganizationErr).Equal(nil)
+				createdOrganization, createdOrganizationErr := models.CreateOrganization(db, name)
+				Expect(createdOrganizationErr).To(BeNil())
 
-				dbOrganization, dbOrganizationErr := GetOrganizationByID(db, createdOrganization.ID)
-				g.Assert(dbOrganizationErr).Equal(nil)
-				g.Assert(dbOrganization.Name).Equal(createdOrganization.Name)
+				dbOrganization, dbOrganizationErr := models.GetOrganizationByID(db, createdOrganization.ID)
+				Expect(dbOrganizationErr).To(BeNil())
+				Expect(dbOrganization.Name).To(Equal(createdOrganization.Name))
 			})
 		})
 	})
-}
+})

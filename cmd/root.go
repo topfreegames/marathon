@@ -3,13 +3,16 @@ package cmd
 import (
 	"os"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/uber-go/zap"
 )
 
 // ConfigFile is the file containing all config
 var ConfigFile string
+
+// Logger is the cmd logger
+var Logger = zap.NewJSON(zap.WarnLevel)
 
 // RootCmd is the root command for marathon CLI application
 var RootCmd = &cobra.Command{
@@ -21,14 +24,13 @@ var RootCmd = &cobra.Command{
 // Execute runs RootCmd to initialize marathon CLI application
 func Execute(cmd *cobra.Command) {
 	if err := cmd.Execute(); err != nil {
-		glog.Error(err)
+		Logger.Error("Error", zap.Error(err))
 		os.Exit(-1)
 	}
 }
 
 func init() {
 	// cobra.OnInitialize(initConfig)
-
 	RootCmd.PersistentFlags().StringVarP(
 		&ConfigFile, "config", "c", "./config/local.yaml",
 		"config file (default is ./config/local.yaml",
@@ -47,6 +49,9 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		glog.Infof("Using config file:", viper.ConfigFileUsed())
+		Logger.Error(
+			"Using config file",
+			zap.String("Config file", viper.ConfigFileUsed()),
+		)
 	}
 }

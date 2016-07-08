@@ -1,9 +1,10 @@
 PACKAGES = $(shell glide novendor)
-GODIRS = $(shell go list ./... | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
+DIRS = $(shell find . -type f -not -path '*/\.*' | grep '.go' | grep -v "^[.]\/vendor" | xargs -I {} dirname {} | sort | uniq | grep -v '^.$$')
 PMD = "pmd-bin-5.3.3"
 
 setup:
 	@go get -u github.com/Masterminds/glide/...
+	@go get -u github.com/onsi/ginkgo/ginkgo
 	@go get -v github.com/spf13/cobra/cobra
 	@go get github.com/fzipp/gocyclo
 	@go get github.com/topfreegames/goose/cmd/goose
@@ -56,16 +57,19 @@ db-local-migrate:
 	@echo "Database migrated successfully!"
 
 test: db-test-create db-test-migrate run-kafka-zookeeper
-	@go test $(PACKAGES)
+	@ginkgo --cover $(DIRS)
 
-coverage: run-kafka-zookeeper
-	@echo "mode: count" > coverage-all.out
-	@$(foreach pkg,$(PACKAGES),\
-		go test -coverprofile=coverage.out -covermode=count $(pkg);\
-		tail -n +2 coverage.out >> coverage-all.out;)
+test-verbose: db-test-create db-test-migrate run-kafka-zookeeper
+	@ginkgo -v --cover $(DIRS)
 
-coverage-html: run-kafka-zookeeper
-	@go tool cover -html=coverage-all.out
+test-coverage: test
+	@rm -rf _build
+	@mkdir -p _build
+	@echo "mode: count" > _build/test-coverage-all.out
+	@bash -c 'for f in $$(find . -name "*.coverprofile"); do tail -n +2 $$f >> _build/test-coverage-all.out; done'
+
+test-coverage-html: test-coverage
+	@go tool cover -html=_build/test-coverage-all.out
 
 static:
 	@go vet $(PACKAGES)
@@ -75,21 +79,21 @@ static:
         golint $$pkg ; \
     done
 	@#ineffassign
-	@for pkg in $(GODIRS) ; do \
+	@for pkg in $(DIRS) ; do \
         ineffassign $$pkg ; \
     done
 	@${MAKE} pmd
 
 pmd:
 	@bash pmd.sh
-	@for pkg in $(GODIRS) ; do \
+	@for pkg in $(DIRS) ; do \
 		exclude=$$(find $$pkg -name '*_test.go') && \
 		/tmp/pmd-bin-5.4.2/bin/run.sh cpd --minimum-tokens 30 --files $$pkg --exclude $$exclude --language go ; \
     done
 
 pmd-full:
 	@bash pmd.sh
-	@for pkg in $(GODIRS) ; do \
+	@for pkg in $(DIRS) ; do \
 		/tmp/pmd-bin-5.4.2/bin/run.sh cpd --minimum-tokens 30 --files $$pkg --language go ; \
     done
 
@@ -103,16 +107,18 @@ run-zookeeper:
 kill-zookeeper:
 	@ps aux | egrep "./tests/zookeeper.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
 	@rm -rf /tmp/marathon-zookeeper
+	@rm -rf /tmp/marathon-zookeeper.log
 
 
 run-kafka:
 	@kafka-server-start ./tests/server.properties 2>&1 > /tmp/marathon-kafka.log &
-	@sleep 2
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-1 --zookeeper localhost:3535 2>&1 > /dev/null
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-2 --zookeeper localhost:3535 2>&1 > /dev/null
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-3 --zookeeper localhost:3535 2>&1 > /dev/null
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-producer-1 --zookeeper localhost:3535 2>&1 > /dev/null
+	@sleep 4
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-1 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-2 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-3 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-producer-1 --zookeeper localhost:3535
 
 kill-kafka:
 	@ps aux | egrep "./tests/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
 	@rm -rf /tmp/marathon-kafka-logs
+	@rm -rf /tmp/marathon-kafka.log

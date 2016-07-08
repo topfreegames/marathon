@@ -1,13 +1,13 @@
 package api
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/gavv/httpexpect"
-	"github.com/gavv/httpexpect/fasthttpexpect"
 )
 
-// GetDefaultTestApplication returns a new Khan API Applicationlication bound to 0.0.0.0:8888 for test
+// GetDefaultTestApplication returns a new Marathon API Applicationlication bound to 0.0.0.0:8888 for test
 func GetDefaultTestApplication() *Application {
 	return GetApplication("0.0.0.0", 8888, "../config/test.yaml", true)
 }
@@ -53,7 +53,13 @@ func sendRequest(application *Application, method, url string, t *testing.T) *ht
 
 	e := httpexpect.WithConfig(httpexpect.Config{
 		Reporter: httpexpect.NewAssertReporter(t),
-		Client:   fasthttpexpect.NewBinder(handler),
+		Client: &http.Client{
+			Transport: httpexpect.NewFastBinder(handler),
+			Jar:       httpexpect.NewJar(),
+		},
+		Printers: []httpexpect.Printer{
+			httpexpect.NewDebugPrinter(t, true),
+		},
 	})
 
 	return e.Request(method, url)

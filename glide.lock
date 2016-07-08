@@ -1,8 +1,14 @@
-hash: 1b38731932e0b304136290e6884ac36fa87ef8d794d3c76366cc87c1081368b0
-updated: 2016-06-22T14:43:35.880336456-03:00
+hash: a4a4ca4272fa311756c7761f90e4734e4e244d2e2b90812a42eac0c4d24b3226
+updated: 2016-07-05T16:53:43.333640997-03:00
 imports:
 - name: github.com/ajg/form
-  version: e7b99d6ea9c58e7bb6b2c1059b9ba748cdff22b0
+  version: 7ff89c75808766205bfa4411abb436c98c33eb5e
+- name: github.com/aymerick/raymond
+  version: a2232af10b53ef1ae5a767f5178db3a6c1dab655
+  subpackages:
+  - ast
+  - parser
+  - lexer
 - name: github.com/bluele/factory-go
   version: d6a4ddee8ba43b1d900c1e0d093397811e2b5dd8
   subpackages:
@@ -31,10 +37,10 @@ imports:
   - parser
 - name: github.com/fatih/color
   version: 87d4004f2ab62d0d255e0a38f1680aa534549fe3
+- name: github.com/fatih/structs
+  version: be738c8546f55b34e60125afa50ed73a9a9c460e
 - name: github.com/flosch/pongo2
   version: 7f5515449ea9bbeb00256d9cbb654c556e7d0146
-- name: github.com/franela/goblin
-  version: efa9910a3ea4ccb7ee4b977571318af2e51ba05f
 - name: github.com/fsnotify/fsnotify
   version: 30411dbcefb7a1da7e84f75530ad3abe4011b4f8
 - name: github.com/garyburd/redigo
@@ -47,23 +53,15 @@ imports:
   subpackages:
   - formatter
 - name: github.com/gavv/httpexpect
-  version: 67d1d9c6ebbd184906b50084c965286cbcddf937
+  version: 0bb88a1ec0bfc9977c30879f870595d8423f2ff9
   subpackages:
   - fasthttpexpect
 - name: github.com/gavv/monotime
   version: 259cd7b345f5aa080eff16f21d7866ef7dea9528
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
-- name: github.com/golang/glog
-  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
-- name: github.com/golang/protobuf
-  version: 0c1f6d65b5a189c2250d10e71a5506f06f9fa0a0
-  subpackages:
-  - proto
 - name: github.com/golang/snappy
   version: d7b1e156f50d3c4664f683603af70e3e47fa0aa2
-- name: github.com/google/glog
-  version: de6149ef8e67b064a433a8b88924fa9f606ad5d5
 - name: github.com/google/go-querystring
   version: 9235644dd9e52eeae6fa48efd539fdc351a0af53
   subpackages:
@@ -81,29 +79,28 @@ imports:
   - json/token
 - name: github.com/imdario/mergo
   version: 50d4dbd4eb0e84778abe37cefef140271d96fade
+- name: github.com/imkira/go-interpol
+  version: b9781c93ae51c8b4fc3af1b1426909721af0a624
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/iris-contrib/errors
+  version: 9d4599565f75fd376a8e4ae5ccc98fc078b93b69
 - name: github.com/iris-contrib/formBinder
-  version: 672da7dc0b798b54603604e52d031bb0faf3ea2a
-- name: github.com/iris-contrib/gothic
-  version: f8bed0a23d35001b05b068951243b74d601f19fe
+  version: 32009bbc76eda475a6d1eb24787d1fdcdaf80e71
 - name: github.com/iris-contrib/websocket
-  version: b762f72cc36c95454d10dbae6b6221ef89d53010
+  version: a2c30084384c39ce6595169df8b93d7298ac04cd
 - name: github.com/jinzhu/gorm
-  version: caa792644ce60fd7b429e0616afbdbccdf011be2
+  version: 3324ab20633e8c7ec6d6b1f7a714a1a6e06fec08
   subpackages:
   - dialects/postgres
 - name: github.com/Joker/jade
   version: db4d7e4f68708c5020c392b380e3565df2132840
 - name: github.com/kataras/iris
-  version: 56f78567a212cabcdc7d871b4340d151d6e076c5
+  version: 126e170371993b4df82908b1715c2bbc0be10bc6
   subpackages:
-  - middleware/logger
+  - logger
   - config
   - context
-  - errors
-  - logger
-  - mail
   - render/rest
   - render/template
   - sessions
@@ -113,6 +110,7 @@ imports:
   - utils
   - websocket
   - render/template/engine/amber
+  - render/template/engine/handlebars
   - render/template/engine/html
   - render/template/engine/jade
   - render/template/engine/markdown
@@ -139,18 +137,20 @@ imports:
   - oid
 - name: github.com/magiconair/properties
   version: c265cfa48dda6474e208715ca93e987829f572f8
-- name: github.com/markbates/goth
-  version: 4cf2710d55535bd35f29a7fc8d7496b28eb8abf7
 - name: github.com/mattn/go-colorable
   version: 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
 - name: github.com/mattn/go-isatty
   version: 56b76bdf51f7708750eac80fa38b952bb9f32639
 - name: github.com/microcosm-cc/bluemonday
-  version: 4ac6f27528d0a3f2a59e0b0a6f6b3ff0bb89fe20
+  version: 9dc199233bf72cc1aad9b61f73daf2f0075b9ee4
 - name: github.com/mitchellh/mapstructure
   version: d2dd0262208475919e1a362f675cfc0e7c10e905
 - name: github.com/moul/http2curl
   version: b1479103caacaa39319f75e7f57fc545287fca0d
+- name: github.com/onsi/ginkgo
+  version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
+  subpackages:
+  - ginkgo
 - name: github.com/onsi/gomega
   version: 3e93f011213c200aadafcb19ed56eb718381cfbd
 - name: github.com/Pallinder/go-randomdata
@@ -190,11 +190,25 @@ imports:
   version: c7f6dd34057cd7e5253c282993b18dd92da999cd
   subpackages:
   - lib/goose
+- name: github.com/uber-go/atomic
+  version: e682c1008ac17bf26d2e4b5ad6cdd08520ed0b22
+- name: github.com/uber-go/zap
+  version: 0adf805bc28a5fdebc09a8c9c0f1260a7fbd9f39
+- name: github.com/valyala/bytebufferpool
+  version: a517d2d1537f5b02e9f6c23d4794160c6c2bc157
 - name: github.com/valyala/fasthttp
-  version: 29a4c4d6c1764a7986e68ab18c4b83f0e08c2df8
+  version: 97d96cb3b7feaf22ce9b813313cd8ae20b3589b9
   subpackages:
   - fasthttpadaptor
   - fasthttputil
+- name: github.com/xeipuuv/gojsonpointer
+  version: e0fe6f68307607d540ed8eac07a342c33fa1b54a
+- name: github.com/xeipuuv/gojsonreference
+  version: e02fc20de94c78484cd5ffb007f8af96be030a45
+- name: github.com/xeipuuv/gojsonschema
+  version: c539bca196be50ccdd1f0bcd9076de95f9081831
+- name: github.com/yalp/jsonpath
+  version: 31a79c7593bb93eb10b163650d4a3e6ca190e4dc
 - name: github.com/yudai/golcs
   version: d1c525dea8ce39ea9a783d33cf08932305373f2c
 - name: github.com/ziutek/mymysql
@@ -204,31 +218,19 @@ imports:
   - mysql
   - native
 - name: golang.org/x/net
-  version: bc3663df0ac92f928d419e31e0d2af22e683a5a2
+  version: b400c2eff1badec7022a8c8f5bea058b6315eed7
   subpackages:
+  - publicsuffix
   - html
-  - context
   - html/atom
-- name: golang.org/x/oauth2
-  version: 65a8d08c6292395d47053be10b3c5e91960def76
-  subpackages:
-  - internal
 - name: golang.org/x/sys
   version: b776ec39b3e54652e09028aaaaac9757f4f8211a
   subpackages:
   - unix
-- name: google.golang.org/appengine
-  version: 267c27e7492265b84fc6719503b14a1e17975d79
-  subpackages:
-  - urlfetch
-  - internal
-  - internal/urlfetch
-  - internal/base
-  - internal/datastore
-  - internal/log
-  - internal/remote_api
 - name: gopkg.in/gorp.v1
   version: c87af80f3cc5036b55b83d77171e156791085e2e
 - name: gopkg.in/yaml.v2
   version: a83829b6f1293c91addabc89d0571c246397bbf4
-devImports: []
+testImports:
+- name: github.com/franela/goblin
+  version: efa9910a3ea4ccb7ee4b977571318af2e51ba05f

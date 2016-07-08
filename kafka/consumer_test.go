@@ -1,77 +1,58 @@
-package kafka
+package kafka_test
 
 import (
 	"fmt"
-	"testing"
 
+	"git.topfreegames.com/topfreegames/marathon/kafka"
 	"github.com/Shopify/sarama"
-	. "github.com/franela/goblin"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func produceMessage(t *testing.T, brokers []string, topic string, message string,
-	partition int32, offset int64) {
-	g := Goblin(t)
+func produceMessage(brokers []string, topic string, message string, partition int32, offset int64) {
 	// Produce message to the test
 	producerConfig := sarama.NewConfig()
 	producerConfig.Version = sarama.V0_9_0_0
 	producer, err := sarama.NewSyncProducer(brokers, producerConfig)
-	g.Assert(err == nil).IsTrue()
-	saramaMessage := &sarama.ProducerMessage{
+	Expect(err).To(BeNil())
+	defer producer.Close()
+
+	saramaMessage := sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.StringEncoder(message),
 	}
-	part, off, err := producer.SendMessage(saramaMessage)
-	g.Assert(err).Equal(nil)
-	g.Assert(part).Equal(partition)
-	g.Assert(off).Equal(offset)
+
+	part, off, err := producer.SendMessage(&saramaMessage)
+	Expect(err).To(BeNil())
+	Expect(part).To(Equal(partition))
+	Expect(off).To(Equal(offset))
 }
 
-func TestConsumer(t *testing.T) {
-	g := Goblin(t)
-
-	g.Describe("Consumer.Consume", func() {
-		g.It("Should consume message correctly and retrieve it", func() {
-			kafkaMsg := &sarama.ConsumerMessage{Value: []byte("test")}
-			_, err := Consume(kafkaMsg)
-			g.Assert(err).Equal(nil)
+var _ = Describe("Consumer", func() {
+	Describe("Consume", func() {
+		It("Should not consume an empty message", func() {
+			message := ""
+			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
+			_, err := kafka.Consume(&kafkaMsg)
+			Expect(err).NotTo(BeNil())
 		})
-
-		g.It("Should not consume an empty message", func() {
-			kafkaMsg := &sarama.ConsumerMessage{Value: []byte("")}
-			msg, err := Consume(kafkaMsg)
-			g.Assert(msg).Equal("")
-			g.Assert(err == nil).IsFalse()
-		})
-
-		g.It("Should consume one message correctly and retrieve it", func() {
-			topic := "test-consumer-1"
-			topics := []string{topic}
-			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test"
-
-			config := &ConsumerConfig{
-				ConsumerGroup: consumerGroup,
-				Topics:        topics,
-				Brokers:       brokers,
-			}
-
-			outChan := make(chan string, 10)
-			defer close(outChan)
-			done := make(chan struct{}, 1)
-			defer close(done)
-
-			go Consumer(config, outChan, done)
+		It("Should consume one message correctly and retrieve it", func() {
+			message := "message"
+			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
+			msg, err := kafka.Consume(&kafkaMsg)
+			Expect(err).To(BeNil())
+			Expect(msg).To(Equal(message))
 		})
 	})
 
-	g.Describe("Consumer", func() {
-		g.It("Should consume one message correctly and retrieve it", func() {
+	Describe("", func() {
+		It("Should consume one message correctly and retrieve it", func() {
 			topic := "test-consumer-1"
 			topics := []string{topic}
 			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test"
+			consumerGroup := "consumer-group-test-consumer-1"
 
-			config := &ConsumerConfig{
+			consumerConfig := kafka.ConsumerConfig{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -81,24 +62,24 @@ func TestConsumer(t *testing.T) {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go Consumer(config, outChan, done)
+			go kafka.Consumer(&consumerConfig, outChan, done)
 
 			// Produce Messages
 			message := "message"
-			produceMessage(t, brokers, topic, message, int32(0), int64(0))
+			produceMessage(brokers, topic, message, int32(0), int64(0))
 
 			consumedMessage := <-outChan
-			g.Assert(consumedMessage).Equal(message)
+			Expect(consumedMessage).To(Equal(message))
 		})
 
-		g.It("Should consume two messages correctly and retrieve them", func() {
+		It("Should consume two messages correctly and retrieve them", func() {
 			topic := "test-consumer-2"
 			topics := []string{topic}
 			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test"
+			consumerGroup := "consumer-group-test-consumer-2"
 			message := "message%d"
 
-			config := &ConsumerConfig{
+			consumerConfig := kafka.ConsumerConfig{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -108,27 +89,28 @@ func TestConsumer(t *testing.T) {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go Consumer(config, outChan, done)
+			go kafka.Consumer(&consumerConfig, outChan, done)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
 			message2 := fmt.Sprintf(message, 1)
-			produceMessage(t, brokers, topic, message1, int32(0), int64(0))
-			produceMessage(t, brokers, topic, message2, int32(0), int64(1))
+			produceMessage(brokers, topic, message1, int32(0), int64(0))
+			produceMessage(brokers, topic, message2, int32(0), int64(1))
 
 			consumedMessage1 := <-outChan
 			consumedMessage2 := <-outChan
-			g.Assert(consumedMessage1).Equal(message1)
-			g.Assert(consumedMessage2).Equal(message1)
+			Expect(consumedMessage1).To(Equal(message1))
+			Expect(consumedMessage2).To(Equal(message2))
 		})
 
-		g.It("Should not output an empty message", func() {
+		It("Should not output an empty message", func() {
 			topic := "test-consumer-3"
 			topics := []string{topic}
 			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test"
+			consumerGroup := "consumer-group-test-consumer-3"
+			message := "message"
 
-			config := &ConsumerConfig{
+			consumerConfig := kafka.ConsumerConfig{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -138,23 +120,23 @@ func TestConsumer(t *testing.T) {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go Consumer(config, outChan, done)
+			go kafka.Consumer(&consumerConfig, outChan, done)
 
-			produceMessage(t, brokers, topic, "", int32(0), int64(0))
-			produceMessage(t, brokers, topic, "message", int32(0), int64(1))
+			produceMessage(brokers, topic, "", int32(0), int64(0))
+			produceMessage(brokers, topic, "message", int32(0), int64(1))
 
 			// The channel receives only non-empty messages
 			consumedMessage := <-outChan
-			g.Assert(consumedMessage).Equal("message")
+			Expect(consumedMessage).To(Equal(message))
 		})
 
-		g.It("Should not start a consumer if no broker found", func() {
-			topic := "test-consumer-3"
+		It("Should not start a consumer if no broker found", func() {
+			topic := "test-consumer-4"
 			topics := []string{topic}
 			brokers := []string{"localhost:0666"}
-			consumerGroup := "consumer-group-test"
+			consumerGroup := "consumer-group-test-consumer-4"
 
-			config := &ConsumerConfig{
+			consumerConfig := kafka.ConsumerConfig{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -166,7 +148,7 @@ func TestConsumer(t *testing.T) {
 			defer close(done)
 
 			// Consumer returns here and don't get blocked
-			Consumer(config, outChan, done)
+			kafka.Consumer(&consumerConfig, outChan, done)
 		})
 	})
-}
+})

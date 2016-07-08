@@ -1,1 +1,1 @@
-package messages
+package messages_test
