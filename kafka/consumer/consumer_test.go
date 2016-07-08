@@ -1,13 +1,20 @@
-package kafka_test
+package consumer_test
 
 import (
 	"fmt"
+	"testing"
 
-	"git.topfreegames.com/topfreegames/marathon/kafka"
+	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
+
 	"github.com/Shopify/sarama"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+func TestConsumer(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Consumer")
+}
 
 func produceMessage(brokers []string, topic string, message string, partition int32, offset int64) {
 	// Produce message to the test
@@ -33,13 +40,13 @@ var _ = Describe("Consumer", func() {
 		It("Should not consume an empty message", func() {
 			message := ""
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
-			_, err := kafka.Consume(&kafkaMsg)
+			_, err := consumer.Consume(&kafkaMsg)
 			Expect(err).NotTo(BeNil())
 		})
 		It("Should consume one message correctly and retrieve it", func() {
 			message := "message"
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
-			msg, err := kafka.Consume(&kafkaMsg)
+			msg, err := consumer.Consume(&kafkaMsg)
 			Expect(err).To(BeNil())
 			Expect(msg).To(Equal(message))
 		})
@@ -52,7 +59,7 @@ var _ = Describe("Consumer", func() {
 			brokers := []string{"localhost:3536"}
 			consumerGroup := "consumer-group-test-consumer-1"
 
-			consumerConfig := kafka.ConsumerConfig{
+			consumerConfig := consumer.Config{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -62,7 +69,7 @@ var _ = Describe("Consumer", func() {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go kafka.Consumer(&consumerConfig, outChan, done)
+			go consumer.Consumer(&consumerConfig, outChan, done)
 
 			// Produce Messages
 			message := "message"
@@ -79,7 +86,7 @@ var _ = Describe("Consumer", func() {
 			consumerGroup := "consumer-group-test-consumer-2"
 			message := "message%d"
 
-			consumerConfig := kafka.ConsumerConfig{
+			consumerConfig := consumer.Config{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -89,7 +96,7 @@ var _ = Describe("Consumer", func() {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go kafka.Consumer(&consumerConfig, outChan, done)
+			go consumer.Consumer(&consumerConfig, outChan, done)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
@@ -110,7 +117,7 @@ var _ = Describe("Consumer", func() {
 			consumerGroup := "consumer-group-test-consumer-3"
 			message := "message"
 
-			consumerConfig := kafka.ConsumerConfig{
+			consumerConfig := consumer.Config{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -120,7 +127,7 @@ var _ = Describe("Consumer", func() {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go kafka.Consumer(&consumerConfig, outChan, done)
+			go consumer.Consumer(&consumerConfig, outChan, done)
 
 			produceMessage(brokers, topic, "", int32(0), int64(0))
 			produceMessage(brokers, topic, "message", int32(0), int64(1))
@@ -136,7 +143,7 @@ var _ = Describe("Consumer", func() {
 			brokers := []string{"localhost:0666"}
 			consumerGroup := "consumer-group-test-consumer-4"
 
-			consumerConfig := kafka.ConsumerConfig{
+			consumerConfig := consumer.Config{
 				ConsumerGroup: consumerGroup,
 				Topics:        topics,
 				Brokers:       brokers,
@@ -148,7 +155,7 @@ var _ = Describe("Consumer", func() {
 			defer close(done)
 
 			// Consumer returns here and don't get blocked
-			kafka.Consumer(&consumerConfig, outChan, done)
+			consumer.Consumer(&consumerConfig, outChan, done)
 		})
 	})
 })

@@ -1,8 +1,8 @@
-package kafka
+package consumer
 
-// ConsumerConfig stores configuration required to initialize the Kafka
+// Config stores configuration required to initialize the Kafka
 // consumers
-type ConsumerConfig struct {
+type Config struct {
 	// REQUIRED: The consumer group to aggregate all the consumers that belongs
 	// to the same cell.
 	ConsumerGroup string

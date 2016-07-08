@@ -1,4 +1,4 @@
-package kafka
+package consumer
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(consumerConfig *ConsumerConfig, outChan chan<- string, done <-chan struct{}) {
+func Consumer(consumerConfig *Config, outChan chan<- string, done <-chan struct{}) {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true

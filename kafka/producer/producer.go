@@ -1,4 +1,4 @@
-package kafka
+package producer
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
@@ -6,8 +6,11 @@ import (
 	"github.com/uber-go/zap"
 )
 
+// Logger is the producer logger
+var Logger = zap.NewJSON(zap.WarnLevel)
+
 // Producer continuosly reads from inChan and sends the received messages to kafka
-func Producer(kafkaConfig *ProducerConfig, inChan <-chan *messages.KafkaMessage) {
+func Producer(kafkaConfig *Config, inChan <-chan *messages.KafkaMessage) {
 
 	saramaConfig := sarama.NewConfig()
 	producer, err := sarama.NewSyncProducer(kafkaConfig.Brokers, saramaConfig)

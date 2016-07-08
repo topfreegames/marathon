@@ -1,14 +1,21 @@
-package kafka_test
+package producer_test
 
 import (
 	"fmt"
+	"testing"
 
-	"git.topfreegames.com/topfreegames/marathon/kafka"
+	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
+	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+func TestProducer(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Producer")
+}
 
 var _ = Describe("Producer", func() {
 	It("Should send messages received in the inChan to kafka", func() {
@@ -18,11 +25,11 @@ var _ = Describe("Producer", func() {
 		consumerGroup := "consumer-group-test-producer-1"
 		message := "message%d"
 
-		producerConfig := kafka.ProducerConfig{Brokers: brokers}
+		producerConfig := producer.Config{Brokers: brokers}
 		inChan := make(chan *messages.KafkaMessage)
 		defer close(inChan)
 
-		go kafka.Producer(&producerConfig, inChan)
+		go producer.Producer(&producerConfig, inChan)
 		message1 := fmt.Sprintf(message, 1)
 		message2 := fmt.Sprintf(message, 1)
 		msg1 := &messages.KafkaMessage{Message: message1, Topic: topic}
@@ -31,7 +38,7 @@ var _ = Describe("Producer", func() {
 		inChan <- msg2
 
 		// Consuming
-		consumerConfig := kafka.ConsumerConfig{
+		consumerConfig := consumer.Config{
 			ConsumerGroup: consumerGroup,
 			Topics:        topics,
 			Brokers:       brokers,
@@ -40,7 +47,7 @@ var _ = Describe("Producer", func() {
 		defer close(outChan)
 		done := make(chan struct{}, 1)
 		defer close(done)
-		go kafka.Consumer(&consumerConfig, outChan, done)
+		go consumer.Consumer(&consumerConfig, outChan, done)
 
 		consumedMessage1 := <-outChan
 		consumedMessage2 := <-outChan
@@ -51,11 +58,11 @@ var _ = Describe("Producer", func() {
 	It("Should not create a producer if no broker found", func() {
 		brokers := []string{"localhost:3555"}
 
-		producerConfig := kafka.ProducerConfig{Brokers: brokers}
+		producerConfig := producer.Config{Brokers: brokers}
 		inChan := make(chan *messages.KafkaMessage)
 		defer close(inChan)
 
 		// Producer returns here and don't get blocked
-		kafka.Producer(&producerConfig, inChan)
+		producer.Producer(&producerConfig, inChan)
 	})
 })
