@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/satori/go.uuid"
-
 	"gopkg.in/gorp.v1"
 )
 
@@ -59,5 +58,22 @@ func CreateOrganization(db DB, Name string) (*Organization, error) {
 	if err != nil {
 		return nil, err
 	}
+	return organization, nil
+}
+
+// UpdateOrganization updates an Organization
+func UpdateOrganization(db DB, id string, Name string) (*Organization, error) {
+	organization, getOrganizationErr := GetOrganizationByID(db, id)
+	if getOrganizationErr != nil {
+		return nil, getOrganizationErr
+	}
+
+	organization.Name = Name
+
+	_, updateErr := db.Update(organization)
+	if updateErr != nil {
+		return nil, updateErr
+	}
+
 	return organization, nil
 }

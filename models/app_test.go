@@ -9,17 +9,16 @@ import (
 )
 
 var _ = Describe("Models", func() {
-	var (
-		db models.DB
-	)
-	BeforeEach(func() {
-		_db, dbErr := models.GetTestDB()
-		Expect(dbErr).To(BeNil())
-		Expect(_db).NotTo(BeNil())
-		db = _db
-	})
-
 	Describe("App", func() {
+		var (
+			db models.DB
+		)
+		BeforeEach(func() {
+			_db, dbErr := models.GetTestDB()
+			Expect(dbErr).To(BeNil())
+			Expect(_db).NotTo(BeNil())
+			db = _db
+		})
 
 		Describe("Create app", func() {
 			It("Should create an app through a factory", func() {
