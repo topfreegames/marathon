@@ -13,7 +13,6 @@ type Organization struct {
 	Name      string `db:"name"`
 	CreatedAt int64  `db:"created_at"`
 	UpdatedAt int64  `db:"updated_at"`
-	DeletedAt int64  `db:"deleted_at"`
 }
 
 // PreInsert populates fields before inserting a new organization

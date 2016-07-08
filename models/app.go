@@ -4,13 +4,8 @@ import (
 	"time"
 
 	"github.com/satori/go.uuid"
-	"github.com/uber-go/zap"
-
 	"gopkg.in/gorp.v1"
 )
-
-// Logger is the models logger
-var Logger = zap.NewJSON(zap.WarnLevel)
 
 // App identifies uniquely one app
 type App struct {
@@ -20,7 +15,6 @@ type App struct {
 	AppGroup       string `db:"app_group"`
 	CreatedAt      int64  `db:"created_at"`
 	UpdatedAt      int64  `db:"updated_at"`
-	DeletedAt      int64  `db:"deleted_at"`
 }
 
 // PreInsert populates fields before inserting a new app

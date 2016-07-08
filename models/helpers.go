@@ -5,8 +5,12 @@ import (
 	"fmt"
 
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
+	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
 )
+
+// Logger is the models logger
+var Logger = zap.NewJSON(zap.WarnLevel)
 
 // DB is the contract for all the operations we use from either a connection or transaction
 // This is required for automatic transactions
@@ -65,6 +69,7 @@ func InitDb(host string, user string, port int, sslmode string, dbName string, p
 
 	dbmap.AddTableWithName(Organization{}, "organizations").SetKeys(false, "ID")
 	dbmap.AddTableWithName(App{}, "apps").SetKeys(false, "ID")
+	dbmap.AddTableWithName(Notifier{}, "notifiers").SetKeys(false, "ID")
 
 	return dbmap, nil
 }

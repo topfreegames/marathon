@@ -2,7 +2,6 @@ package models_test
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/models"
-	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
@@ -33,7 +32,7 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should create an organization", func() {
-				name := randomdata.SillyName()
+				name := uuid.NewV4().String()
 
 				createdOrganization, createdOrganizationErr := models.CreateOrganization(db, name)
 				Expect(createdOrganizationErr).To(BeNil())
@@ -44,7 +43,7 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not create an organization with repeated name", func() {
-				name := randomdata.SillyName()
+				name := uuid.NewV4().String()
 
 				_, createdOrganization1Err := models.CreateOrganization(db, name)
 				Expect(createdOrganization1Err).To(BeNil())
@@ -56,11 +55,11 @@ var _ = Describe("Models", func() {
 	})
 	Describe("Update Organization", func() {
 		It("Should update an organization for an existent id", func() {
-			name := randomdata.SillyName()
+			name := uuid.NewV4().String()
 			organization, createdOrganizationErr := models.CreateOrganization(db, name)
 			Expect(createdOrganizationErr).To(BeNil())
 
-			newName := randomdata.SillyName()
+			newName := uuid.NewV4().String()
 			updatedOrganization, updatedOrganizationErr := models.UpdateOrganization(db, organization.ID, newName)
 			Expect(updatedOrganizationErr).To(BeNil())
 			dbOrganization, dbOrganizationErr := models.GetOrganizationByID(db, organization.ID)
@@ -71,11 +70,11 @@ var _ = Describe("Models", func() {
 		})
 
 		It("Should not update an organization with repeated name", func() {
-			name1 := randomdata.SillyName()
+			name1 := uuid.NewV4().String()
 			_, createdOrganization1Err := models.CreateOrganization(db, name1)
 			Expect(createdOrganization1Err).To(BeNil())
 
-			name2 := randomdata.SillyName()
+			name2 := uuid.NewV4().String()
 			organization2, createdOrganization2Err := models.CreateOrganization(db, name2)
 			Expect(createdOrganization2Err).To(BeNil())
 
@@ -88,11 +87,11 @@ var _ = Describe("Models", func() {
 		})
 
 		It("Should not update an organization for an unexistent id", func() {
-			name := randomdata.SillyName()
+			name := uuid.NewV4().String()
 			organization, createdOrganizationErr := models.CreateOrganization(db, name)
 			Expect(createdOrganizationErr).To(BeNil())
 
-			newName := randomdata.SillyName()
+			newName := uuid.NewV4().String()
 			invalidID := uuid.NewV4().String()
 			_, updatedOrganizationErr := models.UpdateOrganization(db, invalidID, newName)
 			Expect(updatedOrganizationErr).NotTo(BeNil())
@@ -105,7 +104,7 @@ var _ = Describe("Models", func() {
 
 	Describe("Get Organization", func() {
 		It("Should retrieve an organization for an existent id", func() {
-			name := randomdata.SillyName()
+			name := uuid.NewV4().String()
 			organization, createdOrganizationErr := models.CreateOrganization(db, name)
 			Expect(createdOrganizationErr).To(BeNil())
 
@@ -121,7 +120,7 @@ var _ = Describe("Models", func() {
 		})
 
 		It("Should retrieve an organization for an existent name", func() {
-			name := randomdata.SillyName()
+			name := uuid.NewV4().String()
 			organization, createdOrganizationErr := models.CreateOrganization(db, name)
 			Expect(createdOrganizationErr).To(BeNil())
 
@@ -131,7 +130,7 @@ var _ = Describe("Models", func() {
 		})
 
 		It("Should not retrieve an organization for an unexistent name", func() {
-			invalidName := randomdata.SillyName()
+			invalidName := uuid.NewV4().String()
 			_, dbOrganizationErr := models.GetOrganizationByName(db, invalidName)
 			Expect(dbOrganizationErr).NotTo(BeNil())
 		})

@@ -2,7 +2,6 @@ package models_test
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/models"
-	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
@@ -40,8 +39,8 @@ var _ = Describe("Models", func() {
 				insertOrganizationErr := db.Insert(organization)
 				Expect(insertOrganizationErr).To(BeNil())
 
-				name := randomdata.SillyName()
-				appGroup := randomdata.SillyName()
+				name := uuid.NewV4().String()
+				appGroup := uuid.NewV4().String()
 				organizationID := organization.ID
 
 				createdApp, createdAppErr := models.CreateApp(db, name, organizationID, appGroup)
@@ -59,8 +58,8 @@ var _ = Describe("Models", func() {
 				insertOrganizationErr := db.Insert(organization)
 				Expect(insertOrganizationErr).To(BeNil())
 
-				name1 := randomdata.SillyName()
-				appGroup1 := randomdata.SillyName()
+				name1 := uuid.NewV4().String()
+				appGroup1 := uuid.NewV4().String()
 				organizationID1 := organization.ID
 
 				createdApp, createdAppErr := models.CreateApp(db, name1, organizationID1, appGroup1)
@@ -69,11 +68,19 @@ var _ = Describe("Models", func() {
 				Expect(dbAppErr1).To(BeNil())
 
 				name2 := name1
-				appGroup2 := randomdata.SillyName()
+				appGroup2 := uuid.NewV4().String()
 				organizationID2 := organization.ID
 
 				_, createdAppErr2 := models.CreateApp(db, name2, organizationID2, appGroup2)
 				Expect(createdAppErr2).NotTo(BeNil())
+			})
+
+			It("Should not create an app with invelid organization", func() {
+				name := uuid.NewV4().String()
+				appGroup := uuid.NewV4().String()
+				invalidID := uuid.NewV4().String()
+				_, createdAppErr := models.CreateApp(db, name, invalidID, appGroup)
+				Expect(createdAppErr).NotTo(BeNil())
 			})
 		})
 
@@ -89,9 +96,9 @@ var _ = Describe("Models", func() {
 				insertOrganizationErr := db.Insert(organization)
 				Expect(insertOrganizationErr).To(BeNil())
 
-				newName := randomdata.SillyName()
+				newName := uuid.NewV4().String()
 				newOrganizationID := organization.ID
-				newAppGroup := randomdata.SillyName()
+				newAppGroup := uuid.NewV4().String()
 
 				updatedApp, updatedAppErr := models.UpdateApp(db, app.ID, newName, newOrganizationID, newAppGroup)
 				Expect(updatedAppErr).To(BeNil())
@@ -128,9 +135,9 @@ var _ = Describe("Models", func() {
 				insertOrganizationErr := db.Insert(organization)
 				Expect(insertOrganizationErr).To(BeNil())
 
-				newName := randomdata.SillyName()
+				newName := uuid.NewV4().String()
 				newOrganizationID := organization.ID
-				newAppGroup := randomdata.SillyName()
+				newAppGroup := uuid.NewV4().String()
 
 				invalidID := uuid.NewV4().String()
 				_, updatedAppErr := models.UpdateApp(db, invalidID, newName, newOrganizationID, newAppGroup)
@@ -172,7 +179,7 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not retrieve an app for an unexistent name", func() {
-				invalidName := randomdata.SillyName()
+				invalidName := uuid.NewV4().String()
 				_, dbAppErr := models.GetAppByName(db, invalidName)
 				Expect(dbAppErr).NotTo(BeNil())
 			})
@@ -193,7 +200,7 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not retrieve an app for an unexistent group", func() {
-				invalidGroup := randomdata.SillyName()
+				invalidGroup := uuid.NewV4().String()
 				_, dbAppsErr := models.GetAppsByGroup(db, invalidGroup)
 				Expect(dbAppsErr).NotTo(BeNil())
 			})

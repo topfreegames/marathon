@@ -5,9 +5,8 @@ CREATE TABLE organizations (
     name varchar(200) NOT NULL,
     created_at bigint NOT NULL,
     updated_at bigint NULL,
-    deleted_at bigint NOT NULL,
 
-    CONSTRAINT name UNIQUE(name)
+    CONSTRAINT unique_organization_name UNIQUE(name)
 );
 
 -- +goose Down
