@@ -9,17 +9,17 @@ import (
 
 // App identifies uniquely one app
 type App struct {
-	ID             string `db:"id"`
-	Name           string `db:"name"`
-	OrganizationID string `db:"organization_id"`
-	AppGroup       string `db:"app_group"`
-	CreatedAt      int64  `db:"created_at"`
-	UpdatedAt      int64  `db:"updated_at"`
+	ID             uuid.UUID `db:"id"`
+	Name           string    `db:"name"`
+	OrganizationID uuid.UUID `db:"organization_id"`
+	AppGroup       string    `db:"app_group"`
+	CreatedAt      int64     `db:"created_at"`
+	UpdatedAt      int64     `db:"updated_at"`
 }
 
 // PreInsert populates fields before inserting a new app
 func (a *App) PreInsert(s gorp.SqlExecutor) error {
-	a.ID = uuid.NewV4().String()
+	a.ID = uuid.NewV4()
 	a.CreatedAt = time.Now().Unix()
 	a.UpdatedAt = a.CreatedAt
 	return nil
@@ -32,7 +32,7 @@ func (a *App) PreUpdate(s gorp.SqlExecutor) error {
 }
 
 // GetAppByID returns an app by id
-func GetAppByID(db DB, id string) (*App, error) {
+func GetAppByID(db DB, id uuid.UUID) (*App, error) {
 	obj, err := db.Get(App{}, id)
 	if err != nil || obj == nil {
 		return nil, &ModelNotFoundError{"App", "id", id}
@@ -61,7 +61,7 @@ func GetAppsByGroup(db DB, group string) ([]App, error) {
 }
 
 // CreateApp creates a new App
-func CreateApp(db DB, Name string, OrganizationID string, AppGroup string) (*App, error) {
+func CreateApp(db DB, Name string, OrganizationID uuid.UUID, AppGroup string) (*App, error) {
 	app := &App{
 		Name:           Name,
 		OrganizationID: OrganizationID,
@@ -75,7 +75,7 @@ func CreateApp(db DB, Name string, OrganizationID string, AppGroup string) (*App
 }
 
 // UpdateApp updates an App
-func UpdateApp(db DB, id string, Name string, OrganizationID string, AppGroup string) (*App, error) {
+func UpdateApp(db DB, id uuid.UUID, Name string, OrganizationID uuid.UUID, AppGroup string) (*App, error) {
 	app, getAppErr := GetAppByID(db, id)
 	if getAppErr != nil {
 		return nil, getAppErr

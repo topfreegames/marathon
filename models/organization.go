@@ -9,15 +9,15 @@ import (
 
 // Organization identifies uniquely one organization
 type Organization struct {
-	ID        string `db:"id"`
-	Name      string `db:"name"`
-	CreatedAt int64  `db:"created_at"`
-	UpdatedAt int64  `db:"updated_at"`
+	ID        uuid.UUID `db:"id"`
+	Name      string    `db:"name"`
+	CreatedAt int64     `db:"created_at"`
+	UpdatedAt int64     `db:"updated_at"`
 }
 
 // PreInsert populates fields before inserting a new organization
 func (o *Organization) PreInsert(s gorp.SqlExecutor) error {
-	o.ID = uuid.NewV4().String()
+	o.ID = uuid.NewV4()
 	o.CreatedAt = time.Now().Unix()
 	o.UpdatedAt = o.CreatedAt
 	return nil
@@ -30,7 +30,7 @@ func (o *Organization) PreUpdate(s gorp.SqlExecutor) error {
 }
 
 // GetOrganizationByID returns an organization by id
-func GetOrganizationByID(db DB, id string) (*Organization, error) {
+func GetOrganizationByID(db DB, id uuid.UUID) (*Organization, error) {
 	obj, err := db.Get(Organization{}, id)
 	if err != nil || obj == nil {
 		return nil, &ModelNotFoundError{"Organization", "id", id}
@@ -61,7 +61,7 @@ func CreateOrganization(db DB, Name string) (*Organization, error) {
 }
 
 // UpdateOrganization updates an Organization
-func UpdateOrganization(db DB, id string, Name string) (*Organization, error) {
+func UpdateOrganization(db DB, id uuid.UUID, Name string) (*Organization, error) {
 	organization, getOrganizationErr := GetOrganizationByID(db, id)
 	if getOrganizationErr != nil {
 		return nil, getOrganizationErr

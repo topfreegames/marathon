@@ -78,7 +78,7 @@ var _ = Describe("Models", func() {
 			It("Should not create an app with invelid organization", func() {
 				name := uuid.NewV4().String()
 				appGroup := uuid.NewV4().String()
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 				_, createdAppErr := models.CreateApp(db, name, invalidID, appGroup)
 				Expect(createdAppErr).NotTo(BeNil())
 			})
@@ -139,7 +139,7 @@ var _ = Describe("Models", func() {
 				newOrganizationID := organization.ID
 				newAppGroup := uuid.NewV4().String()
 
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 				_, updatedAppErr := models.UpdateApp(db, invalidID, newName, newOrganizationID, newAppGroup)
 				Expect(updatedAppErr).NotTo(BeNil())
 			})
@@ -160,7 +160,7 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not retrieve an app for an unexistent id", func() {
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 				_, dbAppErr := models.GetAppByID(db, invalidID)
 				Expect(dbAppErr).NotTo(BeNil())
 			})

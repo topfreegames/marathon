@@ -10,16 +10,16 @@ import (
 
 // Notifier identifies uniquely one notifier
 type Notifier struct {
-	ID        string `db:"id"`
-	AppID     string `db:"app_id"`
-	Service   string `db:"service"`
-	CreatedAt int64  `db:"created_at"`
-	UpdatedAt int64  `db:"updated_at"`
+	ID        uuid.UUID `db:"id"`
+	AppID     uuid.UUID `db:"app_id"`
+	Service   string    `db:"service"`
+	CreatedAt int64     `db:"created_at"`
+	UpdatedAt int64     `db:"updated_at"`
 }
 
 // PreInsert populates fields before inserting a new noifier
 func (n *Notifier) PreInsert(s gorp.SqlExecutor) error {
-	n.ID = uuid.NewV4().String()
+	n.ID = uuid.NewV4()
 	n.CreatedAt = time.Now().Unix()
 	n.UpdatedAt = n.CreatedAt
 	return nil
@@ -32,7 +32,7 @@ func (n *Notifier) PreUpdate(s gorp.SqlExecutor) error {
 }
 
 // GetNotifierByID returns an noifier by id
-func GetNotifierByID(db DB, id string) (*Notifier, error) {
+func GetNotifierByID(db DB, id uuid.UUID) (*Notifier, error) {
 	obj, err := db.Get(Notifier{}, id)
 	if err != nil || obj == nil {
 		return nil, &ModelNotFoundError{"Notifier", "id", id}
@@ -51,7 +51,7 @@ func GetNotifiersByService(db DB, service string) ([]Notifier, error) {
 }
 
 // GetNotifiersByApp returns all notifiers for an appID
-func GetNotifiersByApp(db DB, appID string) ([]Notifier, error) {
+func GetNotifiersByApp(db DB, appID uuid.UUID) ([]Notifier, error) {
 	var notifiers []Notifier
 	_, err := db.Select(&notifiers, "SELECT * FROM notifiers WHERE app_id=$1", appID)
 	if err != nil || &notifiers == nil || len(notifiers) == 0 {
@@ -61,7 +61,7 @@ func GetNotifiersByApp(db DB, appID string) ([]Notifier, error) {
 }
 
 // GetNotifierByAppAndService returns all notifiers for a service and appID
-func GetNotifierByAppAndService(db DB, appID string, service string) (*Notifier, error) {
+func GetNotifierByAppAndService(db DB, appID uuid.UUID, service string) (*Notifier, error) {
 	var notifiers []Notifier
 	_, err := db.Select(&notifiers, "SELECT * FROM notifiers WHERE app_id=$1 AND service=$2", appID, service)
 	if err != nil || &notifiers == nil || len(notifiers) == 0 {
@@ -71,7 +71,7 @@ func GetNotifierByAppAndService(db DB, appID string, service string) (*Notifier,
 }
 
 // CreateNotifier creates a new Notifier
-func CreateNotifier(db DB, AppID string, Service string) (*Notifier, error) {
+func CreateNotifier(db DB, AppID uuid.UUID, Service string) (*Notifier, error) {
 	notifier := &Notifier{
 		AppID:   AppID,
 		Service: Service,
@@ -84,7 +84,7 @@ func CreateNotifier(db DB, AppID string, Service string) (*Notifier, error) {
 }
 
 // UpdateNotifier updates an Notifier
-func UpdateNotifier(db DB, id string, AppID string, Service string) (*Notifier, error) {
+func UpdateNotifier(db DB, id uuid.UUID, AppID uuid.UUID, Service string) (*Notifier, error) {
 	notifier, getNotifierErr := GetNotifierByID(db, id)
 	if getNotifierErr != nil {
 		return nil, getNotifierErr

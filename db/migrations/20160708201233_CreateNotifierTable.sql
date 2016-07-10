@@ -1,14 +1,13 @@
 -- +goose Up
 -- SQL in section 'Up' is executed when this migration is applied
 CREATE TABLE notifiers (
-    id varchar(36) PRIMARY KEY,
-    app_id varchar(36) NOT NULL REFERENCES apps (id),
-    service varchar(5) NOT NULL,
-    created_at bigint NOT NULL,
-    updated_at bigint NULL,
-
-    CONSTRAINT unique_notifier_app_service UNIQUE(app_id, service)
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  app_id UUID NOT NULL REFERENCES apps (id),
+  service varchar(5) NOT NULL CHECK (service <> ''),
+  created_at bigint NOT NULL,
+  updated_at bigint NULL
 );
+CREATE UNIQUE INDEX unique_notifier_app_service ON notifiers (app_id, (lower(service)));
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back

@@ -92,7 +92,7 @@ var _ = Describe("Models", func() {
 			Expect(createdOrganizationErr).To(BeNil())
 
 			newName := uuid.NewV4().String()
-			invalidID := uuid.NewV4().String()
+			invalidID := uuid.NewV4()
 			_, updatedOrganizationErr := models.UpdateOrganization(db, invalidID, newName)
 			Expect(updatedOrganizationErr).NotTo(BeNil())
 
@@ -114,7 +114,7 @@ var _ = Describe("Models", func() {
 		})
 
 		It("Should not retrieve an organization for an unexistent id", func() {
-			invalidID := uuid.NewV4().String()
+			invalidID := uuid.NewV4()
 			_, dbOrganizationErr := models.GetOrganizationByID(db, invalidID)
 			Expect(dbOrganizationErr).NotTo(BeNil())
 		})

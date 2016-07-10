@@ -116,7 +116,7 @@ var _ = Describe("Models", func() {
 				Expect(insertAppErr).To(BeNil())
 				service := uuid.NewV4().String()[:4]
 				appID := app.ID
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 
 				_, updatedNotifierErr := models.UpdateNotifier(db, invalidID, appID, service)
 				Expect(updatedNotifierErr).NotTo(BeNil())
@@ -128,7 +128,7 @@ var _ = Describe("Models", func() {
 				insertNotifierErr := db.Insert(notifier)
 				Expect(insertNotifierErr).To(BeNil())
 
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 
 				_, updatedNotifierErr := models.UpdateNotifier(db, notifier.ID, invalidID, notifier.Service)
 				Expect(updatedNotifierErr).NotTo(BeNil())
@@ -149,7 +149,7 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not retrieve a notifier for an unexistent id", func() {
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 				_, dbNotifierErr := models.GetNotifierByID(db, invalidID)
 				Expect(dbNotifierErr).NotTo(BeNil())
 			})
@@ -180,7 +180,7 @@ var _ = Describe("Models", func() {
 				insertNotifierErr1 := db.Insert(notifier1)
 				Expect(insertNotifierErr1).To(BeNil())
 
-				invalidID := uuid.NewV4().String()
+				invalidID := uuid.NewV4()
 
 				_, dbNotifiersErr := models.GetNotifiersByApp(db, invalidID)
 				Expect(dbNotifiersErr).NotTo(BeNil())
@@ -240,7 +240,7 @@ var _ = Describe("Models", func() {
 				insertNotifierErr := db.Insert(notifier)
 				Expect(insertNotifierErr).To(BeNil())
 
-				invalidApp := uuid.NewV4().String()
+				invalidApp := uuid.NewV4()
 				_, dbNotifiersErr := models.GetNotifierByAppAndService(db, invalidApp, notifier.Service)
 				Expect(dbNotifiersErr).NotTo(BeNil())
 			})
