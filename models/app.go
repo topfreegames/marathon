@@ -61,11 +61,11 @@ func GetAppsByGroup(db DB, group string) ([]App, error) {
 }
 
 // CreateApp creates a new App
-func CreateApp(db DB, Name string, OrganizationID uuid.UUID, AppGroup string) (*App, error) {
+func CreateApp(db DB, name string, organizationid uuid.UUID, appgroup string) (*App, error) {
 	app := &App{
-		Name:           Name,
-		OrganizationID: OrganizationID,
-		AppGroup:       AppGroup,
+		Name:           name,
+		OrganizationID: organizationid,
+		AppGroup:       appgroup,
 	}
 	err := db.Insert(app)
 	if err != nil {
@@ -75,15 +75,15 @@ func CreateApp(db DB, Name string, OrganizationID uuid.UUID, AppGroup string) (*
 }
 
 // UpdateApp updates an App
-func UpdateApp(db DB, id uuid.UUID, Name string, OrganizationID uuid.UUID, AppGroup string) (*App, error) {
+func UpdateApp(db DB, id uuid.UUID, name string, organizationid uuid.UUID, appgroup string) (*App, error) {
 	app, getAppErr := GetAppByID(db, id)
 	if getAppErr != nil {
 		return nil, getAppErr
 	}
 
-	app.Name = Name
-	app.OrganizationID = OrganizationID
-	app.AppGroup = AppGroup
+	app.Name = name
+	app.OrganizationID = organizationid
+	app.AppGroup = appgroup
 
 	_, updateErr := db.Update(app)
 	if updateErr != nil {

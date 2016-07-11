@@ -71,10 +71,10 @@ func GetNotifierByAppAndService(db DB, appID uuid.UUID, service string) (*Notifi
 }
 
 // CreateNotifier creates a new Notifier
-func CreateNotifier(db DB, AppID uuid.UUID, Service string) (*Notifier, error) {
+func CreateNotifier(db DB, appid uuid.UUID, service string) (*Notifier, error) {
 	notifier := &Notifier{
-		AppID:   AppID,
-		Service: Service,
+		AppID:   appid,
+		Service: service,
 	}
 	err := db.Insert(notifier)
 	if err != nil {
@@ -84,14 +84,14 @@ func CreateNotifier(db DB, AppID uuid.UUID, Service string) (*Notifier, error) {
 }
 
 // UpdateNotifier updates an Notifier
-func UpdateNotifier(db DB, id uuid.UUID, AppID uuid.UUID, Service string) (*Notifier, error) {
+func UpdateNotifier(db DB, id uuid.UUID, appid uuid.UUID, service string) (*Notifier, error) {
 	notifier, getNotifierErr := GetNotifierByID(db, id)
 	if getNotifierErr != nil {
 		return nil, getNotifierErr
 	}
 
-	notifier.AppID = AppID
-	notifier.Service = Service
+	notifier.AppID = appid
+	notifier.Service = service
 
 	_, updateErr := db.Update(notifier)
 	if updateErr != nil {

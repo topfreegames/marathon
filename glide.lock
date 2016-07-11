@@ -1,5 +1,5 @@
-hash: a4a4ca4272fa311756c7761f90e4734e4e244d2e2b90812a42eac0c4d24b3226
-updated: 2016-07-05T16:53:43.333640997-03:00
+hash: f98bae8d08c74f08a2692ef5df95081ca847e5dd5abafb5ae11f6de2309ac54f
+updated: 2016-07-11T11:23:37.183848683-03:00
 imports:
 - name: github.com/ajg/form
   version: 7ff89c75808766205bfa4411abb436c98c33eb5e
@@ -54,8 +54,6 @@ imports:
   - formatter
 - name: github.com/gavv/httpexpect
   version: 0bb88a1ec0bfc9977c30879f870595d8423f2ff9
-  subpackages:
-  - fasthttpexpect
 - name: github.com/gavv/monotime
   version: 259cd7b345f5aa080eff16f21d7866ef7dea9528
 - name: github.com/go-sql-driver/mysql
@@ -98,9 +96,9 @@ imports:
 - name: github.com/kataras/iris
   version: 126e170371993b4df82908b1715c2bbc0be10bc6
   subpackages:
-  - logger
   - config
   - context
+  - logger
   - render/rest
   - render/template
   - sessions
@@ -231,6 +229,4 @@ imports:
   version: c87af80f3cc5036b55b83d77171e156791085e2e
 - name: gopkg.in/yaml.v2
   version: a83829b6f1293c91addabc89d0571c246397bbf4
-testImports:
-- name: github.com/franela/goblin
-  version: efa9910a3ea4ccb7ee4b977571318af2e51ba05f
+testImports: []

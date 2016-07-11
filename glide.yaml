@@ -18,3 +18,5 @@ import:
   subpackages:
   - ginkgo
 - package: github.com/uber-go/zap
+- package: gopkg.in/gorp.v1
+  version: ~1.7.1

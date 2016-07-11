@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"git.topfreegames.com/topfreegames/marathon/util"
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
 	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
@@ -66,10 +67,12 @@ func InitDb(host string, user string, port int, sslmode string, dbName string, p
 	}
 
 	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.PostgresDialect{}}
+	dbmap.TypeConverter = util.TypeConverter{}
 
 	dbmap.AddTableWithName(Organization{}, "organizations").SetKeys(false, "ID")
 	dbmap.AddTableWithName(App{}, "apps").SetKeys(false, "ID")
 	dbmap.AddTableWithName(Notifier{}, "notifiers").SetKeys(false, "ID")
+	dbmap.AddTableWithName(Template{}, "templates").SetKeys(false, "ID")
 
 	return dbmap, nil
 }

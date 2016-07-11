@@ -49,9 +49,9 @@ func GetOrganizationByName(db DB, name string) (*Organization, error) {
 }
 
 // CreateOrganization creates a new Organization
-func CreateOrganization(db DB, Name string) (*Organization, error) {
+func CreateOrganization(db DB, name string) (*Organization, error) {
 	organization := &Organization{
-		Name: Name,
+		Name: name,
 	}
 	err := db.Insert(organization)
 	if err != nil {
@@ -61,13 +61,13 @@ func CreateOrganization(db DB, Name string) (*Organization, error) {
 }
 
 // UpdateOrganization updates an Organization
-func UpdateOrganization(db DB, id uuid.UUID, Name string) (*Organization, error) {
+func UpdateOrganization(db DB, id uuid.UUID, name string) (*Organization, error) {
 	organization, getOrganizationErr := GetOrganizationByID(db, id)
 	if getOrganizationErr != nil {
 		return nil, getOrganizationErr
 	}
 
-	organization.Name = Name
+	organization.Name = name
 
 	_, updateErr := db.Update(organization)
 	if updateErr != nil {
