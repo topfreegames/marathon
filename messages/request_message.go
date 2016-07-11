@@ -4,13 +4,13 @@ package messages
 // If Template has a value it should be fetched and placed into Message,
 // and Params should be merged with Defaults from the template.
 type RequestMessage struct {
-	App        string            `json:"app"`
-	Token      string            `json:"token"`
-	Type       string            `json:"type"`
-	PushExpiry int64             `json:"push_expiry"`
-	Template   string            `json:"template,omitempty"`
-	Params     map[string]string `json:"params,omitempty"`
-	Locale     string            `json:"locale,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
+	App        string                 `json:"app"`
+	Token      string                 `json:"token"`
+	Type       string                 `json:"type"`
+	PushExpiry int64                  `json:"push_expiry"`
+	Template   string                 `json:"template,omitempty"`
+	Params     map[string]interface{} `json:"params,omitempty"`
+	Locale     string                 `json:"locale,omitempty"`
+	Message    string                 `json:"message,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }

@@ -1,6 +1,5 @@
 package: git.topfreegames.com/topfreegames/marathon
 import:
-- package: github.com/cbroglie/mustache
 - package: github.com/bsm/sarama-cluster
 - package: github.com/onsi/gomega
 - package: github.com/spf13/cobra
@@ -20,3 +19,4 @@ import:
 - package: github.com/uber-go/zap
 - package: gopkg.in/gorp.v1
   version: ~1.7.1
+- package: github.com/valyala/fasttemplate

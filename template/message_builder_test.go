@@ -11,33 +11,33 @@ var _ = Describe("Template", func() {
 	Describe("MessageBuilder", func() {
 		Describe("MessageBuilder.replaceTemplate", func() {
 			It("Should replace variables", func() {
-				params := map[string]string{
+				params := map[string]interface{}{
 					"param1":  "hello",
 					"someone": "banduk",
 				}
 
 				message := "{{param1}}, {{someone}} is awesome"
-				resp, rplTplErr := template.ReplaceTemplate(message, &params)
+				resp, rplTplErr := template.ReplaceTemplate(message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, banduk is awesome"))
 			})
 
 			It("Should replace multiple variables", func() {
-				params := map[string]string{
+				params := map[string]interface{}{
 					"param1": "hello",
 				}
 				message := "{{param1}}, {{param1}}, {{param1}}"
-				resp, rplTplErr := template.ReplaceTemplate(message, &params)
+				resp, rplTplErr := template.ReplaceTemplate(message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, hello, hello"))
 			})
 
 			It("Should not replace variables if template has syntax error", func() {
-				params := map[string]string{
+				params := map[string]interface{}{
 					"param1": "hello",
 				}
 				message := "{{param1}"
-				resp, rplTplErr := template.ReplaceTemplate(message, &params)
+				resp, rplTplErr := template.ReplaceTemplate(message, params)
 				Expect(rplTplErr).NotTo(BeNil())
 				Expect(resp).To(Equal(""))
 			})
@@ -48,7 +48,7 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 				}
 				msg, err := template.BuildApnsMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
@@ -81,7 +81,7 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 				}
 				msg, err := template.BuildGcmMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
@@ -114,11 +114,11 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "apns",
 					Message:    `{"alert": "{{param1}}, {{param2}}", "badge": 1}`,
-					Params:     map[string]string{"param1": "Hello", "param2": "world"},
+					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 				msg, err := template.BuildMessage(req)
 
@@ -131,7 +131,7 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "apns",
 					Message:    `{"alert": "Hello", "badge": 1}`,
@@ -147,11 +147,11 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "gcm",
 					Message:    `{"title": "{{param1}}, {{param2}}", "subtitle": "{{param1}}"}`,
-					Params:     map[string]string{"param1": "Hello", "param2": "world"},
+					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 				msg, err := template.BuildMessage(req)
 
@@ -163,7 +163,7 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "gcm",
 					Message:    `{"title": "Hello, world", "subtitle": "Hello"}`,
@@ -177,11 +177,11 @@ var _ = Describe("Template", func() {
 				req := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "unknown",
 					Message:    `{"alert": "{{param1}}, {{param2}}", "badge": 1}`,
-					Params:     map[string]string{"param1": "Hello", "param2": "world"},
+					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 				msg, err := template.BuildMessage(req)
 
@@ -195,7 +195,7 @@ var _ = Describe("Template", func() {
 				reqGcm := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "gcm",
 					Message:    `{"title": "Hello, world", "subtitle": "Hello"}`,
@@ -203,11 +203,11 @@ var _ = Describe("Template", func() {
 				reqApns := &messages.RequestMessage{
 					Token:      "token",
 					PushExpiry: 0,
-					Metadata:   map[string]string{"meta": "data"},
+					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Type:       "apns",
 					Message:    `{"alert": "{{param1}}, {{param2}}", "badge": 1}`,
-					Params:     map[string]string{"param1": "Hello", "param2": "world"},
+					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 
 				inChan := make(chan *messages.RequestMessage, 1)

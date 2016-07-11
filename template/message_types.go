@@ -13,8 +13,8 @@ type ApnsMessage struct {
 
 // PayloadContent stores payload content of apns message
 type PayloadContent struct {
-	Aps json.RawMessage   `json:"aps"`
-	M   map[string]string `json:"m,omitempty"`
+	Aps json.RawMessage        `json:"aps"`
+	M   map[string]interface{} `json:"m,omitempty"`
 }
 
 func newApnsMessage() *ApnsMessage {

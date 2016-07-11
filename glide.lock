@@ -1,5 +1,5 @@
-hash: f98bae8d08c74f08a2692ef5df95081ca847e5dd5abafb5ae11f6de2309ac54f
-updated: 2016-07-11T11:23:37.183848683-03:00
+hash: e839bcf0180ff1116d8fddf4d946a50bc53b63a48e6caad01a904e4ef9ccb24f
+updated: 2016-07-11T13:56:01.207458035-03:00
 imports:
 - name: github.com/ajg/form
   version: 7ff89c75808766205bfa4411abb436c98c33eb5e
@@ -17,8 +17,6 @@ imports:
   version: 122d1380662642f52d112e7e7e8d2c1e0c12e086
 - name: github.com/BurntSushi/toml
   version: f0aeabca5a127c4078abb8c8d64298b147264b55
-- name: github.com/cbroglie/mustache
-  version: cd74d13000a227efc4f500dec53f9d651de0256f
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -199,6 +197,8 @@ imports:
   subpackages:
   - fasthttpadaptor
   - fasthttputil
+- name: github.com/valyala/fasttemplate
+  version: 3b874956e03f1636d171bda64b130f9135f42cff
 - name: github.com/xeipuuv/gojsonpointer
   version: e0fe6f68307607d540ed8eac07a342c33fa1b54a
 - name: github.com/xeipuuv/gojsonreference

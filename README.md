@@ -1,0 +1,16 @@
+# Marathon
+
+## Setup
+
+Make sure you have go installed on your machine.
+If you use homebrew you can install it with `brew install go`.
+
+Run `make setup`.
+
+## Testing the Application
+
+Run `make test`.
+
+## TODO
+
+ - Nested templates

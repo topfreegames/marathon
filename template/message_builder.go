@@ -1,13 +1,12 @@
 package template
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
-	"github.com/cbroglie/mustache"
 	"github.com/uber-go/zap"
+	"github.com/valyala/fasttemplate"
 )
 
 // Logger is the consumer logger
@@ -39,24 +38,17 @@ func MessageBuilder(inChan <-chan *messages.RequestMessage, outChan chan<- *mess
 
 // ReplaceTemplate replaces the template parameters from message with the
 // values of the keys in params. The function returns the built string
-func ReplaceTemplate(message string, params *map[string]string) (string, error) {
-	tmpl, tplErr := mustache.ParseString(message)
-	if tplErr != nil {
+func ReplaceTemplate(message string, params map[string]interface{}) (string, error) {
+	t, errT := fasttemplate.NewTemplate(message, "{{", "}}")
+	if errT != nil {
 		Logger.Error(
 			"Template Error",
-			zap.Error(tplErr),
+			zap.Error(errT),
 		)
-		return "", tplErr
+		return "", errT
 	}
-	var buf bytes.Buffer
-	msg, rndrErr := tmpl.Render(*params, &buf)
-	if rndrErr != nil {
-		Logger.Error(
-			"Render error",
-			zap.Error(rndrErr),
-		)
-	}
-	return msg, nil
+	s := t.ExecuteString(params)
+	return s, nil
 }
 
 // BuildApnsMsg builds an apns message
@@ -118,7 +110,8 @@ func BuildGcmMsg(request *messages.RequestMessage, content string) (string, erro
 // should have already been fetched and placed into the Message field.
 func BuildMessage(request *messages.RequestMessage) (*messages.KafkaMessage, error) {
 	// Replace template
-	content, rplTplerr := ReplaceTemplate(request.Message, &request.Params)
+
+	content, rplTplerr := ReplaceTemplate(request.Message, request.Params)
 	if rplTplerr != nil {
 		Logger.Error(
 			"Template replacing error",
