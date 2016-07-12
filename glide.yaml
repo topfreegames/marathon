@@ -20,3 +20,5 @@ import:
 - package: gopkg.in/gorp.v1
   version: ~1.7.1
 - package: github.com/valyala/fasttemplate
+- package: github.com/imdario/mergo
+  version: ~0.2.2

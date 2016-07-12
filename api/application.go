@@ -2,11 +2,13 @@ package api
 
 import (
 	"fmt"
+	"os"
 	"strings"
+
+	"git.topfreegames.com/topfreegames/marathon/models"
 
 	"gopkg.in/gorp.v1"
 
-	"git.topfreegames.com/topfreegames/marathon/models"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
 	"github.com/kataras/iris"
 	"github.com/spf13/viper"
@@ -38,9 +40,18 @@ func GetApplication(host string, port int, configPath string, debug bool) *Appli
 	return application
 }
 
+func getLogLevel() zap.Level {
+	var level = zap.WarnLevel
+	var environment = os.Getenv("ENV")
+	if environment == "test" {
+		level = zap.FatalLevel
+	}
+	return level
+}
+
 // Configure instantiates the required dependencies for Marathon Api Applicationlication
 func (application *Application) Configure() {
-	application.Logger = zap.NewJSON(zap.WarnLevel)
+	application.Logger = zap.NewJSON(getLogLevel())
 	application.setConfigurationDefaults()
 	application.loadConfiguration()
 	application.connectDatabase()

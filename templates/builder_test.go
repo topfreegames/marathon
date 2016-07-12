@@ -1,15 +1,15 @@
-package template_test
+package templates_test
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
-	"git.topfreegames.com/topfreegames/marathon/template"
+	"git.topfreegames.com/topfreegames/marathon/templates"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Template", func() {
-	Describe("MessageBuilder", func() {
-		Describe("MessageBuilder.replaceTemplate", func() {
+	Describe("Builder", func() {
+		Describe("Replace", func() {
 			It("Should replace variables", func() {
 				params := map[string]interface{}{
 					"param1":  "hello",
@@ -17,8 +17,9 @@ var _ = Describe("Template", func() {
 				}
 
 				message := "{{param1}}, {{someone}} is awesome"
-				resp, rplTplErr := template.ReplaceTemplate(message, params)
-				Expect(rplTplErr).To(BeNil())
+
+				resp, tplErr := templates.Replace(message, params)
+				Expect(tplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, banduk is awesome"))
 			})
 
@@ -27,7 +28,7 @@ var _ = Describe("Template", func() {
 					"param1": "hello",
 				}
 				message := "{{param1}}, {{param1}}, {{param1}}"
-				resp, rplTplErr := template.ReplaceTemplate(message, params)
+				resp, rplTplErr := templates.Replace(message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, hello, hello"))
 			})
@@ -37,90 +38,80 @@ var _ = Describe("Template", func() {
 					"param1": "hello",
 				}
 				message := "{{param1}"
-				resp, rplTplErr := template.ReplaceTemplate(message, params)
+				resp, rplTplErr := templates.Replace(message, params)
 				Expect(rplTplErr).NotTo(BeNil())
 				Expect(resp).To(Equal(""))
 			})
 		})
 
-		Describe("MessageBuilder.buildApnsMsg", func() {
+		Describe("ApnsMsg", func() {
 			It("Should build message correctly with metadata", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 				}
-				msg, err := template.BuildApnsMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
 				Expect(msg).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"message","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
 			})
 
 			It("Should build message correctly with no metadata", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				msg, err := template.BuildApnsMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
 				Expect(msg).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"message","badge":1}},"push_expiry":0}`))
 			})
 
 			It("Should not build message with invalid json", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				msg, err := template.BuildApnsMsg(req, `{"alert": "message", "badge": 1`)
+				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
 				Expect(err).NotTo(BeNil())
 				Expect(msg).To(Equal(""))
 			})
 		})
 
-		Describe("MessageBuilder.buildGcmMsg", func() {
+		Describe("GcmMsg", func() {
 			It("Should build message correctly with metadata", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 				}
-				msg, err := template.BuildGcmMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1,"m":{"meta":"data"}},"push_expiry":0}`))
 			})
 
 			It("Should build message correctly with no metadata", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				msg, err := template.BuildGcmMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1},"push_expiry":0}`))
 			})
-
-			It("Should not build message with invalid json", func() {
-				req := &messages.RequestMessage{
-					Token:      "token",
-					PushExpiry: 0,
-				}
-				msg, err := template.BuildGcmMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(BeNil())
-				Expect(msg).To(Equal(""))
-			})
 		})
 
-		Describe("MessageBuilder.BuildMessage", func() {
+		Describe("Builder.Build", func() {
 			It("Should build apns message", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "apns",
-					Message:    `{"alert": "{{param1}}, {{param2}}", "badge": 1}`,
+					Service:    "apns",
+					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
-				msg, err := template.BuildMessage(req)
+				msg, err := templates.Build(req)
 
 				Expect(err).To(BeNil())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello, world","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
@@ -128,15 +119,15 @@ var _ = Describe("Template", func() {
 			})
 
 			It("Should build apns message with no params", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "apns",
-					Message:    `{"alert": "Hello", "badge": 1}`,
+					Service:    "apns",
+					Message:    map[string]interface{}{"alert": "Hello", "badge": 1},
 				}
-				msg, err := template.BuildMessage(req)
+				msg, err := templates.Build(req)
 
 				Expect(err).To(BeNil())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
@@ -144,75 +135,75 @@ var _ = Describe("Template", func() {
 			})
 
 			It("Should build gcm message", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "gcm",
-					Message:    `{"title": "{{param1}}, {{param2}}", "subtitle": "{{param1}}"}`,
+					Service:    "gcm",
+					Message:    map[string]interface{}{"title": "{{param1}}, {{param2}}", "subtitle": "{{param1}}"},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
-				msg, err := template.BuildMessage(req)
+				msg, err := templates.Build(req)
 
 				Expect(err).To(BeNil())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
 			})
 
 			It("Should build gcm message with no params", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "gcm",
-					Message:    `{"title": "Hello, world", "subtitle": "Hello"}`,
+					Service:    "gcm",
+					Message:    map[string]interface{}{"title": "Hello, world", "subtitle": "Hello"},
 				}
-				msg, err := template.BuildMessage(req)
+				msg, err := templates.Build(req)
 				Expect(err).To(BeNil())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
 			})
 
 			It("Should not build message of unknown type", func() {
-				req := &messages.RequestMessage{
+				req := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "unknown",
-					Message:    `{"alert": "{{param1}}, {{param2}}", "badge": 1}`,
+					Service:    "unknown",
+					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
-				msg, err := template.BuildMessage(req)
+				msg, err := templates.Build(req)
 
 				Expect(err).NotTo(BeNil())
 				Expect(msg).To(BeNil())
 			})
 		})
 
-		Describe("MessageBuilder.replaceTemplate", func() {
+		Describe("Builder.Replace", func() {
 			It("Should replace variables", func() {
-				reqGcm := &messages.RequestMessage{
+				reqGcm := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "gcm",
-					Message:    `{"title": "Hello, world", "subtitle": "Hello"}`,
+					Service:    "gcm",
+					Message:    map[string]interface{}{"title": "Hello, world", "subtitle": "Hello"},
 				}
-				reqApns := &messages.RequestMessage{
+				reqApns := &messages.TemplatedMessage{
 					Token:      "token",
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
-					Type:       "apns",
-					Message:    `{"alert": "{{param1}}, {{param2}}", "badge": 1}`,
+					Service:    "apns",
+					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 
-				inChan := make(chan *messages.RequestMessage, 1)
+				inChan := make(chan *messages.TemplatedMessage, 1)
 				outChan := make(chan *messages.KafkaMessage, 1)
-				go template.MessageBuilder(inChan, outChan)
+				go templates.Builder(inChan, outChan)
 
 				go func() {
 					inChan <- reqGcm

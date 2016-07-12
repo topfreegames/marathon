@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	"git.topfreegames.com/topfreegames/marathon/util"
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
@@ -10,8 +11,17 @@ import (
 	"gopkg.in/gorp.v1"
 )
 
+func getLogLevel() zap.Level {
+	var level = zap.WarnLevel
+	var environment = os.Getenv("ENV")
+	if environment == "test" {
+		level = zap.FatalLevel
+	}
+	return level
+}
+
 // Logger is the models logger
-var Logger = zap.NewJSON(zap.WarnLevel)
+var Logger = zap.NewJSON(getLogLevel())
 
 // DB is the contract for all the operations we use from either a connection or transaction
 // This is required for automatic transactions

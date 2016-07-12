@@ -1,5 +1,5 @@
-hash: e839bcf0180ff1116d8fddf4d946a50bc53b63a48e6caad01a904e4ef9ccb24f
-updated: 2016-07-11T13:56:01.207458035-03:00
+hash: caaab66fc5abf709804b03eab03d28b5a8c5f3df3624bea6447031f26505b238
+updated: 2016-07-12T17:43:28.562330828-03:00
 imports:
 - name: github.com/ajg/form
   version: 7ff89c75808766205bfa4411abb436c98c33eb5e
@@ -14,9 +14,9 @@ imports:
   subpackages:
   - factory
 - name: github.com/bsm/sarama-cluster
-  version: 122d1380662642f52d112e7e7e8d2c1e0c12e086
+  version: 3e840f2f0cd9479e4ce2ae953e41f5545f2bf56e
 - name: github.com/BurntSushi/toml
-  version: f0aeabca5a127c4078abb8c8d64298b147264b55
+  version: ffaa107fbd880f6d18cd6fec9b511668dcad8639
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -40,7 +40,7 @@ imports:
 - name: github.com/flosch/pongo2
   version: 7f5515449ea9bbeb00256d9cbb654c556e7d0146
 - name: github.com/fsnotify/fsnotify
-  version: 30411dbcefb7a1da7e84f75530ad3abe4011b4f8
+  version: a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb
 - name: github.com/garyburd/redigo
   version: b8dc90050f24c1a73a52f107f3f575be67b21b7c
   subpackages:
@@ -51,19 +51,19 @@ imports:
   subpackages:
   - formatter
 - name: github.com/gavv/httpexpect
-  version: 0bb88a1ec0bfc9977c30879f870595d8423f2ff9
+  version: 35c8994667acb85dad8c454a2d231ebc1b782caf
 - name: github.com/gavv/monotime
   version: 259cd7b345f5aa080eff16f21d7866ef7dea9528
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
 - name: github.com/golang/snappy
-  version: d7b1e156f50d3c4664f683603af70e3e47fa0aa2
+  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
 - name: github.com/google/go-querystring
   version: 9235644dd9e52eeae6fa48efd539fdc351a0af53
   subpackages:
   - query
 - name: github.com/hashicorp/hcl
-  version: 5b7dbf7eefffea49afb3c9655d6582c72fae5fd1
+  version: d8c773c4cba11b11539e3d45f93daeaa5dcf1fa1
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -74,7 +74,7 @@ imports:
   - json/scanner
   - json/token
 - name: github.com/imdario/mergo
-  version: 50d4dbd4eb0e84778abe37cefef140271d96fade
+  version: 3e95a51e0639b4cf372f2ccf74c86749d747fbdc
 - name: github.com/imkira/go-interpol
   version: b9781c93ae51c8b4fc3af1b1426909721af0a624
 - name: github.com/inconshreveable/mousetrap
@@ -86,13 +86,15 @@ imports:
 - name: github.com/iris-contrib/websocket
   version: a2c30084384c39ce6595169df8b93d7298ac04cd
 - name: github.com/jinzhu/gorm
-  version: 3324ab20633e8c7ec6d6b1f7a714a1a6e06fec08
+  version: b507cdf93d0629e7177a70df20932bd834c92b03
   subpackages:
   - dialects/postgres
 - name: github.com/Joker/jade
   version: db4d7e4f68708c5020c392b380e3565df2132840
+- name: github.com/kataras/fasthttp
+  version: a5b8350f05141a9e4965138a4b5015eaeeca332f
 - name: github.com/kataras/iris
-  version: 126e170371993b4df82908b1715c2bbc0be10bc6
+  version: 4fd346066275553197aac6108e645c2d70249a0a
   subpackages:
   - config
   - context
@@ -127,12 +129,12 @@ imports:
   subpackages:
   - yaml
 - name: github.com/lib/pq
-  version: e2402a7cd1e57e08a576b94cdfed36ae30366545
+  version: 4dd446efc17690bc53e154025146f73203b18309
   subpackages:
   - hstore
   - oid
 - name: github.com/magiconair/properties
-  version: c265cfa48dda6474e208715ca93e987829f572f8
+  version: e2f061ecfdaca9f35b2e2c12346ffc526f138137
 - name: github.com/mattn/go-colorable
   version: 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
 - name: github.com/mattn/go-isatty
@@ -148,7 +150,7 @@ imports:
   subpackages:
   - ginkgo
 - name: github.com/onsi/gomega
-  version: 3e93f011213c200aadafcb19ed56eb718381cfbd
+  version: fcb0f1276bbd7cf097f5a7fd86cc68b50da9376f
 - name: github.com/Pallinder/go-randomdata
   version: 104cc800bd6434e70cb0c3ad08c4541f4f2eb48b
 - name: github.com/pmezard/go-difflib
@@ -164,13 +166,13 @@ imports:
   subpackages:
   - diffmatchpatch
 - name: github.com/Shopify/sarama
-  version: 2979d3c53e2079160c0343fb8841987cf20ba35a
+  version: daa549b755c85cf347258a4c22e0baba1e8d2cc2
 - name: github.com/shurcooL/sanitized_anchor_name
   version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
 - name: github.com/spf13/cast
   version: 27b586b42e29bec072fe7379259cc719e1289da6
 - name: github.com/spf13/cobra
-  version: 6a8bd97bdb1fc0d08a83459940498ea49d3e8c93
+  version: a272c3cbd5ff80a5bf5c5603df50183f9f3f7324
 - name: github.com/spf13/jwalterweatherman
   version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
 - name: github.com/spf13/pflag
@@ -189,11 +191,11 @@ imports:
 - name: github.com/uber-go/atomic
   version: e682c1008ac17bf26d2e4b5ad6cdd08520ed0b22
 - name: github.com/uber-go/zap
-  version: 0adf805bc28a5fdebc09a8c9c0f1260a7fbd9f39
+  version: 63d56df197a79e16899d69b6a7665cb9b7c8ea99
 - name: github.com/valyala/bytebufferpool
-  version: a517d2d1537f5b02e9f6c23d4794160c6c2bc157
+  version: 8ebd0474e5a2f0a5c7a74ad2bf421a1d1a90264f
 - name: github.com/valyala/fasthttp
-  version: 97d96cb3b7feaf22ce9b813313cd8ae20b3589b9
+  version: 886e5411604884629c566961ea8ed2cec074e4b1
   subpackages:
   - fasthttpadaptor
   - fasthttputil
@@ -204,25 +206,25 @@ imports:
 - name: github.com/xeipuuv/gojsonreference
   version: e02fc20de94c78484cd5ffb007f8af96be030a45
 - name: github.com/xeipuuv/gojsonschema
-  version: c539bca196be50ccdd1f0bcd9076de95f9081831
+  version: 66a3de92def23708184148ae337750915875e7c1
 - name: github.com/yalp/jsonpath
   version: 31a79c7593bb93eb10b163650d4a3e6ca190e4dc
 - name: github.com/yudai/golcs
   version: d1c525dea8ce39ea9a783d33cf08932305373f2c
 - name: github.com/ziutek/mymysql
-  version: e5d54ebfda3f8a15e7b192b65c2aa10cb4fd7e04
+  version: 8787d5581eb63f3f3b447f40c13f8e69e73f1b58
   subpackages:
   - godrv
   - mysql
   - native
 - name: golang.org/x/net
-  version: b400c2eff1badec7022a8c8f5bea058b6315eed7
+  version: f841c39de738b1d0df95b5a7187744f0e03d8112
   subpackages:
   - publicsuffix
   - html
   - html/atom
 - name: golang.org/x/sys
-  version: b776ec39b3e54652e09028aaaaac9757f4f8211a
+  version: a408501be4d17ee978c04a618e7a1b22af058c0e
   subpackages:
   - unix
 - name: gopkg.in/gorp.v1

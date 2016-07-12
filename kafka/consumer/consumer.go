@@ -2,14 +2,24 @@ package consumer
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/uber-go/zap"
 )
 
+func getLogLevel() zap.Level {
+	var level = zap.WarnLevel
+	var environment = os.Getenv("ENV")
+	if environment == "test" {
+		level = zap.FatalLevel
+	}
+	return level
+}
+
 // Logger is the consumer logger
-var Logger = zap.NewJSON(zap.WarnLevel)
+var Logger = zap.NewJSON(getLogLevel())
 
 // consumeError is an error generated during data consumption
 type consumeError struct {
@@ -76,18 +86,12 @@ func MainLoop(consumer *cluster.Consumer, outChan chan<- string, done <-chan str
 			return // breaks out of the for
 		case msg, ok := <-consumer.Messages():
 			if !ok {
-				Logger.Error(
-					"Not ok consuming from Kafka",
-					zap.String("msg", fmt.Sprintf("%+v", msg)),
-				)
+				Logger.Error("Not ok consuming from Kafka", zap.String("msg", fmt.Sprintf("%+v", msg)))
 				return // breaks out of the for
 			}
 			strMsg, err := Consume(msg)
 			if err != nil {
-				Logger.Error(
-					"Error reading kafka message",
-					zap.Error(err),
-				)
+				Logger.Error("Error reading kafka message", zap.Error(err))
 				continue
 			}
 			consumer.MarkOffset(msg, "")

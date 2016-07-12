@@ -2,7 +2,10 @@ PACKAGES = $(shell glide novendor)
 DIRS = $(shell find . -type f -not -path '*/\.*' | grep '.go' | grep -v "^[.]\/vendor" | xargs -I {} dirname {} | sort | uniq | grep -v '^.$$')
 PMD = "pmd-bin-5.3.3"
 
-setup:
+setup-hooks:
+	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
+	
+setup: setup-hooks
 	@go get -u github.com/Masterminds/glide/...
 	@go get -u github.com/onsi/ginkgo/ginkgo
 	@go get -v github.com/spf13/cobra/cobra
@@ -57,7 +60,7 @@ db-local-migrate:
 	@echo "Database migrated successfully!"
 
 test: db-test-create db-test-migrate run-kafka-zookeeper
-	@ginkgo --cover $(DIRS)
+	@ENV=test ginkgo --cover $(DIRS)
 
 test-verbose: db-test-create db-test-migrate run-kafka-zookeeper
 	@ginkgo -v --cover $(DIRS)

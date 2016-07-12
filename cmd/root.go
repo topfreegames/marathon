@@ -11,9 +11,6 @@ import (
 // ConfigFile is the file containing all config
 var ConfigFile string
 
-// Logger is the cmd logger
-var Logger = zap.NewJSON(zap.WarnLevel)
-
 // RootCmd is the root command for marathon CLI application
 var RootCmd = &cobra.Command{
 	Use:   "marathon",
