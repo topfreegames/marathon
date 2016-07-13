@@ -1,42 +1,32 @@
-package cmd
+package cmd_test
 
 // import (
 // 	"os/exec"
-// 	"testing"
 //
-// 	. "github.com/franela/goblin"
+// 	"git.topfreegames.com/topfreegames/marathon/cmd"
+//
+// 	. "github.com/onsi/ginkgo"
+// 	. "github.com/onsi/gomega"
 // )
 //
-// func dropDB() error {
-// 	cmd := exec.Cmd{
-// 		Dir:  "../",
-// 		Path: "/usr/bin/make",
-// 		Args: []string{
-// 			"drop-test",
-// 		},
-// 	}
-// 	_, err := cmd.CombinedOutput()
-// 	if err != nil {
-// 		return err
-// 	}
+// var _ = Describe("Migrations", func() {
+// 	BeforeEach(func() {
+// 		cmd := exec.Cmd{
+// 			Dir:  "../",
+// 			Path: "/usr/bin/make",
+// 			Args: []string{
+// 				"drop-test",
+// 			},
+// 		}
+// 		_, err := cmd.CombinedOutput()
+// 		Expect(err).To(BeNil())
+// 	})
 //
-// 	return nil
-// }
-//
-// func TestMigrationCommand(t *testing.T) {
-// 	g := Goblin(t)
-//
-// 	g.Describe("Migrate Cmd", func() {
-// 		g.BeforeEach(func() {
-// 			err := dropDB()
-// 			g.Assert(err == nil).IsTrue()
-// 		})
-//
-// 		g.It("Should run migrations up", func() {
-// 			ConfigFile = "../config/test.yaml"
-// 			initConfig()
-// 			err := runMigrations("../db/migrations", -1)
-// 			g.Assert(err == nil).IsTrue()
+// 	Describe("Should migrate", func() {
+// 		It("Should run migrations up", func() {
+// 			cmd.InitConfig()
+// 			err := cmd.RunMigrations("../db/migrations", -1)
+// 			Expect(err).To(BeNil())
 // 		})
 // 	})
-// }
+// })

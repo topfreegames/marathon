@@ -5,6 +5,7 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
+	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
 
@@ -21,13 +22,14 @@ func getLogLevel() zap.Level {
 var Logger = zap.NewJSON(getLogLevel())
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
-func Producer(kafkaConfig *Config, inChan <-chan *messages.KafkaMessage) {
-
+func Producer(config *viper.Viper, inChan <-chan *messages.KafkaMessage) {
 	saramaConfig := sarama.NewConfig()
-	producer, err := sarama.NewSyncProducer(kafkaConfig.Brokers, saramaConfig)
+	producer, err := sarama.NewSyncProducer(
+		config.GetStringSlice("workers.producer.brokers"),
+		saramaConfig)
 	if err != nil {
 		Logger.Error(
-			"Failed to start kafka produces",
+			"Failed to start kafka producer",
 			zap.Error(err),
 		)
 		return

@@ -27,16 +27,28 @@ func Execute(cmd *cobra.Command) {
 }
 
 func init() {
-	// cobra.OnInitialize(initConfig)
+	var environment = os.Getenv("ENV")
+	if environment == "" {
+		environment = "development"
+	}
+	filename := "./config/" + environment + ".yaml"
 	RootCmd.PersistentFlags().StringVarP(
-		&ConfigFile, "config", "c", "./config/local.yaml",
-		"config file (default is ./config/local.yaml",
+		// cobra.OnInitialize(initConfig)
+		&ConfigFile, "config", "c", filename,
+		"config file uses ENV to set `./config/<ENV>.yaml`",
 	)
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
+// InitConfig reads in config file and ENV variables if set.
+func InitConfig() {
 	if ConfigFile != "" { // enable ability to specify config file via flag
+		viper.SetConfigFile(ConfigFile)
+	} else {
+		var environment = os.Getenv("ENV")
+		if environment == "" {
+			environment = "development"
+		}
+		ConfigFile = "./config/" + environment + ".yml"
 		viper.SetConfigFile(ConfigFile)
 	}
 	viper.SetEnvPrefix("marathon")

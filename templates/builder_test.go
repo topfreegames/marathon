@@ -33,6 +33,23 @@ var _ = Describe("Template", func() {
 				Expect(resp).To(Equal("hello, hello, hello"))
 			})
 
+			It("Should replace multiple nested variables", func() {
+				params := map[string]interface{}{
+					"param1": map[string]interface{}{
+						"param1_1": "value1_1",
+						"param1_2": "value1_2",
+					},
+					"param2": map[string]interface{}{
+						"param2_1": "value2_1",
+						"param2_2": "value2_2",
+					},
+				}
+				message := "{{param1.param1_1}}, {{param1.param1_2}}, {{param2.param2_2}}"
+				resp, rplTplErr := templates.Replace(message, params)
+				Expect(rplTplErr).To(BeNil())
+				Expect(resp).To(Equal("value1_1, value1_2, value2_2"))
+			})
+
 			It("Should not replace variables if template has syntax error", func() {
 				params := map[string]interface{}{
 					"param1": "hello",
@@ -75,6 +92,15 @@ var _ = Describe("Template", func() {
 				Expect(err).NotTo(BeNil())
 				Expect(msg).To(Equal(""))
 			})
+
+			It("Should not build message correctly with incalid content", func() {
+				req := &messages.TemplatedMessage{
+					Token:      "token",
+					PushExpiry: 0,
+				}
+				_, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
+				Expect(err).NotTo(BeNil())
+			})
 		})
 
 		Describe("GcmMsg", func() {
@@ -97,6 +123,15 @@ var _ = Describe("Template", func() {
 				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
 				Expect(err).To(BeNil())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1},"push_expiry":0}`))
+			})
+
+			It("Should not build message correctly with incalid content", func() {
+				req := &messages.TemplatedMessage{
+					Token:      "token",
+					PushExpiry: 0,
+				}
+				_, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1`)
+				Expect(err).NotTo(BeNil())
 			})
 		})
 

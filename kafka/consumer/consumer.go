@@ -6,6 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
+	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
 
@@ -31,7 +32,7 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(consumerConfig *Config, outChan chan<- string, done <-chan struct{}) {
+func Consumer(config *viper.Viper, outChan chan<- string, done <-chan struct{}) {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
@@ -42,9 +43,9 @@ func Consumer(consumerConfig *Config, outChan chan<- string, done <-chan struct{
 
 	// Create consumer defined by the configurations
 	consumer, consumerErr := cluster.NewConsumer(
-		consumerConfig.Brokers,
-		consumerConfig.ConsumerGroup,
-		consumerConfig.Topics,
+		config.GetStringSlice("workers.consumer.brokers"),
+		config.GetString("workers.consumer.consumergroup"),
+		config.GetStringSlice("workers.consumer.topics"),
 		clusterConfig,
 	)
 	if consumerErr != nil {

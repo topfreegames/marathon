@@ -12,9 +12,9 @@ workers:
   consumer:
     consumergroup: "test-consumer-group"
     topics: [ "input-topic" ]
-    brokers: [ "localhost:3536" ]
+    brokers: [ "localhost:9092" ]
   producer:
-    brokers: [ "localhost:3536" ]
+    brokers: [ "localhost:9092" ]
   modules:
     consumers: 1
     parsers: 1

@@ -4,7 +4,7 @@ PMD = "pmd-bin-5.3.3"
 
 setup-hooks:
 	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
-	
+
 setup: setup-hooks
 	@go get -u github.com/Masterminds/glide/...
 	@go get -u github.com/onsi/ginkgo/ginkgo
@@ -63,7 +63,7 @@ test: db-test-create db-test-migrate run-kafka-zookeeper
 	@ENV=test ginkgo --cover $(DIRS)
 
 test-verbose: db-test-create db-test-migrate run-kafka-zookeeper
-	@ginkgo -v --cover $(DIRS)
+	@ENV=test ginkgo -v --cover $(DIRS)
 
 test-coverage: test
 	@rm -rf _build

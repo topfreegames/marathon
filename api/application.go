@@ -74,10 +74,7 @@ func (application *Application) loadConfiguration() {
 	application.Config.AutomaticEnv()
 
 	if err := application.Config.ReadInConfig(); err == nil {
-		application.Logger.Info(
-			"Using config file",
-			zap.String("file", application.Config.ConfigFileUsed()),
-		)
+		application.Logger.Info("Using config file", zap.String("file", application.Config.ConfigFileUsed()))
 	} else {
 		panic(fmt.Sprintf("Could not load configuration file from: %s", application.ConfigPath))
 	}

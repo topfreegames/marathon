@@ -9,6 +9,7 @@ import (
 	"github.com/Shopify/sarama"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 )
 
 func TestConsumer(t *testing.T) {
@@ -59,17 +60,16 @@ var _ = Describe("Consumer", func() {
 			brokers := []string{"localhost:3536"}
 			consumerGroup := "consumer-group-test-consumer-1"
 
-			consumerConfig := consumer.Config{
-				ConsumerGroup: consumerGroup,
-				Topics:        topics,
-				Brokers:       brokers,
-			}
+			var config = viper.New()
+			config.SetDefault("workers.consumer.brokers", brokers)
+			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go consumer.Consumer(&consumerConfig, outChan, done)
+			go consumer.Consumer(config, outChan, done)
 
 			// Produce Messages
 			message := "message"
@@ -86,17 +86,16 @@ var _ = Describe("Consumer", func() {
 			consumerGroup := "consumer-group-test-consumer-2"
 			message := "message%d"
 
-			consumerConfig := consumer.Config{
-				ConsumerGroup: consumerGroup,
-				Topics:        topics,
-				Brokers:       brokers,
-			}
+			var config = viper.New()
+			config.SetDefault("workers.consumer.brokers", brokers)
+			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go consumer.Consumer(&consumerConfig, outChan, done)
+			go consumer.Consumer(config, outChan, done)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
@@ -117,17 +116,16 @@ var _ = Describe("Consumer", func() {
 			consumerGroup := "consumer-group-test-consumer-3"
 			message := "message"
 
-			consumerConfig := consumer.Config{
-				ConsumerGroup: consumerGroup,
-				Topics:        topics,
-				Brokers:       brokers,
-			}
+			var config = viper.New()
+			config.SetDefault("workers.consumer.brokers", brokers)
+			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go consumer.Consumer(&consumerConfig, outChan, done)
+			go consumer.Consumer(config, outChan, done)
 
 			produceMessage(brokers, topic, "", int32(0), int64(0))
 			produceMessage(brokers, topic, "message", int32(0), int64(1))
@@ -143,11 +141,10 @@ var _ = Describe("Consumer", func() {
 			brokers := []string{"localhost:0666"}
 			consumerGroup := "consumer-group-test-consumer-4"
 
-			consumerConfig := consumer.Config{
-				ConsumerGroup: consumerGroup,
-				Topics:        topics,
-				Brokers:       brokers,
-			}
+			var config = viper.New()
+			config.SetDefault("workers.consumer.brokers", brokers)
+			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
 			defer close(outChan)
@@ -155,7 +152,7 @@ var _ = Describe("Consumer", func() {
 			defer close(done)
 
 			// Consumer returns here and don't get blocked
-			consumer.Consumer(&consumerConfig, outChan, done)
+			consumer.Consumer(config, outChan, done)
 		})
 	})
 })

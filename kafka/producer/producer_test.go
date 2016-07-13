@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 )
 
 func TestProducer(t *testing.T) {
@@ -18,6 +19,7 @@ func TestProducer(t *testing.T) {
 }
 
 var _ = Describe("Producer", func() {
+
 	It("Should send messages received in the inChan to kafka", func() {
 		topic := "test-producer-1"
 		topics := []string{topic}
@@ -25,11 +27,13 @@ var _ = Describe("Producer", func() {
 		consumerGroup := "consumer-group-test-producer-1"
 		message := "message%d"
 
-		producerConfig := producer.Config{Brokers: brokers}
+		var producerConfig = viper.New()
+		producerConfig.SetDefault("workers.producer.brokers", brokers)
+
 		inChan := make(chan *messages.KafkaMessage)
 		defer close(inChan)
 
-		go producer.Producer(&producerConfig, inChan)
+		go producer.Producer(producerConfig, inChan)
 		message1 := fmt.Sprintf(message, 1)
 		message2 := fmt.Sprintf(message, 1)
 		msg1 := &messages.KafkaMessage{Message: message1, Topic: topic}
@@ -38,16 +42,16 @@ var _ = Describe("Producer", func() {
 		inChan <- msg2
 
 		// Consuming
-		consumerConfig := consumer.Config{
-			ConsumerGroup: consumerGroup,
-			Topics:        topics,
-			Brokers:       brokers,
-		}
+		var consumerConfig = viper.New()
+		consumerConfig.SetDefault("workers.consumer.brokers", brokers)
+		consumerConfig.SetDefault("workers.consumer.consumergroup", consumerGroup)
+		consumerConfig.SetDefault("workers.consumer.topics", topics)
+
 		outChan := make(chan string, 10)
 		defer close(outChan)
 		done := make(chan struct{}, 1)
 		defer close(done)
-		go consumer.Consumer(&consumerConfig, outChan, done)
+		go consumer.Consumer(consumerConfig, outChan, done)
 
 		consumedMessage1 := <-outChan
 		consumedMessage2 := <-outChan
@@ -58,11 +62,13 @@ var _ = Describe("Producer", func() {
 	It("Should not create a producer if no broker found", func() {
 		brokers := []string{"localhost:3555"}
 
-		producerConfig := producer.Config{Brokers: brokers}
+		var producerConfig = viper.New()
+		producerConfig.SetDefault("workers.producer.brokers", brokers)
+
 		inChan := make(chan *messages.KafkaMessage)
 		defer close(inChan)
 
 		// Producer returns here and don't get blocked
-		producer.Producer(&producerConfig, inChan)
+		producer.Producer(producerConfig, inChan)
 	})
 })
