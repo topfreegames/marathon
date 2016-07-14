@@ -33,6 +33,9 @@ type DB interface {
 	Insert(...interface{}) error
 	Update(...interface{}) (int64, error)
 	Delete(...interface{}) (int64, error)
+	AddTableWithName(interface{}, string) *gorp.TableMap
+	CreateTables() error
+	Exec(string, ...interface{}) (sql.Result, error)
 }
 
 var _db DB

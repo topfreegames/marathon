@@ -113,7 +113,11 @@ func (application *Application) configureApplicationlication() {
 	a.Get("/healthcheck", HealthCheckHandler(application))
 
 	// Application Routes
-	// a.Post("/applications", CreateGameHandler(application))
+	a.Post("/apps", CreateAppHandler(application))
+	// a.Post("/notifiers", controllers.CreateNotifierHandler(application))
+	// a.Post("/organizations", controllers.CreateOrganizationHandler(application))
+	// a.Post("/templates", controllers.CreateTemplatesHandler(application))
+	// a.Post("/userTokens", controllers.CreateUserTokensTableHandler(application))
 }
 
 func (application *Application) finalizeApplication() {
