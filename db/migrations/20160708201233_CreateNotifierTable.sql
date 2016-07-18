@@ -11,4 +11,5 @@ CREATE UNIQUE INDEX unique_notifier_app_service ON notifiers (app_id, (lower(ser
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
-DROP TABLE notifiers;
+DROP TABLE IF EXISTS notifiers;
+DROP INDEX IF EXISTS unique_notifier_app_service;

@@ -13,4 +13,6 @@ CREATE INDEX app_group ON apps (lower('group'));
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
-DROP TABLE apps;
+DROP TABLE IF EXISTS apps;
+DROP INDEX IF EXISTS unique_app_name;
+DROP INDEX IF EXISTS app_group;

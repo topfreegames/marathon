@@ -96,3 +96,29 @@ func CreateTemplateFactory(db models.DB, attrs map[string]interface{}) (*models.
 	template := TemplateFactory.MustCreateWithOption(attrs).(*models.Template)
 	return template, nil
 }
+
+var UserTokenFactory = factory.NewFactory(
+	&models.UserToken{},
+).Attr("Token", func(args factory.Args) (interface{}, error) {
+	return uuid.NewV4().String(), nil
+}).Attr("UserID", func(args factory.Args) (interface{}, error) {
+	return uuid.NewV4().String(), nil
+}).Attr("Locale", func(args factory.Args) (interface{}, error) {
+	return uuid.NewV4().String()[:2], nil
+}).Attr("Region", func(args factory.Args) (interface{}, error) {
+	return uuid.NewV4().String()[:2], nil
+}).Attr("Tz", func(args factory.Args) (interface{}, error) {
+	return "GMT+03:00", nil
+}).Attr("BuildN", func(args factory.Args) (interface{}, error) {
+	return "30000", nil
+}).Attr("OptOut", func(args factory.Args) (interface{}, error) {
+	// optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+	// stringOptOut := fmt.Sprintf("[%d]={%+v}", len(optOut), strings.Join(optOut, ","))
+	// return stringOptOut, nil
+	return []string{uuid.NewV4().String(), uuid.NewV4().String()}, nil
+})
+
+func CreateUserTokenFactory(db models.DB, attrs map[string]interface{}) (*models.UserToken, error) {
+	userToken := UserTokenFactory.MustCreateWithOption(attrs).(*models.UserToken)
+	return userToken, nil
+}

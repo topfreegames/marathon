@@ -65,7 +65,6 @@ func GetUserTokenByToken(db DB, app string, service string, token string) ([]Use
 
 // CreateToken creates a new Token
 func CreateToken(db DB, app string, service string, userID string, token string, locale string, region string, tz string, buildN string, optOut []string) (*UserToken, error) {
-
 	tableName := GetTableName(app, service)
 	optOutString, marshOptOutErr := json.Marshal(optOut)
 	if marshOptOutErr != nil {
@@ -139,25 +138,69 @@ func GetTableName(app string, service string) string {
 }
 
 // CreateUserTokensTable creates a table for the model UserToken with the name based on app and service
-func CreateUserTokensTable(db DB, app string, service string) (string, error) {
-	tableName := GetTableName(app, service)
-	tableMap := db.AddTableWithName(UserToken{}, tableName).SetKeys(false, "ID")
+func CreateUserTokensTable(_db DB, app string, service string) (*gorp.TableMap, error) {
+	db := _db.(*gorp.DbMap)
 
-	Logger.Debug(
-		"TableMap after creating table",
-		zap.String("table name", tableName),
-		zap.String("table map", fmt.Sprintf("%+v", tableMap)),
+	tableName := GetTableName(app, service)
+	Logger.Error(
+		"TableName",
+		zap.String("name", tableName),
 	)
 
-	createTableErr := db.CreateTables()
-	if createTableErr != nil {
+	createQuery := fmt.Sprintf(`
+    CREATE TABLE IF NOT EXISTS %s (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      token varchar(255) NOT NULL CHECK (token <> ''),
+      user_id varchar(255) NOT NULL CHECK (user_id <> ''),
+      locale varchar(3) NOT NULL CHECK (locale <> ''),
+      region varchar(3) NOT NULL CHECK (region <> ''),
+      tz varchar(20) NOT NULL CHECK (tz <> ''),
+      build_n varchar(255) NOT NULL CHECK (build_n <> ''),
+      opt_out varchar[] NOT NULL DEFAULT '{}',
+      created_at bigint NOT NULL,
+      updated_at bigint NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS index_%s_on_locale ON %s (lower(locale));
+    CREATE INDEX IF NOT EXISTS index_%s_on_token ON %s (token);
+    CREATE INDEX IF NOT EXISTS index_%s_on_user_id ON %s (user_id);`,
+		tableName, tableName, tableName, tableName, tableName, tableName, tableName,
+	)
+
+	dropQuery := fmt.Sprintf(`
+    DROP TABLE IF EXISTS %s;
+    DROP INDEX IF EXISTS index_%s_on_locale;
+    DROP INDEX IF EXISTS index_%s_on_token;
+    DROP INDEX IF EXISTS index_%s_on_user_id;`,
+		tableName, tableName, tableName, tableName,
+	)
+	created, createErr := db.Exec(createQuery)
+	if createErr != nil {
+		_, dropErr := db.Exec(dropQuery)
+		if dropErr != nil {
+			Logger.Error(
+				"Could not exec queries",
+				zap.String("createQuery", createQuery),
+				zap.String("dropQuery", dropQuery),
+				zap.Error(createErr),
+				zap.Error(dropErr),
+			)
+			return nil, dropErr
+		}
 		Logger.Error(
-			"Could not create table with given params",
-			zap.String("app", app),
-			zap.String("service", service),
-			zap.Error(createTableErr),
+			"Could not exec query",
+			zap.String("query", createQuery),
+			zap.Error(createErr),
 		)
-		return "", createTableErr
+		return nil, createErr
 	}
-	return tableName, nil
+
+	Logger.Info(
+		"Created table",
+		zap.String("table name", tableName),
+		zap.String("table", fmt.Sprintf("%+v", created)),
+	)
+
+	tableMap := db.AddTableWithName(UserToken{}, tableName).SetKeys(false, "ID")
+
+	return tableMap, nil
 }

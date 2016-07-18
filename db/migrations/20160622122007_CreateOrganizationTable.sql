@@ -10,4 +10,5 @@ CREATE UNIQUE INDEX unique_organization_name ON organizations ((lower(name)));
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
-DROP TABLE organizations;
+DROP TABLE IF EXISTS organizations;
+DROP INDEX IF EXISTS unique_organization_name;

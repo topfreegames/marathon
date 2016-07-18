@@ -14,4 +14,5 @@ CREATE UNIQUE INDEX unique_template_name_service_locale ON templates (lower(name
 
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
-DROP TABLE templates;
+DROP TABLE IF EXISTS templates;
+DROP INDEX IF EXISTS unique_template_name_service_locale;
