@@ -1,11 +1,12 @@
 package models
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/satori/go.uuid"
+	"github.com/topfreegames/khan/util"
 	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
 )
@@ -32,12 +33,6 @@ func (o *UserToken) PreInsert(s gorp.SqlExecutor) error {
 	return nil
 }
 
-// PreUpdate populates fields before updating a template
-func (o *UserToken) PreUpdate(s gorp.SqlExecutor) error {
-	o.UpdatedAt = time.Now().Unix()
-	return nil
-}
-
 // GetUserTokenByID returns a template by id
 func GetUserTokenByID(db DB, app string, service string, id uuid.UUID) (*UserToken, error) {
 	var userToken UserToken
@@ -51,7 +46,7 @@ func GetUserTokenByID(db DB, app string, service string, id uuid.UUID) (*UserTok
 }
 
 // GetUserTokenByToken returns templates with the given name
-func GetUserTokenByToken(db DB, app string, service string, token string) ([]UserToken, error) {
+func GetUserTokenByToken(db DB, app string, service string, token string) (*UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE token=$1", tableName)
@@ -60,73 +55,55 @@ func GetUserTokenByToken(db DB, app string, service string, token string) ([]Use
 	if err != nil || &userTokens == nil || len(userTokens) == 0 {
 		return nil, &ModelNotFoundError{"UserToken", "token", token}
 	}
-	return userTokens, nil
+	if len(userTokens) > 1 {
+		return nil, &DuplicatedTokenError{tableName, token}
+	}
+	return &userTokens[0], nil
 }
 
-// CreateToken creates a new Token
-func CreateToken(db DB, app string, service string, userID string, token string, locale string, region string, tz string, buildN string, optOut []string) (*UserToken, error) {
+// UpsertToken inserts or updates a Token
+func UpsertToken(db DB, app string, service string, userID string, token string, locale string,
+	region string, tz string, buildn string, optOut []string) (*UserToken, error) {
 	tableName := GetTableName(app, service)
-	optOutString, marshOptOutErr := json.Marshal(optOut)
-	if marshOptOutErr != nil {
-		Logger.Error(
-			"Could not marshal optOut",
-			zap.String("optOut", fmt.Sprintf("%+v", optOut)),
-			zap.Error(marshOptOutErr),
-		)
-		return nil, marshOptOutErr
+
+	userToken, err := GetUserTokenByToken(db, app, service, token)
+	if err != nil {
+		if _, same := err.(*ModelNotFoundError); !same {
+			return nil, err
+		}
 	}
 
-	query := fmt.Sprintf(
-		"INSERT INTO %s (user_id, token, locale, region, tz, build_n, opt_out) VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s')",
-		tableName, userID, token, locale, region, tz, buildN, string(optOutString),
-	)
-
-	result, execErr := db.Exec(query)
-	if execErr != nil {
-		Logger.Error(
-			"Could not exec query",
-			zap.String("query", query),
-			zap.Error(execErr),
-		)
-		return nil, execErr
-	}
-	userToken := &UserToken{
-		Token:  token,
-		UserID: userID,
-		Locale: locale,
-		Region: region,
-		Tz:     tz,
-		BuildN: buildN,
-		OptOut: optOut,
+	if userToken != nil && userToken.UserID != userID {
+		_, err = db.Delete(userToken)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	Logger.Debug(
-		fmt.Sprintf("Inserted userToken to %s", tableName),
-		zap.String("query", query),
-		zap.String("result", fmt.Sprintf("%+v", result)),
-	)
-
-	return userToken, nil
-}
-
-// UpdateToken updates a Token
-func UpdateToken(db DB, app string, service string, id uuid.UUID, userID string, token string, locale string, region string, tz string, buildn string, optOut []string) (*UserToken, error) {
-	userToken, getUserTokenErr := GetUserTokenByID(db, app, service, id)
-	if getUserTokenErr != nil {
-		return nil, getUserTokenErr
+	params := []interface{}{userID, token, locale, region, tz, buildn, util.NowMilli(), util.NowMilli()}
+	startOptOutsAt := 9
+	optOuts := []string{}
+	for i := range optOut {
+		params = append(params, optOut[i])
+		optOuts = append(optOuts, fmt.Sprintf("$%d", startOptOutsAt+i))
 	}
 
-	userToken.UserID = userID
-	userToken.Token = token
-	userToken.Locale = locale
-	userToken.Region = region
-	userToken.Tz = tz
-	userToken.BuildN = buildn
-	userToken.OptOut = optOut
+	query := `INSERT INTO %s (user_id, token, locale, region, tz, build_n, created_at, updated_at, opt_out)
+	  VALUES($1, $2, $3, $4, $5, $6, $7, $8, ARRAY[%s])
+    ON CONFLICT (user_id, token)
+	    DO UPDATE SET locale=$3, region=$4, tz=$5, build_n=$6, created_at=EXCLUDED.created_at,
+      updated_at=$8, opt_out=ARRAY[%s]`
 
-	_, updateErr := db.Update(userToken)
-	if updateErr != nil {
-		return nil, updateErr
+	query = fmt.Sprintf(query, tableName, strings.Join(optOuts, ","), strings.Join(optOuts, ","))
+
+	_, err = db.Exec(query, params...)
+	if err != nil {
+		return nil, err
+	}
+
+	userToken, err = GetUserTokenByToken(db, app, service, token)
+	if err != nil {
+		return nil, err
 	}
 
 	return userToken, nil
@@ -162,8 +139,10 @@ func CreateUserTokensTable(_db DB, app string, service string) (*gorp.TableMap, 
     );
     CREATE INDEX IF NOT EXISTS index_%s_on_locale ON %s (lower(locale));
     CREATE INDEX IF NOT EXISTS index_%s_on_token ON %s (token);
-    CREATE INDEX IF NOT EXISTS index_%s_on_user_id ON %s (user_id);`,
-		tableName, tableName, tableName, tableName, tableName, tableName, tableName,
+    CREATE INDEX IF NOT EXISTS index_%s_on_user_id ON %s (user_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS unique_index_%s_on_user_id ON %s (user_id, token)
+    `,
+		tableName, tableName, tableName, tableName, tableName, tableName, tableName, tableName, tableName,
 	)
 
 	dropQuery := fmt.Sprintf(`
