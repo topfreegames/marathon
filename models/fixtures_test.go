@@ -112,9 +112,6 @@ var UserTokenFactory = factory.NewFactory(
 }).Attr("BuildN", func(args factory.Args) (interface{}, error) {
 	return "30000", nil
 }).Attr("OptOut", func(args factory.Args) (interface{}, error) {
-	// optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
-	// stringOptOut := fmt.Sprintf("[%d]={%+v}", len(optOut), strings.Join(optOut, ","))
-	// return stringOptOut, nil
 	return []string{uuid.NewV4().String(), uuid.NewV4().String()}, nil
 })
 

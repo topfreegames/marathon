@@ -4,9 +4,9 @@ import (
 	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
+
 	"github.com/kataras/iris"
 	"github.com/satori/go.uuid"
-	"github.com/uber-go/zap"
 )
 
 type appPayload struct {
@@ -49,16 +49,16 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		}
 
 		db := GetCtxDB(c)
-
 		app, err := models.CreateApp(db, payload.Name, payload.OrganizationID, payload.AppGroup)
 		if err != nil {
-			FailWith(500, err.Error(), c)
+			FailWith(400, err.Error(), c)
 			return
 		}
-		application.Logger.Info("App created", zap.Object("app", payload))
 
 		SucceedWith(map[string]interface{}{
-			"id": app.ID,
+			"name":            app.Name,
+			"app_group":       app.AppGroup,
+			"organization_id": app.OrganizationID,
 		}, c)
 	}
 }
