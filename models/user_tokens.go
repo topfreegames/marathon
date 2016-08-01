@@ -45,7 +45,7 @@ func GetUserTokenByID(db DB, app string, service string, id uuid.UUID) (*UserTok
 	return &userToken, nil
 }
 
-// GetUserTokenByToken returns templates with the given name
+// GetUserTokenByToken returns userToken with the given service,token
 func GetUserTokenByToken(db DB, app string, service string, token string) (*UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)
@@ -59,6 +59,49 @@ func GetUserTokenByToken(db DB, app string, service string, token string) (*User
 		return nil, &DuplicatedTokenError{tableName, token}
 	}
 	return &userTokens[0], nil
+}
+
+// GetUserTokenBatchByFilters returns userTokens with the given filters starting at offset and limited to limit
+func GetUserTokenBatchByFilters(db DB, app string, service string, filters [][]interface{},
+	modifiers [][]interface{}) ([]UserToken, error) {
+	var userTokens []UserToken
+	tableName := GetTableName(app, service)
+
+	// Build params, query filters and query modifiers
+	params := []interface{}{}
+	queryFilters := []string{}
+	for filterIdx, filter := range filters {
+		queryFilters = append(
+			queryFilters,
+			fmt.Sprintf("%s=$%d", filter[0], filterIdx+1),
+		)
+		params = append(params, filter[1])
+	}
+
+	startIdx := len(params) + 1
+	queryModifiers := []string{}
+	for modifierrIdx, modifier := range modifiers {
+		queryModifiers = append(
+			queryModifiers,
+			fmt.Sprintf("%s $%d", modifier[0], modifierrIdx+startIdx),
+		)
+		params = append(params, modifier[1])
+	}
+
+	// Build query based in the query filters and query modifiers
+	query := fmt.Sprintf(
+		"SELECT * FROM %s WHERE %s %s",
+		tableName,
+		strings.Join(queryFilters, " AND "),
+		strings.Join(queryModifiers, " "),
+	)
+
+	// Execute query based in the given params
+	_, err := db.Select(&userTokens, query, params...)
+	if err != nil || &userTokens == nil {
+		return nil, err
+	}
+	return userTokens, nil
 }
 
 // UpsertToken inserts or updates a Token

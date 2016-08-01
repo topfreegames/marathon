@@ -113,6 +113,7 @@ func (application *Application) configureApplicationlication() {
 	a.Get("/healthcheck", HealthCheckHandler(application))
 
 	// Application Routes
+	// a.Put("/apps/:app_name/users/notification", app.) // Create a notification for all user of an app app
 	// a.Post("/apps", CreateAppHandler(application))
 	// a.Post("/notifiers", controllers.CreateNotifierHandler(application))
 	// a.Post("/organizations", controllers.CreateOrganizationHandler(application))

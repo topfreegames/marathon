@@ -34,8 +34,10 @@ var _ = Describe("Models", func() {
 		for _, t := range tables {
 			tableNames = append(tableNames, t.TableName)
 		}
-		_, err := db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
-		Expect(err).To(BeNil())
+		if len(tableNames) > 0 {
+			_, err := db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
+			Expect(err).To(BeNil())
+		}
 	})
 
 	Describe("UserToken", func() {
@@ -199,6 +201,139 @@ var _ = Describe("Models", func() {
 				Expect(dbUserToken.Region).To(Equal(userToken.Region))
 				Expect(dbUserToken.Tz).To(Equal(userToken.Tz))
 				Expect(dbUserToken.BuildN).To(Equal(userToken.BuildN))
+			})
+
+			It("Should find userToken by filters", func() {
+				app := "app_test_3_1"
+				service := "apns"
+				createdTable, err := models.CreateUserTokensTable(db, app, service)
+				Expect(err).To(BeNil())
+				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
+
+				userID := uuid.NewV4().String()
+				token := uuid.NewV4().String()
+				locale := uuid.NewV4().String()[:2]
+				region := uuid.NewV4().String()[:2]
+				tz := "GMT+03:00"
+				buildN := uuid.NewV4().String()
+				optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+				userToken, err := models.UpsertToken(
+					db, app, service, userID, token, locale, region, tz, buildN, optOut,
+				)
+				Expect(err).To(BeNil())
+
+				filters := [][]interface{}{
+					{"user_id", userID},
+				}
+				modifiers := [][]interface{}{
+					{"ORDER BY", "updated_at ASC"},
+					{"LIMIT", 100},
+					{"OFFSET", 0},
+				}
+
+				dbUserTokens, err := models.GetUserTokenBatchByFilters(db, app, service, filters, modifiers)
+				Expect(err).To(BeNil())
+
+				Expect(len(dbUserTokens)).To(Equal(1))
+				Expect(dbUserTokens[0].Token).To(Equal(userToken.Token))
+				Expect(dbUserTokens[0].UserID).To(Equal(userToken.UserID))
+				Expect(dbUserTokens[0].Locale).To(Equal(userToken.Locale))
+				Expect(dbUserTokens[0].Region).To(Equal(userToken.Region))
+				Expect(dbUserTokens[0].Tz).To(Equal(userToken.Tz))
+				Expect(dbUserTokens[0].BuildN).To(Equal(userToken.BuildN))
+			})
+
+			It("Should find userTokens by filters", func() {
+				app := "app_test_3_1"
+				service := "apns"
+				createdTable, err := models.CreateUserTokensTable(db, app, service)
+				Expect(err).To(BeNil())
+				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
+
+				userID := uuid.NewV4().String()
+				token := uuid.NewV4().String()
+				locale := uuid.NewV4().String()[:2]
+				region := uuid.NewV4().String()[:2]
+				tz := "GMT+03:00"
+				buildN := uuid.NewV4().String()
+				optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+				userToken, err := models.UpsertToken(
+					db, app, service, userID, token, locale, region, tz, buildN, optOut,
+				)
+				Expect(err).To(BeNil())
+
+				userID2 := uuid.NewV4().String()
+				token2 := uuid.NewV4().String()
+				locale2 := uuid.NewV4().String()[:2]
+				region2 := uuid.NewV4().String()[:2]
+				tz2 := "GMT+04:00"
+				optOut2 := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+				userToken2, err := models.UpsertToken(
+					db, app, service, userID2, token2, locale2, region2, tz2, buildN, optOut2,
+				)
+				Expect(err).To(BeNil())
+
+				filters := [][]interface{}{
+					{"build_n", buildN},
+				}
+				modifiers := [][]interface{}{
+					{"ORDER BY", "updated_at ASC"},
+					{"LIMIT", 100},
+					{"OFFSET", 0},
+				}
+
+				dbUserTokens, err := models.GetUserTokenBatchByFilters(db, app, service, filters, modifiers)
+				Expect(err).To(BeNil())
+
+				Expect(len(dbUserTokens)).To(Equal(2))
+
+				Expect(dbUserTokens[0].Token).To(Equal(userToken.Token))
+				Expect(dbUserTokens[0].UserID).To(Equal(userToken.UserID))
+				Expect(dbUserTokens[0].Locale).To(Equal(userToken.Locale))
+				Expect(dbUserTokens[0].Region).To(Equal(userToken.Region))
+				Expect(dbUserTokens[0].Tz).To(Equal(userToken.Tz))
+				Expect(dbUserTokens[0].BuildN).To(Equal(userToken.BuildN))
+
+				Expect(dbUserTokens[1].Token).To(Equal(userToken2.Token))
+				Expect(dbUserTokens[1].UserID).To(Equal(userToken2.UserID))
+				Expect(dbUserTokens[1].Locale).To(Equal(userToken2.Locale))
+				Expect(dbUserTokens[1].Region).To(Equal(userToken2.Region))
+				Expect(dbUserTokens[1].Tz).To(Equal(userToken2.Tz))
+				Expect(dbUserTokens[1].BuildN).To(Equal(userToken2.BuildN))
+			})
+
+			It("Should ont find userToken by filters when there are no matches", func() {
+				app := "app_test_3_1"
+				service := "apns"
+				createdTable, err := models.CreateUserTokensTable(db, app, service)
+				Expect(err).To(BeNil())
+				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
+
+				userID := uuid.NewV4().String()
+				token := uuid.NewV4().String()
+				locale := uuid.NewV4().String()[:2]
+				region := uuid.NewV4().String()[:2]
+				tz := "GMT+03:00"
+				buildN := uuid.NewV4().String()
+				optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+				_, err = models.UpsertToken(
+					db, app, service, userID, token, locale, region, tz, buildN, optOut,
+				)
+				Expect(err).To(BeNil())
+
+				filters := [][]interface{}{
+					{"user_id", uuid.NewV4().String()},
+				}
+				modifiers := [][]interface{}{
+					{"ORDER BY", "updated_at ASC"},
+					{"LIMIT", 100},
+					{"OFFSET", 0},
+				}
+
+				dbUserTokens, err := models.GetUserTokenBatchByFilters(db, app, service, filters, modifiers)
+				Expect(err).To(BeNil())
+
+				Expect(len(dbUserTokens)).To(Equal(0))
 			})
 		})
 	})

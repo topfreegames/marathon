@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -38,6 +39,13 @@ func GetAsInt(field string, payload interface{}) int {
 	return fieldValue.(int)
 }
 
+// GetAsInt64 get a payload field as Int64
+func GetAsInt64(field string, payload interface{}) int64 {
+	v := reflect.ValueOf(payload)
+	fieldValue := v.FieldByName(field).Interface()
+	return fieldValue.(int64)
+}
+
 // GetAsJSON get a payload field as JSON
 func GetAsJSON(field string, payload interface{}) map[string]interface{} {
 	v := reflect.ValueOf(payload)
@@ -64,6 +72,13 @@ func GetAsUUID(field string, payload interface{}) (uuid.UUID, error) {
 	v := reflect.ValueOf(payload)
 	fieldValue := v.FieldByName(field).Interface()
 	return uuid.FromString(fieldValue.(string))
+}
+
+// GetAsRFC3339 get a payload field as RFC3339 time
+func GetAsRFC3339(field string, payload interface{}) (time.Time, error) {
+	v := reflect.ValueOf(payload)
+	fieldValue := v.FieldByName(field).Interface()
+	return time.Parse(time.RFC3339, fieldValue.(string))
 }
 
 // LoadJSONPayload loads the JSON payload to the given struct validating all fields are not null
