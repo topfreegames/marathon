@@ -29,3 +29,11 @@ workers:
     parsertofetcherchansize: 10
     fetchertobuilderchansize: 10
     buildertokafkachansize: 10
+batch_pg_workers:
+  logger:
+    level: "debug"
+  producer:
+    brokers: [ "localhost:3536" ]
+  modules:
+    producers: 1
+    pgtokafkachansize: 10

@@ -69,7 +69,7 @@ var _ = Describe("Consumer", func() {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go consumer.Consumer(config, outChan, done)
+			go consumer.Consumer(config, "workers", outChan, done)
 
 			// Produce Messages
 			message := "message"
@@ -95,7 +95,7 @@ var _ = Describe("Consumer", func() {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go consumer.Consumer(config, outChan, done)
+			go consumer.Consumer(config, "workers", outChan, done)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
@@ -125,7 +125,7 @@ var _ = Describe("Consumer", func() {
 			defer close(outChan)
 			done := make(chan struct{}, 1)
 			defer close(done)
-			go consumer.Consumer(config, outChan, done)
+			go consumer.Consumer(config, "workers", outChan, done)
 
 			produceMessage(brokers, topic, "", int32(0), int64(0))
 			produceMessage(brokers, topic, "message", int32(0), int64(1))
@@ -152,7 +152,7 @@ var _ = Describe("Consumer", func() {
 			defer close(done)
 
 			// Consumer returns here and don't get blocked
-			consumer.Consumer(config, outChan, done)
+			consumer.Consumer(config, "workers", outChan, done)
 		})
 	})
 })

@@ -1,6 +1,7 @@
 package producer
 
 import (
+	"fmt"
 	"os"
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
@@ -22,10 +23,10 @@ func getLogLevel() zap.Level {
 var Logger = zap.NewJSON(getLogLevel())
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
-func Producer(config *viper.Viper, inChan <-chan *messages.KafkaMessage) {
+func Producer(config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage) {
 	saramaConfig := sarama.NewConfig()
 	producer, err := sarama.NewSyncProducer(
-		config.GetStringSlice("workers.producer.brokers"),
+		config.GetStringSlice(fmt.Sprintf("%s.producer.brokers", configRoot)),
 		saramaConfig)
 	if err != nil {
 		Logger.Error(

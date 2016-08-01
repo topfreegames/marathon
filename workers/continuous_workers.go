@@ -13,8 +13,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// Worker contains all worker configs and channels
-type Worker struct {
+// ContinuousWorker contains all continuous worker configs and channels
+type ContinuousWorker struct {
 	KafkaDoneChan        chan struct{}
 	FetcherDoneChan      chan struct{}
 	InputKafkaChan       chan string
@@ -28,7 +28,7 @@ type Worker struct {
 	ConfigPath           string
 }
 
-func (worker *Worker) createChannels() {
+func (worker *ContinuousWorker) createChannels() {
 	worker.KafkaDoneChan = make(chan struct{},
 		worker.Config.GetInt("workers.modules.kafkadonechansize"))
 	worker.FetcherDoneChan = make(chan struct{},
@@ -45,7 +45,7 @@ func (worker *Worker) createChannels() {
 		worker.Config.GetInt("workers.modules.buildertokafkachansize"))
 }
 
-func (worker *Worker) connectDatabase() {
+func (worker *ContinuousWorker) connectDatabase() {
 	host := worker.Config.GetString("postgres.host")
 	user := worker.Config.GetString("postgres.user")
 	dbName := worker.Config.GetString("postgres.dbname")
@@ -69,7 +69,7 @@ func (worker *Worker) connectDatabase() {
 	worker.Db = db
 }
 
-func (worker *Worker) setConfigurationDefaults() {
+func (worker *ContinuousWorker) setConfigurationDefaults() {
 	worker.Config.SetDefault("healthcheck.workingtext", "working")
 	worker.Config.SetDefault("postgres.host", "localhost")
 	worker.Config.SetDefault("postgres.user", "khan")
@@ -96,7 +96,7 @@ func (worker *Worker) setConfigurationDefaults() {
 	worker.Config.SetDefault("workers.modules.buildertokafkachansize", 10)
 }
 
-func (worker *Worker) loadConfiguration() {
+func (worker *ContinuousWorker) loadConfiguration() {
 	worker.Config.SetConfigFile(worker.ConfigPath)
 	worker.Config.SetEnvPrefix("marathon")
 	worker.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -109,7 +109,7 @@ func (worker *Worker) loadConfiguration() {
 	}
 }
 
-func (worker *Worker) configureLogger() {
+func (worker *ContinuousWorker) configureLogger() {
 	var level zap.Option
 	levelFromCfg := worker.Config.GetString("workers.logger.level")
 	fmt.Printf("Configuring logger with level `%s`\n", levelFromCfg)
@@ -133,7 +133,7 @@ func (worker *Worker) configureLogger() {
 }
 
 // Configure configures the worker
-func (worker *Worker) Configure() {
+func (worker *ContinuousWorker) Configure() {
 	worker.setConfigurationDefaults()
 	worker.configureLogger()
 	worker.loadConfiguration()
@@ -143,10 +143,10 @@ func (worker *Worker) Configure() {
 }
 
 // StartWorker starts the workers according to the configuration and returns the workers object
-func (worker *Worker) StartWorker() {
+func (worker *ContinuousWorker) StartWorker() {
 	// Run modules
 	for i := 0; i < worker.Config.GetInt("workers.modules.consumers"); i++ {
-		go consumer.Consumer(worker.Config, worker.InputKafkaChan, worker.KafkaDoneChan)
+		go consumer.Consumer(worker.Config, "workers", worker.InputKafkaChan, worker.KafkaDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.parsers"); i++ {
 		go templates.Parser(worker.KafkaToParserChan, worker.ParserToFetcherChan)
@@ -158,19 +158,19 @@ func (worker *Worker) StartWorker() {
 		go templates.Builder(worker.FetcherToBuilderChan, worker.BuilderToKafkaChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.producers"); i++ {
-		go producer.Producer(worker.Config, worker.BuilderToKafkaChan)
+		go producer.Producer(worker.Config, "workers", worker.BuilderToKafkaChan)
 	}
 }
 
 // Close stops the modules of the instance
-func (worker Worker) Close() {
+func (worker ContinuousWorker) Close() {
 	worker.Logger.Error("Stopping workers")
 	worker.Logger.Error("Stopped workers")
 }
 
-// GetWorker returns a new worker
-func GetWorker(configPath string) *Worker {
-	worker := &Worker{
+// GetContinuousWorker returns a new worker
+func GetContinuousWorker(configPath string) *ContinuousWorker {
+	worker := &ContinuousWorker{
 		Config:     viper.New(),
 		ConfigPath: configPath,
 	}

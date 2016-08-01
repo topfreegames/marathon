@@ -32,7 +32,7 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(config *viper.Viper, outChan chan<- string, done <-chan struct{}) {
+func Consumer(config *viper.Viper, configRoot string, outChan chan<- string, done <-chan struct{}) {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
@@ -43,9 +43,9 @@ func Consumer(config *viper.Viper, outChan chan<- string, done <-chan struct{}) 
 
 	// Create consumer defined by the configurations
 	consumer, consumerErr := cluster.NewConsumer(
-		config.GetStringSlice("workers.consumer.brokers"),
-		config.GetString("workers.consumer.consumergroup"),
-		config.GetStringSlice("workers.consumer.topics"),
+		config.GetStringSlice(fmt.Sprintf("%s.consumer.brokers", configRoot)),
+		config.GetString(fmt.Sprintf("%s.consumer.consumergroup", configRoot)),
+		config.GetStringSlice(fmt.Sprintf("%s.consumer.topics", configRoot)),
 		clusterConfig,
 	)
 	if consumerErr != nil {

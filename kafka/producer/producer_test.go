@@ -33,7 +33,7 @@ var _ = Describe("Producer", func() {
 		inChan := make(chan *messages.KafkaMessage)
 		defer close(inChan)
 
-		go producer.Producer(producerConfig, inChan)
+		go producer.Producer(producerConfig, "workers", inChan)
 		message1 := fmt.Sprintf(message, 1)
 		message2 := fmt.Sprintf(message, 1)
 		msg1 := &messages.KafkaMessage{Message: message1, Topic: topic}
@@ -51,7 +51,7 @@ var _ = Describe("Producer", func() {
 		defer close(outChan)
 		done := make(chan struct{}, 1)
 		defer close(done)
-		go consumer.Consumer(consumerConfig, outChan, done)
+		go consumer.Consumer(consumerConfig, "workers", outChan, done)
 
 		consumedMessage1 := <-outChan
 		consumedMessage2 := <-outChan
@@ -69,6 +69,6 @@ var _ = Describe("Producer", func() {
 		defer close(inChan)
 
 		// Producer returns here and don't get blocked
-		producer.Producer(producerConfig, inChan)
+		producer.Producer(producerConfig, "workers", inChan)
 	})
 })
