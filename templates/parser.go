@@ -21,15 +21,20 @@ func (e parseError) Error() string {
 // kafka, it listens to the channel from kafka and writes to the channel
 // listened by TemplateFetcher.
 // Multiple Parser instances should be able to run in parallel.
-func Parser(inChan <-chan string, outChan chan<- *messages.InputMessage) {
-	for msg := range inChan {
-		req, err := Parse(msg)
-		if err != nil {
-			Logger.Error("Error parsing message", zap.Error(err))
-			continue
+func Parser(inChan <-chan string, outChan chan<- *messages.InputMessage, doneChan <-chan struct{}) {
+	for {
+		select {
+		case <-doneChan:
+			return // breaks out of the for
+		case msg := <-inChan:
+			req, err := Parse(msg)
+			if err != nil {
+				Logger.Error("Error parsing message", zap.Error(err))
+				continue
+			}
+			Logger.Debug("Parsed message", zap.String("input", msg))
+			outChan <- req
 		}
-		Logger.Debug("Parsed message", zap.String("input", msg))
-		outChan <- req
 	}
 }
 

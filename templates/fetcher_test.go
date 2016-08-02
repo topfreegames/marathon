@@ -187,9 +187,7 @@ var _ = Describe("Fetcher", func() {
 			Expect(errInsert).To(BeNil())
 
 			inChan := make(chan *messages.InputMessage, 10)
-			defer close(inChan)
 			outChan := make(chan *messages.TemplatedMessage, 10)
-			defer close(outChan)
 			doneChan := make(chan struct{}, 2)
 			defer close(doneChan)
 
@@ -237,9 +235,7 @@ var _ = Describe("Fetcher", func() {
 			Expect(errInsert).To(BeNil())
 
 			inChan := make(chan *messages.InputMessage, 10)
-			defer close(inChan)
 			outChan := make(chan *messages.TemplatedMessage, 10)
-			defer close(outChan)
 			doneChan := make(chan struct{}, 2)
 			defer close(doneChan)
 

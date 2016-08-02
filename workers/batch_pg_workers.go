@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
+	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
 
 // BatchPGWorker contains all batch pg worker configs and channels
 type BatchPGWorker struct {
-	PgToKafkaChan chan *messages.KafkaMessage
+	PgToKafkaChan chan *messages.InputMessage
+	DoneChan      chan struct{}
 	Config        *viper.Viper
 	Logger        zap.Logger
 	Db            models.DB
@@ -30,7 +31,7 @@ func (e parseError) Error() string {
 }
 
 func (worker *BatchPGWorker) createChannels() {
-	worker.PgToKafkaChan = make(chan *messages.KafkaMessage,
+	worker.PgToKafkaChan = make(chan *messages.InputMessage,
 		worker.Config.GetInt("batch_pg_workers.modules.pgtokafkachansize"))
 }
 
@@ -67,7 +68,7 @@ func (worker *BatchPGWorker) setConfigurationDefaults() {
 	worker.Config.SetDefault("postgres.port", 5432)
 	worker.Config.SetDefault("postgres.sslmode", "disable")
 	worker.Config.SetDefault("postgres.sslmode", "disable")
-	worker.Config.SetDefault("batch_pg_workers.modules.logger.level", "info")
+	worker.Config.SetDefault("batch_pg_workers.modules.logger.level", "error")
 	worker.Config.SetDefault("batch_pg_workers.modules.producers", 1)
 	worker.Config.SetDefault("batch_pg_workers.modules.pgtokafkachansize", 10)
 	worker.Config.SetDefault("batch_pg_workers.postgres.defaults.pushexpiry", 0)
@@ -88,52 +89,31 @@ func (worker *BatchPGWorker) loadConfiguration() {
 	}
 }
 
-func (worker *BatchPGWorker) configureLogger() {
-	var level zap.Option
-	levelFromCfg := worker.Config.GetString("workers.logger.level")
-	fmt.Printf("Configuring logger with level `%s`\n", levelFromCfg)
-	switch levelFromCfg {
-	case "debug":
-		level = zap.DebugLevel
-	case "info":
-		level = zap.InfoLevel
-	case "warn":
-		level = zap.WarnLevel
-	case "error":
-		level = zap.ErrorLevel
-	case "panic":
-		level = zap.PanicLevel
-	case "fatal":
-		level = zap.FatalLevel
-	default:
-		level = zap.InfoLevel
-	}
-	worker.Logger = zap.NewJSON(level)
-}
-
 // Configure configures the worker
 func (worker *BatchPGWorker) Configure() {
 	worker.setConfigurationDefaults()
-	worker.configureLogger()
+	worker.Logger = ConfigureLogger(Log{Level: "warn"}, worker.Config)
 	worker.loadConfiguration()
-	worker.configureLogger() // Configuring after get config file
+	worker.Logger = ConfigureLogger(Log{}, worker.Config)
 	worker.createChannels()
 	worker.connectDatabase()
 }
 
 // StartWorker starts the workers according to the configuration and returns the workers object
-func (worker *BatchPGWorker) StartWorker() {
+func (worker *BatchPGWorker) StartWorker(message string, filters [][]interface{}, modifiers [][]interface{}) {
 	// Run modules
-	go producer.Producer(worker.Config, "batch_pg_workers", worker.PgToKafkaChan)
 	for i := 0; i < worker.Config.GetInt("workers.modules.producers"); i++ {
-		go producer.Producer(worker.Config, "batch_pg_workers", worker.PgToKafkaChan)
+		go worker.producer(worker.Config, "batch_pg_workers", worker.PgToKafkaChan, worker.DoneChan)
 	}
+	go worker.pgReader(message, filters, modifiers, worker.PgToKafkaChan)
 }
 
 // Close stops the modules of the instance
 func (worker BatchPGWorker) Close() {
-	worker.Logger.Error("Stopping workers")
-	worker.Logger.Error("Stopped workers")
+	worker.Logger.Warn("Stopping workers")
+	// close(worker.PgToKafkaChan)
+	// close(worker.DoneChan)
+	worker.Logger.Warn("Stopped workers")
 }
 
 // GetBatchPGWorker returns a new worker
@@ -173,7 +153,30 @@ func (worker *BatchPGWorker) pgReader(message string, filters [][]interface{},
 		worker.Logger.Fatal("Limit should be greater than 0", zap.Int("limit", limit))
 	}
 
-	userTokens, err := models.GetUserTokenBatchByFilters(worker.Db, msgObj.App, msgObj.Service, filters, modifiers)
+	userTokensCount, err := models.CountUserTokensByFilters(worker.Db, msgObj.App, msgObj.Service, filters, modifiers)
+	if err != nil {
+		worker.Logger.Fatal(
+			"Error while counting tokens",
+			zap.String("app", msgObj.App),
+			zap.String("service", msgObj.Service),
+			zap.String("filters", fmt.Sprintf("%+v", filters)),
+			zap.String("modifiers", fmt.Sprintf("%+v", modifiers)),
+			zap.Error(err),
+		)
+	}
+
+	if userTokensCount < int64(0) {
+		worker.Logger.Fatal(
+			"Tokens size lower than 0",
+			zap.String("app", msgObj.App),
+			zap.String("service", msgObj.Service),
+			zap.String("filters", fmt.Sprintf("%+v", filters)),
+			zap.String("modifiers", fmt.Sprintf("%+v", modifiers)),
+			zap.Error(err),
+		)
+	}
+
+	userTokens, err := models.GetUserTokensBatchByFilters(worker.Db, msgObj.App, msgObj.Service, filters, modifiers)
 	if err != nil {
 		worker.Logger.Fatal(
 			"Error while getting users",
@@ -185,12 +188,14 @@ func (worker *BatchPGWorker) pgReader(message string, filters [][]interface{},
 		)
 	}
 
-	for len(userTokens) == limit {
+	processesTokens := int64(0)
+	for processesTokens < userTokensCount {
 		for _, userToken := range userTokens {
 			msgObj.Token = userToken.Token
 			msgObj.Locale = userToken.Locale
 			outChan <- msgObj
 		}
+		processesTokens += int64(len(userTokens))
 	}
 }
 
@@ -257,4 +262,48 @@ func (worker *BatchPGWorker) parse(msg string) (*messages.InputMessage, error) {
 
 	worker.Logger.Debug("Decoded message", zap.String("msg", msg))
 	return msgObj, nil
+}
+
+func (worker *BatchPGWorker) producer(config *viper.Viper, configRoot string, inChan <-chan *messages.InputMessage, doneChan <-chan struct{}) {
+	saramaConfig := sarama.NewConfig()
+	topic := config.GetStringSlice("workers.consumer.topics")[0]
+	brokers := config.GetStringSlice("workers.consumer.brokers")
+	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
+	if err != nil {
+		worker.Logger.Error(
+			"Failed to start kafka producer",
+			zap.Error(err),
+		)
+		return
+	}
+	defer producer.Close()
+
+	for {
+		select {
+		case <-doneChan:
+			return // breaks out of the for
+		case msg := <-inChan:
+			byteMsg, err := json.Marshal(msg)
+			if err != nil {
+				worker.Logger.Error("Error marshalling message", zap.Error(err))
+			}
+			saramaMessage := &sarama.ProducerMessage{
+				Topic: topic,
+				Value: sarama.StringEncoder(byteMsg),
+			}
+
+			_, _, err = producer.SendMessage(saramaMessage)
+			if err != nil {
+				worker.Logger.Error(
+					"Error sending message",
+					zap.Error(err),
+				)
+			} else {
+				worker.Logger.Info(
+					"Sent message",
+					zap.String("topic", topic),
+				)
+			}
+		}
+	}
 }

@@ -250,11 +250,11 @@ var _ = Describe("Template", func() {
 					message4 := string(inputString4)
 
 					inChan := make(chan string, 10)
-					defer close(inChan)
 					outChan := make(chan *messages.InputMessage, 10)
-					defer close(outChan)
+					doneChan := make(chan struct{}, 1)
+					defer close(doneChan)
 
-					go templates.Parser(inChan, outChan)
+					go templates.Parser(inChan, outChan, doneChan)
 
 					inChan <- message1
 					inChan <- message2

@@ -2,6 +2,7 @@ package workers
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
@@ -13,19 +14,32 @@ import (
 	"github.com/uber-go/zap"
 )
 
+// FIXME: Try to use a better way to define log level (do the same in the entire project)
+func getLogLevel() zap.Level {
+	var level = zap.WarnLevel
+	var environment = os.Getenv("ENV")
+	if environment == "test" {
+		level = zap.FatalLevel
+	}
+	return level
+}
+
 // ContinuousWorker contains all continuous worker configs and channels
 type ContinuousWorker struct {
-	KafkaDoneChan        chan struct{}
-	FetcherDoneChan      chan struct{}
-	InputKafkaChan       chan string
-	KafkaToParserChan    chan string
-	ParserToFetcherChan  chan *messages.InputMessage
-	FetcherToBuilderChan chan *messages.TemplatedMessage
-	BuilderToKafkaChan   chan *messages.KafkaMessage
-	Config               *viper.Viper
-	Logger               zap.Logger
-	Db                   models.DB
-	ConfigPath           string
+	KafkaDoneChan          chan struct{}
+	FetcherDoneChan        chan struct{}
+	InputKafkaChan         chan string
+	KafkaToParserChan      chan string
+	ParserToFetcherChan    chan *messages.InputMessage
+	FetcherToBuilderChan   chan *messages.TemplatedMessage
+	BuilderToKafkaChan     chan *messages.KafkaMessage
+	BuilderToKafkaDoneChan chan struct{}
+	ParserDoneChan         chan struct{}
+	BuilderDoneChan        chan struct{}
+	Config                 *viper.Viper
+	Logger                 zap.Logger
+	Db                     models.DB
+	ConfigPath             string
 }
 
 func (worker *ContinuousWorker) createChannels() {
@@ -43,6 +57,12 @@ func (worker *ContinuousWorker) createChannels() {
 		worker.Config.GetInt("workers.modules.fetchertobuilderchansize"))
 	worker.BuilderToKafkaChan = make(chan *messages.KafkaMessage,
 		worker.Config.GetInt("workers.modules.buildertokafkachansize"))
+	worker.BuilderToKafkaDoneChan = make(chan struct{},
+		worker.Config.GetInt("workers.modules.buildertokafkadonechansize"))
+	worker.ParserDoneChan = make(chan struct{},
+		worker.Config.GetInt("workers.modules.parserdonechansize"))
+	worker.BuilderDoneChan = make(chan struct{},
+		worker.Config.GetInt("workers.modules.builderdonechansize"))
 }
 
 func (worker *ContinuousWorker) connectDatabase() {
@@ -109,35 +129,12 @@ func (worker *ContinuousWorker) loadConfiguration() {
 	}
 }
 
-func (worker *ContinuousWorker) configureLogger() {
-	var level zap.Option
-	levelFromCfg := worker.Config.GetString("workers.logger.level")
-	fmt.Printf("Configuring logger with level `%s`\n", levelFromCfg)
-	switch levelFromCfg {
-	case "debug":
-		level = zap.DebugLevel
-	case "info":
-		level = zap.InfoLevel
-	case "warn":
-		level = zap.WarnLevel
-	case "error":
-		level = zap.ErrorLevel
-	case "panic":
-		level = zap.PanicLevel
-	case "fatal":
-		level = zap.FatalLevel
-	default:
-		level = zap.InfoLevel
-	}
-	worker.Logger = zap.NewJSON(level)
-}
-
 // Configure configures the worker
 func (worker *ContinuousWorker) Configure() {
 	worker.setConfigurationDefaults()
-	worker.configureLogger()
+	worker.Logger = ConfigureLogger(Log{Level: "warn"}, worker.Config)
 	worker.loadConfiguration()
-	worker.configureLogger() // Configuring after get config file
+	worker.Logger = ConfigureLogger(Log{}, worker.Config)
 	worker.createChannels()
 	worker.connectDatabase()
 }
@@ -149,23 +146,31 @@ func (worker *ContinuousWorker) StartWorker() {
 		go consumer.Consumer(worker.Config, "workers", worker.InputKafkaChan, worker.KafkaDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.parsers"); i++ {
-		go templates.Parser(worker.KafkaToParserChan, worker.ParserToFetcherChan)
+		go templates.Parser(worker.KafkaToParserChan, worker.ParserToFetcherChan, worker.ParserDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.fetchers"); i++ {
 		go templates.Fetcher(worker.ParserToFetcherChan, worker.FetcherToBuilderChan, worker.FetcherDoneChan, worker.Db)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.builders"); i++ {
-		go templates.Builder(worker.FetcherToBuilderChan, worker.BuilderToKafkaChan)
+		go templates.Builder(worker.FetcherToBuilderChan, worker.BuilderToKafkaChan, worker.BuilderDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.producers"); i++ {
-		go producer.Producer(worker.Config, "workers", worker.BuilderToKafkaChan)
+		go producer.Producer(worker.Config, "workers", worker.BuilderToKafkaChan, worker.BuilderToKafkaDoneChan)
 	}
 }
 
 // Close stops the modules of the instance
 func (worker ContinuousWorker) Close() {
-	worker.Logger.Error("Stopping workers")
-	worker.Logger.Error("Stopped workers")
+	worker.Logger.Warn("Stopping workers")
+	// close(worker.InputKafkaChan)
+	// close(worker.KafkaDoneChan)
+	// close(worker.KafkaToParserChan)
+	// close(worker.ParserToFetcherChan)
+	// close(worker.FetcherToBuilderChan)
+	// close(worker.FetcherDoneChan)
+	// close(worker.BuilderToKafkaChan)
+	// close(worker.BuilderToKafkaDoneChan)
+	worker.Logger.Warn("Stopped workers")
 }
 
 // GetContinuousWorker returns a new worker

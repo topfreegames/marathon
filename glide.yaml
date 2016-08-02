@@ -23,3 +23,6 @@ import:
 - package: github.com/imdario/mergo
   version: ~0.2.2
 - package: github.com/fatih/structs
+- package: github.com/manveru/faker
+- package: gopkg.in/Shopify/sarama.v1
+  version: ~1.10.0

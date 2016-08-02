@@ -2,7 +2,6 @@ package producer_test
 
 import (
 	"fmt"
-	"testing"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
@@ -12,11 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
 )
-
-func TestProducer(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Producer")
-}
 
 var _ = Describe("Producer", func() {
 
@@ -30,10 +24,11 @@ var _ = Describe("Producer", func() {
 		var producerConfig = viper.New()
 		producerConfig.SetDefault("workers.producer.brokers", brokers)
 
-		inChan := make(chan *messages.KafkaMessage)
-		defer close(inChan)
+		inChan := make(chan *messages.KafkaMessage, 10)
+		doneChanProd := make(chan struct{}, 1)
+		defer close(doneChanProd)
 
-		go producer.Producer(producerConfig, "workers", inChan)
+		go producer.Producer(producerConfig, "workers", inChan, doneChanProd)
 		message1 := fmt.Sprintf(message, 1)
 		message2 := fmt.Sprintf(message, 1)
 		msg1 := &messages.KafkaMessage{Message: message1, Topic: topic}
@@ -48,10 +43,9 @@ var _ = Describe("Producer", func() {
 		consumerConfig.SetDefault("workers.consumer.topics", topics)
 
 		outChan := make(chan string, 10)
-		defer close(outChan)
-		done := make(chan struct{}, 1)
-		defer close(done)
-		go consumer.Consumer(consumerConfig, "workers", outChan, done)
+		doneChanCons := make(chan struct{}, 1)
+		defer close(doneChanCons)
+		go consumer.Consumer(consumerConfig, "workers", outChan, doneChanCons)
 
 		consumedMessage1 := <-outChan
 		consumedMessage2 := <-outChan
@@ -65,10 +59,11 @@ var _ = Describe("Producer", func() {
 		var producerConfig = viper.New()
 		producerConfig.SetDefault("workers.producer.brokers", brokers)
 
-		inChan := make(chan *messages.KafkaMessage)
-		defer close(inChan)
+		inChan := make(chan *messages.KafkaMessage, 10)
+		doneChan := make(chan struct{}, 1)
+		defer close(doneChan)
 
 		// Producer returns here and don't get blocked
-		producer.Producer(producerConfig, "workers", inChan)
+		producer.Producer(producerConfig, "workers", inChan, doneChan)
 	})
 })

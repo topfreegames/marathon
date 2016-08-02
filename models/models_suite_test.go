@@ -1,13 +1,13 @@
-package cmd_test
+package models_test
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"testing"
 )
 
-func TestCmd(t *testing.T) {
+func TestModels(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cmd")
+	RunSpecs(t, "Models Suite")
 }

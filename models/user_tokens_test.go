@@ -231,7 +231,7 @@ var _ = Describe("Models", func() {
 					{"OFFSET", 0},
 				}
 
-				dbUserTokens, err := models.GetUserTokenBatchByFilters(db, app, service, filters, modifiers)
+				dbUserTokens, err := models.GetUserTokensBatchByFilters(db, app, service, filters, modifiers)
 				Expect(err).To(BeNil())
 
 				Expect(len(dbUserTokens)).To(Equal(1))
@@ -282,7 +282,7 @@ var _ = Describe("Models", func() {
 					{"OFFSET", 0},
 				}
 
-				dbUserTokens, err := models.GetUserTokenBatchByFilters(db, app, service, filters, modifiers)
+				dbUserTokens, err := models.GetUserTokensBatchByFilters(db, app, service, filters, modifiers)
 				Expect(err).To(BeNil())
 
 				Expect(len(dbUserTokens)).To(Equal(2))
@@ -330,7 +330,7 @@ var _ = Describe("Models", func() {
 					{"OFFSET", 0},
 				}
 
-				dbUserTokens, err := models.GetUserTokenBatchByFilters(db, app, service, filters, modifiers)
+				dbUserTokens, err := models.GetUserTokensBatchByFilters(db, app, service, filters, modifiers)
 				Expect(err).To(BeNil())
 
 				Expect(len(dbUserTokens)).To(Equal(0))

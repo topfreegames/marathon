@@ -21,27 +21,29 @@ func (e buildError) Error() string {
 }
 
 // Builder reads the messages from the inChan and generates messages to be sent to Kafka in the outChan
-func Builder(inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage) {
-	for input := range inChan {
-		kafkaMsg, err := Build(input)
-		if err != nil {
-			Logger.Error(
-				"Error building message",
-				zap.Error(err),
-			)
-			continue
+func Builder(inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage, doneChan <-chan struct{}) {
+	for {
+		select {
+		case <-doneChan:
+			return // breaks out of the for
+		case msg := <-inChan:
+			message, err := Build(msg)
+			if err != nil {
+				Logger.Error("Error building message", zap.Error(err))
+				continue
+			}
+			outChan <- message
 		}
-		outChan <- kafkaMsg
 	}
 }
 
 // Replace replaces the template parameters from message with the values of the keys in params.
 // the function returns the built string
 func Replace(message string, params map[string]interface{}) (string, error) {
-	t, errT := fasttemplate.NewTemplate(string(message), "{{", "}}")
-	if errT != nil {
-		Logger.Error("Template Error", zap.Error(errT))
-		return "", errT
+	t, err := fasttemplate.NewTemplate(string(message), "{{", "}}")
+	if err != nil {
+		Logger.Error("Template Error", zap.Error(err))
+		return "", err
 	}
 
 	s := t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
@@ -127,33 +129,31 @@ func GcmMsg(request *messages.TemplatedMessage, content string) (string, error) 
 // into the Message field.
 func Build(request *messages.TemplatedMessage) (*messages.KafkaMessage, error) {
 	// Replace template
-	byteMessage, errMarsh := json.Marshal(request.Message)
-	if errMarsh != nil {
-		Logger.Error("Error marshalling message", zap.Error(errMarsh))
-		return nil, errMarsh
+	byteMessage, err := json.Marshal(request.Message)
+	if err != nil {
+		Logger.Error("Error marshalling message", zap.Error(err))
+		return nil, err
 	}
 	stringMessage := string(byteMessage)
-	content, rplTplerr := Replace(stringMessage, request.Params)
-	if rplTplerr != nil {
-		Logger.Error("Template replacing error", zap.Error(rplTplerr))
-		return nil, rplTplerr
+	content, err := Replace(stringMessage, request.Params)
+	if err != nil {
+		Logger.Error("Template replacing error", zap.Error(err))
+		return nil, err
 	}
 
+	// FIXME: What is the rigth topic?
 	topic := request.App
 
-	var (
-		builtMessage string
-		msgErr       error
-	)
+	var builtMessage string
 	if request.Service == "apns" {
-		builtMessage, msgErr = ApnsMsg(request, content)
-		if msgErr != nil {
-			return nil, msgErr
+		builtMessage, err = ApnsMsg(request, content)
+		if err != nil {
+			return nil, err
 		}
 	} else if request.Service == "gcm" {
-		builtMessage, msgErr = GcmMsg(request, content)
-		if msgErr != nil {
-			return nil, msgErr
+		builtMessage, err = GcmMsg(request, content)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		return nil, buildError{"Unknown request message type"}

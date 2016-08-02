@@ -238,7 +238,9 @@ var _ = Describe("Template", func() {
 
 				inChan := make(chan *messages.TemplatedMessage, 1)
 				outChan := make(chan *messages.KafkaMessage, 1)
-				go templates.Builder(inChan, outChan)
+				doneChan := make(chan struct{}, 1)
+				defer close(doneChan)
+				go templates.Builder(inChan, outChan, doneChan)
 
 				go func() {
 					inChan <- reqGcm

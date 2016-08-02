@@ -1,13 +1,13 @@
 package templates_test
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"testing"
 )
 
-func TestTemplate(t *testing.T) {
+func TestTemplates(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Template")
+	RunSpecs(t, "Templates Suite")
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
+// FIXME: Try to use a better way to define log level (do the same in the entire project)
 func getLogLevel() zap.Level {
 	var level = zap.WarnLevel
 	var environment = os.Getenv("ENV")
@@ -32,58 +33,54 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(config *viper.Viper, configRoot string, outChan chan<- string, done <-chan struct{}) {
+func Consumer(config *viper.Viper, configRoot string, outChan chan<- string, doneChan <-chan struct{}) {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
 	clusterConfig.Group.Return.Notifications = true
 	clusterConfig.Version = sarama.V0_9_0_0
-
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
-	// Create consumer defined by the configurations
-	consumer, consumerErr := cluster.NewConsumer(
-		config.GetStringSlice(fmt.Sprintf("%s.consumer.brokers", configRoot)),
-		config.GetString(fmt.Sprintf("%s.consumer.consumergroup", configRoot)),
-		config.GetStringSlice(fmt.Sprintf("%s.consumer.topics", configRoot)),
-		clusterConfig,
+	brokers := config.GetStringSlice(fmt.Sprintf("%s.consumer.brokers", configRoot))
+	consumerGroup := config.GetString(fmt.Sprintf("%s.consumer.consumergroup", configRoot))
+	topics := config.GetStringSlice(fmt.Sprintf("%s.consumer.topics", configRoot))
+	Logger.Warn(
+		"Create consumer group",
+		zap.String("brokers", fmt.Sprintf("%+v", brokers)),
+		zap.String("consumerGroup", consumerGroup),
+		zap.String("topics", fmt.Sprintf("%+v", topics)),
+		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
 	)
-	if consumerErr != nil {
-		Logger.Error(
-			"Could not create consumer",
-			zap.String("error", consumerErr.Error()),
-		)
+
+	// Create consumer defined by the configurations
+	consumer, err := cluster.NewConsumer(brokers, consumerGroup, topics, clusterConfig)
+	if err != nil {
+		Logger.Error("Could not create consumer", zap.String("error", err.Error()))
 		return
 	}
 	defer consumer.Close()
 
 	go func() {
 		for err := range consumer.Errors() {
-			Logger.Error(
-				"Consumer error",
-				zap.String("error", err.Error()),
-			)
+			Logger.Error("Consumer error", zap.String("error", err.Error()))
 		}
 	}()
 
 	go func() {
 		for notif := range consumer.Notifications() {
-			Logger.Info(
-				"Rebalanced",
-				zap.String("", fmt.Sprintf("%+v", notif)),
-			)
+			Logger.Info("Rebalanced", zap.String("", fmt.Sprintf("%+v", notif)))
 		}
 	}()
 	Logger.Info("Starting kafka consumer")
-	MainLoop(consumer, outChan, done)
+	MainLoop(consumer, outChan, doneChan)
 	Logger.Info("Stopped kafka consumer")
 }
 
 // MainLoop to read messages from Kafka and send them forward in the pipeline
-func MainLoop(consumer *cluster.Consumer, outChan chan<- string, done <-chan struct{}) {
+func MainLoop(consumer *cluster.Consumer, outChan chan<- string, doneChan <-chan struct{}) {
 	for {
 		select {
-		case <-done:
+		case <-doneChan:
 			return // breaks out of the for
 		case msg, ok := <-consumer.Messages():
 			if !ok {
@@ -95,6 +92,7 @@ func MainLoop(consumer *cluster.Consumer, outChan chan<- string, done <-chan str
 				Logger.Error("Error reading kafka message", zap.Error(err))
 				continue
 			}
+			// FIXME: Is it the rigth place to mark offset?
 			consumer.MarkOffset(msg, "")
 			outChan <- strMsg
 		}
@@ -103,17 +101,11 @@ func MainLoop(consumer *cluster.Consumer, outChan chan<- string, done <-chan str
 
 // Consume extracts the message from the consumer message
 func Consume(kafkaMsg *sarama.ConsumerMessage) (string, error) {
-	Logger.Info(
-		"Consume message",
-		zap.String("msg", fmt.Sprintf("%+v", kafkaMsg)),
-	)
+	Logger.Info("Consume message", zap.String("msg", fmt.Sprintf("%+v", kafkaMsg)))
 	msg := string(kafkaMsg.Value)
 	if msg == "" {
 		return "", consumeError{"Empty message"}
 	}
-	Logger.Info(
-		"Consumed message",
-		zap.String("msg", msg),
-	)
+	Logger.Info("Consumed message", zap.String("msg", msg))
 	return msg, nil
 }

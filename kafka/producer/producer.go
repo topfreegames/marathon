@@ -23,37 +23,33 @@ func getLogLevel() zap.Level {
 var Logger = zap.NewJSON(getLogLevel())
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
-func Producer(config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage) {
+func Producer(config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
 	saramaConfig := sarama.NewConfig()
 	producer, err := sarama.NewSyncProducer(
 		config.GetStringSlice(fmt.Sprintf("%s.producer.brokers", configRoot)),
 		saramaConfig)
 	if err != nil {
-		Logger.Error(
-			"Failed to start kafka producer",
-			zap.Error(err),
-		)
+		Logger.Error("Failed to start kafka producer", zap.Error(err))
 		return
 	}
 	defer producer.Close()
 
-	for msg := range inChan {
-		saramaMessage := &sarama.ProducerMessage{
-			Topic: msg.Topic,
-			Value: sarama.StringEncoder(msg.Message),
-		}
+	for {
+		select {
+		case <-doneChan:
+			return // breaks out of the for
+		case msg := <-inChan:
+			saramaMessage := &sarama.ProducerMessage{
+				Topic: msg.Topic,
+				Value: sarama.StringEncoder(msg.Message),
+			}
 
-		_, _, err = producer.SendMessage(saramaMessage)
-		if err != nil {
-			Logger.Error(
-				"Error sending message",
-				zap.Error(err),
-			)
-		} else {
-			Logger.Info(
-				"Sent message",
-				zap.String("topic", msg.Topic),
-			)
+			_, _, err = producer.SendMessage(saramaMessage)
+			if err != nil {
+				Logger.Error("Error sending message", zap.Error(err))
+			} else {
+				Logger.Info("Sent message", zap.String("topic", msg.Topic))
+			}
 		}
 	}
 }

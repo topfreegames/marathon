@@ -8,10 +8,10 @@ healthcheck:
   workingtext: "working"
 workers:
   logger:
-    level: "debug"
+    level: "fatal"
   consumer:
-    consumergroup: "test-consumer-group"
-    topics: [ "input-topic" ]
+    consumergroup: "integration-test-consumer-group"
+    topics: [ "integration-test-input-topic" ]
     brokers: [ "localhost:3536" ]
   producer:
     brokers: [ "localhost:3536" ]
@@ -22,16 +22,17 @@ workers:
     builders: 1
     producers: 1
     kafkadonechansize: 1
-    fecherdonechansize: 1
+    fetcherdonechansize: 1
     inputkafkachansize: 10
     inputchansize: 10
     kafkatoparserchansize: 10
     parsertofetcherchansize: 10
     fetchertobuilderchansize: 10
     buildertokafkachansize: 10
+    buildertokafkadonechansize: 1
 batch_pg_workers:
   logger:
-    level: "debug"
+    level: "fatal"
   producer:
     brokers: [ "localhost:3536" ]
   modules:

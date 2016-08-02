@@ -2,7 +2,6 @@ package consumer_test
 
 import (
 	"fmt"
-	"testing"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 
@@ -11,11 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
 )
-
-func TestConsumer(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Consumer")
-}
 
 func produceMessage(brokers []string, topic string, message string, partition int32, offset int64) {
 	// Produce message to the test
@@ -29,7 +23,6 @@ func produceMessage(brokers []string, topic string, message string, partition in
 		Topic: topic,
 		Value: sarama.StringEncoder(message),
 	}
-
 	part, off, err := producer.SendMessage(&saramaMessage)
 	Expect(err).To(BeNil())
 	Expect(part).To(Equal(partition))
@@ -66,10 +59,9 @@ var _ = Describe("Consumer", func() {
 			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
-			defer close(outChan)
-			done := make(chan struct{}, 1)
-			defer close(done)
-			go consumer.Consumer(config, "workers", outChan, done)
+			doneChan := make(chan struct{}, 1)
+			defer close(doneChan)
+			go consumer.Consumer(config, "workers", outChan, doneChan)
 
 			// Produce Messages
 			message := "message"
@@ -92,10 +84,9 @@ var _ = Describe("Consumer", func() {
 			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
-			defer close(outChan)
-			done := make(chan struct{}, 1)
-			defer close(done)
-			go consumer.Consumer(config, "workers", outChan, done)
+			doneChan := make(chan struct{}, 1)
+			defer close(doneChan)
+			go consumer.Consumer(config, "workers", outChan, doneChan)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
@@ -122,10 +113,9 @@ var _ = Describe("Consumer", func() {
 			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
-			defer close(outChan)
-			done := make(chan struct{}, 1)
-			defer close(done)
-			go consumer.Consumer(config, "workers", outChan, done)
+			doneChan := make(chan struct{}, 1)
+			defer close(doneChan)
+			go consumer.Consumer(config, "workers", outChan, doneChan)
 
 			produceMessage(brokers, topic, "", int32(0), int64(0))
 			produceMessage(brokers, topic, "message", int32(0), int64(1))
@@ -147,12 +137,11 @@ var _ = Describe("Consumer", func() {
 			config.SetDefault("workers.consumer.topics", topics)
 
 			outChan := make(chan string, 10)
-			defer close(outChan)
-			done := make(chan struct{}, 1)
-			defer close(done)
+			doneChan := make(chan struct{}, 1)
+			defer close(doneChan)
 
 			// Consumer returns here and don't get blocked
-			consumer.Consumer(config, "workers", outChan, done)
+			consumer.Consumer(config, "workers", outChan, doneChan)
 		})
 	})
 })
