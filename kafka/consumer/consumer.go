@@ -21,7 +21,7 @@ func getLogLevel() zap.Level {
 }
 
 // Logger is the consumer logger
-var Logger = zap.NewJSON(getLogLevel())
+var Logger = zap.NewJSON(getLogLevel(), zap.AddCaller())
 
 // consumeError is an error generated during data consumption
 type consumeError struct {

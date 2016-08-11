@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 	"unicode"
@@ -12,7 +13,20 @@ import (
 
 	"github.com/kataras/iris"
 	"github.com/satori/go.uuid"
+	"github.com/uber-go/zap"
 )
+
+// GetFileLine a file line
+func GetFileLine() int {
+	_, _, fileLine, _ := runtime.Caller(1)
+	return fileLine
+}
+
+// GetFileName a file line
+func GetFileName() string {
+	_, fileName, _, _ := runtime.Caller(1)
+	return fileName
+}
 
 // FailWith fails with the specified message
 func FailWith(status int, message string, c *iris.Context) {
@@ -30,6 +44,47 @@ func SucceedWith(payload map[string]interface{}, c *iris.Context) {
 	result, _ := json.Marshal(payload)
 	c.SetStatusCode(200)
 	c.Write(string(result))
+}
+
+// LoadJSONPayload loads the JSON payload to the given struct validating all fields are not null
+func LoadJSONPayload(payloadStruct interface{}, c *iris.Context, l zap.Logger) error {
+	l.Debug("Loading payload...")
+
+	if err := c.ReadJSON(payloadStruct); err != nil {
+		if err != nil {
+			l.Error("Loading payload failed.", zap.Error(err))
+			return err
+		}
+	}
+
+	data := c.RequestCtx.Request.Body()
+	var jsonPayload map[string]interface{}
+	err := json.Unmarshal(data, &jsonPayload)
+	if err != nil {
+		l.Error("Loading payload failed.", zap.Error(err))
+		return err
+	}
+
+	var missingFieldErrors []string
+	v := reflect.ValueOf(payloadStruct).Elem()
+	t := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		r, n := utf8.DecodeRuneInString(t.Field(i).Name)
+		field := string(unicode.ToLower(r)) + t.Field(i).Name[n:]
+		if jsonPayload[field] == nil {
+			missingFieldErrors = append(missingFieldErrors, fmt.Sprintf("%s is required", field))
+		}
+	}
+
+	if len(missingFieldErrors) != 0 {
+		error := errors.New(strings.Join(missingFieldErrors[:], ", "))
+		l.Error("Loading payload failed.", zap.Error(err))
+		return error
+	}
+
+	l.Debug("Payload loaded successfully.")
+	return nil
 }
 
 // GetAsInt get a payload field as Int
@@ -79,39 +134,4 @@ func GetAsRFC3339(field string, payload interface{}) (time.Time, error) {
 	v := reflect.ValueOf(payload)
 	fieldValue := v.FieldByName(field).Interface()
 	return time.Parse(time.RFC3339, fieldValue.(string))
-}
-
-// LoadJSONPayload loads the JSON payload to the given struct validating all fields are not null
-func LoadJSONPayload(payloadStruct interface{}, c *iris.Context) (map[string]interface{}, error) {
-	if err := c.ReadJSON(payloadStruct); err != nil {
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	data := c.RequestCtx.Request.Body()
-	var jsonPayload map[string]interface{}
-	err := json.Unmarshal(data, &jsonPayload)
-	if err != nil {
-		return nil, err
-	}
-
-	var missingFieldErrors []string
-	v := reflect.ValueOf(payloadStruct).Elem()
-	t := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		r, n := utf8.DecodeRuneInString(t.Field(i).Name)
-		field := string(unicode.ToLower(r)) + t.Field(i).Name[n:]
-		if jsonPayload[field] == nil {
-			missingFieldErrors = append(missingFieldErrors, fmt.Sprintf("%s is required", field))
-		}
-	}
-
-	if len(missingFieldErrors) != 0 {
-		error := errors.New(strings.Join(missingFieldErrors[:], ", "))
-		return nil, error
-	}
-
-	return jsonPayload, nil
 }

@@ -7,13 +7,18 @@ import (
 	"github.com/kataras/iris"
 )
 
-// HealthCheckHandler is the handler responsible for validating that the application is still up
-func HealthCheckHandler(application *Application) func(c *iris.Context) {
+// HealthCheckHandler is the handler responsible for validating that the app is still up
+func HealthCheckHandler(app *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
-		db := GetCtxDB(c)
-		workingString := application.Config.GetString("healthcheck.workingText")
-		num, err := db.SelectInt("select 1")
-		if num != 1 || err != nil {
+		db, err := GetCtxDB(c)
+		if err != nil {
+			FailWith(500, err.Error(), c)
+			return
+		}
+
+		workingString := app.Config.GetString("healthcheck.workingText")
+		_, err = db.SelectInt("select count 1")
+		if err != nil {
 			c.Write(fmt.Sprintf("Error connecting to database: %s", err))
 			c.SetStatusCode(500)
 			return

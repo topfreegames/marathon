@@ -3,6 +3,7 @@ package cmd
 import (
 	"git.topfreegames.com/topfreegames/marathon/api"
 	"github.com/spf13/cobra"
+	"github.com/uber-go/zap"
 )
 
 var host string
@@ -15,8 +16,32 @@ var startServerCmd = &cobra.Command{
 	Short: "starts the marathon API server",
 	Long:  `Starts marathon server with the specified arguments. You can use environment variables to override configuration keys.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		app := api.GetApplication(host, port, ConfigFile, debug)
-		app.Start()
+		ll := zap.InfoLevel
+		if debug {
+			ll = zap.DebugLevel
+		}
+		l := zap.NewJSON(ll, zap.AddCaller())
+
+		cmdL := l.With(
+			zap.String("source", "startServerCmd"),
+			zap.String("operation", "Run"),
+			zap.String("host", host),
+			zap.Int("port", port),
+			zap.Bool("debug", debug),
+		)
+
+		cmdL.Debug("Creating application...")
+		application := api.GetApplication(
+			host,
+			port,
+			ConfigFile,
+			debug,
+			l,
+		)
+		cmdL.Debug("Application created successfully.")
+
+		cmdL.Debug("Starting application...")
+		application.Start()
 	},
 }
 

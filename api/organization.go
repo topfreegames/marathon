@@ -1,7 +1,7 @@
 package api
 
 import (
-	"strings"
+	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/kataras/iris"
@@ -12,43 +12,50 @@ type organizationPayload struct {
 	Name string
 }
 
-func validateOrganizationPayload(payload interface{}) []string {
-	var errors []string
-	name := GetAsString("Name", payload)
-
-	if name == "" || len(name) == 0 {
-		errors = append(errors, "name is required")
-	}
-
-	return errors
-}
-
 // CreateOrganizationHandler is the handler responsible for creating new organizations
 func CreateOrganizationHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
+		start := time.Now()
+
+		l := application.Logger.With(
+			zap.String("source", "organizationHandler"),
+			zap.String("operation", "createOrganization"),
+		)
+
 		var payload organizationPayload
-		_, err := LoadJSONPayload(&payload, c)
-		if err != nil {
+		if err := LoadJSONPayload(&payload, c, l); err != nil {
+			l.Error("Failed to parse json payload.", zap.Error(err))
 			FailWith(400, err.Error(), c)
 			return
 		}
-		if payloadErrors := validateOrganizationPayload(payload); len(payloadErrors) != 0 {
-			errorString := strings.Join(payloadErrors[:], ", ")
-			FailWith(422, errorString, c)
-			return
-		}
 
-		db := GetCtxDB(c)
-
-		organization, err := models.CreateOrganization(db, payload.Name)
+		l.Debug("Getting DB connection...")
+		db, err := GetCtxDB(c)
 		if err != nil {
+			l.Error("Failed to connect to DB.", zap.Error(err))
 			FailWith(500, err.Error(), c)
 			return
 		}
-		application.Logger.Info("Organization created", zap.Object("organization", organization))
+		l.Debug("DB Connection successful.")
+
+		l.Debug("Creating organization...")
+		organization, err := models.CreateOrganization(db, payload.Name)
+		if err != nil {
+			l.Error("Create organization failed.", zap.Error(err))
+			FailWith(400, err.Error(), c)
+			return
+		}
+
+		l.Info(
+			"Organization created successfully.",
+			zap.String("organizationId", organization.ID.String()),
+			zap.String("organizationName", organization.Name),
+			zap.Duration("duration", time.Now().Sub(start)),
+		)
 
 		SucceedWith(map[string]interface{}{
-			"id": organization.ID,
+			"name": organization.Name,
+			"id":   organization.ID,
 		}, c)
 	}
 }

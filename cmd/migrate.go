@@ -16,7 +16,7 @@ import (
 
 var migrationVersion int64
 
-func getDatabase() (*gorp.DbMap, error) {
+func getDatabase(l zap.Logger) (*gorp.DbMap, error) {
 	host := viper.GetString("postgres.host")
 	user := viper.GetString("postgres.user")
 	dbName := viper.GetString("postgres.dbname")
@@ -24,7 +24,7 @@ func getDatabase() (*gorp.DbMap, error) {
 	port := viper.GetInt("postgres.port")
 	sslMode := viper.GetString("postgres.sslMode")
 
-	Logger.Info(
+	l.Info(
 		"Connecting to postgres...",
 		zap.String("host", host),
 		zap.Int("port", port),
@@ -67,9 +67,9 @@ func (err *MigrationError) Error() string {
 }
 
 // RunMigrations runs all migrations in a given directory
-func RunMigrations(migrationsDir string, migrationVersion int64) error {
+func RunMigrations(migrationsDir string, migrationVersion int64, l zap.Logger) error {
 	conf := getGooseConf(migrationsDir)
-	db, err := getDatabase()
+	db, err := getDatabase(l)
 	if err != nil {
 		return &MigrationError{fmt.Sprintf("could not connect to database: %s", err.Error())}
 	}
@@ -89,7 +89,7 @@ func RunMigrations(migrationsDir string, migrationVersion int64) error {
 	if err != nil {
 		return &MigrationError{fmt.Sprintf("could not run migrations to %d: %s", targetVersion, err.Error())}
 	}
-	Logger.Info(
+	l.Info(
 		"Migrated database successfully to version",
 		zap.Int64("targetVersion", targetVersion),
 	)
@@ -102,8 +102,20 @@ var migrateCmd = &cobra.Command{
 	Short: "migrates the database up or down",
 	Long:  `Migrate the database specified in the configuration file to the given version (or latest if none provided)`,
 	Run: func(cmd *cobra.Command, args []string) {
-		InitConfig()
-		err := RunMigrations("", migrationVersion)
+		ll := zap.InfoLevel
+		if debug {
+			ll = zap.DebugLevel
+		}
+		l := zap.NewJSON(ll, zap.AddCaller())
+
+		cmdL := l.With(
+			zap.String("source", "migrateCmd"),
+			zap.String("operation", "Run"),
+		)
+
+		cmdL.Debug("Initializing migration config...")
+		InitConfig(cmdL)
+		err := RunMigrations("", migrationVersion, cmdL)
 		if err != nil {
 			panic(err.Error())
 		}

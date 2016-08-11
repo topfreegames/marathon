@@ -1,5 +1,5 @@
 hash: d1c72f3f1d978f83e606beef093d7d8c02a51f0462bf005dea3b1a6114f87a4d
-updated: 2016-08-02T13:15:09.591822685-03:00
+updated: 2016-08-11T13:22:42.918691513-03:00
 imports:
 - name: github.com/ajg/form
   version: 7ff89c75808766205bfa4411abb436c98c33eb5e
@@ -10,7 +10,7 @@ imports:
   - parser
   - lexer
 - name: github.com/bluele/factory-go
-  version: 0ddb52be1bd396fb1ba31c6353a832fe604e11e3
+  version: 8a28e9752dbc744626695b749a3ab474b8b372fa
   subpackages:
   - factory
 - name: github.com/bsm/sarama-cluster
@@ -54,6 +54,8 @@ imports:
   version: 35c8994667acb85dad8c454a2d231ebc1b782caf
 - name: github.com/gavv/monotime
   version: 259cd7b345f5aa080eff16f21d7866ef7dea9528
+- name: github.com/getsentry/raven-go
+  version: c9d3cc542ad199f62c0264286be537f9bce6063c
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
 - name: github.com/golang/snappy
@@ -190,10 +192,6 @@ imports:
   version: c7f6dd34057cd7e5253c282993b18dd92da999cd
   subpackages:
   - lib/goose
-- name: github.com/topfreegames/khan
-  version: 317477a1b48f9de1ccf0b92ab77c7b11ecec1c6a
-  subpackages:
-  - util
 - name: github.com/uber-go/atomic
   version: e682c1008ac17bf26d2e4b5ad6cdd08520ed0b22
 - name: github.com/uber-go/zap

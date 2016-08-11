@@ -14,6 +14,3 @@ func getLogLevel() zap.Level {
 	}
 	return level
 }
-
-// Logger is the template fetcher logger
-var Logger = zap.NewJSON(getLogLevel())

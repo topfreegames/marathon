@@ -19,9 +19,9 @@ var RootCmd = &cobra.Command{
 }
 
 // Execute runs RootCmd to initialize marathon CLI application
-func Execute(cmd *cobra.Command) {
+func Execute(cmd *cobra.Command, l zap.Logger) {
 	if err := cmd.Execute(); err != nil {
-		Logger.Error("Error", zap.Error(err))
+		l.Error("Error", zap.Error(err))
 		os.Exit(-1)
 	}
 }
@@ -40,7 +40,7 @@ func init() {
 }
 
 // InitConfig reads in config file and ENV variables if set.
-func InitConfig() {
+func InitConfig(l zap.Logger) {
 	if ConfigFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(ConfigFile)
 	} else {
@@ -58,7 +58,7 @@ func InitConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		Logger.Error(
+		l.Error(
 			"Using config file",
 			zap.String("Config file", viper.ConfigFileUsed()),
 		)

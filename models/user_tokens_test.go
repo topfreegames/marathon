@@ -8,10 +8,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
-	"github.com/uber-go/zap"
 )
-
-var Logger = zap.NewJSON(zap.InfoLevel)
 
 type Table struct {
 	TableName string `db:"tablename"`

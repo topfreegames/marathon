@@ -105,16 +105,16 @@ run-kafka-zookeeper: kill-kafka-zookeeper run-zookeeper run-kafka
 kill-kafka-zookeeper: kill-kafka kill-zookeeper
 
 run-zookeeper:
-	@zookeeper-server-start ./tests/zookeeper.properties 2>&1 > /tmp/marathon-zookeeper.log &
+	@zookeeper-server-start ./testing/zookeeper.properties 2>&1 > /tmp/marathon-zookeeper.log &
 
 kill-zookeeper:
-	@ps aux | egrep "./tests/zookeeper.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
+	@ps aux | egrep "./testing/zookeeper.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
 	@rm -rf /tmp/marathon-zookeeper
 	@rm -rf /tmp/marathon-zookeeper.log
 
 
 run-kafka:
-	@kafka-server-start ./tests/server.properties 2>&1 > /tmp/marathon-kafka.log &
+	@kafka-server-start ./testing/server.properties 2>&1 > /tmp/marathon-kafka.log &
 	@sleep 4
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic integration-test-input-topic --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-1 --zookeeper localhost:3535
@@ -123,6 +123,6 @@ run-kafka:
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-producer-1 --zookeeper localhost:3535
 
 kill-kafka:
-	@ps aux | egrep "./tests/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
+	@ps aux | egrep "./testing/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9
 	@rm -rf /tmp/marathon-kafka-logs
 	@rm -rf /tmp/marathon-kafka.log

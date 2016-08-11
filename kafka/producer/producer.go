@@ -20,7 +20,7 @@ func getLogLevel() zap.Level {
 }
 
 // Logger is the producer logger
-var Logger = zap.NewJSON(getLogLevel())
+var Logger = zap.NewJSON(getLogLevel(), zap.AddCaller())
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
 func Producer(config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {

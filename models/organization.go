@@ -29,6 +29,15 @@ func (o *Organization) PreUpdate(s gorp.SqlExecutor) error {
 	return nil
 }
 
+// CountOrganizations count the number of organizations in the db
+func CountOrganizations(db DB) (int64, error) {
+	count, err := db.SelectInt("SELECT COUNT(1) FROM organizations")
+	if err != nil {
+		return int64(0), err
+	}
+	return count, nil
+}
+
 // GetOrganizationByID returns an organization by id
 func GetOrganizationByID(db DB, id uuid.UUID) (*Organization, error) {
 	obj, err := db.Get(Organization{}, id)

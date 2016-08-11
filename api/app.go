@@ -1,12 +1,13 @@
 package api
 
 import (
-	"strings"
+	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
 	"github.com/kataras/iris"
 	"github.com/satori/go.uuid"
+	"github.com/uber-go/zap"
 )
 
 type appPayload struct {
@@ -15,47 +16,51 @@ type appPayload struct {
 	AppGroup       string
 }
 
-func validateAppPayload(payload interface{}) []string {
-	var errors []string
-	name := GetAsString("Name", payload)
-	_, errUUID := GetAsUUID("OrganizationID", payload)
-	appGroup := GetAsString("AppGroup", payload)
-
-	if name == "" || len(name) == 0 {
-		errors = append(errors, "name is required")
-	}
-	if errUUID != nil {
-		errors = append(errors, "organizationID is required")
-	}
-	if appGroup == "" || len(appGroup) == 0 {
-		errors = append(errors, "appGroup is required")
-	}
-	return errors
-}
-
 // CreateAppHandler is the handler responsible for creating new apps
 func CreateAppHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
+		start := time.Now()
+
+		l := application.Logger.With(
+			zap.String("source", "appHandler"),
+			zap.String("operation", "createApp"),
+		)
+
 		var payload appPayload
-		_, err := LoadJSONPayload(&payload, c)
-		if err != nil {
+		if err := LoadJSONPayload(&payload, c, l); err != nil {
+			l.Error("Failed to parse json payload.", zap.Error(err))
 			FailWith(400, err.Error(), c)
 			return
 		}
-		if payloadErrors := validateAppPayload(payload); len(payloadErrors) != 0 {
-			errorString := strings.Join(payloadErrors[:], ", ")
-			FailWith(422, errorString, c)
+
+		l.Debug("Getting DB connection...")
+		db, err := GetCtxDB(c)
+		if err != nil {
+			l.Error("Failed to connect to DB.", zap.Error(err))
+			FailWith(500, err.Error(), c)
 			return
 		}
+		l.Debug("DB Connection successful.")
 
-		db := GetCtxDB(c)
+		l.Debug("Creating app...")
 		app, err := models.CreateApp(db, payload.Name, payload.OrganizationID, payload.AppGroup)
 		if err != nil {
+			l.Error("Create app failed.", zap.Error(err))
 			FailWith(400, err.Error(), c)
 			return
 		}
 
+		l.Info(
+			"App created successfully.",
+			zap.String("id", app.ID.String()),
+			zap.String("name", app.Name),
+			zap.String("app_group", app.AppGroup),
+			zap.String("organization_id", app.OrganizationID.String()),
+			zap.Duration("duration", time.Now().Sub(start)),
+		)
+
 		SucceedWith(map[string]interface{}{
+			"id":              app.ID,
 			"name":            app.Name,
 			"app_group":       app.AppGroup,
 			"organization_id": app.OrganizationID,

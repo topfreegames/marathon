@@ -32,5 +32,5 @@ func ConfigureLogger(logProps Log, config *viper.Viper) zap.Logger {
 	default:
 		level = zap.InfoLevel
 	}
-	return zap.NewJSON(level)
+	return zap.NewJSON(level, zap.AddCaller())
 }
