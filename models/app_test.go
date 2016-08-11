@@ -34,14 +34,9 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should create an app", func() {
-				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				Expect(organizationErr).To(BeNil())
-				insertOrganizationErr := db.Insert(organization)
-				Expect(insertOrganizationErr).To(BeNil())
-
 				name := uuid.NewV4().String()
 				appGroup := uuid.NewV4().String()
-				organizationID := organization.ID
+				organizationID := uuid.NewV4()
 
 				createdApp, createdAppErr := models.CreateApp(db, name, organizationID, appGroup)
 				Expect(createdAppErr).To(BeNil())
@@ -53,14 +48,10 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not create an app with repeated name", func() {
-				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				Expect(organizationErr).To(BeNil())
-				insertOrganizationErr := db.Insert(organization)
-				Expect(insertOrganizationErr).To(BeNil())
 
 				name1 := uuid.NewV4().String()
 				appGroup1 := uuid.NewV4().String()
-				organizationID1 := organization.ID
+				organizationID1 := uuid.NewV4()
 
 				createdApp, createdAppErr := models.CreateApp(db, name1, organizationID1, appGroup1)
 				Expect(createdAppErr).To(BeNil())
@@ -69,18 +60,10 @@ var _ = Describe("Models", func() {
 
 				name2 := name1
 				appGroup2 := uuid.NewV4().String()
-				organizationID2 := organization.ID
+				organizationID2 := organizationID1
 
 				_, createdAppErr2 := models.CreateApp(db, name2, organizationID2, appGroup2)
 				Expect(createdAppErr2).NotTo(BeNil())
-			})
-
-			It("Should not create an app with invelid organization", func() {
-				name := uuid.NewV4().String()
-				appGroup := uuid.NewV4().String()
-				invalidID := uuid.NewV4()
-				_, createdAppErr := models.CreateApp(db, name, invalidID, appGroup)
-				Expect(createdAppErr).NotTo(BeNil())
 			})
 		})
 
@@ -91,13 +74,8 @@ var _ = Describe("Models", func() {
 				insertAppErr := db.Insert(app)
 				Expect(insertAppErr).To(BeNil())
 
-				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				Expect(organizationErr).To(BeNil())
-				insertOrganizationErr := db.Insert(organization)
-				Expect(insertOrganizationErr).To(BeNil())
-
 				newName := uuid.NewV4().String()
-				newOrganizationID := organization.ID
+				newOrganizationID := uuid.NewV4()
 				newAppGroup := uuid.NewV4().String()
 
 				updatedApp, updatedAppErr := models.UpdateApp(db, app.ID, newName, newOrganizationID, newAppGroup)
@@ -122,7 +100,7 @@ var _ = Describe("Models", func() {
 				Expect(insertAppErr2).To(BeNil())
 
 				newName := app1.Name
-				newOrganizationID := app2.OrganizationID
+				newOrganizationID := uuid.NewV4()
 				newAppGroup := app2.AppGroup
 
 				_, updatedAppErr := models.UpdateApp(db, app2.ID, newName, newOrganizationID, newAppGroup)
@@ -130,13 +108,8 @@ var _ = Describe("Models", func() {
 			})
 
 			It("Should not update an app for an unexistent id", func() {
-				organization, organizationErr := CreateOrganizationFactory(db, map[string]interface{}{})
-				Expect(organizationErr).To(BeNil())
-				insertOrganizationErr := db.Insert(organization)
-				Expect(insertOrganizationErr).To(BeNil())
-
 				newName := uuid.NewV4().String()
-				newOrganizationID := organization.ID
+				newOrganizationID := uuid.NewV4()
 				newAppGroup := uuid.NewV4().String()
 
 				invalidID := uuid.NewV4()

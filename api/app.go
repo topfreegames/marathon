@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -28,6 +29,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 
 		var payload appPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
+			fmt.Println(fmt.Sprintf("%+v", err))
 			l.Error("Failed to parse json payload.", zap.Error(err))
 			FailWith(400, err.Error(), c)
 			return
@@ -60,10 +62,10 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		)
 
 		SucceedWith(map[string]interface{}{
-			"id":              app.ID,
-			"name":            app.Name,
-			"app_group":       app.AppGroup,
-			"organization_id": app.OrganizationID,
+			"id":             app.ID,
+			"name":           app.Name,
+			"appGroup":       app.AppGroup,
+			"organizationID": app.OrganizationID,
 		}, c)
 	}
 }

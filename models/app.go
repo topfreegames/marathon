@@ -31,6 +31,15 @@ func (a *App) PreUpdate(s gorp.SqlExecutor) error {
 	return nil
 }
 
+// CountApps count the number of apps in the db
+func CountApps(db DB) (int64, error) {
+	count, err := db.SelectInt("SELECT COUNT(1) FROM apps")
+	if err != nil {
+		return int64(0), err
+	}
+	return count, nil
+}
+
 // GetAppByID returns an app by id
 func GetAppByID(db DB, id uuid.UUID) (*App, error) {
 	obj, err := db.Get(App{}, id)

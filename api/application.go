@@ -158,13 +158,10 @@ func (application *Application) configureApplicationlication() {
 
 	// Routes
 
-	// Create an organization
-	a.Post("/organizations", CreateOrganizationHandler(application))
-
 	// Create an app
-	// a.Put("/apps/:app_name/users/notification", CreateAppHandler(application))
+	a.Post("/apps", CreateAppHandler(application))
 
-	// a.Post("/apps", CreateAppHandler(application))
+	// a.Put("/apps/:app_name/users/notification", CreateAppHandler(application))
 	// a.Post("/notifiers", controllers.CreateNotifierHandler(application))
 	// a.Post("/organizations", controllers.CreateOrganizationHandler(application))
 	// a.Post("/templates", controllers.CreateTemplatesHandler(application))

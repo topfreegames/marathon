@@ -6,19 +6,6 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// OrganizationFactory is responsible for constructing test organization instances
-var OrganizationFactory = factory.NewFactory(
-	&models.Organization{},
-).Attr("Name", func(args factory.Args) (interface{}, error) {
-	return uuid.NewV4().String(), nil
-})
-
-// CreateOrganizationFactory is responsible for constructing test organization instances
-func CreateOrganizationFactory(db models.DB, attrs map[string]interface{}) (*models.Organization, error) {
-	organization := OrganizationFactory.MustCreateWithOption(attrs).(*models.Organization)
-	return organization, nil
-}
-
 // AppFactory is responsible for constructing test app instances
 var AppFactory = factory.NewFactory(
 	&models.App{},
@@ -31,12 +18,7 @@ var AppFactory = factory.NewFactory(
 // CreateAppFactory is responsible for constructing test app instances
 func CreateAppFactory(db models.DB, attrs map[string]interface{}) (*models.App, error) {
 	if attrs["OrganizationID"] == nil {
-		organization := OrganizationFactory.MustCreateWithOption(map[string]interface{}{}).(*models.Organization)
-		insertOrganizationErr := db.Insert(organization)
-		if insertOrganizationErr != nil {
-			return nil, insertOrganizationErr
-		}
-		attrs["OrganizationID"] = organization.ID
+		attrs["OrganizationID"] = uuid.NewV4()
 	}
 	app := AppFactory.MustCreateWithOption(attrs).(*models.App)
 	return app, nil
