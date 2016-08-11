@@ -9,21 +9,13 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
+	"git.topfreegames.com/topfreegames/marathon/util"
 	"git.topfreegames.com/topfreegames/marathon/workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 )
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
 
 var _ = Describe("Models", func() {
 	type Table struct {
@@ -240,7 +232,7 @@ var _ = Describe("Models", func() {
 				Expect(processedMessageObj.Locale).To(Equal(locale))
 				Expect(processedMessageObj.Message).To(Equal(msg))
 				Expect(processedMessageObj.Metadata).To(Equal(metadata))
-				Expect(contains(tokens, processedMessageObj.Token)).To(BeTrue())
+				Expect(util.SliceContains(tokens, processedMessageObj.Token)).To(BeTrue())
 			}
 		})
 	})

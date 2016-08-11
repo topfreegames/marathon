@@ -62,6 +62,7 @@ func GetUserTokenByToken(db DB, app string, service string, token string) (*User
 }
 
 // GetUserTokensBatchByFilters returns userTokens with the given filters starting at offset and limited to limit
+// We use filters [][]interface{} and modifiers [][]interface{} because the order is important
 func GetUserTokensBatchByFilters(db DB, app string, service string, filters [][]interface{},
 	modifiers [][]interface{}) ([]UserToken, error) {
 	var userTokens []UserToken
@@ -105,6 +106,7 @@ func GetUserTokensBatchByFilters(db DB, app string, service string, filters [][]
 }
 
 // CountUserTokensByFilters returns userTokens with the given filters starting at offset and limited to limit
+// We use filters [][]interface{} and modifiers [][]interface{} because the order is important
 func CountUserTokensByFilters(db DB, app string, service string, filters [][]interface{},
 	modifiers [][]interface{}) (int64, error) {
 	tableName := GetTableName(app, service)
