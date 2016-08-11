@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -12,7 +13,8 @@ import (
 )
 
 type appPayload struct {
-	Name           string
+	AppName        string
+	Service        string
 	OrganizationID uuid.UUID
 	AppGroup       string
 }
@@ -44,8 +46,10 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		}
 		l.Debug("DB Connection successful.")
 
+		name := strings.Join([]string{payload.AppName, payload.Service}, "_")
+
 		l.Debug("Creating app...")
-		app, err := models.CreateApp(db, payload.Name, payload.OrganizationID, payload.AppGroup)
+		app, err := models.CreateApp(db, name, payload.OrganizationID, payload.AppGroup)
 		if err != nil {
 			l.Error("Create app failed.", zap.Error(err))
 			FailWith(400, err.Error(), c)

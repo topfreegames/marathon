@@ -3,6 +3,7 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/Pallinder/go-randomdata"
@@ -17,14 +18,16 @@ var _ = Describe("Marathon API Handler", func() {
 	Describe("Create App Handler", func() {
 		It("Should create app", func() {
 			a := GetDefaultTestApp()
-			name := randomdata.FirstName(randomdata.RandomGender)
+			appName := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload := map[string]interface{}{
-				"name":           name,
+				"appName":        appName,
+				"service":        service,
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
-
+			name := strings.Join([]string{appName, service}, "_")
 			res := PostJSON(a, "/apps", payload)
 
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
@@ -32,7 +35,7 @@ var _ = Describe("Marathon API Handler", func() {
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["id"]).NotTo(BeNil())
-			Expect(result["name"]).To(Equal(payload["name"]))
+			Expect(result["name"]).To(Equal(name))
 			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
@@ -46,21 +49,25 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should not create apps with repeated names", func() {
 			a := GetDefaultTestApp()
 
-			name1 := randomdata.FirstName(randomdata.RandomGender)
-			appGroup1 := randomdata.FirstName(randomdata.RandomGender)
+			appName1 := randomdata.FirstName(randomdata.RandomGender)
+			service1 := randomdata.FirstName(randomdata.RandomGender)
+			group1 := randomdata.FirstName(randomdata.RandomGender)
 			organizationID1 := uuid.NewV4()
+			name1 := strings.Join([]string{appName1, service1}, "_")
 
-			_, err := models.CreateApp(a.Db, name1, organizationID1, appGroup1)
+			_, err := models.CreateApp(a.Db, name1, organizationID1, group1)
 			Expect(err).To(BeNil())
 
-			name2 := name1
-			appGroup2 := randomdata.FirstName(randomdata.RandomGender)
-			organizationID2 := uuid.NewV4().String()
+			appName2 := appName1
+			service2 := service1
+			group2 := randomdata.FirstName(randomdata.RandomGender)
+			organizationID2 := uuid.NewV4()
 
 			payload := map[string]interface{}{
-				"name":           name2,
+				"appName":        appName2,
+				"service":        service2,
 				"organizationID": organizationID2,
-				"appGroup":       appGroup2,
+				"appGroup":       group2,
 			}
 
 			countBefore, err := models.CountApps(a.Db)
