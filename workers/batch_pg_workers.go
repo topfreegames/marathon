@@ -100,7 +100,7 @@ func (worker *BatchPGWorker) Configure() {
 }
 
 // StartWorker starts the workers according to the configuration and returns the workers object
-func (worker *BatchPGWorker) StartWorker(message string, filters [][]interface{}, modifiers [][]interface{}) {
+func (worker *BatchPGWorker) StartWorker(message *messages.InputMessage, filters [][]interface{}, modifiers [][]interface{}) {
 	// Run modules
 	for i := 0; i < worker.Config.GetInt("workers.modules.producers"); i++ {
 		go worker.producer(worker.Config, "batch_pg_workers", worker.PgToKafkaChan, worker.DoneChan)
@@ -131,17 +131,8 @@ func buildTopicName(app string, service string) string {
 }
 
 // PGReader reads from pg in batches and sends the built messages to kafka
-func (worker *BatchPGWorker) pgReader(message string, filters [][]interface{},
+func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters [][]interface{},
 	modifiers [][]interface{}, outChan chan<- *messages.InputMessage) {
-
-	msgObj, err := worker.parse(message)
-	if err != nil {
-		worker.Logger.Fatal(
-			"Could not parse message",
-			zap.String("message", message),
-			zap.Error(err),
-		)
-	}
 
 	limit := -1
 	for _, modifier := range modifiers {
@@ -153,14 +144,14 @@ func (worker *BatchPGWorker) pgReader(message string, filters [][]interface{},
 		worker.Logger.Fatal("Limit should be greater than 0", zap.Int("limit", limit))
 	}
 
-	userTokensCount, err := models.CountUserTokensByFilters(worker.Db, msgObj.App, msgObj.Service, filters, modifiers)
+	userTokensCount, err := models.CountUserTokensByFilters(worker.Db, message.App, message.Service, filters, modifiers)
 	if err != nil {
 		worker.Logger.Fatal(
 			"Error while counting tokens",
-			zap.String("app", msgObj.App),
-			zap.String("service", msgObj.Service),
-			zap.String("filters", fmt.Sprintf("%+v", filters)),
-			zap.String("modifiers", fmt.Sprintf("%+v", modifiers)),
+			zap.String("app", message.App),
+			zap.String("service", message.Service),
+			zap.Object("filters", filters),
+			zap.Object("modifiers", modifiers),
 			zap.Error(err),
 		)
 	}
@@ -168,22 +159,22 @@ func (worker *BatchPGWorker) pgReader(message string, filters [][]interface{},
 	if userTokensCount < int64(0) {
 		worker.Logger.Fatal(
 			"Tokens size lower than 0",
-			zap.String("app", msgObj.App),
-			zap.String("service", msgObj.Service),
-			zap.String("filters", fmt.Sprintf("%+v", filters)),
-			zap.String("modifiers", fmt.Sprintf("%+v", modifiers)),
+			zap.String("app", message.App),
+			zap.String("service", message.Service),
+			zap.Object("filters", filters),
+			zap.Object("modifiers", modifiers),
 			zap.Error(err),
 		)
 	}
 
-	userTokens, err := models.GetUserTokensBatchByFilters(worker.Db, msgObj.App, msgObj.Service, filters, modifiers)
+	userTokens, err := models.GetUserTokensBatchByFilters(worker.Db, message.App, message.Service, filters, modifiers)
 	if err != nil {
 		worker.Logger.Fatal(
 			"Error while getting users",
-			zap.String("app", msgObj.App),
-			zap.String("service", msgObj.Service),
-			zap.String("filters", fmt.Sprintf("%+v", filters)),
-			zap.String("modifiers", fmt.Sprintf("%+v", modifiers)),
+			zap.String("app", message.App),
+			zap.String("service", message.Service),
+			zap.Object("filters", filters),
+			zap.Object("modifiers", modifiers),
 			zap.Error(err),
 		)
 	}
@@ -191,77 +182,12 @@ func (worker *BatchPGWorker) pgReader(message string, filters [][]interface{},
 	processesTokens := int64(0)
 	for processesTokens < userTokensCount {
 		for _, userToken := range userTokens {
-			msgObj.Token = userToken.Token
-			msgObj.Locale = userToken.Locale
-			outChan <- msgObj
+			message.Token = userToken.Token
+			message.Locale = userToken.Locale
+			outChan <- message
 		}
 		processesTokens += int64(len(userTokens))
 	}
-}
-
-// Parse parses the message string received, it expects to be in JSON format,
-// as defined by the RequestMessage struct
-func (worker *BatchPGWorker) parse(msg string) (*messages.InputMessage, error) {
-	msgObj := messages.NewInputMessage()
-	err := json.Unmarshal([]byte(msg), msgObj)
-	if err != nil {
-		errStr := fmt.Sprintf("Error parsing JSON: %+v, the message was: %s", err, msg)
-		e := parseError{errStr}
-		return msgObj, e
-	}
-
-	e := parseError{}
-	// All fields should be set, except by either Template & Params or Message
-	if msgObj.App == "" || msgObj.Service == "" {
-		errStr := fmt.Sprintf(
-			"One of the mandatory fields is missing app=%s, service=%s", msgObj.App, msgObj.Service)
-		worker.Logger.Error(
-			errStr,
-			zap.String("app", msgObj.App),
-			zap.String("service", msgObj.Service),
-		)
-		e = parseError{errStr}
-	}
-	// Either Template & Params should be defined or Message should be defined
-	// Not both at the same time
-	if msgObj.Template != "" && msgObj.Params == nil {
-		errStr := "Template defined, but not Params"
-		worker.Logger.Error(
-			errStr,
-			zap.String("template", msgObj.Template),
-			zap.String("params", fmt.Sprintf("%+v", msgObj.Params)),
-		)
-		e = parseError{errStr}
-	}
-	if msgObj.Template != "" && (msgObj.Message != nil && len(msgObj.Message) > 0) {
-		errStr := "Both Template and Message defined"
-		worker.Logger.Error(
-			errStr,
-			zap.String("template", msgObj.Template),
-			zap.String("message", fmt.Sprintf("%+v", msgObj.Message)),
-		)
-		e = parseError{errStr}
-	}
-	if msgObj.Template == "" && (msgObj.Message == nil || len(msgObj.Message) == 0) {
-		errStr := "Either Template or Message should be defined"
-		worker.Logger.Error(
-			errStr,
-			zap.String("template", msgObj.Template),
-			zap.String("message", fmt.Sprintf("%+v", msgObj.Message)),
-		)
-		e = parseError{errStr}
-	}
-	if msgObj.PushExpiry < 0 {
-		errStr := "PushExpiry should be above 0"
-		worker.Logger.Error(errStr, zap.Int64("pushexpiry", msgObj.PushExpiry))
-		e = parseError{errStr}
-	}
-	if e.Message != "" {
-		return nil, e
-	}
-
-	worker.Logger.Debug("Decoded message", zap.String("msg", msg))
-	return msgObj, nil
 }
 
 func (worker *BatchPGWorker) producer(config *viper.Viper, configRoot string, inChan <-chan *messages.InputMessage, doneChan <-chan struct{}) {

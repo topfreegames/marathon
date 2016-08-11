@@ -38,7 +38,6 @@ var _ = Describe("Models", func() {
 		msg              map[string]interface{}
 		metadata         map[string]interface{}
 		message          *messages.InputMessage
-		byteMessage      []byte
 		filters          [][]interface{}
 		modifiers        [][]interface{}
 	)
@@ -89,7 +88,7 @@ var _ = Describe("Models", func() {
 			Message:    msg,
 			Metadata:   metadata,
 		}
-		byteMessage, err = json.Marshal(message)
+
 		Expect(err).To(BeNil())
 
 		filters = [][]interface{}{
@@ -128,7 +127,7 @@ var _ = Describe("Models", func() {
 			continuousWorker.StartWorker()
 			Expect(continuousWorker).NotTo(BeNil())
 
-			batchWorker.StartWorker(string(byteMessage), filters, modifiers)
+			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())
 
 			timeElapsed := time.Duration(0)
@@ -191,7 +190,7 @@ var _ = Describe("Models", func() {
 			continuousWorker.StartWorker()
 			Expect(continuousWorker).NotTo(BeNil())
 
-			batchWorker.StartWorker(string(byteMessage), filters, modifiers)
+			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())
 
 			timeElapsed := time.Duration(0)

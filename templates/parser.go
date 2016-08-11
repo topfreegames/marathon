@@ -87,6 +87,13 @@ func Parse(msg string) (*messages.InputMessage, error) {
 		)
 		e = parseError{"Either Template or Message should be defined"}
 	}
+
+	if msgObj.PushExpiry < 0 {
+		errStr := "PushExpiry should be above 0"
+		Logger.Error(errStr, zap.Int64("pushexpiry", msgObj.PushExpiry))
+		e = parseError{errStr}
+	}
+
 	if e.Message != "" {
 		return nil, e
 	}
