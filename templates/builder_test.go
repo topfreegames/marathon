@@ -69,7 +69,7 @@ var _ = Describe("Template", func() {
 					Metadata:   map[string]interface{}{"meta": "data"},
 				}
 				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1}`)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"message","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
 			})
 
@@ -79,7 +79,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1}`)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"message","badge":1}},"push_expiry":0}`))
 			})
 
@@ -89,7 +89,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 				Expect(msg).To(Equal(""))
 			})
 
@@ -99,7 +99,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				_, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 		})
 
@@ -111,7 +111,7 @@ var _ = Describe("Template", func() {
 					Metadata:   map[string]interface{}{"meta": "data"},
 				}
 				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1,"m":{"meta":"data"}},"push_expiry":0}`))
 			})
 
@@ -121,7 +121,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1},"push_expiry":0}`))
 			})
 
@@ -131,7 +131,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				_, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 		})
 
@@ -148,7 +148,7 @@ var _ = Describe("Template", func() {
 				}
 				msg, err := templates.Build(req)
 
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello, world","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
 
 			})
@@ -164,7 +164,7 @@ var _ = Describe("Template", func() {
 				}
 				msg, err := templates.Build(req)
 
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
 
 			})
@@ -181,7 +181,7 @@ var _ = Describe("Template", func() {
 				}
 				msg, err := templates.Build(req)
 
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
 			})
 
@@ -195,7 +195,7 @@ var _ = Describe("Template", func() {
 					Message:    map[string]interface{}{"title": "Hello, world", "subtitle": "Hello"},
 				}
 				msg, err := templates.Build(req)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
 			})
 
@@ -211,7 +211,7 @@ var _ = Describe("Template", func() {
 				}
 				msg, err := templates.Build(req)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 				Expect(msg).To(BeNil())
 			})
 		})

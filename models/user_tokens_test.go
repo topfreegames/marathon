@@ -33,7 +33,7 @@ var _ = Describe("Models", func() {
 		}
 		if len(tableNames) > 0 {
 			_, err := db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 		}
 	})
 
@@ -43,7 +43,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_1_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 			})
@@ -52,13 +52,13 @@ var _ = Describe("Models", func() {
 				app1 := "app_test_2_1"
 				service1 := "apns"
 				createdTable1, err := models.CreateUserTokensTable(db, app1, service1)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable1.TableName).To(Equal(models.GetTableName(app1, service1)))
 
 				app2 := "app_test_2_2"
 				service2 := "apns"
 				createdTable2, err := models.CreateUserTokensTable(db, app2, service2)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				Expect(createdTable2.TableName).To(Equal(models.GetTableName(app2, service2)))
 			})
@@ -69,16 +69,16 @@ var _ = Describe("Models", func() {
 				app := "app_test_2_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userToken, err := CreateUserTokenFactory(db, map[string]interface{}{})
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				err = db.Insert(userToken)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				dbUserToken, err := models.GetUserTokenByID(db, app, service, userToken.ID)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(dbUserToken.Token).To(Equal(userToken.Token))
 				Expect(dbUserToken.UserID).To(Equal(userToken.UserID))
 				Expect(dbUserToken.Locale).To(Equal(userToken.Locale))
@@ -91,7 +91,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_3_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userID := uuid.NewV4().String()
@@ -105,10 +105,10 @@ var _ = Describe("Models", func() {
 				userToken, err := models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				dbUserToken, err := models.GetUserTokenByID(db, app, service, userToken.ID)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(dbUserToken.Token).To(Equal(userToken.Token))
 				Expect(dbUserToken.UserID).To(Equal(userToken.UserID))
 				Expect(dbUserToken.Locale).To(Equal(userToken.Locale))
@@ -121,7 +121,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_3_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userID := uuid.NewV4().String()
@@ -135,7 +135,7 @@ var _ = Describe("Models", func() {
 				userToken, err := models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				locale = uuid.NewV4().String()[:2]
 				region = uuid.NewV4().String()[:2]
@@ -146,10 +146,10 @@ var _ = Describe("Models", func() {
 				userToken, err = models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				dbUserToken, err := models.GetUserTokenByID(db, app, service, userToken.ID)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(dbUserToken.Token).To(Equal(userToken.Token))
 				Expect(dbUserToken.UserID).To(Equal(userToken.UserID))
 				Expect(dbUserToken.Locale).To(Equal(userToken.Locale))
@@ -162,7 +162,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_3_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userID := uuid.NewV4().String()
@@ -176,7 +176,7 @@ var _ = Describe("Models", func() {
 				userToken, err := models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				userID = uuid.NewV4().String()
 				locale = uuid.NewV4().String()[:2]
@@ -188,10 +188,10 @@ var _ = Describe("Models", func() {
 				userToken, err = models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				dbUserToken, err := models.GetUserTokenByID(db, app, service, userToken.ID)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(dbUserToken.Token).To(Equal(userToken.Token))
 				Expect(dbUserToken.UserID).To(Equal(userToken.UserID))
 				Expect(dbUserToken.Locale).To(Equal(userToken.Locale))
@@ -204,7 +204,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_3_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userID := uuid.NewV4().String()
@@ -217,7 +217,7 @@ var _ = Describe("Models", func() {
 				userToken, err := models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				filters := [][]interface{}{
 					{"user_id", userID},
@@ -229,7 +229,7 @@ var _ = Describe("Models", func() {
 				}
 
 				dbUserTokens, err := models.GetUserTokensBatchByFilters(db, app, service, filters, modifiers)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(dbUserTokens)).To(Equal(1))
 				Expect(dbUserTokens[0].Token).To(Equal(userToken.Token))
@@ -244,7 +244,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_3_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userID := uuid.NewV4().String()
@@ -257,7 +257,7 @@ var _ = Describe("Models", func() {
 				userToken, err := models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				userID2 := uuid.NewV4().String()
 				token2 := uuid.NewV4().String()
@@ -268,7 +268,7 @@ var _ = Describe("Models", func() {
 				userToken2, err := models.UpsertToken(
 					db, app, service, userID2, token2, locale2, region2, tz2, buildN, optOut2,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				filters := [][]interface{}{
 					{"build_n", buildN},
@@ -280,7 +280,7 @@ var _ = Describe("Models", func() {
 				}
 
 				dbUserTokens, err := models.GetUserTokensBatchByFilters(db, app, service, filters, modifiers)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(dbUserTokens)).To(Equal(2))
 
@@ -303,7 +303,7 @@ var _ = Describe("Models", func() {
 				app := "app_test_3_1"
 				service := "apns"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
 
 				userID := uuid.NewV4().String()
@@ -316,7 +316,7 @@ var _ = Describe("Models", func() {
 				_, err = models.UpsertToken(
 					db, app, service, userID, token, locale, region, tz, buildN, optOut,
 				)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				filters := [][]interface{}{
 					{"user_id", uuid.NewV4().String()},
@@ -328,7 +328,7 @@ var _ = Describe("Models", func() {
 				}
 
 				dbUserTokens, err := models.GetUserTokensBatchByFilters(db, app, service, filters, modifiers)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(dbUserTokens)).To(Equal(0))
 			})

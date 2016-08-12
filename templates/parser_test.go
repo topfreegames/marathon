@@ -29,7 +29,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				output, err := templates.Parse(string(inputString))
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(input.App).To(Equal(output.App))
 				Expect(input.Token).To(Equal(output.Token))
 				Expect(input.Service).To(Equal(output.Service))
@@ -57,7 +57,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				output, err := templates.Parse(string(inputString))
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 				Expect(input.App).To(Equal(output.App))
 				Expect(input.Token).To(Equal(output.Token))
 				Expect(input.Service).To(Equal(output.Service))
@@ -86,7 +86,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				_, err := templates.Parse(string(inputString))
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 
 			It("Should not parse a message without template and message", func() {
@@ -106,7 +106,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				_, err := templates.Parse(string(inputString))
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 
 			It("Should not parse a message which is not a json", func() {
@@ -127,7 +127,7 @@ var _ = Describe("Template", func() {
 
 				message := string(inputString)
 				_, err := templates.Parse(message[:len(message)-1])
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 
 			It("Should not parse a message with no App", func() {
@@ -146,7 +146,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				_, err := templates.Parse(string(inputString))
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 
 			It("Should not parse a message with no Token", func() {
@@ -166,7 +166,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				_, err := templates.Parse(string(inputString))
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 
 			It("Should not parse a message with no Service", func() {
@@ -185,7 +185,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				_, err := templates.Parse(string(inputString))
-				Expect(err).NotTo(BeNil())
+				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 			})
 
 			Describe("", func() {

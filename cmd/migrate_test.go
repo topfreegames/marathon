@@ -19,14 +19,14 @@ package cmd_test
 // 			},
 // 		}
 // 		_, err := cmd.CombinedOutput()
-// 		Expect(err).To(BeNil())
+// 		Expect(err).NotTo(HaveOccurred())
 // 	})
 //
 // 	Describe("Should migrate", func() {
 // 		It("Should run migrations up", func() {
 // 			cmd.InitConfig()
 // 			err := cmd.RunMigrations("../db/migrations", -1)
-// 			Expect(err).To(BeNil())
+// 			Expect(err).NotTo(HaveOccurred())
 // 		})
 // 	})
 // })

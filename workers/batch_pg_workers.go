@@ -117,13 +117,18 @@ func (worker BatchPGWorker) Close() {
 }
 
 // GetBatchPGWorker returns a new worker
-func GetBatchPGWorker(configPath string) *BatchPGWorker {
-	worker := &BatchPGWorker{
-		Config:     viper.New(),
-		ConfigPath: configPath,
+func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
+	if worker.ConfigPath == "" {
+		errStr := "Invalid worker config"
+		worker.Logger.Error(errStr, zap.Object("worker", worker))
+		e := parseError{errStr}
+		return nil, e
+	}
+	if worker.Config == nil {
+		worker.Config = viper.New()
 	}
 	worker.Configure()
-	return worker
+	return worker, nil
 }
 
 func buildTopicName(app string, service string) string {
@@ -132,7 +137,7 @@ func buildTopicName(app string, service string) string {
 
 // PGReader reads from pg in batches and sends the built messages to kafka
 func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters [][]interface{},
-	modifiers [][]interface{}, outChan chan<- *messages.InputMessage) {
+	modifiers [][]interface{}, outChan chan<- *messages.InputMessage) (chan<- *messages.InputMessage, error) {
 
 	limit := -1
 	for _, modifier := range modifiers {
@@ -167,27 +172,35 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 		)
 	}
 
-	userTokens, err := models.GetUserTokensBatchByFilters(worker.Db, message.App, message.Service, filters, modifiers)
-	if err != nil {
-		worker.Logger.Fatal(
-			"Error while getting users",
-			zap.String("app", message.App),
-			zap.String("service", message.Service),
-			zap.Object("filters", filters),
-			zap.Object("modifiers", modifiers),
-			zap.Error(err),
+	pages := userTokensCount / int64(limit)
+	workerModifiers := [2][]interface{}{ // TODO: Should we order ? {"ORDER BY", "updated_at ASC"}
+		{"LIMIT", limit},
+	}
+	for page := int64(0); page < pages; page++ {
+		workerModifiers[1] = []interface{}{"OFFSET", page}
+		userTokens, err := models.GetUserTokensBatchByFilters(
+			worker.Db, message.App, message.Service, filters, modifiers,
 		)
-	}
-
-	processesTokens := int64(0)
-	for processesTokens < userTokensCount {
-		for _, userToken := range userTokens {
-			message.Token = userToken.Token
-			message.Locale = userToken.Locale
-			outChan <- message
+		if err != nil {
+			worker.Logger.Error(
+				"Failed to get user tokens by filters and modifiers",
+				zap.Object("filters", filters),
+				zap.Object("modifiers", modifiers),
+				zap.Error(err),
+			)
+			return outChan, err
 		}
-		processesTokens += int64(len(userTokens))
+		processedTokens := 0
+		for processedTokens < len(userTokens) {
+			for _, userToken := range userTokens {
+				message.Token = userToken.Token
+				message.Locale = userToken.Locale
+				outChan <- message
+			}
+			processedTokens += len(userTokens)
+		}
 	}
+	return outChan, nil
 }
 
 func (worker *BatchPGWorker) producer(config *viper.Viper, configRoot string, inChan <-chan *messages.InputMessage, doneChan <-chan struct{}) {

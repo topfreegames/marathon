@@ -206,7 +206,7 @@ func CreateUserTokensTable(_db DB, app string, service string) (*gorp.TableMap, 
 	db := _db.(*gorp.DbMap)
 
 	tableName := GetTableName(app, service)
-	Logger.Error(
+	Logger.Info(
 		"TableName",
 		zap.String("name", tableName),
 	)

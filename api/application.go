@@ -161,6 +161,9 @@ func (application *Application) configureApplicationlication() {
 	// Create an app
 	a.Post("/apps", CreateAppHandler(application))
 
+	// Send a push notification by filters
+	a.Post("/apps/:appName/users/notifications", SendNotificationHandler(application))
+
 	// a.Put("/apps/:app_name/users/notification", CreateAppHandler(application))
 	// a.Post("/notifiers", controllers.CreateNotifierHandler(application))
 	// a.Post("/organizations", controllers.CreateOrganizationHandler(application))

@@ -56,7 +56,8 @@ var _ = Describe("Marathon API Handler", func() {
 			name1 := strings.Join([]string{appName1, service1}, "_")
 
 			_, err := models.CreateApp(a.Db, name1, organizationID1, group1)
-			Expect(err).To(BeNil())
+
+			Expect(err).NotTo(HaveOccurred())
 
 			appName2 := appName1
 			service2 := service1
@@ -71,6 +72,7 @@ var _ = Describe("Marathon API Handler", func() {
 			}
 
 			countBefore, err := models.CountApps(a.Db)
+			HaveOccurred()
 			Expect(err).NotTo(HaveOccurred())
 
 			res := PostJSON(a, "/apps", payload)

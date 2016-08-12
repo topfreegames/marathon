@@ -16,7 +16,7 @@ func produceMessage(brokers []string, topic string, message string, partition in
 	producerConfig := sarama.NewConfig()
 	producerConfig.Version = sarama.V0_9_0_0
 	producer, err := sarama.NewSyncProducer(brokers, producerConfig)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	defer producer.Close()
 
 	saramaMessage := sarama.ProducerMessage{
@@ -24,7 +24,7 @@ func produceMessage(brokers []string, topic string, message string, partition in
 		Value: sarama.StringEncoder(message),
 	}
 	part, off, err := producer.SendMessage(&saramaMessage)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	Expect(part).To(Equal(partition))
 	Expect(off).To(Equal(offset))
 }
@@ -35,13 +35,13 @@ var _ = Describe("Consumer", func() {
 			message := ""
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
 			_, err := consumer.Consume(&kafkaMsg)
-			Expect(err).NotTo(BeNil())
+			Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
 		})
 		It("Should consume one message correctly and retrieve it", func() {
 			message := "message"
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
 			msg, err := consumer.Consume(&kafkaMsg)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 			Expect(msg).To(Equal(message))
 		})
 	})

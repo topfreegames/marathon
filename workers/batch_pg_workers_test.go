@@ -44,7 +44,7 @@ var _ = Describe("Models", func() {
 
 	BeforeEach(func() {
 		_db, err := models.GetTestDB()
-		Expect(err).To(BeNil())
+		Expect(err).NotTo(HaveOccurred()))
 		Expect(_db).NotTo(BeNil())
 		db = _db
 
@@ -57,7 +57,7 @@ var _ = Describe("Models", func() {
 		}
 		if len(tableNames) > 0 {
 			_, err := db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred()))
 		}
 
 		templateName = "integrationtesttemplatename"
@@ -71,10 +71,10 @@ var _ = Describe("Models", func() {
 		templateDefaults = map[string]interface{}{"username": "banduk"}
 		templateBody = map[string]interface{}{"alert": "{{username}} sent you a message."}
 		_, err = models.CreateTemplate(db, templateName, service, locale, templateDefaults, templateBody)
-		Expect(err).To(BeNil())
+		Expect(err).NotTo(HaveOccurred()))
 
 		_, err = models.CreateUserTokensTable(db, appName, service)
-		Expect(err).To(BeNil())
+		Expect(err).NotTo(HaveOccurred()))
 
 		pushExpiry = int64(0)
 		msg = map[string]interface{}{"aps": "hey"}
@@ -88,8 +88,6 @@ var _ = Describe("Models", func() {
 			Message:    msg,
 			Metadata:   metadata,
 		}
-
-		Expect(err).To(BeNil())
 
 		filters = [][]interface{}{
 			{"locale", locale},
@@ -105,12 +103,15 @@ var _ = Describe("Models", func() {
 			userID1 := uuid.NewV4().String()
 			token1 := uuid.NewV4().String()
 			_, err = models.UpsertToken(db, appName, service, userID1, token1, locale, region, tz, buildN, optOut)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred()))
 
 			// Continuous worker that process messages produced
 			continuousWorker := workers.GetContinuousWorker("./../config/test.yaml")
 			// Batch worker that reads from pg and sent to continuous worker
-			batchWorker := workers.GetBatchPGWorker("./../config/test.yaml")
+			worker := &workers.BatchPGWorker{ConfigPath: "./../config/test.yaml"}
+			batchWorker, err := workers.GetBatchPGWorker(worker)
+			Expect(err).NotTo(HaveOccurred()))
+
 			// Consume message produced by our pipeline
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
@@ -157,24 +158,27 @@ var _ = Describe("Models", func() {
 			userID1 := uuid.NewV4().String()
 			token1 := uuid.NewV4().String()
 			_, err = models.UpsertToken(db, appName, service, userID1, token1, locale, region, tz, buildN, optOut)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred()))
 
 			userID2 := uuid.NewV4().String()
 			token2 := uuid.NewV4().String()
 			_, err = models.UpsertToken(db, appName, service, userID2, token2, locale, region, tz, buildN, optOut)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred()))
 
 			userID3 := uuid.NewV4().String()
 			token3 := uuid.NewV4().String()
 			_, err = models.UpsertToken(db, appName, service, userID3, token3, locale, region, tz, buildN, optOut)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred()))
 
 			tokens := []string{token1, token2, token3}
 
 			// Continuous worker that process messages produced
 			continuousWorker := workers.GetContinuousWorker("./../config/test.yaml")
 			// Batch worker that reads from pg and sent to continuous worker
-			batchWorker := workers.GetBatchPGWorker("./../config/test.yaml")
+			worker := &workers.BatchPGWorker{ConfigPath: "./../config/test.yaml"}
+			batchWorker, err := workers.GetBatchPGWorker(worker)
+			Expect(err).NotTo(HaveOccurred()))
+
 			// Consume message produced by our pipeline
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
