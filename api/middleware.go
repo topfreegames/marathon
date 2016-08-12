@@ -18,7 +18,7 @@ type VersionMiddleware struct {
 
 // Serve automatically adds a version header to response
 func (m *VersionMiddleware) Serve(c *iris.Context) {
-	c.SetHeader("KHAN-VERSION", VERSION)
+	c.SetHeader("MARATHON-VERSION", VERSION)
 	c.Next()
 }
 

@@ -17,16 +17,16 @@ import (
 
 // GetTestDB returns a connection to the test database
 func GetTestDB() (*gorp.DbMap, error) {
-	return models.GetDB("localhost", "khan_test", 5432, "disable", "khan_test", "")
+	return models.GetDB("localhost", "marathon_test", 5432, "disable", "marathon_test", "")
 }
 
 // GetFaultyTestDB returns an ill-configured test database
 func GetFaultyTestDB() *gorp.DbMap {
-	faultyDb, _ := models.InitDb("localhost", "khan_tet", 5432, "disable", "khan_test", "")
+	faultyDb, _ := models.InitDb("localhost", "marathon_tet", 5432, "disable", "marathon_test", "")
 	return faultyDb
 }
 
-// GetDefaultTestApp returns a new Khan API Application bound to 0.0.0.0:8888 for test
+// GetDefaultTestApp returns a new Marathon API Application bound to 0.0.0.0:8888 for test
 func GetDefaultTestApp() *api.Application {
 	l := mt.NewMockLogger()
 	// l := zap.NewJSON(zap.InfoLevel, zap.AddCaller())

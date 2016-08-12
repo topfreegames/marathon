@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/util"
 	"github.com/satori/go.uuid"
-	"github.com/topfreegames/khan/util"
 	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
 )

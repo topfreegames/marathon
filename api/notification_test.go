@@ -74,10 +74,12 @@ var _ = Describe("Marathon API Handler", func() {
 				"service":  service,
 				"pageSize": 10,
 				"filters":  map[string]interface{}{"user_id": userID},
-				"template": "test_template",
-				"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
-				"message":  map[string]interface{}{},
-				"metadata": map[string]interface{}{"meta": "data"},
+				"message": map[string]interface{}{
+					"template": "test_template",
+					"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
+					"message":  map[string]interface{}{},
+					"metadata": map[string]interface{}{"meta": "data"},
+				},
 			}
 			res := PostJSON(a, "/apps/appName/users/notifications", payload)
 

@@ -12,6 +12,7 @@ import (
 	"github.com/getsentry/raven-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
 	"github.com/kataras/iris"
+	"github.com/kataras/iris/config"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
@@ -148,9 +149,50 @@ func (application *Application) connectDatabase() {
 	application.Db = db
 }
 
+func (application *Application) onErrorHandler(err error, stack []byte) {
+	application.Logger.Error(
+		"Panic occurred.",
+		zap.String("source", "app"),
+		zap.String("panicText", err.Error()),
+		zap.String("stack", string(stack)),
+	)
+	tags := map[string]string{
+		"source": "app",
+		"type":   "panic",
+	}
+	raven.CaptureError(err, tags)
+}
+
 func (application *Application) configureApplicationlication() {
-	application.Application = iris.New()
+	c := config.Iris{
+		DisableBanner: true,
+	}
+
+	application.Application = iris.New(c)
 	a := application.Application
+
+	a.Use(NewLoggerMiddleware(application.Logger))
+	a.Use(&RecoveryMiddleware{OnError: application.onErrorHandler})
+	//a.Use(&TransactionMiddleware{App: app})
+	a.Use(&VersionMiddleware{Application: application})
+	a.Use(&SentryMiddleware{Application: application})
+
+	a.OnError(iris.StatusInternalServerError, func(ctx *iris.Context) {
+		application.Logger.Error(
+			"Internal server error happened.",
+			zap.String("error", string(ctx.Response.Body())),
+			zap.String("source", "app"),
+		)
+		ctx.Write(fmt.Sprintf("INTERNAL SERVER ERROR: %s", ctx.Response.Body()))
+	})
+
+	a.OnError(iris.StatusNotFound, func(ctx *iris.Context) {
+		application.Logger.Warn(
+			"Route not found.", zap.String("url", ctx.Request.URI().String()),
+			zap.String("source", "app"),
+		)
+		ctx.Write("Not Found")
+	})
 
 	a.Get("/healthcheck", HealthCheckHandler(application))
 

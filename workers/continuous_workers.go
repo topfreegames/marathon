@@ -94,8 +94,8 @@ func (worker *ContinuousWorker) connectDatabase() {
 func (worker *ContinuousWorker) setConfigurationDefaults() {
 	worker.Config.SetDefault("healthcheck.workingtext", "working")
 	worker.Config.SetDefault("postgres.host", "localhost")
-	worker.Config.SetDefault("postgres.user", "khan")
-	worker.Config.SetDefault("postgres.dbname", "khan")
+	worker.Config.SetDefault("postgres.user", "marathon")
+	worker.Config.SetDefault("postgres.dbname", "marathon")
 	worker.Config.SetDefault("postgres.port", 5432)
 	worker.Config.SetDefault("postgres.sslmode", "disable")
 	worker.Config.SetDefault("postgres.sslmode", "disable")

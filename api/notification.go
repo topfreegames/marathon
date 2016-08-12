@@ -2,23 +2,33 @@ package api
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
-	"git.topfreegames.com/topfreegames/marathon/util"
 	"git.topfreegames.com/topfreegames/marathon/workers"
 
 	"github.com/kataras/iris"
 	"github.com/uber-go/zap"
 )
 
-// TODO: Add: userTime, ts, pushExpiry
+type filter struct {
+	Locale string `json:"locale"`
+	Region string `json:"region"`
+	Tz     string `json:"tz"`
+	BuildN string `json:"build_n"`
+	Scope  string `json:"scope"`
+}
+
+type message struct {
+	Template string                 `json:"template"`
+	Params   map[string]interface{} `json:"params"`
+	Message  map[string]interface{} `json:"message"`
+	Metadata map[string]interface{} `json:"metadata"`
+}
+
 type notificationPayload struct {
-	App      string
-	Service  string
-	PageSize int
-	Filters  map[string]interface{}
-	Template string
-	Params   map[string]interface{}
-	Message  map[string]interface{}
-	Metadata map[string]interface{}
+	App      string  `json:"app"`
+	Service  string  `json:"service"`
+	PageSize int     `json:"pageSize"`
+	Filters  filter  `json:"filters"`
+	Message  message `json:"message"`
 }
 
 // SendNotificationHandler is the handler responsible for creating new apps
@@ -39,16 +49,22 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 			return
 		}
 
-		allowedFilters := []string{"locale", "region", "tz", "build_n", "scope"}
-		l.Debug("Allowed filters", zap.Object("allowedFilters", allowedFilters))
-
 		filters := [][]interface{}{}
-		for k, v := range payload.Filters {
-			if util.SliceContains(allowedFilters, k) {
-				filters = append(filters, []interface{}{k, v})
-			}
+		if payload.Filters.Locale != "" {
+			filters = append(filters, []interface{}{"locale", payload.Filters.Locale})
 		}
-		l.Debug("Built filters", zap.Object("filters", filters))
+		if payload.Filters.Region != "" {
+			filters = append(filters, []interface{}{"region", payload.Filters.Region})
+		}
+		if payload.Filters.Tz != "" {
+			filters = append(filters, []interface{}{"tz", payload.Filters.Tz})
+		}
+		if payload.Filters.BuildN != "" {
+			filters = append(filters, []interface{}{"build_n", payload.Filters.BuildN})
+		}
+		if payload.Filters.Scope != "" {
+			filters = append(filters, []interface{}{"scope", payload.Filters.Scope})
+		}
 
 		// TODO: Should we accept as parameters ?
 		modifiers := [][]interface{}{{"LIMIT", payload.PageSize}}
@@ -64,13 +80,23 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 		}
 
 		message := &messages.InputMessage{
-			App:      payload.App,
-			Service:  payload.Service,
-			Template: payload.Template,
-			Params:   payload.Params,
-			Message:  payload.Message,
-			Metadata: payload.Metadata,
+			App:     payload.App,
+			Service: payload.Service,
 		}
+
+		if payload.Message.Template != "" {
+			message.Template = payload.Message.Template
+		}
+		if payload.Message.Params != nil {
+			message.Params = payload.Message.Params
+		}
+		if payload.Message.Message != nil {
+			message.Message = payload.Message.Message
+		}
+		if payload.Message.Metadata != nil {
+			message.Metadata = payload.Message.Metadata
+		}
+
 		worker.StartWorker(message, filters, modifiers)
 		SucceedWith(map[string]interface{}{}, c)
 	}
