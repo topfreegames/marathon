@@ -27,3 +27,4 @@ coverage*.out
 _build
 vendor/
 /marathon
+bin/
