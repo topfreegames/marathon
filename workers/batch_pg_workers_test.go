@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -22,7 +24,7 @@ var _ = Describe("Models", func() {
 		TableName string `db:"tablename"`
 	}
 	var (
-		db               models.DB
+		db               *gorp.DbMap
 		err              error
 		appName          string
 		service          string
@@ -50,13 +52,13 @@ var _ = Describe("Models", func() {
 
 		// Truncate all tables
 		var tables []Table
-		_, _ = db.Select(&tables, "SELECT tablename from pg_tables where schemaname='public'")
+		_, _ = _db.Select(&tables, "SELECT tablename from pg_tables where schemaname='public'")
 		var tableNames []string
 		for _, t := range tables {
 			tableNames = append(tableNames, t.TableName)
 		}
 		if len(tableNames) > 0 {
-			_, err := db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
+			_, err = _db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
 			Expect(err).NotTo(HaveOccurred())
 		}
 

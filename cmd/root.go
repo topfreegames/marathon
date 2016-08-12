@@ -35,7 +35,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(
 		// cobra.OnInitialize(initConfig)
 		&ConfigFile, "config", "c", filename,
-		"config file uses ENV to set `./config/<ENV>.yaml`",
+		"config file uses ENV",
 	)
 }
 
@@ -58,7 +58,7 @@ func InitConfig(l zap.Logger) {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		l.Error(
+		l.Info(
 			"Using config file",
 			zap.String("Config file", viper.ConfigFileUsed()),
 		)

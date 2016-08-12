@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -31,25 +29,28 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 
 		var payload appPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
-			fmt.Println(fmt.Sprintf("%+v", err))
 			l.Error("Failed to parse json payload.", zap.Error(err))
 			FailWith(400, err.Error(), c)
 			return
 		}
 
-		l.Debug("Getting DB connection...")
-		db, err := GetCtxDB(c)
+		l.Debug("Creating app...")
+		app, err := models.CreateApp(application.Db, payload.AppName, payload.OrganizationID, payload.AppGroup)
 		if err != nil {
-			l.Error("Failed to connect to DB.", zap.Error(err))
-			FailWith(500, err.Error(), c)
+			l.Error("Create app failed.", zap.Error(err))
+			FailWith(400, err.Error(), c)
 			return
 		}
-		l.Debug("DB Connection successful.")
+		l.Info(
+			"App created successfully.",
+			zap.String("id", app.ID.String()),
+			zap.String("name", app.Name),
+			zap.String("group", app.AppGroup),
+			zap.String("organization_id", app.OrganizationID.String()),
+			zap.Duration("duration", time.Now().Sub(start)),
+		)
 
-		name := strings.Join([]string{payload.AppName, payload.Service}, "_")
-
-		l.Debug("Creating app...")
-		app, err := models.CreateApp(db, name, payload.OrganizationID, payload.AppGroup)
+		userTokensTable, err := models.CreateUserTokensTable(application.Db, payload.AppName, payload.Service)
 		if err != nil {
 			l.Error("Create app failed.", zap.Error(err))
 			FailWith(400, err.Error(), c)
@@ -57,19 +58,21 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		}
 
 		l.Info(
-			"App created successfully.",
+			"UserToken table created successfully.",
 			zap.String("id", app.ID.String()),
 			zap.String("name", app.Name),
-			zap.String("app_group", app.AppGroup),
+			zap.String("group", app.AppGroup),
 			zap.String("organization_id", app.OrganizationID.String()),
+			zap.Object("userTokensTableName", userTokensTable.TableName),
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
 
 		SucceedWith(map[string]interface{}{
-			"id":             app.ID,
-			"name":           app.Name,
-			"appGroup":       app.AppGroup,
-			"organizationID": app.OrganizationID,
+			"id":                  app.ID,
+			"appName":             app.Name,
+			"appGroup":            app.AppGroup,
+			"organizationID":      app.OrganizationID,
+			"userTokensTableName": userTokensTable.TableName,
 		}, c)
 	}
 }

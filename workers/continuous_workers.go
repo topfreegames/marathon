@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
@@ -38,7 +40,7 @@ type ContinuousWorker struct {
 	BuilderDoneChan        chan struct{}
 	Config                 *viper.Viper
 	Logger                 zap.Logger
-	Db                     models.DB
+	Db                     *gorp.DbMap
 	ConfigPath             string
 }
 

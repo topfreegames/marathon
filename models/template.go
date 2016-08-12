@@ -34,7 +34,7 @@ func (o *Template) PreUpdate(s gorp.SqlExecutor) error {
 }
 
 // GetTemplateByID returns a template by id
-func GetTemplateByID(db DB, id uuid.UUID) (*Template, error) {
+func GetTemplateByID(db *gorp.DbMap, id uuid.UUID) (*Template, error) {
 	obj, err := db.Get(Template{}, id)
 	if err != nil || obj == nil {
 		return nil, &ModelNotFoundError{"Template", "id", id}
@@ -43,7 +43,7 @@ func GetTemplateByID(db DB, id uuid.UUID) (*Template, error) {
 }
 
 // GetTemplatesByName returns templates with the given name
-func GetTemplatesByName(db DB, name string) ([]Template, error) {
+func GetTemplatesByName(db *gorp.DbMap, name string) ([]Template, error) {
 	var templates []Template
 	_, err := db.Select(&templates, "SELECT * FROM templates WHERE name=$1", name)
 
@@ -54,7 +54,7 @@ func GetTemplatesByName(db DB, name string) ([]Template, error) {
 }
 
 // GetTemplateByNameServiceAndLocale returns a template by its name,local
-func GetTemplateByNameServiceAndLocale(db DB, name string, service string, locale string) (*Template, error) {
+func GetTemplateByNameServiceAndLocale(db *gorp.DbMap, name string, service string, locale string) (*Template, error) {
 	var template Template
 	err := db.SelectOne(&template, "SELECT * FROM templates WHERE name=$1 AND service=$2 AND locale=$3", name, service, locale)
 	if err != nil && locale != "en" {
@@ -68,7 +68,7 @@ func GetTemplateByNameServiceAndLocale(db DB, name string, service string, local
 }
 
 // CreateTemplate creates a new Template
-func CreateTemplate(db DB, name string, service string, locale string, defaults map[string]interface{}, body map[string]interface{}) (*Template, error) {
+func CreateTemplate(db *gorp.DbMap, name string, service string, locale string, defaults map[string]interface{}, body map[string]interface{}) (*Template, error) {
 	template := &Template{
 		Name:     name,
 		Service:  service,
@@ -84,7 +84,7 @@ func CreateTemplate(db DB, name string, service string, locale string, defaults 
 }
 
 // UpdateTemplate updates a Template
-func UpdateTemplate(db DB, id uuid.UUID, name string, service string, locale string, defaults map[string]interface{}, body map[string]interface{}) (*Template, error) {
+func UpdateTemplate(db *gorp.DbMap, id uuid.UUID, name string, service string, locale string, defaults map[string]interface{}, body map[string]interface{}) (*Template, error) {
 	template, getTemplateErr := GetTemplateByID(db, id)
 	if getTemplateErr != nil {
 		return nil, getTemplateErr

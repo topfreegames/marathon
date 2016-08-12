@@ -23,7 +23,7 @@ type Application struct {
 	Host           string
 	ConfigPath     string
 	Application    *iris.Framework
-	Db             models.DB
+	Db             *gorp.DbMap
 	Config         *viper.Viper
 	Logger         zap.Logger
 	ReadBufferSize int
@@ -152,8 +152,6 @@ func (application *Application) configureApplicationlication() {
 	application.Application = iris.New()
 	a := application.Application
 
-	a.Use(&TransactionMiddleware{Application: application})
-
 	a.Get("/healthcheck", HealthCheckHandler(application))
 
 	// Routes
@@ -173,7 +171,7 @@ func (application *Application) configureApplicationlication() {
 }
 
 func (application *Application) finalizeApplication() {
-	application.Db.(*gorp.DbMap).Db.Close()
+	application.Db.Db.Close()
 }
 
 // Start starts listening for web requests at specified host and port

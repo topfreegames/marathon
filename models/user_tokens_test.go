@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -16,23 +18,23 @@ type Table struct {
 
 var _ = Describe("Models", func() {
 	var (
-		db models.DB
+		db *gorp.DbMap
 	)
 	BeforeEach(func() {
-		_db, dbErr := models.GetTestDB()
-		Expect(dbErr).To(BeNil())
+		_db, err := models.GetTestDB()
+		Expect(err).NotTo(HaveOccurred())
 		Expect(_db).NotTo(BeNil())
 		db = _db
 
 		// Truncate all tables
 		var tables []Table
-		_, _ = db.Select(&tables, "SELECT tablename from pg_tables where schemaname='public'")
+		_, _ = _db.Select(&tables, "SELECT tablename from pg_tables where schemaname='public'")
 		var tableNames []string
 		for _, t := range tables {
 			tableNames = append(tableNames, t.TableName)
 		}
 		if len(tableNames) > 0 {
-			_, err := db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
+			_, err = _db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
 			Expect(err).NotTo(HaveOccurred())
 		}
 	})

@@ -30,7 +30,7 @@ var _ = Describe("Marathon API Handler", func() {
 			tableNames = append(tableNames, t.TableName)
 		}
 		if len(tableNames) > 0 {
-			_, err := _db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
+			_, err = _db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
 			Expect(err).NotTo(HaveOccurred())
 		}
 	})

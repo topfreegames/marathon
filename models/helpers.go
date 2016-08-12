@@ -23,28 +23,15 @@ func getLogLevel() zap.Level {
 // Logger is the models logger
 var Logger = zap.NewJSON(getLogLevel(), zap.AddCaller())
 
-// DB is the contract for all the operations we use from either a connection or transaction
-// This is required for automatic transactions
-type DB interface {
-	Get(interface{}, ...interface{}) (interface{}, error)
-	Select(interface{}, string, ...interface{}) ([]interface{}, error)
-	SelectOne(interface{}, string, ...interface{}) error
-	SelectInt(string, ...interface{}) (int64, error)
-	Insert(...interface{}) error
-	Update(...interface{}) (int64, error)
-	Delete(...interface{}) (int64, error)
-	Exec(string, ...interface{}) (sql.Result, error)
-}
-
-var _db DB
+var _db *gorp.DbMap
 
 // GetTestDB returns a connection to the test database
-func GetTestDB() (DB, error) {
+func GetTestDB() (*gorp.DbMap, error) {
 	return GetDB("localhost", "marathon_test", 5432, "disable", "marathon_test", "")
 }
 
 // GetDB returns a DbMap connection to the database specified in the arguments
-func GetDB(host string, user string, port int, sslmode string, dbName string, password string) (DB, error) {
+func GetDB(host string, user string, port int, sslmode string, dbName string, password string) (*gorp.DbMap, error) {
 	if _db == nil {
 		var err error
 		_db, err = InitDb(host, user, port, sslmode, dbName, password)
@@ -58,7 +45,7 @@ func GetDB(host string, user string, port int, sslmode string, dbName string, pa
 }
 
 // InitDb initializes a connection to the database
-func InitDb(host string, user string, port int, sslmode string, dbName string, password string) (DB, error) {
+func InitDb(host string, user string, port int, sslmode string, dbName string, password string) (*gorp.DbMap, error) {
 	connStr := fmt.Sprintf(
 		"host=%s user=%s port=%d sslmode=%s dbname=%s",
 		host, user, port, sslmode, dbName,

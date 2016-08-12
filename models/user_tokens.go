@@ -34,7 +34,7 @@ func (o *UserToken) PreInsert(s gorp.SqlExecutor) error {
 }
 
 // GetUserTokenByID returns a template by id
-func GetUserTokenByID(db DB, app string, service string, id uuid.UUID) (*UserToken, error) {
+func GetUserTokenByID(db *gorp.DbMap, app string, service string, id uuid.UUID) (*UserToken, error) {
 	var userToken UserToken
 	tableName := GetTableName(app, service)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id=$1", tableName)
@@ -46,7 +46,7 @@ func GetUserTokenByID(db DB, app string, service string, id uuid.UUID) (*UserTok
 }
 
 // GetUserTokenByToken returns userToken with the given service,token
-func GetUserTokenByToken(db DB, app string, service string, token string) (*UserToken, error) {
+func GetUserTokenByToken(db *gorp.DbMap, app string, service string, token string) (*UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE token=$1", tableName)
@@ -63,7 +63,7 @@ func GetUserTokenByToken(db DB, app string, service string, token string) (*User
 
 // GetUserTokensBatchByFilters returns userTokens with the given filters starting at offset and limited to limit
 // We use filters [][]interface{} and modifiers [][]interface{} because the order is important
-func GetUserTokensBatchByFilters(db DB, app string, service string, filters [][]interface{},
+func GetUserTokensBatchByFilters(db *gorp.DbMap, app string, service string, filters [][]interface{},
 	modifiers [][]interface{}) ([]UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)
@@ -116,7 +116,6 @@ func GetUserTokensBatchByFilters(db DB, app string, service string, filters [][]
 		}
 	}
 
-	fmt.Println(query)
 	// Execute query based in the given params
 	_, err := db.Select(&userTokens, query, params...)
 	if err != nil || &userTokens == nil {
@@ -127,7 +126,7 @@ func GetUserTokensBatchByFilters(db DB, app string, service string, filters [][]
 
 // CountUserTokensByFilters returns userTokens with the given filters starting at offset and limited to limit
 // We use filters [][]interface{} and modifiers [][]interface{} because the order is important
-func CountUserTokensByFilters(db DB, app string, service string, filters [][]interface{},
+func CountUserTokensByFilters(db *gorp.DbMap, app string, service string, filters [][]interface{},
 	modifiers [][]interface{}) (int64, error) {
 	tableName := GetTableName(app, service)
 
@@ -179,7 +178,6 @@ func CountUserTokensByFilters(db DB, app string, service string, filters [][]int
 		}
 	}
 
-	fmt.Println(query)
 	// Execute query based in the given params
 	userTokensCount, err := db.SelectInt(query, params...)
 	if err != nil {
@@ -189,7 +187,7 @@ func CountUserTokensByFilters(db DB, app string, service string, filters [][]int
 }
 
 // UpsertToken inserts or updates a Token
-func UpsertToken(db DB, app string, service string, userID string, token string, locale string,
+func UpsertToken(db *gorp.DbMap, app string, service string, userID string, token string, locale string,
 	region string, tz string, buildn string, optOut []string) (*UserToken, error) {
 	tableName := GetTableName(app, service)
 
@@ -242,9 +240,7 @@ func GetTableName(app string, service string) string {
 }
 
 // CreateUserTokensTable creates a table for the model UserToken with the name based on app and service
-func CreateUserTokensTable(_db DB, app string, service string) (*gorp.TableMap, error) {
-	db := _db.(*gorp.DbMap)
-
+func CreateUserTokensTable(db *gorp.DbMap, app string, service string) (*gorp.TableMap, error) {
 	tableName := GetTableName(app, service)
 	Logger.Info(
 		"TableName",

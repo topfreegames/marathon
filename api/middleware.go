@@ -6,49 +6,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/getsentry/raven-go"
 	"github.com/kataras/iris"
 	"github.com/uber-go/zap"
-	"gopkg.in/gorp.v1"
 )
-
-// TransactionMiddleware wraps transactions around the request
-type TransactionMiddleware struct {
-	Application *Application
-}
-
-// Serve Automatically wrap transaction around the request
-func (m *TransactionMiddleware) Serve(c *iris.Context) {
-	c.Set("db", m.Application.Db)
-
-	tx, err := (m.Application.Db).(*gorp.DbMap).Begin()
-	if err == nil {
-		c.Set("db", tx)
-		c.Next()
-
-		if c.Response.StatusCode() > 399 {
-			tx.Rollback()
-			return
-		}
-
-		tx.Commit()
-		c.Set("db", m.Application.Db)
-	} else {
-		c.SetStatusCode(500)
-		c.Write("Internal server error")
-	}
-}
-
-// GetCtxDB returns the proper database connection depending on the request context
-func GetCtxDB(ctx *iris.Context) (models.DB, error) {
-	val := ctx.Get("db")
-	if val != nil {
-		return val.(models.DB), nil
-	}
-
-	return nil, fmt.Errorf("Could not find database instance in request context.")
-}
 
 //VersionMiddleware automatically adds a version header to response
 type VersionMiddleware struct {

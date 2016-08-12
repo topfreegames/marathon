@@ -32,7 +32,7 @@ func (n *Notifier) PreUpdate(s gorp.SqlExecutor) error {
 }
 
 // GetNotifierByID returns an noifier by id
-func GetNotifierByID(db DB, id uuid.UUID) (*Notifier, error) {
+func GetNotifierByID(db *gorp.DbMap, id uuid.UUID) (*Notifier, error) {
 	obj, err := db.Get(Notifier{}, id)
 	if err != nil || obj == nil {
 		return nil, &ModelNotFoundError{"Notifier", "id", id}
@@ -41,7 +41,7 @@ func GetNotifierByID(db DB, id uuid.UUID) (*Notifier, error) {
 }
 
 // GetNotifiersByService returns all notifiers for a service
-func GetNotifiersByService(db DB, service string) ([]Notifier, error) {
+func GetNotifiersByService(db *gorp.DbMap, service string) ([]Notifier, error) {
 	var notifiers []Notifier
 	_, err := db.Select(&notifiers, "SELECT * FROM notifiers WHERE service=$1", service)
 	if err != nil || &notifiers == nil || len(notifiers) == 0 {
@@ -51,7 +51,7 @@ func GetNotifiersByService(db DB, service string) ([]Notifier, error) {
 }
 
 // GetNotifiersByApp returns all notifiers for an appID
-func GetNotifiersByApp(db DB, appID uuid.UUID) ([]Notifier, error) {
+func GetNotifiersByApp(db *gorp.DbMap, appID uuid.UUID) ([]Notifier, error) {
 	var notifiers []Notifier
 	_, err := db.Select(&notifiers, "SELECT * FROM notifiers WHERE app_id=$1", appID)
 	if err != nil || &notifiers == nil || len(notifiers) == 0 {
@@ -61,7 +61,7 @@ func GetNotifiersByApp(db DB, appID uuid.UUID) ([]Notifier, error) {
 }
 
 // GetNotifierByAppAndService returns all notifiers for a service and appID
-func GetNotifierByAppAndService(db DB, appID uuid.UUID, service string) (*Notifier, error) {
+func GetNotifierByAppAndService(db *gorp.DbMap, appID uuid.UUID, service string) (*Notifier, error) {
 	var notifiers []Notifier
 	_, err := db.Select(&notifiers, "SELECT * FROM notifiers WHERE app_id=$1 AND service=$2", appID, service)
 	if err != nil || &notifiers == nil || len(notifiers) == 0 {
@@ -71,7 +71,7 @@ func GetNotifierByAppAndService(db DB, appID uuid.UUID, service string) (*Notifi
 }
 
 // CreateNotifier creates a new Notifier
-func CreateNotifier(db DB, appid uuid.UUID, service string) (*Notifier, error) {
+func CreateNotifier(db *gorp.DbMap, appid uuid.UUID, service string) (*Notifier, error) {
 	notifier := &Notifier{
 		AppID:   appid,
 		Service: service,
@@ -84,7 +84,7 @@ func CreateNotifier(db DB, appid uuid.UUID, service string) (*Notifier, error) {
 }
 
 // UpdateNotifier updates an Notifier
-func UpdateNotifier(db DB, id uuid.UUID, appid uuid.UUID, service string) (*Notifier, error) {
+func UpdateNotifier(db *gorp.DbMap, id uuid.UUID, appid uuid.UUID, service string) (*Notifier, error) {
 	notifier, getNotifierErr := GetNotifierByID(db, id)
 	if getNotifierErr != nil {
 		return nil, getNotifierErr

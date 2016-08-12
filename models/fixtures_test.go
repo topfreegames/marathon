@@ -4,6 +4,7 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/bluele/factory-go/factory"
 	"github.com/satori/go.uuid"
+	"gopkg.in/gorp.v1"
 )
 
 // AppFactory is responsible for constructing test app instances
@@ -16,7 +17,7 @@ var AppFactory = factory.NewFactory(
 })
 
 // CreateAppFactory is responsible for constructing test app instances
-func CreateAppFactory(db models.DB, attrs map[string]interface{}) (*models.App, error) {
+func CreateAppFactory(db *gorp.DbMap, attrs map[string]interface{}) (*models.App, error) {
 	if attrs["OrganizationID"] == nil {
 		attrs["OrganizationID"] = uuid.NewV4()
 	}
@@ -32,7 +33,7 @@ var NotifierFactory = factory.NewFactory(
 })
 
 // CreateNotifierFactory is responsible for constructing test notifier instances
-func CreateNotifierFactory(db models.DB, attrs map[string]interface{}) (*models.Notifier, error) {
+func CreateNotifierFactory(db *gorp.DbMap, attrs map[string]interface{}) (*models.Notifier, error) {
 	if attrs["AppID"] == nil {
 		app, appErr := CreateAppFactory(db, map[string]interface{}{})
 		if appErr != nil {
@@ -63,7 +64,7 @@ var TemplateFactory = factory.NewFactory(
 })
 
 // CreateTemplateFactory is responsible for constructing test template instances
-func CreateTemplateFactory(db models.DB, attrs map[string]interface{}) (*models.Template, error) {
+func CreateTemplateFactory(db *gorp.DbMap, attrs map[string]interface{}) (*models.Template, error) {
 	if attrs["AppID"] == nil {
 		app, appErr := CreateAppFactory(db, map[string]interface{}{})
 		if appErr != nil {
@@ -97,7 +98,7 @@ var UserTokenFactory = factory.NewFactory(
 	return []string{uuid.NewV4().String(), uuid.NewV4().String()}, nil
 })
 
-func CreateUserTokenFactory(db models.DB, attrs map[string]interface{}) (*models.UserToken, error) {
+func CreateUserTokenFactory(db *gorp.DbMap, attrs map[string]interface{}) (*models.UserToken, error) {
 	userToken := UserTokenFactory.MustCreateWithOption(attrs).(*models.UserToken)
 	return userToken, nil
 }

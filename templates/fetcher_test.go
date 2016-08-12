@@ -3,6 +3,8 @@ package templates_test
 import (
 	"time"
 
+	"gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
@@ -13,7 +15,7 @@ import (
 
 var _ = Describe("Fetcher", func() {
 	var (
-		db models.DB
+		db *gorp.DbMap
 	)
 	BeforeEach(func() {
 		_db, dbErr := models.GetTestDB()

@@ -5,12 +5,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
+	"gopkg.in/gorp.v1"
 )
 
 var _ = Describe("Models", func() {
 	Describe("App", func() {
 		var (
-			db models.DB
+			db *gorp.DbMap
 		)
 		BeforeEach(func() {
 			_db, dbErr := models.GetTestDB()
@@ -160,11 +161,12 @@ var _ = Describe("Models", func() {
 			It("Should retrieve all apps for an existent group", func() {
 				app, appErr := CreateAppFactory(db, map[string]interface{}{})
 				Expect(appErr).To(BeNil())
-				insertAppErr := db.Insert(app)
-				Expect(insertAppErr).To(BeNil())
 
-				dbApps, dbAppsErr := models.GetAppsByGroup(db, app.AppGroup)
-				Expect(dbAppsErr).To(BeNil())
+				err := db.Insert(app)
+				Expect(err).NotTo(HaveOccurred())
+
+				dbApps, err := models.GetAppsByGroup(db, app.AppGroup)
+				Expect(err).NotTo(HaveOccurred())
 				for eachApp := range dbApps {
 					Expect(dbApps[eachApp].Name).To(Equal(app.Name))
 					Expect(dbApps[eachApp].AppGroup).To(Equal(app.AppGroup))

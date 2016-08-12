@@ -33,7 +33,7 @@ func getDatabase(l zap.Logger) (*gorp.DbMap, error) {
 		zap.String("sslMode", sslMode),
 	)
 	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
-	return db.(*gorp.DbMap), err
+	return db, err
 }
 
 func getGooseConf(migrationsDir string) *goose.DBConf {

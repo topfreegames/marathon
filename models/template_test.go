@@ -5,11 +5,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
+	"gopkg.in/gorp.v1"
 )
 
 var _ = Describe("Models", func() {
 	var (
-		db models.DB
+		db *gorp.DbMap
 	)
 	BeforeEach(func() {
 		_db, dbErr := models.GetTestDB()

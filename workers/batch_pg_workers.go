@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/Shopify/sarama"
@@ -18,7 +20,7 @@ type BatchPGWorker struct {
 	DoneChan      chan struct{}
 	Config        *viper.Viper
 	Logger        zap.Logger
-	Db            models.DB
+	Db            *gorp.DbMap
 	ConfigPath    string
 }
 

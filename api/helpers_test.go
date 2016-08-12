@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/api"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
@@ -14,12 +16,12 @@ import (
 )
 
 // GetTestDB returns a connection to the test database
-func GetTestDB() (models.DB, error) {
+func GetTestDB() (*gorp.DbMap, error) {
 	return models.GetDB("localhost", "khan_test", 5432, "disable", "khan_test", "")
 }
 
 // GetFaultyTestDB returns an ill-configured test database
-func GetFaultyTestDB() models.DB {
+func GetFaultyTestDB() *gorp.DbMap {
 	faultyDb, _ := models.InitDb("localhost", "khan_tet", 5432, "disable", "khan_test", "")
 	return faultyDb
 }
@@ -27,6 +29,7 @@ func GetFaultyTestDB() models.DB {
 // GetDefaultTestApp returns a new Khan API Application bound to 0.0.0.0:8888 for test
 func GetDefaultTestApp() *api.Application {
 	l := mt.NewMockLogger()
+	// l := zap.NewJSON(zap.InfoLevel, zap.AddCaller())
 	application := api.GetApplication("0.0.0.0", 8888, "../config/test.yaml", true, l)
 	application.Configure()
 	return application

@@ -3,7 +3,6 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/Pallinder/go-randomdata"
@@ -27,7 +26,7 @@ var _ = Describe("Marathon API Handler", func() {
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
-			name := strings.Join([]string{appName, service}, "_")
+
 			res := PostJSON(a, "/apps", payload)
 
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
@@ -35,7 +34,7 @@ var _ = Describe("Marathon API Handler", func() {
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["id"]).NotTo(BeNil())
-			Expect(result["name"]).To(Equal(name))
+			Expect(result["appName"]).To(Equal(appName))
 			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
@@ -53,10 +52,8 @@ var _ = Describe("Marathon API Handler", func() {
 			service1 := randomdata.FirstName(randomdata.RandomGender)
 			group1 := randomdata.FirstName(randomdata.RandomGender)
 			organizationID1 := uuid.NewV4()
-			name1 := strings.Join([]string{appName1, service1}, "_")
 
-			_, err := models.CreateApp(a.Db, name1, organizationID1, group1)
-
+			_, err := models.CreateApp(a.Db, appName1, organizationID1, group1)
 			Expect(err).NotTo(HaveOccurred())
 
 			appName2 := appName1
@@ -76,7 +73,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			res := PostJSON(a, "/apps", payload)
-
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
 			var result map[string]interface{}
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
