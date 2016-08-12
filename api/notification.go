@@ -15,10 +15,10 @@ type notificationPayload struct {
 	Service  string
 	PageSize int
 	Filters  map[string]interface{}
-	// Template string
-	// Params   map[string]interface{}
-	// Message  map[string]interface{}
-	// Metadata map[string]interface{}
+	Template string
+	Params   map[string]interface{}
+	Message  map[string]interface{}
+	Metadata map[string]interface{}
 }
 
 // SendNotificationHandler is the handler responsible for creating new apps
@@ -63,7 +63,14 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 			FailWith(400, err.Error(), c)
 		}
 
-		message := &messages.InputMessage{}
+		message := &messages.InputMessage{
+			App:      payload.App,
+			Service:  payload.Service,
+			Template: payload.Template,
+			Params:   payload.Params,
+			Message:  payload.Message,
+			Metadata: payload.Metadata,
+		}
 		worker.StartWorker(message, filters, modifiers)
 		SucceedWith(map[string]interface{}{}, c)
 	}

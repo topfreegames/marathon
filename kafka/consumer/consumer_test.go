@@ -35,7 +35,7 @@ var _ = Describe("Consumer", func() {
 			message := ""
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
 			_, err := consumer.Consume(&kafkaMsg)
-			Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 		})
 		It("Should consume one message correctly and retrieve it", func() {
 			message := "message"

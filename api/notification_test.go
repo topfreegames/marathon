@@ -2,7 +2,9 @@ package api_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
@@ -12,14 +14,33 @@ import (
 )
 
 var _ = Describe("Marathon API Handler", func() {
-	BeforeEach(func() {})
+	BeforeEach(func() {
+		type Table struct {
+			TableName string `db:"tablename"`
+		}
+		_db, err := models.GetTestDB()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(_db).NotTo(BeNil())
+
+		// Truncate all tables
+		var tables []Table
+		_, _ = _db.Select(&tables, "SELECT tablename from pg_tables where schemaname='public'")
+		var tableNames []string
+		for _, t := range tables {
+			tableNames = append(tableNames, t.TableName)
+		}
+		if len(tableNames) > 0 {
+			_, err := _db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
+			Expect(err).NotTo(HaveOccurred())
+		}
+	})
 
 	Describe("Create Notification Handler", func() {
 		It("Should create a Notification", func() {
 			a := GetDefaultTestApp()
 
 			app := "app_test_3_1"
-			service := "apns"
+			service := "gcm"
 
 			createdTable, err := models.CreateUserTokensTable(a.Db, app, service)
 			Expect(err).NotTo(HaveOccurred())
@@ -38,11 +59,25 @@ var _ = Describe("Marathon API Handler", func() {
 			)
 			Expect(err).NotTo(HaveOccurred())
 
+			template := &models.Template{
+				Name:     "test_template",
+				Locale:   "en",
+				Service:  service,
+				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
+				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+			}
+			err = a.Db.Insert(template)
+			Expect(err).NotTo(HaveOccurred())
+
 			payload := map[string]interface{}{
-				"app":      "app",
-				"service":  "service",
+				"app":      app,
+				"service":  service,
 				"pageSize": 10,
 				"filters":  map[string]interface{}{"user_id": userID},
+				"template": "test_template",
+				"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
+				"message":  map[string]interface{}{},
+				"metadata": map[string]interface{}{"meta": "data"},
 			}
 			res := PostJSON(a, "/apps/appName/users/notifications", payload)
 

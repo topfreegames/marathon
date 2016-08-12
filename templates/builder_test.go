@@ -89,7 +89,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(msg).To(Equal(""))
 			})
 
@@ -99,7 +99,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				_, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
@@ -131,7 +131,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 				}
 				_, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1`)
-				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
@@ -211,7 +211,7 @@ var _ = Describe("Template", func() {
 				}
 				msg, err := templates.Build(req)
 
-				Expect(err).NotTo(HaveOccurred())NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(msg).To(BeNil())
 			})
 		})

@@ -90,13 +90,33 @@ func GetUserTokensBatchByFilters(db DB, app string, service string, filters [][]
 	}
 
 	// Build query based in the query filters and query modifiers
-	query := fmt.Sprintf(
-		"SELECT * FROM %s WHERE %s %s",
-		tableName,
-		strings.Join(queryFilters, " AND "),
-		strings.Join(queryModifiers, " "),
-	)
+	query := fmt.Sprintf("SELECT * FROM %s", tableName)
+	if len(queryFilters) > 0 {
+		if len(queryModifiers) > 0 {
+			query = fmt.Sprintf(
+				"SELECT * FROM %s WHERE %s %s",
+				tableName,
+				strings.Join(queryFilters, " AND "),
+				strings.Join(queryModifiers, " "),
+			)
+		} else {
+			query = fmt.Sprintf(
+				"SELECT * FROM %s WHERE %s",
+				tableName,
+				strings.Join(queryFilters, " AND "),
+			)
+		}
+	} else {
+		if len(queryModifiers) > 0 {
+			query = fmt.Sprintf(
+				"SELECT * FROM %s %s",
+				tableName,
+				strings.Join(queryModifiers, " "),
+			)
+		}
+	}
 
+	fmt.Println(query)
 	// Execute query based in the given params
 	_, err := db.Select(&userTokens, query, params...)
 	if err != nil || &userTokens == nil {
@@ -133,13 +153,33 @@ func CountUserTokensByFilters(db DB, app string, service string, filters [][]int
 	}
 
 	// Build query based in the query filters and query modifiers
-	query := fmt.Sprintf(
-		"SELECT COUNT (1) FROM %s WHERE %s %s",
-		tableName,
-		strings.Join(queryFilters, " AND "),
-		strings.Join(queryModifiers, " "),
-	)
+	query := fmt.Sprintf("SELECT COUNT(1) FROM %s", tableName)
+	if len(queryFilters) > 0 {
+		if len(queryModifiers) > 0 {
+			query = fmt.Sprintf(
+				"SELECT COUNT(1) FROM %s WHERE %s %s",
+				tableName,
+				strings.Join(queryFilters, " AND "),
+				strings.Join(queryModifiers, " "),
+			)
+		} else {
+			query = fmt.Sprintf(
+				"SELECT COUNT(1) FROM %s WHERE %s",
+				tableName,
+				strings.Join(queryFilters, " AND "),
+			)
+		}
+	} else {
+		if len(queryModifiers) > 0 {
+			query = fmt.Sprintf(
+				"SELECT COUNT(1) FROM %s %s",
+				tableName,
+				strings.Join(queryModifiers, " "),
+			)
+		}
+	}
 
+	fmt.Println(query)
 	// Execute query based in the given params
 	userTokensCount, err := db.SelectInt(query, params...)
 	if err != nil {
