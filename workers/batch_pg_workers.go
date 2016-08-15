@@ -3,6 +3,7 @@ package workers
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"gopkg.in/gorp.v1"
@@ -207,7 +208,6 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 
 func (worker *BatchPGWorker) producer(config *viper.Viper, configRoot string, inChan <-chan *messages.InputMessage, doneChan <-chan struct{}) {
 	saramaConfig := sarama.NewConfig()
-	topic := config.GetStringSlice("workers.consumer.topics")[0]
 	brokers := config.GetStringSlice("workers.consumer.brokers")
 	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
 	if err != nil {
@@ -228,6 +228,8 @@ func (worker *BatchPGWorker) producer(config *viper.Viper, configRoot string, in
 			if err != nil {
 				worker.Logger.Error("Error marshalling message", zap.Error(err))
 			}
+			// FIXME: fix the topic name -> should get the template from config
+			topic := fmt.Sprintf("push-%s_%s-%s-single-consumer-topic", msg.App, msg.Service, os.Getenv("ENV"))
 			saramaMessage := &sarama.ProducerMessage{
 				Topic: topic,
 				Value: sarama.StringEncoder(byteMsg),
@@ -240,9 +242,10 @@ func (worker *BatchPGWorker) producer(config *viper.Viper, configRoot string, in
 					zap.Error(err),
 				)
 			} else {
-				worker.Logger.Info(
+				worker.Logger.Debug(
 					"Sent message",
 					zap.String("topic", topic),
+					zap.String("message", string(byteMsg)),
 				)
 			}
 		}

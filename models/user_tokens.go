@@ -89,19 +89,22 @@ func GetUserTokensBatchByFilters(db *gorp.DbMap, app string, service string, fil
 		params = append(params, modifier[1])
 	}
 
+	fields := []string{"id", "token", "user_id", "locale", "region", "tz", "build_n", "opt_out"}
 	// Build query based in the query filters and query modifiers
-	query := fmt.Sprintf("SELECT * FROM %s", tableName)
+	query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), tableName)
 	if len(queryFilters) > 0 {
 		if len(queryModifiers) > 0 {
 			query = fmt.Sprintf(
-				"SELECT * FROM %s WHERE %s %s",
+				"SELECT %s FROM %s WHERE %s %s",
+				strings.Join(fields, ", "),
 				tableName,
 				strings.Join(queryFilters, " AND "),
 				strings.Join(queryModifiers, " "),
 			)
 		} else {
 			query = fmt.Sprintf(
-				"SELECT * FROM %s WHERE %s",
+				"SELECT %s FROM %s WHERE %s",
+				strings.Join(fields, ", "),
 				tableName,
 				strings.Join(queryFilters, " AND "),
 			)
@@ -109,7 +112,8 @@ func GetUserTokensBatchByFilters(db *gorp.DbMap, app string, service string, fil
 	} else {
 		if len(queryModifiers) > 0 {
 			query = fmt.Sprintf(
-				"SELECT * FROM %s %s",
+				"SELECT %s FROM %s %s",
+				strings.Join(fields, ", "),
 				tableName,
 				strings.Join(queryModifiers, " "),
 			)
