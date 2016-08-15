@@ -11,7 +11,7 @@ import (
 func HealthCheckHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
 		workingString := application.Config.GetString("healthcheck.workingText")
-		_, err := application.Db.SelectInt("select count 1")
+		_, err := application.Db.SelectInt("SELECT COUNT(1)")
 		if err != nil {
 			c.Write(fmt.Sprintf("Error connecting to database: %s", err))
 			c.SetStatusCode(500)
