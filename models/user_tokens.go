@@ -72,10 +72,17 @@ func GetUserTokensBatchByFilters(db *gorp.DbMap, app string, service string, fil
 	params := []interface{}{}
 	queryFilters := []string{}
 	for filterIdx, filter := range filters {
-		queryFilters = append(
-			queryFilters,
-			fmt.Sprintf("%s=$%d", filter[0], filterIdx+1),
-		)
+		if filter[0] == "scope" {
+			queryFilters = append(
+				queryFilters,
+				fmt.Sprintf("NOT $%d = ANY(opt_out)", filterIdx+1),
+			)
+		} else {
+			queryFilters = append(
+				queryFilters,
+				fmt.Sprintf("%s=$%d", filter[0], filterIdx+1),
+			)
+		}
 		params = append(params, filter[1])
 	}
 
@@ -138,10 +145,17 @@ func CountUserTokensByFilters(db *gorp.DbMap, app string, service string, filter
 	params := []interface{}{}
 	queryFilters := []string{}
 	for filterIdx, filter := range filters {
-		queryFilters = append(
-			queryFilters,
-			fmt.Sprintf("%s=$%d", filter[0], filterIdx+1),
-		)
+		if filter[0] == "scope" {
+			queryFilters = append(
+				queryFilters,
+				fmt.Sprintf("NOT $%d = ANY(opt_out)", filterIdx+1),
+			)
+		} else {
+			queryFilters = append(
+				queryFilters,
+				fmt.Sprintf("%s=$%d", filter[0], filterIdx+1),
+			)
+		}
 		params = append(params, filter[1])
 	}
 

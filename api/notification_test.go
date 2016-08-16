@@ -73,7 +73,14 @@ var _ = Describe("Marathon API Handler", func() {
 				"app":      app,
 				"service":  service,
 				"pageSize": 10,
-				"filters":  map[string]interface{}{"user_id": userID},
+				"filters": map[string]interface{}{
+					"user_id": userID,
+					"locale":  locale,
+					"region":  region,
+					"tz":      tz,
+					"build_n": buildN,
+					"scope":   "testScope",
+				},
 				"message": map[string]interface{}{
 					"template": "test_template",
 					"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
@@ -88,5 +95,60 @@ var _ = Describe("Marathon API Handler", func() {
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
 		})
+
+		It("Should not create a Notification when broken json", func() {
+			a := GetDefaultTestApp()
+
+			app := "app_test_3_1"
+			service := "gcm"
+
+			createdTable, err := models.CreateUserTokensTable(a.Db, app, service)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
+
+			userID := uuid.NewV4().String()
+			token := uuid.NewV4().String()
+			locale := uuid.NewV4().String()[:2]
+			region := uuid.NewV4().String()[:2]
+			tz := "GMT+04:00"
+			buildN := uuid.NewV4().String()
+			optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+
+			_, err = models.UpsertToken(
+				a.Db, app, service, userID, token, locale, region, tz, buildN, optOut,
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			template := &models.Template{
+				Name:     "test_template",
+				Locale:   "en",
+				Service:  service,
+				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
+				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+			}
+			err = a.Db.Insert(template)
+			Expect(err).NotTo(HaveOccurred())
+
+			payload := map[string]interface{}{
+				"app":      app,
+				"service":  service,
+				"pageSize": 10,
+				"filters":  map[string]interface{}{"user_id": userID},
+				"message": map[string]interface{}{
+					"template": "test_template",
+					"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
+					"message":  map[string]interface{}{},
+					"metadata": map[string]interface{}{"meta": "data"},
+				},
+			}
+			payloadStr, err := json.Marshal(payload)
+			wrongPayloadString := payloadStr[:len(payloadStr)-1]
+			Expect(err).NotTo(HaveOccurred())
+			req := SendRequest(a, "POST", "/apps/appName/users/notifications")
+			res := req.WithBytes([]byte(wrongPayloadString)).Expect()
+
+			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
+		})
+
 	})
 })

@@ -37,7 +37,7 @@ func GetDefaultTestApp() *api.Application {
 
 // Get returns a test request against specified URL
 func Get(application *api.Application, url string, queryString ...map[string]interface{}) *httpexpect.Response {
-	req := sendRequest(application, "GET", url)
+	req := SendRequest(application, "GET", url)
 	if len(queryString) == 1 {
 		for k, v := range queryString[0] {
 			req = req.WithQuery(k, v)
@@ -57,28 +57,29 @@ func PutBody(application *api.Application, url string, payload string) *httpexpe
 }
 
 func sendBody(application *api.Application, method string, url string, payload string) *httpexpect.Response {
-	req := sendRequest(application, method, url)
+	req := SendRequest(application, method, url)
 	return req.WithBytes([]byte(payload)).Expect()
 }
 
 // PostJSON returns a test request against specified URL
 func PostJSON(application *api.Application, url string, payload map[string]interface{}) *httpexpect.Response {
-	return sendJSON(application, "POST", url, payload)
+	return SendJSON(application, "POST", url, payload)
 }
 
 // PutJSON returns a test request against specified URL
 func PutJSON(application *api.Application, url string, payload map[string]interface{}) *httpexpect.Response {
-	return sendJSON(application, "PUT", url, payload)
+	return SendJSON(application, "PUT", url, payload)
 }
 
-func sendJSON(application *api.Application, method, url string, payload map[string]interface{}) *httpexpect.Response {
-	req := sendRequest(application, method, url)
+// SendJSON sends a json with a given payload to a given url through a gien method
+func SendJSON(application *api.Application, method, url string, payload map[string]interface{}) *httpexpect.Response {
+	req := SendRequest(application, method, url)
 	return req.WithJSON(payload).Expect()
 }
 
 // Delete returns a test request against specified URL
 func Delete(application *api.Application, url string) *httpexpect.Response {
-	req := sendRequest(application, "DELETE", url)
+	req := SendRequest(application, "DELETE", url)
 	return req.Expect()
 }
 
@@ -99,7 +100,8 @@ func (g *GinkgoPrinter) Logf(source string, args ...interface{}) {
 	fmt.Printf(source, args...)
 }
 
-func sendRequest(application *api.Application, method, url string) *httpexpect.Request {
+// SendRequest sends a request to a given url through a given method
+func SendRequest(application *api.Application, method, url string) *httpexpect.Request {
 	api := application.Application
 	srv := api.Servers.Main()
 

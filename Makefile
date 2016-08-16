@@ -137,7 +137,6 @@ kill-zookeeper:
 run-kafka:
 	@kafka-server-start ./testing/server.properties 2>&1 > /tmp/marathon-kafka.log &
 	@sleep 4
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic integration-test-input-topic --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app1-service1 --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app2-service2 --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app3-service3 --zookeeper localhost:3535

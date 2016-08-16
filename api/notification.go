@@ -9,6 +9,7 @@ import (
 )
 
 type filter struct {
+	UserID string `json:"user_id"`
 	Locale string `json:"locale"`
 	Region string `json:"region"`
 	Tz     string `json:"tz"`
@@ -50,6 +51,9 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 		}
 
 		filters := [][]interface{}{}
+		if payload.Filters.UserID != "" {
+			filters = append(filters, []interface{}{"user_id", payload.Filters.UserID})
+		}
 		if payload.Filters.Locale != "" {
 			filters = append(filters, []interface{}{"locale", payload.Filters.Locale})
 		}
