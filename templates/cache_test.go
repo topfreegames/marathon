@@ -5,11 +5,19 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Cache", func() {
+	var (
+		l zap.Logger
+	)
+	BeforeEach(func() {
+		l = mt.NewMockLogger()
+	})
 	Describe("FetchTemplate", func() {
 		It("Should find a cached template", func() {
 			tc := templates.CreateTemplateCache(1)
@@ -21,16 +29,16 @@ var _ = Describe("Cache", func() {
 				Body:     map[string]interface{}{"alert": "{{value1}}, {{value2}}"},
 			}
 
-			cachedTplBeforeCache := tc.FindTemplate("test_cached_template1", "gcm", "en")
+			cachedTplBeforeCache := tc.FindTemplate(l, "test_cached_template1", "gcm", "en")
 			Expect(cachedTplBeforeCache).To(BeNil())
 
-			tc.AddTemplate("test_cached_template1", "gcm", "en", template)
+			tc.AddTemplate(l, "test_cached_template1", "gcm", "en", template)
 
-			cachedTplAfterCache := tc.FindTemplate("test_cached_template1", "gcm", "en")
+			cachedTplAfterCache := tc.FindTemplate(l, "test_cached_template1", "gcm", "en")
 			Expect(cachedTplAfterCache).NotTo(BeNil())
 
 			time.Sleep(1 * time.Second)
-			cachedTplAfterExpiredCache := tc.FindTemplate("test_cached_template1", "gcm", "en")
+			cachedTplAfterExpiredCache := tc.FindTemplate(l, "test_cached_template1", "gcm", "en")
 			Expect(cachedTplAfterExpiredCache).To(BeNil())
 		})
 	})

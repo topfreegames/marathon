@@ -28,6 +28,8 @@ func getLogLevel() zap.Level {
 
 // ContinuousWorker contains all continuous worker configs and channels
 type ContinuousWorker struct {
+	App                    string
+	Service                string
 	KafkaDoneChan          chan struct{}
 	FetcherDoneChan        chan struct{}
 	InputKafkaChan         chan string
@@ -145,19 +147,20 @@ func (worker *ContinuousWorker) Configure() {
 func (worker *ContinuousWorker) StartWorker() {
 	// Run modules
 	for i := 0; i < worker.Config.GetInt("workers.modules.consumers"); i++ {
-		go consumer.Consumer(worker.Config, "workers", worker.InputKafkaChan, worker.KafkaDoneChan)
+		go consumer.Consumer(worker.Config, "workers", worker.App, worker.Service,
+			worker.InputKafkaChan, worker.KafkaDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.parsers"); i++ {
-		go templates.Parser(worker.KafkaToParserChan, worker.ParserToFetcherChan, worker.ParserDoneChan)
+		go templates.Parser(worker.Logger, true, worker.KafkaToParserChan, worker.ParserToFetcherChan, worker.ParserDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.fetchers"); i++ {
-		go templates.Fetcher(worker.ParserToFetcherChan, worker.FetcherToBuilderChan, worker.FetcherDoneChan, worker.Db)
+		go templates.Fetcher(worker.Logger, worker.ParserToFetcherChan, worker.FetcherToBuilderChan, worker.FetcherDoneChan, worker.Db)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.builders"); i++ {
-		go templates.Builder(worker.FetcherToBuilderChan, worker.BuilderToKafkaChan, worker.BuilderDoneChan)
+		go templates.Builder(worker.Logger, worker.Config, "workers", worker.FetcherToBuilderChan, worker.BuilderToKafkaChan, worker.BuilderDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.producers"); i++ {
-		go producer.Producer(worker.Config, "workers", worker.BuilderToKafkaChan, worker.BuilderToKafkaDoneChan)
+		go producer.Producer(worker.Logger, worker.Config, "workers", worker.BuilderToKafkaChan, worker.BuilderToKafkaDoneChan)
 	}
 }
 
@@ -176,11 +179,28 @@ func (worker ContinuousWorker) Close() {
 }
 
 // GetContinuousWorker returns a new worker
-func GetContinuousWorker(configPath string) *ContinuousWorker {
-	worker := &ContinuousWorker{
-		Config:     viper.New(),
-		ConfigPath: configPath,
+func GetContinuousWorker(worker *ContinuousWorker) (*ContinuousWorker, error) {
+	if worker.ConfigPath == "" {
+		errStr := "Invalid worker config - ConfigPath is required"
+		worker.Logger.Error(errStr, zap.Object("worker", worker))
+		e := parseError{errStr}
+		return nil, e
+	}
+	if worker.App == "" {
+		errStr := "Invalid worker config - App is required"
+		worker.Logger.Error(errStr, zap.Object("worker", worker))
+		e := parseError{errStr}
+		return nil, e
+	}
+	if worker.Service == "" {
+		errStr := "Invalid worker config - Service is required"
+		worker.Logger.Error(errStr, zap.Object("worker", worker))
+		e := parseError{errStr}
+		return nil, e
+	}
+	if worker.Config == nil {
+		worker.Config = viper.New()
 	}
 	worker.Configure()
-	return worker
+	return worker, nil
 }

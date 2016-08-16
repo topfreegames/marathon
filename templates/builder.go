@@ -8,6 +8,7 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
 
+	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 	"github.com/valyala/fasttemplate"
 )
@@ -21,17 +22,19 @@ func (e buildError) Error() string {
 }
 
 // Builder reads the messages from the inChan and generates messages to be sent to Kafka in the outChan
-func Builder(inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage, doneChan <-chan struct{}) {
+func Builder(l zap.Logger, config *viper.Viper, configRoot string, inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage, doneChan <-chan struct{}) {
+	l.Info("Starting builder")
 	for {
 		select {
 		case <-doneChan:
 			return // breaks out of the for
 		case msg := <-inChan:
-			message, err := Build(msg)
+			message, err := Build(l, config, configRoot, msg)
 			if err != nil {
-				Logger.Error("Error building message", zap.Error(err))
+				l.Error("Error building message", zap.Error(err))
 				continue
 			}
+			l.Debug("Built message", zap.Object("message", message))
 			outChan <- message
 		}
 	}
@@ -39,10 +42,10 @@ func Builder(inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.
 
 // Replace replaces the template parameters from message with the values of the keys in params.
 // the function returns the built string
-func Replace(message string, params map[string]interface{}) (string, error) {
+func Replace(l zap.Logger, message string, params map[string]interface{}) (string, error) {
 	t, err := fasttemplate.NewTemplate(string(message), "{{", "}}")
 	if err != nil {
-		Logger.Error("Template Error", zap.Error(err))
+		l.Error("Template Error", zap.Error(err))
 		return "", err
 	}
 
@@ -71,7 +74,7 @@ func Replace(message string, params map[string]interface{}) (string, error) {
 }
 
 // ApnsMsg builds an apns message
-func ApnsMsg(request *messages.TemplatedMessage, content string) (string, error) {
+func ApnsMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (string, error) {
 	msg := messages.NewApnsMessage()
 	msg.DeviceToken = request.Token
 	msg.PushExpiry = request.PushExpiry
@@ -82,7 +85,7 @@ func ApnsMsg(request *messages.TemplatedMessage, content string) (string, error)
 
 	b, err := json.Marshal(msg)
 	if err != nil {
-		Logger.Error(
+		l.Error(
 			"Error building apns msg",
 			zap.String("msg", fmt.Sprintf("%+v", msg)),
 			zap.Error(err),
@@ -94,13 +97,13 @@ func ApnsMsg(request *messages.TemplatedMessage, content string) (string, error)
 }
 
 // GcmMsg builds a GCM message
-func GcmMsg(request *messages.TemplatedMessage, content string) (string, error) {
+func GcmMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (string, error) {
 	msg := messages.NewGcmMessage()
 	msg.To = request.Token
 	msg.PushExpiry = request.PushExpiry
 	err := json.Unmarshal([]byte(content), &msg.Data)
 	if err != nil {
-		Logger.Error(
+		l.Error(
 			"Error building gcm msg",
 			zap.String("msg", fmt.Sprintf("%+v", msg)),
 			zap.Error(err),
@@ -113,7 +116,7 @@ func GcmMsg(request *messages.TemplatedMessage, content string) (string, error) 
 
 	b, err := json.Marshal(msg)
 	if err != nil {
-		Logger.Error(
+		l.Error(
 			"Error building gcm msg",
 			zap.String("msg", fmt.Sprintf("%+v", msg)),
 			zap.Error(err),
@@ -124,34 +127,39 @@ func GcmMsg(request *messages.TemplatedMessage, content string) (string, error) 
 	return strMsg, nil
 }
 
+// BuildTopicName builds a topic name based in app, service and a template
+func BuildTopicName(app, service, topicTemplate string) string {
+	return fmt.Sprintf(topicTemplate, app, service)
+}
+
 // Build receives a RequestMessage with Message filled with the message to be built, if Params
 // has any content. If the request was a template it should have already been fetched and placed
 // into the Message field.
-func Build(request *messages.TemplatedMessage) (*messages.KafkaMessage, error) {
+func Build(l zap.Logger, config *viper.Viper, configRoot string, request *messages.TemplatedMessage) (*messages.KafkaMessage, error) {
 	// Replace template
 	byteMessage, err := json.Marshal(request.Message)
 	if err != nil {
-		Logger.Error("Error marshalling message", zap.Error(err))
+		l.Error("Error marshalling message", zap.Error(err))
 		return nil, err
 	}
 	stringMessage := string(byteMessage)
-	content, err := Replace(stringMessage, request.Params)
+	content, err := Replace(l, stringMessage, request.Params)
 	if err != nil {
-		Logger.Error("Template replacing error", zap.Error(err))
+		l.Error("Template replacing error", zap.Error(err))
 		return nil, err
 	}
 
-	// FIXME: What is the rigth topic?
-	topic := request.App
+	topicTemplate := config.GetString(fmt.Sprintf("%s.producer.topicTemplate", configRoot))
+	topic := BuildTopicName(request.App, request.Service, topicTemplate)
 
 	var builtMessage string
 	if request.Service == "apns" {
-		builtMessage, err = ApnsMsg(request, content)
+		builtMessage, err = ApnsMsg(l, request, content)
 		if err != nil {
 			return nil, err
 		}
 	} else if request.Service == "gcm" {
-		builtMessage, err = GcmMsg(request, content)
+		builtMessage, err = GcmMsg(l, request, content)
 		if err != nil {
 			return nil, err
 		}

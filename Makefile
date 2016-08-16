@@ -26,16 +26,27 @@ build:
 	@go build $(PACKAGES)
 	@go build
 
-cross:
+build-linux-386:
 	@mkdir -p ./bin
 	@echo "Building for linux-386..."
 	@env GOOS=linux GOARCH=386 go build -o ./bin/marathon-linux-386
+
+build-linux-amd64:
+	@mkdir -p ./bin
 	@echo "Building for linux-amd64..."
 	@env GOOS=linux GOARCH=amd64 go build -o ./bin/marathon-linux-amd64
+
+build-darwin-386:
+	@mkdir -p ./bin
 	@echo "Building for darwin-386..."
 	@env GOOS=darwin GOARCH=386 go build -o ./bin/marathon-darwin-386
+
+build-darwin-amd64:
+	@mkdir -p ./bin
 	@echo "Building for darwin-amd64..."
 	@env GOOS=darwin GOARCH=amd64 go build -o ./bin/marathon-darwin-amd64
+
+cross: build-linux-386 build-linux-amd64 build-darwin-386 build-darwin-amd64
 
 install:
 	@go install
@@ -117,10 +128,10 @@ run-kafka:
 	@kafka-server-start ./testing/server.properties 2>&1 > /tmp/marathon-kafka.log &
 	@sleep 4
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic integration-test-input-topic --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-1 --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-2 --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-consumer-3 --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic test-producer-1 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app1-service1 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app2-service2 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app3-service3 --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic producer-app1-service1 --zookeeper localhost:3535
 
 kill-kafka:
 	@ps aux | egrep "./testing/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9

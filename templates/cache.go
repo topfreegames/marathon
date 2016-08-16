@@ -35,7 +35,7 @@ func CreateTemplateCache(timeout int64) *Cache {
 
 // FindTemplate is a method that returns a pointer to a template if a valid
 // cached version exists
-func (tc *Cache) FindTemplate(name string, service string, locale string) *models.Template {
+func (tc *Cache) FindTemplate(l zap.Logger, name string, service string, locale string) *models.Template {
 	key := fmt.Sprintf("%s,%s", name, locale)
 	temp := tc.Cells[key]
 	if temp != nil {
@@ -43,16 +43,16 @@ func (tc *Cache) FindTemplate(name string, service string, locale string) *model
 		if temp.Expiry.After(time.Now()) {
 			return temp.Cell
 		}
-		Logger.Debug("Template expired", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+		l.Debug("Template expired", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
 		// Expired, delete entry from cache
 		delete(tc.Cells, key)
 	}
-	Logger.Debug("No valid templates found in cache", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+	l.Debug("No valid templates found in cache", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
 	return nil
 }
 
 // AddTemplate adds a new template to the cache
-func (tc *Cache) AddTemplate(name string, service string, locale string, temp *models.Template) {
+func (tc *Cache) AddTemplate(l zap.Logger, name string, service string, locale string, temp *models.Template) {
 	key := fmt.Sprintf("%s,%s", name, locale)
 	expiry := time.Now().Add(tc.CellTimeout)
 	tempCell := &templateCell{
@@ -61,6 +61,6 @@ func (tc *Cache) AddTemplate(name string, service string, locale string, temp *m
 		Cell:         temp,
 		Expiry:       expiry,
 	}
-	Logger.Debug("Added template to template cach", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+	l.Debug("Added template to template cach", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
 	tc.Cells[key] = tempCell
 }

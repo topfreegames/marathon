@@ -12,6 +12,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
+var app, service string
+
 // startCmd represents the start command
 var startContinuousWorkersCmd = &cobra.Command{
 	Use:   "start-workers",
@@ -29,8 +31,17 @@ var startContinuousWorkersCmd = &cobra.Command{
 			zap.String("operation", "Run"),
 		)
 
+		continuousWorkerConf := &workers.ContinuousWorker{
+			App:        app,
+			Service:    service,
+			ConfigPath: "./../config/test.yaml",
+		}
 		cmdL.Debug("Get continuous workers...")
-		worker := workers.GetContinuousWorker(ConfigFile)
+		worker, err := workers.GetContinuousWorker(continuousWorkerConf)
+		if err != nil {
+			cmdL.Error("Error", zap.Error(err))
+			os.Exit(-1)
+		}
 
 		cmdL.Debug("Starting continuous workers...")
 		worker.StartWorker()
@@ -46,7 +57,8 @@ var startContinuousWorkersCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(startContinuousWorkersCmd)
-	// startCmd.Flags().StringVarP(&host, "bind", "b", "0.0.0.0", "Host to bind marathon to")
+	startContinuousWorkersCmd.Flags().StringVarP(&app, "app", "a", "", "app to consume")
+	startContinuousWorkersCmd.Flags().StringVarP(&service, "service", "s", "", "service to consume")
 	// startCmd.Flags().IntVarP(&port, "port", "p", 8888, "Port to bind marathon to")
 	// startCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Debug mode")
 }

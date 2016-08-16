@@ -107,9 +107,7 @@ var _ = Describe("Models", func() {
 			_, err = models.UpsertToken(db, appName, service, userID1, token1, locale, region, tz, buildN, optOut)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Continuous worker that process messages produced
-			continuousWorker := workers.GetContinuousWorker("./../config/test.yaml")
-			// Batch worker that reads from pg and sent to continuous worker
+			// Batch worker that reads from pg and send to kafka
 			worker := &workers.BatchPGWorker{ConfigPath: "./../config/test.yaml"}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())
@@ -119,16 +117,13 @@ var _ = Describe("Models", func() {
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
-			consumerConfig := *continuousWorker.Config
+			batchWorkerConfig := *worker.Config
 			var config = viper.New()
-			config.SetDefault("workers.consumer.brokers", consumerConfig.GetStringSlice("workers.consumer.brokers"))
-			config.SetDefault("workers.consumer.consumergroup", "consumer-group-test-1")
-			config.SetDefault("workers.consumer.topics", consumerConfig.GetStringSlice("workers.consumer.topics"))
+			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("batch_pg_workers.producer.brokers"))
+			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
+			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("batch_pg_workers.producer.topicTemplate"))
 
-			go consumer.Consumer(config, "workers", outChan, doneChan)
-
-			continuousWorker.StartWorker()
-			Expect(continuousWorker).NotTo(BeNil())
+			go consumer.Consumer(config, "workers", appName, service, outChan, doneChan)
 
 			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())
@@ -142,18 +137,15 @@ var _ = Describe("Models", func() {
 				}
 				timeElapsed += timeStepMillis
 			}
-			Expect(len(outChan)).To(Equal(1))
+			Expect(len(outChan)).To(Equal(2))
 
 			processedMessage := <-outChan
-			processedMessageObj := messages.NewInputMessage()
+			processedMessage = <-outChan
+			processedMessageObj := messages.NewApnsMessage()
 			json.Unmarshal([]byte(processedMessage), &processedMessageObj)
-			Expect(processedMessageObj.App).To(Equal(appName))
-			Expect(processedMessageObj.Service).To(Equal(service))
-			Expect(processedMessageObj.Token).To(Equal(token1))
-			Expect(processedMessageObj.PushExpiry).To(Equal(pushExpiry))
-			Expect(processedMessageObj.Locale).To(Equal(locale))
-			Expect(processedMessageObj.Message).To(Equal(msg))
-			Expect(processedMessageObj.Metadata).To(Equal(metadata))
+			Expect(processedMessageObj.DeviceToken).To(Equal(token1))
+			Expect(processedMessageObj.PushExpiry).To(Equal(int64(0)))
+			// FIXME: How to test the message?
 		})
 
 		It("Send messages for segmented of users", func() {
@@ -174,8 +166,6 @@ var _ = Describe("Models", func() {
 
 			tokens := []string{token1, token2, token3}
 
-			// Continuous worker that process messages produced
-			continuousWorker := workers.GetContinuousWorker("./../config/test.yaml")
 			// Batch worker that reads from pg and sent to continuous worker
 			worker := &workers.BatchPGWorker{ConfigPath: "./../config/test.yaml"}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
@@ -186,15 +176,13 @@ var _ = Describe("Models", func() {
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
-			consumerConfig := *continuousWorker.Config
+			batchWorkerConfig := *worker.Config
 			var config = viper.New()
-			config.SetDefault("workers.consumer.brokers", consumerConfig.GetStringSlice("workers.consumer.brokers"))
-			config.SetDefault("workers.consumer.consumergroup", "consumer-group-test-2")
-			config.SetDefault("workers.consumer.topics", consumerConfig.GetStringSlice("workers.consumer.topics"))
-			go consumer.Consumer(config, "workers", outChan, doneChan)
+			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("batch_pg_workers.producer.brokers"))
+			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
+			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("batch_pg_workers.producer.topicTemplate"))
 
-			continuousWorker.StartWorker()
-			Expect(continuousWorker).NotTo(BeNil())
+			go consumer.Consumer(config, "workers", appName, service, outChan, doneChan)
 
 			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())
@@ -210,34 +198,30 @@ var _ = Describe("Models", func() {
 			}
 			Expect(len(outChan)).To(Equal(4))
 
-			processedMessage1 := <-outChan
-			processedMessage1 = <-outChan // Discard first message (from other test)
+			processedMessage1 := <-outChan // Discard first message (from other test)
+			processedMessage1 = <-outChan
 			processedMessage2 := <-outChan
 			processedMessage3 := <-outChan
 
-			processedMessageObj1 := messages.NewInputMessage()
+			processedMessageObj1 := messages.NewApnsMessage()
 			json.Unmarshal([]byte(processedMessage1), &processedMessageObj1)
 
-			processedMessageObj2 := messages.NewInputMessage()
+			processedMessageObj2 := messages.NewApnsMessage()
 			json.Unmarshal([]byte(processedMessage2), &processedMessageObj2)
 
-			processedMessageObj3 := messages.NewInputMessage()
+			processedMessageObj3 := messages.NewApnsMessage()
 			json.Unmarshal([]byte(processedMessage3), &processedMessageObj3)
 
-			processedMessageObjs := []*messages.InputMessage{
+			processedMessageObjs := []*messages.ApnsMessage{
 				processedMessageObj1,
 				processedMessageObj2,
 				processedMessageObj3,
 			}
 
 			for _, processedMessageObj := range processedMessageObjs {
-				Expect(processedMessageObj.App).To(Equal(appName))
-				Expect(processedMessageObj.Service).To(Equal(service))
-				Expect(processedMessageObj.PushExpiry).To(Equal(pushExpiry))
-				Expect(processedMessageObj.Locale).To(Equal(locale))
-				Expect(processedMessageObj.Message).To(Equal(msg))
-				Expect(processedMessageObj.Metadata).To(Equal(metadata))
-				Expect(util.SliceContains(tokens, processedMessageObj.Token)).To(BeTrue())
+				Expect(util.SliceContains(tokens, processedMessageObj.DeviceToken)).To(BeTrue())
+				Expect(processedMessageObj.PushExpiry).To(Equal(int64(0)))
+				// FIXME: How to test the message?
 			}
 		})
 	})

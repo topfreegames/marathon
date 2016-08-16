@@ -3,11 +3,20 @@ package templates_test
 import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/templates"
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Template", func() {
+	var (
+		l zap.Logger
+	)
+	BeforeEach(func() {
+		l = mt.NewMockLogger()
+	})
 	Describe("Builder", func() {
 		Describe("Replace", func() {
 			It("Should replace variables", func() {
@@ -18,7 +27,7 @@ var _ = Describe("Template", func() {
 
 				message := "{{param1}}, {{someone}} is awesome"
 
-				resp, tplErr := templates.Replace(message, params)
+				resp, tplErr := templates.Replace(l, message, params)
 				Expect(tplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, banduk is awesome"))
 			})
@@ -28,7 +37,7 @@ var _ = Describe("Template", func() {
 					"param1": "hello",
 				}
 				message := "{{param1}}, {{param1}}, {{param1}}"
-				resp, rplTplErr := templates.Replace(message, params)
+				resp, rplTplErr := templates.Replace(l, message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, hello, hello"))
 			})
@@ -45,7 +54,7 @@ var _ = Describe("Template", func() {
 					},
 				}
 				message := "{{param1.param1_1}}, {{param1.param1_2}}, {{param2.param2_2}}"
-				resp, rplTplErr := templates.Replace(message, params)
+				resp, rplTplErr := templates.Replace(l, message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("value1_1, value1_2, value2_2"))
 			})
@@ -55,7 +64,7 @@ var _ = Describe("Template", func() {
 					"param1": "hello",
 				}
 				message := "{{param1}"
-				resp, rplTplErr := templates.Replace(message, params)
+				resp, rplTplErr := templates.Replace(l, message, params)
 				Expect(rplTplErr).NotTo(BeNil())
 				Expect(resp).To(Equal(""))
 			})
@@ -68,7 +77,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 				}
-				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.ApnsMsg(l, req, `{"alert": "message", "badge": 1}`)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"message","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
 			})
@@ -78,7 +87,7 @@ var _ = Describe("Template", func() {
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.ApnsMsg(l, req, `{"alert": "message", "badge": 1}`)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"message","badge":1}},"push_expiry":0}`))
 			})
@@ -88,7 +97,7 @@ var _ = Describe("Template", func() {
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				msg, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
+				msg, err := templates.ApnsMsg(l, req, `{"alert": "message", "badge": 1`)
 				Expect(err).To(HaveOccurred())
 				Expect(msg).To(Equal(""))
 			})
@@ -98,7 +107,7 @@ var _ = Describe("Template", func() {
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				_, err := templates.ApnsMsg(req, `{"alert": "message", "badge": 1`)
+				_, err := templates.ApnsMsg(l, req, `{"alert": "message", "badge": 1`)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -110,7 +119,7 @@ var _ = Describe("Template", func() {
 					PushExpiry: 0,
 					Metadata:   map[string]interface{}{"meta": "data"},
 				}
-				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.GcmMsg(l, req, `{"alert": "message", "badge": 1}`)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1,"m":{"meta":"data"}},"push_expiry":0}`))
 			})
@@ -120,7 +129,7 @@ var _ = Describe("Template", func() {
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				msg, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1}`)
+				msg, err := templates.GcmMsg(l, req, `{"alert": "message", "badge": 1}`)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg).To(Equal(`{"to":"token","data":{"alert":"message","badge":1},"push_expiry":0}`))
 			})
@@ -130,7 +139,7 @@ var _ = Describe("Template", func() {
 					Token:      "token",
 					PushExpiry: 0,
 				}
-				_, err := templates.GcmMsg(req, `{"alert": "message", "badge": 1`)
+				_, err := templates.GcmMsg(l, req, `{"alert": "message", "badge": 1`)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -146,7 +155,10 @@ var _ = Describe("Template", func() {
 					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
-				msg, err := templates.Build(req)
+
+				var config = viper.New()
+				config.Set("workers.producer.topicTemplate", "%s_%s")
+				msg, err := templates.Build(l, config, "workers", req)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello, world","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
@@ -162,7 +174,9 @@ var _ = Describe("Template", func() {
 					Service:    "apns",
 					Message:    map[string]interface{}{"alert": "Hello", "badge": 1},
 				}
-				msg, err := templates.Build(req)
+				var config = viper.New()
+				config.Set("workers.producer.topicTemplate", "%s_%s")
+				msg, err := templates.Build(l, config, "workers", req)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
@@ -179,7 +193,9 @@ var _ = Describe("Template", func() {
 					Message:    map[string]interface{}{"title": "{{param1}}, {{param2}}", "subtitle": "{{param1}}"},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
-				msg, err := templates.Build(req)
+				var config = viper.New()
+				config.Set("workers.producer.topicTemplate", "%s_%s")
+				msg, err := templates.Build(l, config, "workers", req)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
@@ -194,7 +210,9 @@ var _ = Describe("Template", func() {
 					Service:    "gcm",
 					Message:    map[string]interface{}{"title": "Hello, world", "subtitle": "Hello"},
 				}
-				msg, err := templates.Build(req)
+				var config = viper.New()
+				config.Set("workers.producer.topicTemplate", "%s_%s")
+				msg, err := templates.Build(l, config, "workers", req)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
 			})
@@ -209,7 +227,9 @@ var _ = Describe("Template", func() {
 					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
-				msg, err := templates.Build(req)
+				var config = viper.New()
+				config.Set("workers.producer.topicTemplate", "%s_%s")
+				msg, err := templates.Build(l, config, "workers", req)
 
 				Expect(err).To(HaveOccurred())
 				Expect(msg).To(BeNil())
@@ -240,7 +260,10 @@ var _ = Describe("Template", func() {
 				outChan := make(chan *messages.KafkaMessage, 1)
 				doneChan := make(chan struct{}, 1)
 				defer close(doneChan)
-				go templates.Builder(inChan, outChan, doneChan)
+
+				var config = viper.New()
+				config.Set("workers.producer.topicTemplate", "%s_%s")
+				go templates.Builder(l, config, "workers", inChan, outChan, doneChan)
 
 				go func() {
 					inChan <- reqGcm
@@ -254,7 +277,7 @@ var _ = Describe("Template", func() {
 				Expect(out1.Topic == "colorfy")
 
 				Expect(out2.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello, world","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
-				Expect(out2.Topic).To(Equal("colorfy"))
+				Expect(out2.Topic).To(Equal("colorfy_apns"))
 			})
 		})
 	})

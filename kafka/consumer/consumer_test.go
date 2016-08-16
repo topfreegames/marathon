@@ -48,20 +48,22 @@ var _ = Describe("Consumer", func() {
 
 	Describe("", func() {
 		It("Should consume one message correctly and retrieve it", func() {
-			topic := "test-consumer-1"
-			topics := []string{topic}
+			app := "app1"
+			service := "service1"
+			topicTemplate := "consumer-%s-%s"
+			topic := fmt.Sprintf(topicTemplate, app, service)
 			brokers := []string{"localhost:3536"}
 			consumerGroup := "consumer-group-test-consumer-1"
 
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
 			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
-			config.SetDefault("workers.consumer.topics", topics)
+			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
-			go consumer.Consumer(config, "workers", outChan, doneChan)
+			go consumer.Consumer(config, "workers", app, service, outChan, doneChan)
 
 			// Produce Messages
 			message := "message"
@@ -72,8 +74,10 @@ var _ = Describe("Consumer", func() {
 		})
 
 		It("Should consume two messages correctly and retrieve them", func() {
-			topic := "test-consumer-2"
-			topics := []string{topic}
+			app := "app2"
+			service := "service2"
+			topicTemplate := "consumer-%s-%s"
+			topic := fmt.Sprintf(topicTemplate, app, service)
 			brokers := []string{"localhost:3536"}
 			consumerGroup := "consumer-group-test-consumer-2"
 			message := "message%d"
@@ -81,12 +85,12 @@ var _ = Describe("Consumer", func() {
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
 			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
-			config.SetDefault("workers.consumer.topics", topics)
+			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
-			go consumer.Consumer(config, "workers", outChan, doneChan)
+			go consumer.Consumer(config, "workers", app, service, outChan, doneChan)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
@@ -101,8 +105,10 @@ var _ = Describe("Consumer", func() {
 		})
 
 		It("Should not output an empty message", func() {
-			topic := "test-consumer-3"
-			topics := []string{topic}
+			app := "app3"
+			service := "service3"
+			topicTemplate := "consumer-%s-%s"
+			topic := fmt.Sprintf(topicTemplate, app, service)
 			brokers := []string{"localhost:3536"}
 			consumerGroup := "consumer-group-test-consumer-3"
 			message := "message"
@@ -110,12 +116,12 @@ var _ = Describe("Consumer", func() {
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
 			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
-			config.SetDefault("workers.consumer.topics", topics)
+			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
-			go consumer.Consumer(config, "workers", outChan, doneChan)
+			go consumer.Consumer(config, "workers", app, service, outChan, doneChan)
 
 			produceMessage(brokers, topic, "", int32(0), int64(0))
 			produceMessage(brokers, topic, "message", int32(0), int64(1))
@@ -126,22 +132,23 @@ var _ = Describe("Consumer", func() {
 		})
 
 		It("Should not start a consumer if no broker found", func() {
-			topic := "test-consumer-4"
-			topics := []string{topic}
+			app := "app4"
+			service := "service4"
+			topicTemplate := "consumer-%s-%s"
 			brokers := []string{"localhost:0666"}
 			consumerGroup := "consumer-group-test-consumer-4"
 
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
 			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
-			config.SetDefault("workers.consumer.topics", topics)
+			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
 			// Consumer returns here and don't get blocked
-			consumer.Consumer(config, "workers", outChan, doneChan)
+			consumer.Consumer(config, "workers", app, service, outChan, doneChan)
 		})
 	})
 })

@@ -33,7 +33,7 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(config *viper.Viper, configRoot string, outChan chan<- string, doneChan <-chan struct{}) {
+func Consumer(config *viper.Viper, configRoot, app, service string, outChan chan<- string, doneChan <-chan struct{}) error {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
@@ -43,20 +43,22 @@ func Consumer(config *viper.Viper, configRoot string, outChan chan<- string, don
 
 	brokers := config.GetStringSlice(fmt.Sprintf("%s.consumer.brokers", configRoot))
 	consumerGroup := config.GetString(fmt.Sprintf("%s.consumer.consumergroup", configRoot))
-	topics := config.GetStringSlice(fmt.Sprintf("%s.consumer.topics", configRoot))
+	topicTemplate := config.GetString(fmt.Sprintf("%s.consumer.topicTemplate", configRoot))
+	topics := []string{fmt.Sprintf(topicTemplate, app, service)}
 	Logger.Warn(
 		"Create consumer group",
 		zap.String("brokers", fmt.Sprintf("%+v", brokers)),
 		zap.String("consumerGroup", consumerGroup),
-		zap.String("topics", fmt.Sprintf("%+v", topics)),
-		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
+		zap.String("topicTemplate", topicTemplate),
+		zap.Object("topics", topics),
+		zap.Object("clusterConfig", clusterConfig),
 	)
 
 	// Create consumer defined by the configurations
 	consumer, err := cluster.NewConsumer(brokers, consumerGroup, topics, clusterConfig)
 	if err != nil {
 		Logger.Error("Could not create consumer", zap.String("error", err.Error()))
-		return
+		return err
 	}
 	defer consumer.Close()
 
@@ -74,6 +76,7 @@ func Consumer(config *viper.Viper, configRoot string, outChan chan<- string, don
 	Logger.Info("Starting kafka consumer")
 	MainLoop(consumer, outChan, doneChan)
 	Logger.Info("Stopped kafka consumer")
+	return nil
 }
 
 // MainLoop to read messages from Kafka and send them forward in the pipeline

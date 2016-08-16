@@ -11,7 +11,8 @@ workers:
     level: "fatal"
   consumer:
     consumergroup: "integration-test-consumer-group"
-    topics: [ "integration-test-input-topic" ]
+    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
     brokers: [ "localhost:3536" ]
   producer:
     brokers: [ "localhost:3536" ]
@@ -35,6 +36,21 @@ batch_pg_workers:
     level: "fatal"
   producer:
     brokers: [ "localhost:3536" ]
+    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
   modules:
     producers: 1
-    pgtokafkachansize: 10
+    batchpgworkers: 1
+    parsers: 1
+    fetchers: 1
+    builders: 1
+    producers: 1
+    batchpgworkerdonechan: 1
+    pgtoparserchan: 10000
+    parserdonechan: 1
+    parsertofetcherchan: 1000
+    fetcherdonechan: 1
+    fetchertobuilderchan: 1000
+    builderdonechan: 1
+    buildertoproducerchan: 1000
+    producerdonechan: 1

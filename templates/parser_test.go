@@ -6,11 +6,19 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/templates"
 
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Template", func() {
+	var (
+		l zap.Logger
+	)
+	BeforeEach(func() {
+		l = mt.NewMockLogger()
+	})
 	Describe("Parser", func() {
 		Describe("Parse", func() {
 			It("Should parse an input message correctly", func() {
@@ -28,7 +36,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				output, err := templates.Parse(string(inputString))
+				output, err := templates.Parse(l, string(inputString), true)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(input.App).To(Equal(output.App))
 				Expect(input.Token).To(Equal(output.Token))
@@ -56,7 +64,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				output, err := templates.Parse(string(inputString))
+				output, err := templates.Parse(l, string(inputString), true)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(input.App).To(Equal(output.App))
 				Expect(input.Token).To(Equal(output.Token))
@@ -85,7 +93,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				_, err := templates.Parse(string(inputString))
+				_, err := templates.Parse(l, string(inputString), true)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -105,7 +113,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				_, err := templates.Parse(string(inputString))
+				_, err := templates.Parse(l, string(inputString), true)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -126,7 +134,7 @@ var _ = Describe("Template", func() {
 				Expect(marshalErr).To(BeNil())
 
 				message := string(inputString)
-				_, err := templates.Parse(message[:len(message)-1])
+				_, err := templates.Parse(l, message[:len(message)-1], true)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -145,7 +153,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				_, err := templates.Parse(string(inputString))
+				_, err := templates.Parse(l, string(inputString), true)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -165,7 +173,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				_, err := templates.Parse(string(inputString))
+				_, err := templates.Parse(l, string(inputString), true)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -184,7 +192,7 @@ var _ = Describe("Template", func() {
 				inputString, marshalErr := json.Marshal(input)
 				Expect(marshalErr).To(BeNil())
 
-				_, err := templates.Parse(string(inputString))
+				_, err := templates.Parse(l, string(inputString), true)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -254,7 +262,8 @@ var _ = Describe("Template", func() {
 					doneChan := make(chan struct{}, 1)
 					defer close(doneChan)
 
-					go templates.Parser(inChan, outChan, doneChan)
+					requireToken := true
+					go templates.Parser(l, requireToken, inChan, outChan, doneChan)
 
 					inChan <- message1
 					inChan <- message2

@@ -19,17 +19,16 @@ func getLogLevel() zap.Level {
 	return level
 }
 
-// Logger is the producer logger
-var Logger = zap.NewJSON(getLogLevel(), zap.AddCaller())
-
 // Producer continuosly reads from inChan and sends the received messages to kafka
-func Producer(config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
+func Producer(l zap.Logger, config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
+	l.Info("Starting producer")
 	saramaConfig := sarama.NewConfig()
+	l = l.With(zap.Object("saramaConfig", saramaConfig))
 	producer, err := sarama.NewSyncProducer(
 		config.GetStringSlice(fmt.Sprintf("%s.producer.brokers", configRoot)),
 		saramaConfig)
 	if err != nil {
-		Logger.Error("Failed to start kafka producer", zap.Error(err))
+		l.Error("Failed to start kafka producer", zap.Error(err))
 		return
 	}
 	defer producer.Close()
@@ -43,12 +42,13 @@ func Producer(config *viper.Viper, configRoot string, inChan <-chan *messages.Ka
 				Topic: msg.Topic,
 				Value: sarama.StringEncoder(msg.Message),
 			}
+			l = l.With(zap.Object("KafkaMessage", saramaMessage))
 
 			_, _, err = producer.SendMessage(saramaMessage)
 			if err != nil {
-				Logger.Error("Error sending message", zap.Error(err))
+				l.Error("Error sending message", zap.Error(err))
 			} else {
-				Logger.Info("Sent message", zap.String("topic", msg.Topic))
+				l.Info("Sent message", zap.String("topic", msg.Topic))
 			}
 		}
 	}

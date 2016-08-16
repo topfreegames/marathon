@@ -7,19 +7,33 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Producer", func() {
-
+	var (
+		l zap.Logger
+	)
+	BeforeEach(func() {
+		l = mt.NewMockLogger()
+	})
 	It("Should send messages received in the inChan to kafka", func() {
-		topic := "test-producer-1"
-		topics := []string{topic}
+		app := "app1"
+		service := "service1"
+		topicTemplate := "producer-%s-%s"
+		topic := fmt.Sprintf(topicTemplate, app, service)
 		brokers := []string{"localhost:3536"}
 		consumerGroup := "consumer-group-test-producer-1"
 		message := "message%d"
+
+		var config = viper.New()
+		config.SetDefault("workers.consumer.brokers", brokers)
+		config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+		config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 		var producerConfig = viper.New()
 		producerConfig.SetDefault("workers.producer.brokers", brokers)
@@ -28,7 +42,7 @@ var _ = Describe("Producer", func() {
 		doneChanProd := make(chan struct{}, 1)
 		defer close(doneChanProd)
 
-		go producer.Producer(producerConfig, "workers", inChan, doneChanProd)
+		go producer.Producer(l, producerConfig, "workers", inChan, doneChanProd)
 		message1 := fmt.Sprintf(message, 1)
 		message2 := fmt.Sprintf(message, 1)
 		msg1 := &messages.KafkaMessage{Message: message1, Topic: topic}
@@ -40,12 +54,12 @@ var _ = Describe("Producer", func() {
 		var consumerConfig = viper.New()
 		consumerConfig.SetDefault("workers.consumer.brokers", brokers)
 		consumerConfig.SetDefault("workers.consumer.consumergroup", consumerGroup)
-		consumerConfig.SetDefault("workers.consumer.topics", topics)
+		consumerConfig.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 		outChan := make(chan string, 10)
 		doneChanCons := make(chan struct{}, 1)
 		defer close(doneChanCons)
-		go consumer.Consumer(consumerConfig, "workers", outChan, doneChanCons)
+		go consumer.Consumer(consumerConfig, "workers", app, service, outChan, doneChanCons)
 
 		consumedMessage1 := <-outChan
 		consumedMessage2 := <-outChan
@@ -64,6 +78,6 @@ var _ = Describe("Producer", func() {
 		defer close(doneChan)
 
 		// Producer returns here and don't get blocked
-		producer.Producer(producerConfig, "workers", inChan, doneChan)
+		producer.Producer(l, producerConfig, "workers", inChan, doneChan)
 	})
 })

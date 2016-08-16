@@ -8,14 +8,17 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Fetcher", func() {
 	var (
 		db *gorp.DbMap
+		l  zap.Logger
 	)
 	BeforeEach(func() {
 		_db, dbErr := models.GetTestDB()
@@ -23,6 +26,8 @@ var _ = Describe("Fetcher", func() {
 		Expect(_db).NotTo(BeNil())
 
 		db = _db
+
+		l = mt.NewMockLogger()
 	})
 
 	Describe("FetchTemplate", func() {
@@ -50,7 +55,7 @@ var _ = Describe("Fetcher", func() {
 				Metadata:   map[string]interface{}{"meta": "data"},
 			}
 
-			fetched, errFetch := templates.FetchTemplate(input, db, tc)
+			fetched, errFetch := templates.FetchTemplate(l, input, db, tc)
 			Expect(errFetch).To(BeNil())
 			Expect(fetched.App).To(Equal(input.App))
 			Expect(fetched.Token).To(Equal(input.Token))
@@ -89,7 +94,7 @@ var _ = Describe("Fetcher", func() {
 				Metadata:   map[string]interface{}{"meta": "data"},
 			}
 
-			fetched, errFetch := templates.FetchTemplate(input, db, tc)
+			fetched, errFetch := templates.FetchTemplate(l, input, db, tc)
 			Expect(errFetch).To(BeNil())
 			Expect(fetched.App).To(Equal(input.App))
 			Expect(fetched.Token).To(Equal(input.Token))
@@ -130,7 +135,7 @@ var _ = Describe("Fetcher", func() {
 				Metadata:   map[string]interface{}{"meta": "data"},
 			}
 
-			fetched, errFetch := templates.FetchTemplate(input, db, tc)
+			fetched, errFetch := templates.FetchTemplate(l, input, db, tc)
 			Expect(errFetch).To(BeNil())
 			Expect(fetched.App).To(Equal(input.App))
 			Expect(fetched.Token).To(Equal(input.Token))
@@ -171,7 +176,7 @@ var _ = Describe("Fetcher", func() {
 				Metadata:   map[string]interface{}{"meta": "data"},
 			}
 
-			_, errFetch := templates.FetchTemplate(input, db, tc)
+			_, errFetch := templates.FetchTemplate(l, input, db, tc)
 			Expect(errFetch).NotTo(BeNil())
 		})
 	})
@@ -193,7 +198,7 @@ var _ = Describe("Fetcher", func() {
 			doneChan := make(chan struct{}, 2)
 			defer close(doneChan)
 
-			go templates.Fetcher(inChan, outChan, doneChan, db)
+			go templates.Fetcher(l, inChan, outChan, doneChan, db)
 
 			input := &messages.InputMessage{
 				App:        "colorfy",
@@ -241,7 +246,7 @@ var _ = Describe("Fetcher", func() {
 			doneChan := make(chan struct{}, 2)
 			defer close(doneChan)
 
-			go templates.Fetcher(inChan, outChan, doneChan, db)
+			go templates.Fetcher(l, inChan, outChan, doneChan, db)
 
 			input := &messages.InputMessage{
 				App:        "colorfy",
