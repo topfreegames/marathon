@@ -13,6 +13,8 @@ setup: setup-hooks
 	@go get github.com/topfreegames/goose/cmd/goose
 	@go get github.com/fzipp/gocyclo
 	@go get github.com/gordonklaus/ineffassign
+	@go get github.com/axw/gocov/gocov
+	@go get -u gopkg.in/matm/v1/gocov-html
 	@glide install
 
 setup-ci:
@@ -82,7 +84,15 @@ test-coverage: test
 	@echo "mode: count" > _build/test-coverage-all.out
 	@bash -c 'for f in $$(find . -name "*.coverprofile"); do tail -n +2 $$f >> _build/test-coverage-all.out; done'
 
-test-coverage-html: test-coverage
+gocov-cover:
+	@rm -f _build/test-coverage-all.json _build/http.html
+	@gocov convert _build/test-coverage-all.out > _build/test-coverage-all.json
+	@gocov-html _build/test-coverage-all.json > _build/http.html
+	@open _build/http.html
+
+coverage-html-gocov: test-coverage gocov-cover
+
+coverage-html: test-coverage gocov-cover
 	@go tool cover -html=_build/test-coverage-all.out
 
 static:
