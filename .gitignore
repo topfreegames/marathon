@@ -30,3 +30,4 @@ vendor/
 bin/
 config/production.yaml
 config/staging.yaml
+.imdone
