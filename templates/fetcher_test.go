@@ -3,8 +3,6 @@ package templates_test
 import (
 	"time"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
@@ -17,17 +15,16 @@ import (
 
 var _ = Describe("Fetcher", func() {
 	var (
-		db *gorp.DbMap
+		db *models.DB
 		l  zap.Logger
 	)
 	BeforeEach(func() {
-		_db, dbErr := models.GetTestDB()
+		l = mt.NewMockLogger()
+		_db, dbErr := models.GetTestDB(l)
 		Expect(dbErr).To(BeNil())
 		Expect(_db).NotTo(BeNil())
 
 		db = _db
-
-		l = mt.NewMockLogger()
 	})
 
 	Describe("FetchTemplate", func() {

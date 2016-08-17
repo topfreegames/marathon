@@ -2,12 +2,9 @@ package api
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
-
-	"gopkg.in/gorp.v1"
 
 	"github.com/getsentry/raven-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
@@ -24,7 +21,7 @@ type Application struct {
 	Host           string
 	ConfigPath     string
 	Application    *iris.Framework
-	Db             *gorp.DbMap
+	Db             *models.DB
 	Config         *viper.Viper
 	Logger         zap.Logger
 	ReadBufferSize int
@@ -44,15 +41,6 @@ func GetApplication(host string, port int, configPath string, debug bool, logger
 
 	application.Configure()
 	return application
-}
-
-func getLogLevel() zap.Level {
-	var level = zap.WarnLevel
-	var environment = os.Getenv("ENV")
-	if environment == "test" {
-		level = zap.FatalLevel
-	}
-	return level
 }
 
 // Configure instantiates the required dependencies for Marathon Api Applicationlication
@@ -127,7 +115,7 @@ func (application *Application) connectDatabase() {
 	)
 
 	l.Debug("Connecting to database...")
-	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
+	db, err := models.GetDB(l, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
 		l.Panic(

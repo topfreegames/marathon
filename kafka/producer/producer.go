@@ -2,22 +2,12 @@ package producer
 
 import (
 	"fmt"
-	"os"
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
-
-func getLogLevel() zap.Level {
-	var level = zap.WarnLevel
-	var environment = os.Getenv("ENV")
-	if environment == "test" {
-		level = zap.FatalLevel
-	}
-	return level
-}
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
 func Producer(l zap.Logger, config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {

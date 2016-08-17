@@ -5,24 +5,23 @@ import (
 	"net/http"
 	"strings"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/api"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/gomega"
+	"github.com/uber-go/zap"
 	"github.com/valyala/fasthttp"
 )
 
 // GetTestDB returns a connection to the test database
-func GetTestDB() (*gorp.DbMap, error) {
-	return models.GetDB("localhost", "marathon_test", 5432, "disable", "marathon_test", "")
+func GetTestDB(l zap.Logger) (*models.DB, error) {
+	return models.GetDB(l, "localhost", "marathon_test", 5432, "disable", "marathon_test", "")
 }
 
 // GetFaultyTestDB returns an ill-configured test database
-func GetFaultyTestDB() *gorp.DbMap {
-	faultyDb, _ := models.InitDb("localhost", "marathon_tet", 5432, "disable", "marathon_test", "")
+func GetFaultyTestDB(l zap.Logger) *models.DB {
+	faultyDb, _ := models.InitDb(l, "localhost", "marathon_tet", 5432, "disable", "marathon_test", "")
 	return faultyDb
 }
 

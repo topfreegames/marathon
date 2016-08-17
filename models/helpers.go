@@ -3,7 +3,6 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"os"
 
 	"git.topfreegames.com/topfreegames/marathon/util"
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
@@ -11,30 +10,24 @@ import (
 	"gopkg.in/gorp.v1"
 )
 
-func getLogLevel() zap.Level {
-	var level = zap.WarnLevel
-	var environment = os.Getenv("ENV")
-	if environment == "test" {
-		level = zap.FatalLevel
-	}
-	return level
+// DB is a gorp.DbMap with a Logger
+type DB struct {
+	gorp.DbMap
+	Logger zap.Logger
 }
 
-// Logger is the models logger
-var Logger = zap.NewJSON(getLogLevel(), zap.AddCaller())
-
-var _db *gorp.DbMap
+var _db *DB
 
 // GetTestDB returns a connection to the test database
-func GetTestDB() (*gorp.DbMap, error) {
-	return GetDB("localhost", "marathon_test", 5432, "disable", "marathon_test", "")
+func GetTestDB(l zap.Logger) (*DB, error) {
+	return GetDB(l, "localhost", "marathon_test", 5432, "disable", "marathon_test", "")
 }
 
 // GetDB returns a DbMap connection to the database specified in the arguments
-func GetDB(host string, user string, port int, sslmode string, dbName string, password string) (*gorp.DbMap, error) {
+func GetDB(l zap.Logger, host string, user string, port int, sslmode string, dbName string, password string) (*DB, error) {
 	if _db == nil {
 		var err error
-		_db, err = InitDb(host, user, port, sslmode, dbName, password)
+		_db, err = InitDb(l, host, user, port, sslmode, dbName, password)
 		if err != nil {
 			_db = nil
 			return nil, err
@@ -45,7 +38,7 @@ func GetDB(host string, user string, port int, sslmode string, dbName string, pa
 }
 
 // InitDb initializes a connection to the database
-func InitDb(host string, user string, port int, sslmode string, dbName string, password string) (*gorp.DbMap, error) {
+func InitDb(l zap.Logger, host string, user string, port int, sslmode string, dbName string, password string) (*DB, error) {
 	connStr := fmt.Sprintf(
 		"host=%s user=%s port=%d sslmode=%s dbname=%s",
 		host, user, port, sslmode, dbName,
@@ -58,7 +51,7 @@ func InitDb(host string, user string, port int, sslmode string, dbName string, p
 		return nil, err
 	}
 
-	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.PostgresDialect{}}
+	dbmap := &DB{gorp.DbMap{Db: db, Dialect: gorp.PostgresDialect{}}, l}
 	dbmap.TypeConverter = util.TypeConverter{}
 
 	dbmap.AddTableWithName(App{}, "apps").SetKeys(false, "ID")

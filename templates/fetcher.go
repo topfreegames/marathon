@@ -3,8 +3,6 @@ package templates
 import (
 	"fmt"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 
@@ -15,7 +13,7 @@ import (
 
 // Fetcher starts a new fetcher worker which reads from inChan and writes to
 // outChan, using the db
-func Fetcher(l zap.Logger, inChan <-chan *messages.InputMessage, outChan chan<- *messages.TemplatedMessage, doneChan <-chan struct{}, db *gorp.DbMap) {
+func Fetcher(l zap.Logger, inChan <-chan *messages.InputMessage, outChan chan<- *messages.TemplatedMessage, doneChan <-chan struct{}, db *models.DB) {
 	l.Info("Starting fetcher")
 	tc := CreateTemplateCache(60)
 	for {
@@ -39,7 +37,7 @@ func Fetcher(l zap.Logger, inChan <-chan *messages.InputMessage, outChan chan<- 
 }
 
 // FetchTemplate fetches the template with name and locale from the cache and then from db
-func FetchTemplate(l zap.Logger, input *messages.InputMessage, db *gorp.DbMap, tc *Cache) (*messages.TemplatedMessage, error) {
+func FetchTemplate(l zap.Logger, input *messages.InputMessage, db *models.DB, tc *Cache) (*messages.TemplatedMessage, error) {
 	templated := messages.NewTemplatedMessage()
 	templated.App = input.App
 	templated.Token = input.Token

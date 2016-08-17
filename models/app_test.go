@@ -2,19 +2,23 @@ package models_test
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/models"
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
-	"gopkg.in/gorp.v1"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Models", func() {
 	Describe("App", func() {
 		var (
-			db *gorp.DbMap
+			db *models.DB
+			l  zap.Logger
 		)
+
 		BeforeEach(func() {
-			_db, dbErr := models.GetTestDB()
+			l = mt.NewMockLogger()
+			_db, dbErr := models.GetTestDB(l)
 			Expect(dbErr).To(BeNil())
 			Expect(_db).NotTo(BeNil())
 			db = _db

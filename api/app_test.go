@@ -82,5 +82,26 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(countAfter - countBefore).To(BeZero())
 		})
+
+		It("Should not create app with broken json", func() {
+			a := GetDefaultTestApp()
+			appName := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)
+			group := randomdata.FirstName(randomdata.RandomGender)
+			payload := map[string]interface{}{
+				"appName":        appName,
+				"service":        service,
+				"organizationID": uuid.NewV4().String(),
+				"appGroup":       group,
+			}
+
+			payloadStr, err := json.Marshal(payload)
+			wrongPayloadString := payloadStr[:len(payloadStr)-1]
+			Expect(err).NotTo(HaveOccurred())
+			req := SendRequest(a, "POST", "/apps")
+			res := req.WithBytes([]byte(wrongPayloadString)).Expect()
+
+			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
+		})
 	})
 })

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -19,7 +17,7 @@ import (
 type BatchPGWorker struct {
 	Config                *viper.Viper
 	Logger                zap.Logger
-	Db                    *gorp.DbMap
+	Db                    *models.DB
 	ConfigPath            string
 	BatchPGWorkerDoneChan chan struct{}
 	PgToParserChan        chan string
@@ -60,7 +58,7 @@ func (worker *BatchPGWorker) connectDatabase() {
 	port := worker.Config.GetInt("postgres.port")
 	sslMode := worker.Config.GetString("postgres.sslMode")
 
-	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
+	db, err := models.GetDB(worker.Logger, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
 		worker.Logger.Error(

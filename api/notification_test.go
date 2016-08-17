@@ -7,18 +7,23 @@ import (
 	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
-
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Marathon API Handler", func() {
+	var (
+		l zap.Logger
+	)
 	BeforeEach(func() {
 		type Table struct {
 			TableName string `db:"tablename"`
 		}
-		_db, err := models.GetTestDB()
+		l = mt.NewMockLogger()
+		_db, err := models.GetTestDB(l)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(_db).NotTo(BeNil())
 

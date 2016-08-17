@@ -34,7 +34,7 @@ func (o *UserToken) PreInsert(s gorp.SqlExecutor) error {
 }
 
 // GetUserTokenByID returns a template by id
-func GetUserTokenByID(db *gorp.DbMap, app string, service string, id uuid.UUID) (*UserToken, error) {
+func GetUserTokenByID(db *DB, app string, service string, id uuid.UUID) (*UserToken, error) {
 	var userToken UserToken
 	tableName := GetTableName(app, service)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id=$1", tableName)
@@ -46,7 +46,7 @@ func GetUserTokenByID(db *gorp.DbMap, app string, service string, id uuid.UUID) 
 }
 
 // GetUserTokenByToken returns userToken with the given service,token
-func GetUserTokenByToken(db *gorp.DbMap, app string, service string, token string) (*UserToken, error) {
+func GetUserTokenByToken(db *DB, app string, service string, token string) (*UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE token=$1", tableName)
@@ -63,7 +63,7 @@ func GetUserTokenByToken(db *gorp.DbMap, app string, service string, token strin
 
 // GetUserTokensBatchByFilters returns userTokens with the given filters starting at offset and limited to limit
 // We use filters [][]interface{} and modifiers [][]interface{} because the order is important
-func GetUserTokensBatchByFilters(db *gorp.DbMap, app string, service string, filters [][]interface{},
+func GetUserTokensBatchByFilters(db *DB, app string, service string, filters [][]interface{},
 	modifiers [][]interface{}) ([]UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)
@@ -137,7 +137,7 @@ func GetUserTokensBatchByFilters(db *gorp.DbMap, app string, service string, fil
 
 // CountUserTokensByFilters returns userTokens with the given filters starting at offset and limited to limit
 // We use filters [][]interface{} and modifiers [][]interface{} because the order is important
-func CountUserTokensByFilters(db *gorp.DbMap, app string, service string, filters [][]interface{},
+func CountUserTokensByFilters(db *DB, app string, service string, filters [][]interface{},
 	modifiers [][]interface{}) (int64, error) {
 	tableName := GetTableName(app, service)
 
@@ -205,7 +205,7 @@ func CountUserTokensByFilters(db *gorp.DbMap, app string, service string, filter
 }
 
 // UpsertToken inserts or updates a Token
-func UpsertToken(db *gorp.DbMap, app string, service string, userID string, token string, locale string,
+func UpsertToken(db *DB, app string, service string, userID string, token string, locale string,
 	region string, tz string, buildn string, optOut []string) (*UserToken, error) {
 	tableName := GetTableName(app, service)
 
@@ -258,13 +258,14 @@ func GetTableName(app string, service string) string {
 }
 
 // CreateUserTokensTable creates a table for the model UserToken with the name based on app and service
-func CreateUserTokensTable(db *gorp.DbMap, app string, service string) (*gorp.TableMap, error) {
+func CreateUserTokensTable(db *DB, app string, service string) (*gorp.TableMap, error) {
 	tableName := GetTableName(app, service)
-	Logger.Info(
+	db.Logger.Info(
 		"TableName",
 		zap.String("name", tableName),
 	)
 
+	// FIXME: try t avoid SQL INJECTION
 	createQuery := fmt.Sprintf(`
     CREATE TABLE IF NOT EXISTS %s (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -297,7 +298,7 @@ func CreateUserTokensTable(db *gorp.DbMap, app string, service string) (*gorp.Ta
 	if createErr != nil {
 		_, dropErr := db.Exec(dropQuery)
 		if dropErr != nil {
-			Logger.Error(
+			db.Logger.Error(
 				"Could not exec queries",
 				zap.String("createQuery", createQuery),
 				zap.String("dropQuery", dropQuery),
@@ -306,7 +307,7 @@ func CreateUserTokensTable(db *gorp.DbMap, app string, service string) (*gorp.Ta
 			)
 			return nil, dropErr
 		}
-		Logger.Error(
+		db.Logger.Error(
 			"Could not exec query",
 			zap.String("query", createQuery),
 			zap.Error(createErr),
@@ -314,7 +315,7 @@ func CreateUserTokensTable(db *gorp.DbMap, app string, service string) (*gorp.Ta
 		return nil, createErr
 	}
 
-	Logger.Info(
+	db.Logger.Info(
 		"Created table",
 		zap.String("table name", tableName),
 		zap.String("table", fmt.Sprintf("%+v", created)),

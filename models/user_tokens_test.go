@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/models"
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
+	"github.com/uber-go/zap"
 )
 
 type Table struct {
@@ -18,10 +18,12 @@ type Table struct {
 
 var _ = Describe("Models", func() {
 	var (
-		db *gorp.DbMap
+		db *models.DB
+		l  zap.Logger
 	)
 	BeforeEach(func() {
-		_db, err := models.GetTestDB()
+		l = mt.NewMockLogger()
+		_db, err := models.GetTestDB(l)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(_db).NotTo(BeNil())
 		db = _db

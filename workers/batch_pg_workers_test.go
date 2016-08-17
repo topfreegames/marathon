@@ -6,17 +6,17 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"git.topfreegames.com/topfreegames/marathon/util"
 	"git.topfreegames.com/topfreegames/marathon/workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Models", func() {
@@ -24,7 +24,8 @@ var _ = Describe("Models", func() {
 		TableName string `db:"tablename"`
 	}
 	var (
-		db               *gorp.DbMap
+		db               *models.DB
+		l                zap.Logger
 		err              error
 		appName          string
 		service          string
@@ -45,7 +46,8 @@ var _ = Describe("Models", func() {
 	)
 
 	BeforeEach(func() {
-		_db, err := models.GetTestDB()
+		l = mt.NewMockLogger()
+		_db, err := models.GetTestDB(l)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(_db).NotTo(BeNil())
 		db = _db
@@ -123,7 +125,7 @@ var _ = Describe("Models", func() {
 			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
 			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("batch_pg_workers.producer.topicTemplate"))
 
-			go consumer.Consumer(config, "workers", appName, service, outChan, doneChan)
+			go consumer.Consumer(l, config, "workers", appName, service, outChan, doneChan)
 
 			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())
@@ -182,7 +184,7 @@ var _ = Describe("Models", func() {
 			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
 			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("batch_pg_workers.producer.topicTemplate"))
 
-			go consumer.Consumer(config, "workers", appName, service, outChan, doneChan)
+			go consumer.Consumer(l, config, "workers", appName, service, outChan, doneChan)
 
 			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())

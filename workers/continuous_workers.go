@@ -2,10 +2,7 @@ package workers
 
 import (
 	"fmt"
-	"os"
 	"strings"
-
-	"gopkg.in/gorp.v1"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
@@ -15,16 +12,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
-
-// FIXME: Try to use a better way to define log level (do the same in the entire project)
-func getLogLevel() zap.Level {
-	var level = zap.WarnLevel
-	var environment = os.Getenv("ENV")
-	if environment == "test" {
-		level = zap.FatalLevel
-	}
-	return level
-}
 
 // ContinuousWorker contains all continuous worker configs and channels
 type ContinuousWorker struct {
@@ -42,7 +29,7 @@ type ContinuousWorker struct {
 	BuilderDoneChan        chan struct{}
 	Config                 *viper.Viper
 	Logger                 zap.Logger
-	Db                     *gorp.DbMap
+	Db                     *models.DB
 	ConfigPath             string
 }
 
@@ -77,7 +64,7 @@ func (worker *ContinuousWorker) connectDatabase() {
 	port := worker.Config.GetInt("postgres.port")
 	sslMode := worker.Config.GetString("postgres.sslMode")
 
-	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
+	db, err := models.GetDB(worker.Logger, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
 		worker.Logger.Error(
@@ -147,7 +134,7 @@ func (worker *ContinuousWorker) Configure() {
 func (worker *ContinuousWorker) StartWorker() {
 	// Run modules
 	for i := 0; i < worker.Config.GetInt("workers.modules.consumers"); i++ {
-		go consumer.Consumer(worker.Config, "workers", worker.App, worker.Service,
+		go consumer.Consumer(worker.Logger, worker.Config, "workers", worker.App, worker.Service,
 			worker.InputKafkaChan, worker.KafkaDoneChan)
 	}
 	for i := 0; i < worker.Config.GetInt("workers.modules.parsers"); i++ {

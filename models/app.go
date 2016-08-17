@@ -32,7 +32,7 @@ func (a *App) PreUpdate(s gorp.SqlExecutor) error {
 }
 
 // CountApps count the number of apps in the db
-func CountApps(db *gorp.DbMap) (int64, error) {
+func CountApps(db *DB) (int64, error) {
 	count, err := db.SelectInt("SELECT COUNT(1) FROM apps")
 	if err != nil {
 		return int64(0), err
@@ -41,7 +41,7 @@ func CountApps(db *gorp.DbMap) (int64, error) {
 }
 
 // GetAppByID returns an app by id
-func GetAppByID(db *gorp.DbMap, id uuid.UUID) (*App, error) {
+func GetAppByID(db *DB, id uuid.UUID) (*App, error) {
 	obj, err := db.Get(App{}, id)
 	if err != nil || obj == nil {
 		return nil, &ModelNotFoundError{"App", "id", id}
@@ -50,7 +50,7 @@ func GetAppByID(db *gorp.DbMap, id uuid.UUID) (*App, error) {
 }
 
 // GetAppByName returns an app by its name
-func GetAppByName(db *gorp.DbMap, name string) (*App, error) {
+func GetAppByName(db *DB, name string) (*App, error) {
 	var app App
 	err := db.SelectOne(&app, "SELECT * FROM apps WHERE name=$1", name)
 	if err != nil || &app == nil {
@@ -60,7 +60,7 @@ func GetAppByName(db *gorp.DbMap, name string) (*App, error) {
 }
 
 // GetAppsByGroup returns all apps in a group
-func GetAppsByGroup(db *gorp.DbMap, group string) ([]App, error) {
+func GetAppsByGroup(db *DB, group string) ([]App, error) {
 	var apps []App
 	_, err := db.Select(&apps, "SELECT * FROM apps WHERE \"group\"=$1", group)
 	if err != nil || &apps == nil || len(apps) == 0 {
@@ -70,7 +70,7 @@ func GetAppsByGroup(db *gorp.DbMap, group string) ([]App, error) {
 }
 
 // CreateApp creates a new App
-func CreateApp(db *gorp.DbMap, name string, organizationid uuid.UUID, appgroup string) (*App, error) {
+func CreateApp(db *DB, name string, organizationid uuid.UUID, appgroup string) (*App, error) {
 	app := &App{
 		Name:           name,
 		OrganizationID: organizationid,
@@ -84,7 +84,7 @@ func CreateApp(db *gorp.DbMap, name string, organizationid uuid.UUID, appgroup s
 }
 
 // UpdateApp updates an App
-func UpdateApp(db *gorp.DbMap, id uuid.UUID, name string, organizationid uuid.UUID, appgroup string) (*App, error) {
+func UpdateApp(db *DB, id uuid.UUID, name string, organizationid uuid.UUID, appgroup string) (*App, error) {
 	app, getAppErr := GetAppByID(db, id)
 	if getAppErr != nil {
 		return nil, getAppErr

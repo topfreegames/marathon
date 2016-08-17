@@ -2,7 +2,6 @@ package consumer
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
@@ -11,17 +10,6 @@ import (
 )
 
 // FIXME: Try to use a better way to define log level (do the same in the entire project)
-func getLogLevel() zap.Level {
-	var level = zap.WarnLevel
-	var environment = os.Getenv("ENV")
-	if environment == "test" {
-		level = zap.FatalLevel
-	}
-	return level
-}
-
-// Logger is the consumer logger
-var Logger = zap.NewJSON(getLogLevel(), zap.AddCaller())
 
 // consumeError is an error generated during data consumption
 type consumeError struct {
@@ -33,7 +21,7 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(config *viper.Viper, configRoot, app, service string, outChan chan<- string, doneChan <-chan struct{}) error {
+func Consumer(l zap.Logger, config *viper.Viper, configRoot, app, service string, outChan chan<- string, doneChan <-chan struct{}) error {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
@@ -45,7 +33,7 @@ func Consumer(config *viper.Viper, configRoot, app, service string, outChan chan
 	consumerGroup := config.GetString(fmt.Sprintf("%s.consumer.consumergroup", configRoot))
 	topicTemplate := config.GetString(fmt.Sprintf("%s.consumer.topicTemplate", configRoot))
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}
-	Logger.Warn(
+	l.Warn(
 		"Create consumer group",
 		zap.String("brokers", fmt.Sprintf("%+v", brokers)),
 		zap.String("consumerGroup", consumerGroup),
@@ -57,42 +45,42 @@ func Consumer(config *viper.Viper, configRoot, app, service string, outChan chan
 	// Create consumer defined by the configurations
 	consumer, err := cluster.NewConsumer(brokers, consumerGroup, topics, clusterConfig)
 	if err != nil {
-		Logger.Error("Could not create consumer", zap.String("error", err.Error()))
+		l.Error("Could not create consumer", zap.String("error", err.Error()))
 		return err
 	}
 	defer consumer.Close()
 
 	go func() {
 		for err := range consumer.Errors() {
-			Logger.Error("Consumer error", zap.String("error", err.Error()))
+			l.Error("Consumer error", zap.String("error", err.Error()))
 		}
 	}()
 
 	go func() {
 		for notif := range consumer.Notifications() {
-			Logger.Info("Rebalanced", zap.String("", fmt.Sprintf("%+v", notif)))
+			l.Info("Rebalanced", zap.String("", fmt.Sprintf("%+v", notif)))
 		}
 	}()
-	Logger.Info("Starting kafka consumer")
-	MainLoop(consumer, outChan, doneChan)
-	Logger.Info("Stopped kafka consumer")
+	l.Info("Starting kafka consumer")
+	MainLoop(l, consumer, outChan, doneChan)
+	l.Info("Stopped kafka consumer")
 	return nil
 }
 
 // MainLoop to read messages from Kafka and send them forward in the pipeline
-func MainLoop(consumer *cluster.Consumer, outChan chan<- string, doneChan <-chan struct{}) {
+func MainLoop(l zap.Logger, consumer *cluster.Consumer, outChan chan<- string, doneChan <-chan struct{}) {
 	for {
 		select {
 		case <-doneChan:
 			return // breaks out of the for
 		case msg, ok := <-consumer.Messages():
 			if !ok {
-				Logger.Error("Not ok consuming from Kafka", zap.String("msg", fmt.Sprintf("%+v", msg)))
+				l.Error("Not ok consuming from Kafka", zap.String("msg", fmt.Sprintf("%+v", msg)))
 				return // breaks out of the for
 			}
-			strMsg, err := Consume(msg)
+			strMsg, err := Consume(l, msg)
 			if err != nil {
-				Logger.Error("Error reading kafka message", zap.Error(err))
+				l.Error("Error reading kafka message", zap.Error(err))
 				continue
 			}
 			// FIXME: Is it the rigth place to mark offset?
@@ -103,12 +91,12 @@ func MainLoop(consumer *cluster.Consumer, outChan chan<- string, doneChan <-chan
 }
 
 // Consume extracts the message from the consumer message
-func Consume(kafkaMsg *sarama.ConsumerMessage) (string, error) {
-	Logger.Info("Consume message", zap.String("msg", fmt.Sprintf("%+v", kafkaMsg)))
+func Consume(l zap.Logger, kafkaMsg *sarama.ConsumerMessage) (string, error) {
+	l.Info("Consume message", zap.String("msg", fmt.Sprintf("%+v", kafkaMsg)))
 	msg := string(kafkaMsg.Value)
 	if msg == "" {
 		return "", consumeError{"Empty message"}
 	}
-	Logger.Info("Consumed message", zap.String("msg", msg))
+	l.Info("Consumed message", zap.String("msg", msg))
 	return msg, nil
 }

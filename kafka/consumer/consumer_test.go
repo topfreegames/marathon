@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
-
+	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/Shopify/sarama"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
+	"github.com/uber-go/zap"
 )
 
 func produceMessage(brokers []string, topic string, message string, partition int32, offset int64) {
@@ -30,17 +31,23 @@ func produceMessage(brokers []string, topic string, message string, partition in
 }
 
 var _ = Describe("Consumer", func() {
+	var (
+		l zap.Logger
+	)
+	BeforeEach(func() {
+		l = mt.NewMockLogger()
+	})
 	Describe("Consume", func() {
 		It("Should not consume an empty message", func() {
 			message := ""
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
-			_, err := consumer.Consume(&kafkaMsg)
+			_, err := consumer.Consume(l, &kafkaMsg)
 			Expect(err).To(HaveOccurred())
 		})
 		It("Should consume one message correctly and retrieve it", func() {
 			message := "message"
 			kafkaMsg := sarama.ConsumerMessage{Value: []byte(message)}
-			msg, err := consumer.Consume(&kafkaMsg)
+			msg, err := consumer.Consume(l, &kafkaMsg)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(msg).To(Equal(message))
 		})
@@ -63,7 +70,7 @@ var _ = Describe("Consumer", func() {
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
-			go consumer.Consumer(config, "workers", app, service, outChan, doneChan)
+			go consumer.Consumer(l, config, "workers", app, service, outChan, doneChan)
 
 			// Produce Messages
 			message := "message"
@@ -90,7 +97,7 @@ var _ = Describe("Consumer", func() {
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
-			go consumer.Consumer(config, "workers", app, service, outChan, doneChan)
+			go consumer.Consumer(l, config, "workers", app, service, outChan, doneChan)
 
 			// Produce Messages
 			message1 := fmt.Sprintf(message, 1)
@@ -121,7 +128,7 @@ var _ = Describe("Consumer", func() {
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
-			go consumer.Consumer(config, "workers", app, service, outChan, doneChan)
+			go consumer.Consumer(l, config, "workers", app, service, outChan, doneChan)
 
 			produceMessage(brokers, topic, "", int32(0), int64(0))
 			produceMessage(brokers, topic, "message", int32(0), int64(1))
@@ -148,7 +155,7 @@ var _ = Describe("Consumer", func() {
 			defer close(doneChan)
 
 			// Consumer returns here and don't get blocked
-			consumer.Consumer(config, "workers", app, service, outChan, doneChan)
+			consumer.Consumer(l, config, "workers", app, service, outChan, doneChan)
 		})
 	})
 })

@@ -5,8 +5,6 @@ import (
 	"path"
 	"runtime"
 
-	"gopkg.in/gorp.v1"
-
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,7 +14,7 @@ import (
 
 var migrationVersion int64
 
-func getDatabase(l zap.Logger) (*gorp.DbMap, error) {
+func getDatabase(l zap.Logger) (*models.DB, error) {
 	host := viper.GetString("postgres.host")
 	user := viper.GetString("postgres.user")
 	dbName := viper.GetString("postgres.dbname")
@@ -32,7 +30,7 @@ func getDatabase(l zap.Logger) (*gorp.DbMap, error) {
 		zap.String("dbName", dbName),
 		zap.String("sslMode", sslMode),
 	)
-	db, err := models.GetDB(host, user, port, sslMode, dbName, password)
+	db, err := models.GetDB(l, host, user, port, sslMode, dbName, password)
 	return db, err
 }
 

@@ -59,7 +59,7 @@ var _ = Describe("Producer", func() {
 		outChan := make(chan string, 10)
 		doneChanCons := make(chan struct{}, 1)
 		defer close(doneChanCons)
-		go consumer.Consumer(consumerConfig, "workers", app, service, outChan, doneChanCons)
+		go consumer.Consumer(l, consumerConfig, "workers", app, service, outChan, doneChanCons)
 
 		consumedMessage1 := <-outChan
 		consumedMessage2 := <-outChan
