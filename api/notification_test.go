@@ -94,7 +94,7 @@ var _ = Describe("Marathon API Handler", func() {
 					"metadata": map[string]interface{}{"meta": "data"},
 				},
 			}
-			res := PostJSON(a, "/apps/appName/users/notifications", payload)
+			res := PostJSON(a, "/apps/notifications", payload)
 
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
 			var result map[string]interface{}
@@ -150,7 +150,7 @@ var _ = Describe("Marathon API Handler", func() {
 			payloadStr, err := json.Marshal(payload)
 			wrongPayloadString := payloadStr[:len(payloadStr)-1]
 			Expect(err).NotTo(HaveOccurred())
-			req := SendRequest(a, "POST", "/apps/appName/users/notifications")
+			req := SendRequest(a, "POST", "/apps/notifications")
 			res := req.WithBytes([]byte(wrongPayloadString)).Expect()
 
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
@@ -214,7 +214,7 @@ var _ = Describe("Marathon API Handler", func() {
 					"metadata": map[string]interface{}{"meta": "data"},
 				},
 			}
-			res := PostJSON(a, "/apps/appName/users/notifications", payload)
+			res := PostJSON(a, "/apps/notifications", payload)
 
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
 			var result map[string]interface{}

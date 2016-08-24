@@ -257,6 +257,8 @@ func (worker *BatchPGWorker) SetStatus() {
 		worker.Logger.Panic("Could not parse worker status", zap.Error(err))
 	}
 	strStatus := string(byteStatus)
+
+	// FIXME: What's the best TTL to set? 30 * time.Day ?
 	if err = cli.Set(worker.ID.String(), strStatus, 0).Err(); err != nil {
 		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
 	}

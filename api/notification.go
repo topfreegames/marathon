@@ -35,9 +35,6 @@ type notificationPayload struct {
 // SendNotificationHandler is the handler responsible for creating new apps
 func SendNotificationHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
-		// start := time.Now()
-		// appName := c.Param("appName")
-
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
 			zap.String("operation", "sendNotification"),

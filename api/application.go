@@ -209,7 +209,7 @@ func (application *Application) configureApplicationlication() error {
 	a.Post("/apps", CreateAppHandler(application))
 
 	// Send a push notification by filters
-	a.Post("/apps/:appName/users/notifications", SendNotificationHandler(application))
+	a.Post("/apps/notifications", SendNotificationHandler(application))
 	a.Get("/apps/notifications/:notificationId", GetNotificationStatusHandler(application))
 
 	redisHost := application.Config.GetString("redis.host")
