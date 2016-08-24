@@ -158,7 +158,7 @@ var _ = Describe("Template", func() {
 
 				var config = viper.New()
 				config.Set("workers.producer.topicTemplate", "%s_%s")
-				msg, err := templates.Build(l, config, "workers", req)
+				msg, err := templates.Build(l, config, req)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello, world","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
@@ -176,7 +176,7 @@ var _ = Describe("Template", func() {
 				}
 				var config = viper.New()
 				config.Set("workers.producer.topicTemplate", "%s_%s")
-				msg, err := templates.Build(l, config, "workers", req)
+				msg, err := templates.Build(l, config, req)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"DeviceToken":"token","Payload":{"aps":{"alert":"Hello","badge":1},"m":{"meta":"data"}},"push_expiry":0}`))
@@ -195,7 +195,7 @@ var _ = Describe("Template", func() {
 				}
 				var config = viper.New()
 				config.Set("workers.producer.topicTemplate", "%s_%s")
-				msg, err := templates.Build(l, config, "workers", req)
+				msg, err := templates.Build(l, config, req)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
@@ -212,7 +212,7 @@ var _ = Describe("Template", func() {
 				}
 				var config = viper.New()
 				config.Set("workers.producer.topicTemplate", "%s_%s")
-				msg, err := templates.Build(l, config, "workers", req)
+				msg, err := templates.Build(l, config, req)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(msg.Message).To(Equal(`{"to":"token","data":{"m":{"meta":"data"},"subtitle":"Hello","title":"Hello, world"},"push_expiry":0}`))
 			})
@@ -229,7 +229,7 @@ var _ = Describe("Template", func() {
 				}
 				var config = viper.New()
 				config.Set("workers.producer.topicTemplate", "%s_%s")
-				msg, err := templates.Build(l, config, "workers", req)
+				msg, err := templates.Build(l, config, req)
 
 				Expect(err).To(HaveOccurred())
 				Expect(msg).To(BeNil())
@@ -263,7 +263,7 @@ var _ = Describe("Template", func() {
 
 				var config = viper.New()
 				config.Set("workers.producer.topicTemplate", "%s_%s")
-				go templates.Builder(l, config, "workers", inChan, outChan, doneChan)
+				go templates.Builder(l, config, inChan, outChan, doneChan)
 
 				go func() {
 					inChan <- reqGcm

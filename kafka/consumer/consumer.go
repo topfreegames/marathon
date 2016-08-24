@@ -21,7 +21,7 @@ func (e consumeError) Error() string {
 }
 
 // Consumer reads from the specified Kafka topic while the Messages channel is open
-func Consumer(l zap.Logger, config *viper.Viper, configRoot, app, service string, outChan chan<- string, doneChan <-chan struct{}) error {
+func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan chan<- string, doneChan <-chan struct{}) error {
 	// Set configurations for consumer
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
@@ -29,9 +29,9 @@ func Consumer(l zap.Logger, config *viper.Viper, configRoot, app, service string
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
-	brokers := config.GetStringSlice(fmt.Sprintf("%s.consumer.brokers", configRoot))
-	consumerGroup := config.GetString(fmt.Sprintf("%s.consumer.consumergroup", configRoot))
-	topicTemplate := config.GetString(fmt.Sprintf("%s.consumer.topicTemplate", configRoot))
+	brokers := config.GetStringSlice("workers.consumer.brokers")
+	consumerGroup := config.GetString("workers.consumer.consumergroup")
+	topicTemplate := config.GetString("workers.consumer.topicTemplate")
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}
 	l.Warn(
 		"Create consumer group",

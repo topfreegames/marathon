@@ -87,20 +87,20 @@ func (worker *BatchPGWorker) setConfigurationDefaults() {
 	worker.Config.SetDefault("postgres.port", 5432)
 	worker.Config.SetDefault("postgres.sslmode", "disable")
 	worker.Config.SetDefault("postgres.sslmode", "disable")
-	worker.Config.SetDefault("batch_pg_workers.modules.logger.level", "error")
-	worker.Config.SetDefault("batch_pg_workers.modules.producers", 1)
-	worker.Config.SetDefault("batch_pg_workers.postgres.defaults.pushexpiry", 0)
-	worker.Config.SetDefault("batch_pg_workers.postgres.defaults.modifiers.limit", 1000)
-	worker.Config.SetDefault("batch_pg_workers.postgres.defaults.modifiers.order", "updated_at ASC")
-	worker.Config.SetDefault("batch_pg_workers.modules.batchpgworkerdonechan", 1)
-	worker.Config.SetDefault("batch_pg_workers.modules.pgtoparserchan", 10000)
-	worker.Config.SetDefault("batch_pg_workers.modules.parserdonechan", 1)
-	worker.Config.SetDefault("batch_pg_workers.modules.parsertofetcherchan", 1000)
-	worker.Config.SetDefault("batch_pg_workers.modules.fetcherdonechan", 1)
-	worker.Config.SetDefault("batch_pg_workers.modules.fetchertobuilderchan", 1000)
-	worker.Config.SetDefault("batch_pg_workers.modules.builderdonechan", 1)
-	worker.Config.SetDefault("batch_pg_workers.modules.buildertoproducerchan", 1000)
-	worker.Config.SetDefault("batch_pg_workers.modules.producerdonechan", 1)
+	worker.Config.SetDefault("workers.modules.logger.level", "error")
+	worker.Config.SetDefault("workers.modules.producers", 1)
+	worker.Config.SetDefault("workers.postgres.defaults.pushexpiry", 0)
+	worker.Config.SetDefault("workers.postgres.defaults.modifiers.limit", 1000)
+	worker.Config.SetDefault("workers.postgres.defaults.modifiers.order", "updated_at ASC")
+	worker.Config.SetDefault("workers.modules.batchpgworkerdonechan", 1)
+	worker.Config.SetDefault("workers.modules.pgtoparserchan", 10000)
+	worker.Config.SetDefault("workers.modules.parserdonechan", 1)
+	worker.Config.SetDefault("workers.modules.parsertofetcherchan", 1000)
+	worker.Config.SetDefault("workers.modules.fetcherdonechan", 1)
+	worker.Config.SetDefault("workers.modules.fetchertobuilderchan", 1000)
+	worker.Config.SetDefault("workers.modules.builderdonechan", 1)
+	worker.Config.SetDefault("workers.modules.buildertoproducerchan", 1000)
+	worker.Config.SetDefault("workers.modules.producerdonechan", 1)
 }
 
 func (worker *BatchPGWorker) loadConfiguration() {
@@ -133,31 +133,31 @@ func (worker *BatchPGWorker) StartWorker(message *messages.InputMessage, filters
 	worker.Logger.Info("Starting worker pipeline...")
 
 	// Run modules
-	qtyParsers := worker.Config.GetInt("batch_pg_workers.modules.parsers")
+	qtyParsers := worker.Config.GetInt("workers.modules.parsers")
 	worker.Logger.Debug("Starting parser...", zap.Int("quantity", qtyParsers))
 	for i := 0; i < qtyParsers; i++ {
 		go templates.Parser(worker.Logger, requireToken, worker.PgToParserChan, worker.ParserToFetcherChan, worker.ParserDoneChan)
 	}
 	worker.Logger.Debug("Started parser...", zap.Int("quantity", qtyParsers))
 
-	qtyFetchers := worker.Config.GetInt("batch_pg_workers.modules.fetchers")
+	qtyFetchers := worker.Config.GetInt("workers.modules.fetchers")
 	worker.Logger.Debug("Starting fetcher...", zap.Int("quantity", qtyFetchers))
 	for i := 0; i < qtyFetchers; i++ {
 		go templates.Fetcher(worker.Logger, worker.ParserToFetcherChan, worker.FetcherToBuilderChan, worker.FetcherDoneChan, worker.Db)
 	}
 	worker.Logger.Debug("Started fetcher...", zap.Int("quantity", qtyFetchers))
 
-	qtyBuilders := worker.Config.GetInt("batch_pg_workers.modules.builders")
+	qtyBuilders := worker.Config.GetInt("workers.modules.builders")
 	worker.Logger.Debug("Starting builder...", zap.Int("quantity", qtyBuilders))
 	for i := 0; i < qtyBuilders; i++ {
-		go templates.Builder(worker.Logger, worker.Config, "batch_pg_workers", worker.FetcherToBuilderChan, worker.BuilderToProducerChan, worker.BuilderDoneChan)
+		go templates.Builder(worker.Logger, worker.Config, worker.FetcherToBuilderChan, worker.BuilderToProducerChan, worker.BuilderDoneChan)
 	}
 	worker.Logger.Debug("Started builder...", zap.Int("quantity", qtyBuilders))
 
-	qtyProducers := worker.Config.GetInt("batch_pg_workers.modules.producers")
+	qtyProducers := worker.Config.GetInt("workers.modules.producers")
 	worker.Logger.Debug("Starting producer...", zap.Int("quantity", qtyProducers))
 	for i := 0; i < qtyProducers; i++ {
-		go producer.Producer(worker.Logger, worker.Config, "batch_pg_workers", worker.BuilderToProducerChan, worker.ProducerDoneChan)
+		go producer.Producer(worker.Logger, worker.Config, worker.BuilderToProducerChan, worker.ProducerDoneChan)
 	}
 	worker.Logger.Debug("Started producer...", zap.Int("quantity", qtyProducers))
 

@@ -13,32 +13,12 @@ workers:
     level: "fatal"
   consumer:
     consumergroup: "integration-test-consumer-group"
-    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-consumer-topic"
     brokers: [ "localhost:3536" ]
   producer:
     brokers: [ "localhost:3536" ]
-  modules:
-    consumers: 1
-    parsers: 1
-    fetchers: 1
-    builders: 1
-    producers: 1
-    kafkadonechansize: 1
-    fetcherdonechansize: 1
-    inputkafkachansize: 10
-    inputchansize: 10
-    kafkatoparserchansize: 10
-    parsertofetcherchansize: 10
-    fetchertobuilderchansize: 10
-    buildertokafkachansize: 10
-    buildertokafkadonechansize: 1
-batch_pg_workers:
-  logger:
-    level: "fatal"
-  producer:
-    brokers: [ "localhost:3536" ]
-    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-consumer-topic"
   modules:
     producers: 1

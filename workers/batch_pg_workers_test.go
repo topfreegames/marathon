@@ -121,11 +121,11 @@ var _ = Describe("Models", func() {
 
 			batchWorkerConfig := *worker.Config
 			var config = viper.New()
-			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("batch_pg_workers.producer.brokers"))
+			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("workers.producer.brokers"))
 			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
-			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("batch_pg_workers.producer.topicTemplate"))
+			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("workers.producer.topicTemplate"))
 
-			go consumer.Consumer(l, config, "workers", appName, service, outChan, doneChan)
+			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
 
 			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())
@@ -180,11 +180,11 @@ var _ = Describe("Models", func() {
 
 			batchWorkerConfig := *worker.Config
 			var config = viper.New()
-			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("batch_pg_workers.producer.brokers"))
+			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("workers.producer.brokers"))
 			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
-			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("batch_pg_workers.producer.topicTemplate"))
+			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("workers.producer.topicTemplate"))
 
-			go consumer.Consumer(l, config, "workers", appName, service, outChan, doneChan)
+			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
 
 			batchWorker.StartWorker(message, filters, modifiers)
 			Expect(batchWorker).NotTo(BeNil())

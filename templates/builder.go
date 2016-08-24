@@ -22,14 +22,14 @@ func (e buildError) Error() string {
 }
 
 // Builder reads the messages from the inChan and generates messages to be sent to Kafka in the outChan
-func Builder(l zap.Logger, config *viper.Viper, configRoot string, inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage, doneChan <-chan struct{}) {
+func Builder(l zap.Logger, config *viper.Viper, inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage, doneChan <-chan struct{}) {
 	l.Info("Starting builder")
 	for {
 		select {
 		case <-doneChan:
 			return // breaks out of the for
 		case msg := <-inChan:
-			message, err := Build(l, config, configRoot, msg)
+			message, err := Build(l, config, msg)
 			if err != nil {
 				l.Error("Error building message", zap.Error(err))
 				continue
@@ -135,7 +135,7 @@ func BuildTopicName(app, service, topicTemplate string) string {
 // Build receives a RequestMessage with Message filled with the message to be built, if Params
 // has any content. If the request was a template it should have already been fetched and placed
 // into the Message field.
-func Build(l zap.Logger, config *viper.Viper, configRoot string, request *messages.TemplatedMessage) (*messages.KafkaMessage, error) {
+func Build(l zap.Logger, config *viper.Viper, request *messages.TemplatedMessage) (*messages.KafkaMessage, error) {
 	// Replace template
 	byteMessage, err := json.Marshal(request.Message)
 	if err != nil {
@@ -149,7 +149,7 @@ func Build(l zap.Logger, config *viper.Viper, configRoot string, request *messag
 		return nil, err
 	}
 
-	topicTemplate := config.GetString(fmt.Sprintf("%s.producer.topicTemplate", configRoot))
+	topicTemplate := config.GetString("workers.producer.topicTemplate")
 	topic := BuildTopicName(request.App, request.Service, topicTemplate)
 
 	var builtMessage string

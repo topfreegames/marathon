@@ -1,8 +1,6 @@
 package producer
 
 import (
-	"fmt"
-
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
@@ -10,12 +8,12 @@ import (
 )
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
-func Producer(l zap.Logger, config *viper.Viper, configRoot string, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
+func Producer(l zap.Logger, config *viper.Viper, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
 	l.Info("Starting producer")
 	saramaConfig := sarama.NewConfig()
 	l = l.With(zap.Object("saramaConfig", saramaConfig))
 	producer, err := sarama.NewSyncProducer(
-		config.GetStringSlice(fmt.Sprintf("%s.producer.brokers", configRoot)),
+		config.GetStringSlice("workers.producer.brokers"),
 		saramaConfig)
 	if err != nil {
 		l.Error("Failed to start kafka producer", zap.Error(err))
