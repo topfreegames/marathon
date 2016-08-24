@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -21,46 +22,33 @@ var RootCmd = &cobra.Command{
 // Execute runs RootCmd to initialize marathon CLI application
 func Execute(cmd *cobra.Command, l zap.Logger) {
 	if err := cmd.Execute(); err != nil {
-		l.Error("Error", zap.Error(err))
+		l.Fatal("Error", zap.Error(err))
 		os.Exit(-1)
 	}
 }
 
-func init() {
-	var environment = os.Getenv("ENV")
-	if environment == "" {
-		environment = "development"
-	}
-	filename := "./config/" + environment + ".yaml"
-	RootCmd.PersistentFlags().StringVarP(
-		// cobra.OnInitialize(initConfig)
-		&ConfigFile, "config", "c", filename,
-		"config file uses ENV",
-	)
-}
+func init() {}
 
 // InitConfig reads in config file and ENV variables if set.
-func InitConfig(l zap.Logger) {
-	if ConfigFile != "" { // enable ability to specify config file via flag
-		viper.SetConfigFile(ConfigFile)
-	} else {
-		var environment = os.Getenv("ENV")
-		if environment == "" {
-			environment = "development"
-		}
-		ConfigFile = "./config/" + environment + ".yml"
-		viper.SetConfigFile(ConfigFile)
+func InitConfig(l zap.Logger, configFile string) {
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		fmt.Println(err)
+		l.Fatal("Config file does not exist", zap.String("configFile", configFile))
+		os.Exit(-1)
 	}
+	viper.SetConfigFile(configFile)
 	viper.SetEnvPrefix("marathon")
 	viper.SetConfigName(".marathon") // name of config file (without extension)
 	viper.AddConfigPath("$HOME")     // adding home directory as first search path
 	viper.AutomaticEnv()             // read in environment variables that match
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		l.Info(
-			"Using config file",
-			zap.String("Config file", viper.ConfigFileUsed()),
-		)
+	if err := viper.ReadInConfig(); err != nil {
+		l.Fatal("Error", zap.Error(err))
+		os.Exit(-1)
 	}
+	l.Info(
+		"Using config file",
+		zap.String("Config file", viper.ConfigFileUsed()),
+	)
 }

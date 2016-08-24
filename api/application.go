@@ -191,13 +191,6 @@ func (application *Application) configureApplicationlication() {
 
 	// Send a push notification by filters
 	a.Post("/apps/:appName/users/notifications", SendNotificationHandler(application))
-
-	// a.Put("/apps/:app_name/users/notification", CreateAppHandler(application))
-	// a.Post("/notifiers", controllers.CreateNotifierHandler(application))
-	// a.Post("/organizations", controllers.CreateOrganizationHandler(application))
-	// a.Post("/templates", controllers.CreateTemplatesHandler(application))
-	// a.Post("/userTokens", controllers.CreateUserTokensHandler(application))
-	// a.Post("/userTokensTable", controllers.CreateUserTokensTableHandler(application))
 }
 
 func (application *Application) finalizeApplication() {

@@ -12,7 +12,10 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var migrationVersion int64
+var (
+	migrationVersion int64
+	configFile       string
+)
 
 func getDatabase(l zap.Logger) (*models.DB, error) {
 	host := viper.GetString("postgres.host")
@@ -112,7 +115,8 @@ var migrateCmd = &cobra.Command{
 		)
 
 		cmdL.Debug("Initializing migration config...")
-		InitConfig(cmdL)
+
+		InitConfig(cmdL, configFile)
 		err := RunMigrations("", migrationVersion, cmdL)
 		if err != nil {
 			panic(err.Error())
@@ -124,4 +128,5 @@ func init() {
 	RootCmd.AddCommand(migrateCmd)
 
 	migrateCmd.Flags().Int64VarP(&migrationVersion, "target", "t", -1, "Version to run up to or down to")
+	migrateCmd.Flags().StringVarP(&configFile, "config", "c", "./config/test.yaml", "Config file")
 }
