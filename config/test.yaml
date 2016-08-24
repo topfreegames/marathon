@@ -4,6 +4,12 @@ postgres:
   host: "localhost"
   port: 5432
   sslmode: "disable"
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+  password: ""
+  maxPoolSize: 20
 sentry:
   url:
 healthcheck:

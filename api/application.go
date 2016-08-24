@@ -63,6 +63,13 @@ func (application *Application) setConfigurationDefaults() {
 	application.Config.SetDefault("postgres.dbName", "marathon")
 	application.Config.SetDefault("postgres.port", 5432)
 	application.Config.SetDefault("postgres.sslMode", "disable")
+
+	application.Config.SetDefault("redis.host", "localhost")
+	application.Config.SetDefault("redis.port", 6379)
+	application.Config.SetDefault("redis.password", "")
+	application.Config.SetDefault("redis.db", 0)
+	application.Config.SetDefault("redis.maxPoolSize", 20)
+
 	l.Debug("Configuration defaults set.")
 }
 
