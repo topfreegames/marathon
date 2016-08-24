@@ -18,6 +18,13 @@ func HealthCheckHandler(application *Application) func(c *iris.Context) {
 			return
 		}
 
+		res, err := application.RedisClient.Client.Ping().Result()
+		if err != nil || res != "PONG" {
+			c.Write(fmt.Sprintf("Error connecting to redis: %s", err))
+			c.SetStatusCode(500)
+			return
+		}
+
 		c.SetStatusCode(iris.StatusOK)
 		workingString = strings.TrimSpace(workingString)
 		c.Write(workingString)

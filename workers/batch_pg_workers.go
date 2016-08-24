@@ -4,34 +4,40 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
+	"git.topfreegames.com/topfreegames/marathon/util"
+	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
 
 // BatchPGWorker contains all batch pg worker configs and channels
 type BatchPGWorker struct {
-	Config                *viper.Viper
-	Logger                zap.Logger
-	Db                    *models.DB
-	ConfigPath            string
-	TotalTokens           int64
-	ProcessedTokens       int
-	TotalPages            int64
-	ProcessedPages        int64
-	BatchPGWorkerDoneChan chan struct{}
-	PgToParserChan        chan string
-	ParserDoneChan        chan struct{}
-	ParserToFetcherChan   chan *messages.InputMessage
-	FetcherDoneChan       chan struct{}
-	FetcherToBuilderChan  chan *messages.TemplatedMessage
-	BuilderDoneChan       chan struct{}
-	BuilderToProducerChan chan *messages.KafkaMessage
-	ProducerDoneChan      chan struct{}
+	ID                          uuid.UUID
+	Config                      *viper.Viper
+	Logger                      zap.Logger
+	Db                          *models.DB
+	ConfigPath                  string
+	RedisClient                 *util.RedisClient
+	TotalTokens                 int64
+	ProcessedTokens             int
+	TotalPages                  int64
+	ProcessedPages              int64
+	BatchPGWorkerStatusDoneChan chan struct{}
+	BatchPGWorkerDoneChan       chan struct{}
+	PgToParserChan              chan string
+	ParserDoneChan              chan struct{}
+	ParserToFetcherChan         chan *messages.InputMessage
+	FetcherDoneChan             chan struct{}
+	FetcherToBuilderChan        chan *messages.TemplatedMessage
+	BuilderDoneChan             chan struct{}
+	BuilderToProducerChan       chan *messages.KafkaMessage
+	ProducerDoneChan            chan struct{}
 }
 
 type parseError struct {
@@ -43,6 +49,7 @@ func (e parseError) Error() string {
 }
 
 func (worker *BatchPGWorker) createChannels() {
+	worker.BatchPGWorkerStatusDoneChan = make(chan struct{}, worker.Config.GetInt("batchpgworkerstatusdonechan"))
 	worker.BatchPGWorkerDoneChan = make(chan struct{}, worker.Config.GetInt("batchpgworkerdonechansize"))
 	worker.PgToParserChan = make(chan string, worker.Config.GetInt("pgtoparserchansize"))
 	worker.ParserDoneChan = make(chan struct{}, worker.Config.GetInt("parserdonechansize"))
@@ -65,7 +72,7 @@ func (worker *BatchPGWorker) connectDatabase() {
 	db, err := models.GetDB(worker.Logger, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
-		worker.Logger.Error(
+		worker.Logger.Panic(
 			"Could not connect to postgres...",
 			zap.String("host", host),
 			zap.Int("port", port),
@@ -73,9 +80,33 @@ func (worker *BatchPGWorker) connectDatabase() {
 			zap.String("dbName", dbName),
 			zap.String("error", err.Error()),
 		)
-		panic(err)
 	}
 	worker.Db = db
+}
+
+func (worker *BatchPGWorker) connectRedis() {
+	redisHost := worker.Config.GetString("redis.host")
+	redisPort := worker.Config.GetInt("redis.port")
+	redisPass := worker.Config.GetString("redis.password")
+	redisDB := worker.Config.GetInt("redis.db")
+	redisMaxPoolSize := worker.Config.GetInt("redis.maxPoolSize")
+
+	rl := worker.Logger.With(
+		zap.String("host", redisHost),
+		zap.Int("port", redisPort),
+		zap.Int("db", redisDB),
+		zap.Int("maxPoolSize", redisMaxPoolSize),
+	)
+	rl.Debug("Connecting to redis...")
+	cli, err := util.GetRedisClient(redisHost, redisPort, redisPass, redisDB, redisMaxPoolSize, rl)
+	if err != nil {
+		rl.Panic(
+			"Could not connect to redis...",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.RedisClient = cli
+	rl.Info("Connected to redis successfully.")
 }
 
 // TODO: Set all default configs
@@ -118,12 +149,14 @@ func (worker *BatchPGWorker) loadConfiguration() {
 
 // Configure configures the worker
 func (worker *BatchPGWorker) Configure() {
+	worker.ID = uuid.NewV4()
 	worker.setConfigurationDefaults()
 	worker.Logger = ConfigureLogger(Log{Level: "warn"}, worker.Config)
 	worker.loadConfiguration()
 	worker.Logger = ConfigureLogger(Log{}, worker.Config)
 	worker.createChannels()
 	worker.connectDatabase()
+	worker.connectRedis()
 }
 
 // StartWorker starts the workers according to the configuration and returns the workers object
@@ -131,6 +164,8 @@ func (worker *BatchPGWorker) StartWorker(message *messages.InputMessage, filters
 	requireToken := false
 
 	worker.Logger.Info("Starting worker pipeline...")
+
+	go worker.updateStatus(worker.BatchPGWorkerStatusDoneChan)
 
 	// Run modules
 	qtyParsers := worker.Config.GetInt("workers.modules.parsers")
@@ -189,6 +224,56 @@ func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 	}
 	worker.Configure()
 	return worker, nil
+}
+
+// GetStatus returns a map[string]interface{} with the current worker status
+func (worker BatchPGWorker) GetStatus() map[string]interface{} {
+	return map[string]interface{}{
+		"id":                    worker.ID,
+		"totalTokens":           worker.TotalTokens,
+		"processedTokens":       worker.ProcessedTokens,
+		"totalPages":            worker.TotalPages,
+		"processedPages":        worker.ProcessedPages,
+		"batchPGWorkerDoneChan": len(worker.BatchPGWorkerDoneChan),
+		"pgToParserChan":        len(worker.PgToParserChan),
+		"parserDoneChan":        len(worker.ParserDoneChan),
+		"parserToFetcherChan":   len(worker.ParserToFetcherChan),
+		"fetcherDoneChan":       len(worker.FetcherDoneChan),
+		"fetcherToBuilderChan":  len(worker.FetcherToBuilderChan),
+		"builderDoneChan":       len(worker.BuilderDoneChan),
+		"builderToProducerChan": len(worker.BuilderToProducerChan),
+		"producerDoneChan":      len(worker.ProducerDoneChan),
+	}
+}
+
+// SetStatus sets the current notification status in redis
+func (worker *BatchPGWorker) SetStatus() {
+	cli := worker.RedisClient.Client
+	worker.Logger.Info("Set in redis", zap.String("key", worker.ID.String()))
+
+	status := worker.GetStatus()
+	byteStatus, err := json.Marshal(status)
+	if err != nil {
+		worker.Logger.Panic("Could not parse worker status", zap.Error(err))
+	}
+	strStatus := string(byteStatus)
+	if err = cli.Set(worker.ID.String(), strStatus, 0).Err(); err != nil {
+		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
+	}
+}
+
+func (worker *BatchPGWorker) updateStatus(doneChan <-chan struct{}) {
+	worker.Logger.Info("Starting status updater")
+	for {
+		select {
+		case <-doneChan:
+			return // breaks out of the for
+		default:
+			worker.Logger.Debug("Update worker status")
+			worker.SetStatus()
+			time.Sleep(250 * time.Millisecond)
+		}
+	}
 }
 
 // pgReader reads from pg in batches and sends the built messages to kafka
@@ -268,8 +353,8 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 				}
 				l.Debug("pgRead - Send message to channel", zap.String("strMsg", string(strMsg)))
 				outChan <- string(strMsg)
+				worker.ProcessedTokens++
 			}
-			worker.ProcessedTokens += len(userTokens)
 		}
 	}
 	return outChan, nil

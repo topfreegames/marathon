@@ -33,6 +33,7 @@ workers:
     fetchers: 1
     builders: 1
     producers: 1
+    batchpgworkerstatusdonechan: 1
     batchpgworkerdonechan: 1
     pgtoparserchan: 10000
     parserdonechan: 1

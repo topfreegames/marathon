@@ -6,6 +6,7 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
+	"git.topfreegames.com/topfreegames/marathon/util"
 	"github.com/getsentry/raven-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
 	"github.com/kataras/iris"
@@ -25,6 +26,7 @@ type Application struct {
 	Config         *viper.Viper
 	Logger         zap.Logger
 	ReadBufferSize int
+	RedisClient    *util.RedisClient
 }
 
 // GetApplication returns a new Marathon API Applicationlication
@@ -44,12 +46,18 @@ func GetApplication(host string, port int, configPath string, debug bool, logger
 }
 
 // Configure instantiates the required dependencies for Marathon Api Applicationlication
-func (application *Application) Configure() {
+func (application *Application) Configure() error {
 	application.setConfigurationDefaults()
 	application.loadConfiguration()
 	application.configureSentry()
 	application.connectDatabase()
-	application.configureApplicationlication()
+
+	err := application.configureApplicationlication()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (application *Application) setConfigurationDefaults() {
@@ -158,7 +166,11 @@ func (application *Application) onErrorHandler(err error, stack []byte) {
 	raven.CaptureError(err, tags)
 }
 
-func (application *Application) configureApplicationlication() {
+func (application *Application) configureApplicationlication() error {
+	l := application.Logger.With(
+		zap.String("operation", "configureApplication"),
+	)
+
 	c := config.Iris{
 		DisableBanner: true,
 	}
@@ -198,6 +210,28 @@ func (application *Application) configureApplicationlication() {
 
 	// Send a push notification by filters
 	a.Post("/apps/:appName/users/notifications", SendNotificationHandler(application))
+	a.Get("/apps/notifications/:notificationId", GetNotificationStatusHandler(application))
+
+	redisHost := application.Config.GetString("redis.host")
+	redisPort := application.Config.GetInt("redis.port")
+	redisPass := application.Config.GetString("redis.password")
+	redisDB := application.Config.GetInt("redis.db")
+	redisMaxPoolSize := application.Config.GetInt("redis.maxPoolSize")
+
+	rl := l.With(
+		zap.String("host", redisHost),
+		zap.Int("port", redisPort),
+		zap.Int("db", redisDB),
+		zap.Int("maxPoolSize", redisMaxPoolSize),
+	)
+	rl.Debug("Connecting to redis...")
+	cli, err := util.GetRedisClient(redisHost, redisPort, redisPass, redisDB, redisMaxPoolSize, l)
+	if err != nil {
+		return err
+	}
+	application.RedisClient = cli
+	rl.Info("Connected to redis successfully.")
+	return nil
 }
 
 func (application *Application) finalizeApplication() {

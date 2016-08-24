@@ -102,6 +102,29 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 		}
 
 		worker.StartWorker(message, filters, modifiers)
-		SucceedWith(map[string]interface{}{}, c)
+
+		SucceedWith(map[string]interface{}{
+			"id": worker.ID.String(),
+		}, c)
+	}
+}
+
+// GetNotificationStatusHandler is the handler responsible retrieve a notification status
+func GetNotificationStatusHandler(application *Application) func(c *iris.Context) {
+	return func(c *iris.Context) {
+		notificationID := c.Param("notificationId")
+		l := application.Logger.With(
+			zap.String("source", "notificationHandler"),
+			zap.String("operation", "getNotificationStatus"),
+		)
+
+		cli := application.RedisClient.Client
+		l.Info("Get from redis", zap.String("key", notificationID))
+		status, err := cli.Get(notificationID).Result()
+		if err != nil {
+			l.Panic("Failed to get notification status from redis", zap.Error(err))
+		}
+		l.Info("Got from redis", zap.String("key", notificationID), zap.String("value", status))
+		SucceedWith(map[string]interface{}{"status": status}, c)
 	}
 }
