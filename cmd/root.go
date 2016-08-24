@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -32,15 +31,15 @@ func init() {}
 // InitConfig reads in config file and ENV variables if set.
 func InitConfig(l zap.Logger, configFile string) {
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		fmt.Println(err)
 		l.Fatal("Config file does not exist", zap.String("configFile", configFile))
 		os.Exit(-1)
 	}
 	viper.SetConfigFile(configFile)
+
+	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("marathon")
-	viper.SetConfigName(".marathon") // name of config file (without extension)
-	viper.AddConfigPath("$HOME")     // adding home directory as first search path
-	viper.AutomaticEnv()             // read in environment variables that match
+	viper.AddConfigPath(".") // optionally look for config in the working directory
+	viper.AutomaticEnv()     // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {

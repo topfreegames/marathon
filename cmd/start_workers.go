@@ -24,7 +24,11 @@ var startContinuousWorkersCmd = &cobra.Command{
 		if debug {
 			ll = zap.DebugLevel
 		}
-		l := zap.NewJSON(ll, zap.AddCaller())
+		l := zap.New(
+			zap.NewJSONEncoder(), // drop timestamps in tests
+			ll,
+			zap.AddCaller(),
+		)
 
 		cmdL := l.With(
 			zap.String("source", "startContinuousWorkersCmd"),

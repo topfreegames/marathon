@@ -19,6 +19,10 @@ type BatchPGWorker struct {
 	Logger                zap.Logger
 	Db                    *models.DB
 	ConfigPath            string
+	TotalTokens           int64
+	ProcessedTokens       int
+	TotalPages            int64
+	ProcessedPages        int64
 	BatchPGWorkerDoneChan chan struct{}
 	PgToParserChan        chan string
 	ParserDoneChan        chan struct{}
@@ -207,28 +211,37 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 	}
 	l = l.With(zap.Int("limit", limit))
 
-	userTokensCount, err := models.CountUserTokensByFilters(worker.Db, message.App, message.Service, filters, modifiers)
+	userTokensCount, err := models.CountUserTokensByFilters(
+		worker.Db, message.App, message.Service, filters, modifiers,
+	)
 	if err != nil {
 		l.Fatal("Error while counting tokens", zap.Error(err))
 	}
 
-	if userTokensCount < int64(0) {
-		l.Fatal("Tokens size lower than 0", zap.Error(err))
+	// TODO: why can't we assign this directly from `models.CountUserTokensByFilters` ?
+	worker.TotalTokens = userTokensCount
+
+	if worker.TotalTokens < int64(0) {
+		l.Fatal("worker.TotalTokens lower than 0", zap.Error(err))
 	}
 
-	l = l.With(zap.Int64("userTokensCount", userTokensCount))
+	l = l.With(zap.Int64("worker.TotalTokens", worker.TotalTokens))
+
+	worker.TotalTokens = userTokensCount
 
 	pages := userTokensCount/int64(limit) + 1
 	workerModifiers := [2][]interface{}{ // TODO: Should we order ? {"ORDER BY", "updated_at ASC"}
 		{"LIMIT", limit},
 	}
 
-	l = l.With(zap.Int64("pages", pages))
+	worker.TotalPages = pages
 
-	for page := int64(0); page < pages; page++ {
-		l.Debug("pgRead - Read page", zap.Int64("page", page))
+	l = l.With(zap.Int64("worker.TotalPages", worker.TotalPages))
 
-		workerModifiers[1] = []interface{}{"OFFSET", page}
+	for worker.ProcessedPages = int64(0); worker.ProcessedPages < worker.TotalPages; worker.ProcessedPages++ {
+		l.Debug("pgRead - Read page", zap.Int64("worker.ProcessedPages", worker.ProcessedPages))
+
+		workerModifiers[1] = []interface{}{"OFFSET", worker.ProcessedPages}
 		userTokens, err := models.GetUserTokensBatchByFilters(
 			worker.Db, message.App, message.Service, filters, modifiers,
 		)
@@ -242,8 +255,8 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 
 		l.Debug("pgRead", zap.Object("len(userTokens)", len(userTokens)))
 
-		processedTokens := 0
-		for processedTokens < len(userTokens) {
+		worker.ProcessedTokens = 0
+		for worker.ProcessedTokens < len(userTokens) {
 			for _, userToken := range userTokens {
 				message.Token = userToken.Token
 				message.Locale = userToken.Locale
@@ -256,7 +269,7 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 				l.Debug("pgRead - Send message to channel", zap.String("strMsg", string(strMsg)))
 				outChan <- string(strMsg)
 			}
-			processedTokens += len(userTokens)
+			worker.ProcessedTokens += len(userTokens)
 		}
 	}
 	return outChan, nil

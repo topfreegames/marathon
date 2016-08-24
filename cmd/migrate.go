@@ -107,7 +107,11 @@ var migrateCmd = &cobra.Command{
 		if debug {
 			ll = zap.DebugLevel
 		}
-		l := zap.NewJSON(ll, zap.AddCaller())
+		l := zap.New(
+			zap.NewJSONEncoder(),
+			ll,
+			zap.AddCaller(),
+		)
 
 		cmdL := l.With(
 			zap.String("source", "migrateCmd"),

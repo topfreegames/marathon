@@ -7,7 +7,11 @@ import (
 
 func main() {
 	ll := zap.InfoLevel
-	l := zap.NewJSON(ll, zap.AddCaller())
+	l := zap.New(
+		zap.NewJSONEncoder(), // drop timestamps in tests
+		ll,
+		zap.AddCaller(),
+	)
 
 	cmdL := l.With(
 		zap.String("source", "main"),

@@ -12,25 +12,29 @@ type Log struct {
 
 // ConfigureLogger defines a Log property
 func ConfigureLogger(logProps Log, config *viper.Viper) zap.Logger {
-	var level zap.Option
+	var ll zap.Option
 	if logProps.Level == "" {
 		logProps.Level = config.GetString("workers.logger.level")
 	}
 	switch logProps.Level {
 	case "debug":
-		level = zap.DebugLevel
+		ll = zap.DebugLevel
 	case "info":
-		level = zap.InfoLevel
+		ll = zap.InfoLevel
 	case "warn":
-		level = zap.WarnLevel
+		ll = zap.WarnLevel
 	case "error":
-		level = zap.ErrorLevel
+		ll = zap.ErrorLevel
 	case "panic":
-		level = zap.PanicLevel
+		ll = zap.PanicLevel
 	case "fatal":
-		level = zap.FatalLevel
+		ll = zap.FatalLevel
 	default:
-		level = zap.InfoLevel
+		ll = zap.InfoLevel
 	}
-	return zap.NewJSON(level, zap.AddCaller())
+	return zap.New(
+		zap.NewJSONEncoder(), // drop timestamps in tests
+		ll,
+		zap.AddCaller(),
+	)
 }

@@ -26,3 +26,5 @@ import:
 - package: github.com/manveru/faker
 - package: gopkg.in/Shopify/sarama.v1
   version: ~1.10.0
+- package: gopkg.in/redis.v4
+  version: ~4.1.5
