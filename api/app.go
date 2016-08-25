@@ -84,6 +84,21 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
 
+		l.Debug("Creating notifier...")
+		notifier, err = models.CreateNotifier(application.Db, app.ID, payload.Service)
+		if err != nil {
+			l.Error("Create notifier failed.", zap.Error(err))
+			FailWith(400, err.Error(), c)
+			return
+		}
+		l.Info(
+			"Notifier created successfully.",
+			zap.String("id", notifier.ID.String()),
+			zap.String("appID", notifier.AppID.String()),
+			zap.String("service", notifier.Service),
+			zap.Duration("duration", time.Now().Sub(start)),
+		)
+
 		userTokensTable, err := models.CreateUserTokensTable(application.Db, payload.AppName, payload.Service)
 		if err != nil {
 			l.Error("Create app failed.", zap.Error(err))

@@ -13,11 +13,18 @@ func serializeAppsNotifiers(appsNotifiers []models.AppNotifier) []map[string]int
 
 func serializeAppNotifier(appNotifier *models.AppNotifier) map[string]interface{} {
 	serial := map[string]interface{}{
+<<<<<<< HEAD
 		"id":         appNotifier.AppID,
 		"appName":    appNotifier.AppName,
 		"appGroup":   appNotifier.AppGroup,
 		"service":    appNotifier.NotifierService,
 		"notifierID": appNotifier.NotifierID,
+=======
+		"appID":           appNotifier.AppID,
+		"appName":         appNotifier.AppName,
+		"appGroup":        appNotifier.AppGroup,
+		"notifierService": appNotifier.NotifierService,
+>>>>>>> Add GET /apps endpoint
 	}
 
 	return serial
