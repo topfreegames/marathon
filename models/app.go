@@ -107,7 +107,7 @@ func GetAppNotifiers(db *DB) ([]AppNotifier, error) {
 	if err != nil {
 		return nil, err
 	}
-	if &appNotifiers == nil || len(appNotifiers) == 0 {
+	if &appNotifiers == nil {
 		return nil, &ModelNotFoundError{"App", "", ""}
 	}
 
