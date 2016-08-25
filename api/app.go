@@ -124,6 +124,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 			"service":             notifier.Service,
 			"notifierID":          notifier.ID,
 			"service":             notifier.Service,
+			"notifierID":          notifier.ID,
 			"userTokensTableName": userTokensTable.TableName,
 		}, c)
 	}
