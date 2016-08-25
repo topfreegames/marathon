@@ -17,6 +17,21 @@ type App struct {
 	UpdatedAt      int64     `db:"updated_at"`
 }
 
+// AppNotifier identifies an app/notifier
+type AppNotifier struct {
+	AppID             uuid.UUID `json:"appID"`
+	AppOrganizationID uuid.UUID `json:"appOrganizationID"`
+	AppName           string    `json:"appName"`
+	AppGroup          string    `json:"appGroup"`
+	AppCreatedAt      int64     `json:"appCreatedAt"`
+	AppUpdatedAt      int64     `json:"appUpdatedAt"`
+	NotifierID        uuid.UUID `json:"notifierID"`
+	NotifierAppID     uuid.UUID `json:"notifierAppID"`
+	NotifierService   string    `json:"notifierService"`
+	NotifierCreatedAt int64     `json:"notifierCreatedAt"`
+	NotifierUpdatedAt int64     `json:"notifierUpdatedAt"`
+}
+
 // PreInsert populates fields before inserting a new app
 func (a *App) PreInsert(s gorp.SqlExecutor) error {
 	a.ID = uuid.NewV4()
@@ -67,6 +82,36 @@ func GetAppsByGroup(db *DB, group string) ([]App, error) {
 		return nil, &ModelNotFoundError{"App", "group", group}
 	}
 	return apps, nil
+}
+
+// GetAppNotifiers returns all apps with notifiers
+func GetAppNotifiers(db *DB) ([]AppNotifier, error) {
+	query := `SELECT
+    a.id AS AppID,
+    a.organization_id AS AppOrganizationID,
+    a.name AS AppName,
+    a.group AS AppGroup,
+    a.created_at AS AppCreatedAt,
+    a.updated_at AS AppUpdatedAt,
+    n.id AS NotifierID,
+    n.app_id AS NotifierAppID,
+    n.service AS NotifierService,
+    n.created_at AS NotifierCreatedAt,
+    n.updated_at AS NotifierUpdatedAt
+  FROM
+    apps a
+  INNER JOIN notifiers n ON n.app_id=a.id
+  `
+	var appNotifiers []AppNotifier
+	_, err := db.Select(&appNotifiers, query)
+	if err != nil {
+		return nil, err
+	}
+	if &appNotifiers == nil || len(appNotifiers) == 0 {
+		return nil, &ModelNotFoundError{"App", "", ""}
+	}
+
+	return appNotifiers, nil
 }
 
 // CreateApp creates a new App

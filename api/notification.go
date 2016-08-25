@@ -1,6 +1,8 @@
 package api
 
 import (
+	"time"
+
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/workers"
 
@@ -35,6 +37,7 @@ type notificationPayload struct {
 // SendNotificationHandler is the handler responsible for creating new apps
 func SendNotificationHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
+		start := time.Now()
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
 			zap.String("operation", "sendNotification"),
@@ -42,7 +45,11 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 
 		var payload notificationPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
-			l.Error("Failed to parse json payload.", zap.Error(err))
+			l.Error(
+				"Failed to parse json payload.",
+				zap.Error(err),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
 			FailWith(400, err.Error(), c)
 			return
 		}
@@ -76,7 +83,11 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 		}
 		worker, err := workers.GetBatchPGWorker(workerConfig)
 		if err != nil {
-			l.Error("Invalid worker config,", zap.Error(err))
+			l.Error(
+				"Invalid worker config,",
+				zap.Error(err),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
 			FailWith(400, err.Error(), c)
 		}
 
@@ -109,6 +120,7 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 // GetNotificationStatusHandler is the handler responsible retrieve a notification status
 func GetNotificationStatusHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
+		start := time.Now()
 		notificationID := c.Param("notificationId")
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
@@ -119,9 +131,18 @@ func GetNotificationStatusHandler(application *Application) func(c *iris.Context
 		l.Info("Get from redis", zap.String("key", notificationID))
 		status, err := cli.Get(notificationID).Result()
 		if err != nil {
-			l.Panic("Failed to get notification status from redis", zap.Error(err))
+			l.Panic(
+				"Failed to get notification status from redis",
+				zap.Error(err),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
 		}
-		l.Info("Got from redis", zap.String("key", notificationID), zap.String("value", status))
+		l.Info(
+			"Got from redis",
+			zap.String("key", notificationID),
+			zap.String("value", status),
+			zap.Duration("duration", time.Now().Sub(start)),
+		)
 		SucceedWith(map[string]interface{}{"status": status}, c)
 	}
 }

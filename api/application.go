@@ -207,6 +207,7 @@ func (application *Application) configureApplicationlication() error {
 
 	// Create an app
 	a.Post("/apps", CreateAppHandler(application))
+	a.Get("/apps", GetAppsHandler(application))
 
 	// Send a push notification by filters
 	a.Post("/apps/notifications", SendNotificationHandler(application))

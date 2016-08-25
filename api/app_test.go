@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -104,4 +105,52 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
 		})
 	})
+
+	Describe("Get Apps Handler", func() {
+		FIt("Should get apps with notifiers", func() {
+			a := GetDefaultTestApp()
+			appName := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)
+			group := randomdata.FirstName(randomdata.RandomGender)
+			payload := map[string]interface{}{
+				"appName":        appName,
+				"service":        service,
+				"organizationID": uuid.NewV4().String(),
+				"appGroup":       group,
+			}
+
+			res := PostJSON(a, "/apps", payload)
+
+			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
+			var result map[string]interface{}
+			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			Expect(result["success"]).To(BeTrue())
+			Expect(result["id"]).NotTo(BeNil())
+			Expect(result["appName"]).To(Equal(appName))
+			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
+			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
+
+			appIdString := str(result["id"])
+			appId, err := uuid.FromString(appIdString)
+			Expect(err).NotTo(HaveOccurred())
+			dbApp, err := models.GetAppByID(a.Db, appId)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbApp.ID).To(Equal(appId))
+
+			req := SendRequest(a, "GET", "/apps")
+			res = req.Expect()
+			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
+			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			Expect(result["success"]).To(BeTrue())
+			fmt.Println(result)
+
+			// var status map[string]interface{}
+			// json.Unmarshal([]byte(result["status"].(string)), &status)
+			// Expect(status["totalPages"]).To(Equal(float64(1)))
+			// Expect(status["processedPages"]).To(Equal(float64(1)))
+			// Expect(status["totalTokens"]).To(Equal(float64(2)))
+			// Expect(status["processedTokens"]).To(Equal(float64(2)))
+		})
+	})
+
 })

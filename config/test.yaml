@@ -16,7 +16,7 @@ healthcheck:
   workingtext: "working"
 workers:
   logger:
-    level: "fatal"
+    level: "debug"
   consumer:
     consumergroup: "integration-test-consumer-group"
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
