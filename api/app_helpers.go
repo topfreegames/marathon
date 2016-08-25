@@ -13,7 +13,7 @@ func serializeAppsNotifiers(appsNotifiers []models.AppNotifier) []map[string]int
 
 func serializeAppNotifier(appNotifier *models.AppNotifier) map[string]interface{} {
 	serial := map[string]interface{}{
-		"appId":           appNotifier.AppID,
+		"appID":           appNotifier.AppID,
 		"appName":         appNotifier.AppName,
 		"appGroup":        appNotifier.AppGroup,
 		"notifierID":      appNotifier.NotifierID,

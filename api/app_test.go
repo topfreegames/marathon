@@ -33,12 +33,12 @@ var _ = Describe("Marathon API Handler", func() {
 			var result map[string]interface{}
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
-			Expect(result["id"]).NotTo(BeNil())
+			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
 			Expect(result["appGroup"]).To(Equal(group))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
-			appIdString := str(result["id"])
+			appIdString := str(result["appID"])
 			appId, err := uuid.FromString(appIdString)
 			Expect(err).NotTo(HaveOccurred())
 			dbApp, err := models.GetAppByID(a.Db, appId)
@@ -46,7 +46,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(dbApp.ID).To(Equal(appId))
 		})
 
-		It("Should create apps with repeated names but different services", func() {
+		It("Should create notifiers for different services and same app", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
@@ -64,12 +64,12 @@ var _ = Describe("Marathon API Handler", func() {
 			var result map[string]interface{}
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
-			Expect(result["id"]).NotTo(BeNil())
+			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
 			Expect(result["appGroup"]).To(Equal(group))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
-			appIdString := str(result["id"])
+			appIdString := str(result["appID"])
 			appId, err := uuid.FromString(appIdString)
 			Expect(err).NotTo(HaveOccurred())
 			dbApp, err := models.GetAppByID(a.Db, appId)
@@ -88,12 +88,12 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
-			Expect(result["id"]).NotTo(BeNil())
+			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
 			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
-			appIdString = str(result["id"])
+			appIdString = str(result["appID"])
 			appId, err = uuid.FromString(appIdString)
 			Expect(err).NotTo(HaveOccurred())
 			dbApp, err = models.GetAppByID(a.Db, appId)
@@ -143,12 +143,12 @@ var _ = Describe("Marathon API Handler", func() {
 			var result map[string]interface{}
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
-			Expect(result["id"]).NotTo(BeNil())
+			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
-			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
+			Expect(result["appGroup"]).To(Equal(group))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
-			appIdString := str(result["id"])
+			appIdString := str(result["appID"])
 			appId, err := uuid.FromString(appIdString)
 			Expect(err).NotTo(HaveOccurred())
 			dbApp, err := models.GetAppByID(a.Db, appId)
@@ -164,18 +164,11 @@ var _ = Describe("Marathon API Handler", func() {
 			apps := result["apps"].([]interface{})
 			for i := range apps {
 				app := apps[i].(map[string]interface{})
-				Expect(app["id"]).NotTo(BeNil())
+				Expect(app["appID"]).NotTo(BeNil())
 				Expect(app["notifierID"]).NotTo(BeNil())
-				Expect(app["service"]).NotTo(BeNil())
+				Expect(app["notifierService"]).NotTo(BeNil())
 				Expect(app["appGroup"]).NotTo(BeNil())
 			}
-			// var status map[string]interface{}
-			// json.Unmarshal([]byte(result["status"].(string)), &status)
-			// Expect(status["totalPages"]).To(Equal(float64(1)))
-			// Expect(status["processedPages"]).To(Equal(float64(1)))
-			// Expect(status["totalTokens"]).To(Equal(float64(2)))
-			// Expect(status["processedTokens"]).To(Equal(float64(2)))
 		})
 	})
-
 })
