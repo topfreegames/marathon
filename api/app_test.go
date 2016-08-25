@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -124,20 +123,12 @@ var _ = Describe("Marathon API Handler", func() {
 		})
 	})
 
-<<<<<<< HEAD
 	// TODO: Improve tests => Check notifier creation
 	Describe("Get Apps Handler", func() {
 		It("Should get apps with notifiers", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
-=======
-	Describe("Get Apps Handler", func() {
-		FIt("Should get apps with notifiers", func() {
-			a := GetDefaultTestApp()
-			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)
->>>>>>> Add GET /apps endpoint
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload := map[string]interface{}{
 				"appName":        appName,
@@ -169,7 +160,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
-<<<<<<< HEAD
 
 			apps := result["apps"].([]interface{})
 			for i := range apps {
@@ -179,16 +169,12 @@ var _ = Describe("Marathon API Handler", func() {
 				Expect(app["service"]).NotTo(BeNil())
 				Expect(app["appGroup"]).NotTo(BeNil())
 			}
-=======
-			fmt.Println(result)
-
 			// var status map[string]interface{}
 			// json.Unmarshal([]byte(result["status"].(string)), &status)
 			// Expect(status["totalPages"]).To(Equal(float64(1)))
 			// Expect(status["processedPages"]).To(Equal(float64(1)))
 			// Expect(status["totalTokens"]).To(Equal(float64(2)))
 			// Expect(status["processedTokens"]).To(Equal(float64(2)))
->>>>>>> Add GET /apps endpoint
 		})
 	})
 
