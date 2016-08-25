@@ -152,7 +152,7 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 		cli := application.RedisClient.Client
 		redisKey := strings.Join([]string{notifierID, "*"}, "|")
 		l.Info("Get from redis", zap.String("redisKey", redisKey))
-		status, err := cli.Get(redisKey).Result()
+		keys, err := cli.Get(redisKey).Result()
 		if err != nil {
 			l.Panic(
 				"Failed to get notification status from redis",
@@ -162,10 +162,26 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 		}
 		l.Info(
 			"Got from redis",
-			zap.String("value", status),
+			zap.String("keys", keys),
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
-		SucceedWith(map[string]interface{}{"status": status}, c)
+
+		statuses := map[string]interface{}{}
+		for i := range keys {
+			key := string(keys[i])
+			status, err := cli.Get(key).Result()
+			if err != nil {
+				l.Panic(
+					"Failed to get notification status from redis",
+					zap.Error(err),
+					zap.String("key", key),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+			}
+			statuses[strings.Split(key, "|")[1]] = status
+		}
+
+		SucceedWith(map[string]interface{}{"statuses": statuses}, c)
 	}
 }
 

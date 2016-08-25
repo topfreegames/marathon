@@ -48,19 +48,19 @@ var _ = Describe("Marathon API Handler", func() {
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group := randomdata.FirstName(randomdata.RandomGender)
-			payload := map[string]interface{}{
+			payload1 := map[string]interface{}{
 				"appName":        appName,
 				"service":        service,
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
 
-			res := PostJSON(a, "/apps", payload)
+			res1 := PostJSON(a, "/apps", payload1)
 
-			// Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			var result map[string]interface{}
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			notifierID := result["notifierID"]
+			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			var result1 map[string]interface{}
+			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			notifierID := result1["notifierID"]
 
 			userID := uuid.NewV4().String()
 			token := uuid.NewV4().String()
@@ -85,7 +85,7 @@ var _ = Describe("Marathon API Handler", func() {
 			err = a.Db.Insert(template)
 			Expect(err).NotTo(HaveOccurred())
 
-			payload = map[string]interface{}{
+			payload2 := map[string]interface{}{
 				"app":      appName,
 				"service":  service,
 				"pageSize": 10,
@@ -104,12 +104,13 @@ var _ = Describe("Marathon API Handler", func() {
 					"metadata": map[string]interface{}{"meta": "data"},
 				},
 			}
-			url := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			res = PostJSON(a, url, payload)
+			url1 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
+			res2 := PostJSON(a, url1, payload2)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			Expect(result["success"]).To(BeTrue())
+			var result2 map[string]interface{}
+			Expect(res2.Raw().StatusCode).To(Equal(http.StatusOK))
+			json.Unmarshal([]byte(res2.Body().Raw()), &result2)
+			Expect(result2["success"]).To(BeTrue())
 		})
 
 		It("Should not create a Notification when broken json", func() {
@@ -117,19 +118,19 @@ var _ = Describe("Marathon API Handler", func() {
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group := randomdata.FirstName(randomdata.RandomGender)
-			payload := map[string]interface{}{
+			payload1 := map[string]interface{}{
 				"appName":        appName,
 				"service":        service,
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
 
-			res := PostJSON(a, "/apps", payload)
+			res1 := PostJSON(a, "/apps", payload1)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			var result map[string]interface{}
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			notifierID := result["notifierID"]
+			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			var result1 map[string]interface{}
+			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			notifierID := result1["notifierID"]
 
 			createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
 			Expect(err).NotTo(HaveOccurred())
@@ -158,7 +159,7 @@ var _ = Describe("Marathon API Handler", func() {
 			err = a.Db.Insert(template)
 			Expect(err).NotTo(HaveOccurred())
 
-			payload = map[string]interface{}{
+			payload2 := map[string]interface{}{
 				"app":      appName,
 				"service":  service,
 				"pageSize": 10,
@@ -170,14 +171,14 @@ var _ = Describe("Marathon API Handler", func() {
 					"metadata": map[string]interface{}{"meta": "data"},
 				},
 			}
-			payloadStr, err := json.Marshal(payload)
+			payloadStr, err := json.Marshal(payload2)
 			wrongPayloadString := payloadStr[:len(payloadStr)-1]
 			Expect(err).NotTo(HaveOccurred())
 			url := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
 			req := SendRequest(a, "POST", url)
-			res = req.WithBytes([]byte(wrongPayloadString)).Expect()
+			res2 := req.WithBytes([]byte(wrongPayloadString)).Expect()
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
+			Expect(res2.Raw().StatusCode).To(Equal(http.StatusBadRequest))
 		})
 
 		It("Should create a Notification and get status", func() {
@@ -185,26 +186,26 @@ var _ = Describe("Marathon API Handler", func() {
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group := randomdata.FirstName(randomdata.RandomGender)
-			payload := map[string]interface{}{
+			payload1 := map[string]interface{}{
 				"appName":        appName,
 				"service":        service,
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
 
-			res := PostJSON(a, "/apps", payload)
+			res1 := PostJSON(a, "/apps", payload1)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			var result map[string]interface{}
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			notifierID := result["notifierID"]
+			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			var result1 map[string]interface{}
+			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			notifierID := result1["notifierID"]
 
 			createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(createdTable.TableName).To(Equal(models.GetTableName(appName, service)))
 
-			userID := uuid.NewV4().String()
-			token := uuid.NewV4().String()
+			userID1 := uuid.NewV4().String()
+			token1 := uuid.NewV4().String()
 			locale := uuid.NewV4().String()[:2]
 			region := uuid.NewV4().String()[:2]
 			tz := "GMT+03:00"
@@ -212,15 +213,15 @@ var _ = Describe("Marathon API Handler", func() {
 			optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
 
 			_, err = models.UpsertToken(
-				a.Db, appName, service, userID, token, locale, region, tz, buildN, optOut,
+				a.Db, appName, service, userID1, token1, locale, region, tz, buildN, optOut,
 			)
 			Expect(err).NotTo(HaveOccurred())
 
-			userID = uuid.NewV4().String()
-			token = uuid.NewV4().String()
+			userID2 := uuid.NewV4().String()
+			token2 := uuid.NewV4().String()
 
 			_, err = models.UpsertToken(
-				a.Db, appName, service, userID, token, locale, region, tz, buildN, optOut,
+				a.Db, appName, service, userID2, token2, locale, region, tz, buildN, optOut,
 			)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -234,7 +235,7 @@ var _ = Describe("Marathon API Handler", func() {
 			err = a.Db.Insert(template)
 			Expect(err).NotTo(HaveOccurred())
 
-			payload = map[string]interface{}{
+			payload2 := map[string]interface{}{
 				"app":      appName,
 				"service":  service,
 				"pageSize": 10,
@@ -252,124 +253,122 @@ var _ = Describe("Marathon API Handler", func() {
 					"metadata": map[string]interface{}{"meta": "data"},
 				},
 			}
-			url := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			res = PostJSON(a, url, payload)
+			url1 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
+			res2 := PostJSON(a, url1, payload2)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			Expect(result["success"]).To(BeTrue())
+			var result2 map[string]interface{}
+			Expect(res2.Raw().StatusCode).To(Equal(http.StatusOK))
+			json.Unmarshal([]byte(res2.Body().Raw()), &result2)
+			Expect(result2["success"]).To(BeTrue())
 
 			time.Sleep(500 * time.Millisecond)
 
-			url = fmt.Sprintf("/notifiers/%s/notifications/%s", notifierID, result["id"])
-			req := SendRequest(a, "GET", url)
-			res = req.Expect()
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			Expect(result["success"]).To(BeTrue())
+			url2 := fmt.Sprintf("/notifiers/%s/notifications/%s", notifierID, result2["id"])
+			req3 := SendRequest(a, "GET", url2)
+			res3 := req3.Expect()
+			var result3 map[string]interface{}
+			Expect(res3.Raw().StatusCode).To(Equal(http.StatusOK))
+			json.Unmarshal([]byte(res3.Body().Raw()), &result3)
+			Expect(result3["success"]).To(BeTrue())
 
 			var status map[string]interface{}
-			json.Unmarshal([]byte(result["status"].(string)), &status)
+			json.Unmarshal([]byte(result3["status"].(string)), &status)
 			Expect(status["totalPages"]).To(Equal(float64(1)))
 			Expect(status["processedPages"]).To(Equal(float64(1)))
 			Expect(status["totalTokens"]).To(Equal(float64(2)))
 			Expect(status["processedTokens"]).To(Equal(float64(2)))
 		})
 
-		// It("Should create a Notifications and get list", func() {
-		// 	a := GetDefaultTestApp()
-		// 	appName := randomdata.FirstName(randomdata.RandomGender)
-		// 	service := randomdata.FirstName(randomdata.RandomGender)[:3]
-		// 	group := randomdata.FirstName(randomdata.RandomGender)
-		// 	payload := map[string]interface{}{
-		// 		"appName":        appName,
-		// 		"service":        service,
-		// 		"organizationID": uuid.NewV4().String(),
-		// 		"appGroup":       group,
-		// 	}
-		//
-		// 	res := PostJSON(a, "/apps", payload)
-		//
-		// 	Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-		// 	var result map[string]interface{}
-		// 	json.Unmarshal([]byte(res.Body().Raw()), &result)
-		// 	notifierID := result["notifierID"]
-		//
-		// 	createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
-		// 	Expect(err).NotTo(HaveOccurred())
-		// 	Expect(createdTable.TableName).To(Equal(models.GetTableName(appName, service)))
-		//
-		// 	userID := uuid.NewV4().String()
-		// 	token := uuid.NewV4().String()
-		// 	locale := uuid.NewV4().String()[:2]
-		// 	region := uuid.NewV4().String()[:2]
-		// 	tz := "GMT+03:00"
-		// 	buildN := uuid.NewV4().String()
-		// 	optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
-		//
-		// 	_, err = models.UpsertToken(
-		// 		a.Db, appName, service, userID, token, locale, region, tz, buildN, optOut,
-		// 	)
-		// 	Expect(err).NotTo(HaveOccurred())
-		//
-		// 	userID = uuid.NewV4().String()
-		// 	token = uuid.NewV4().String()
-		//
-		// 	_, err = models.UpsertToken(
-		// 		a.Db, appName, service, userID, token, locale, region, tz, buildN, optOut,
-		// 	)
-		// 	Expect(err).NotTo(HaveOccurred())
-		//
-		// 	template := &models.Template{
-		// 		Name:     "test_template",
-		// 		Locale:   "en",
-		// 		Service:  service,
-		// 		Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
-		// 		Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
-		// 	}
-		// 	err = a.Db.Insert(template)
-		// 	Expect(err).NotTo(HaveOccurred())
-		//
-		// 	payload = map[string]interface{}{
-		// 		"app":      appName,
-		// 		"service":  service,
-		// 		"pageSize": 10,
-		// 		"filters": map[string]interface{}{
-		// 			"locale":  locale,
-		// 			"region":  region,
-		// 			"tz":      tz,
-		// 			"build_n": buildN,
-		// 			"scope":   "testScope",
-		// 		},
-		// 		"message": map[string]interface{}{
-		// 			"template": "test_template",
-		// 			"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
-		// 			"message":  map[string]interface{}{},
-		// 			"metadata": map[string]interface{}{"meta": "data"},
-		// 		},
-		// 	}
-		// 	url := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-		// 	res = PostJSON(a, url, payload)
-		//
-		// 	Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-		// 	json.Unmarshal([]byte(res.Body().Raw()), &result)
-		// 	Expect(result["success"]).To(BeTrue())
-		//
-		// 	time.Sleep(500 * time.Millisecond)
-		//
-		// 	url = fmt.Sprintf("/notifiers/%s/notifications/%s", notifierID, result["id"])
-		// 	req := SendRequest(a, "GET", url)
-		// 	res = req.Expect()
-		// 	Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-		// 	json.Unmarshal([]byte(res.Body().Raw()), &result)
-		// 	Expect(result["success"]).To(BeTrue())
-		//
-		// 	var status map[string]interface{}
-		// 	json.Unmarshal([]byte(result["status"].(string)), &status)
-		// 	Expect(status["totalPages"]).To(Equal(float64(1)))
-		// 	Expect(status["processedPages"]).To(Equal(float64(1)))
-		// 	Expect(status["totalTokens"]).To(Equal(float64(2)))
-		// 	Expect(status["processedTokens"]).To(Equal(float64(2)))
-		// })
+		It("Should create a Notifications and get list", func() {
+			a := GetDefaultTestApp()
+			appName := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)[:3]
+			group := randomdata.FirstName(randomdata.RandomGender)
+			payload1 := map[string]interface{}{
+				"appName":        appName,
+				"service":        service,
+				"organizationID": uuid.NewV4().String(),
+				"appGroup":       group,
+			}
+			res1 := PostJSON(a, "/apps", payload1)
+
+			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			var result1 map[string]interface{}
+			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			notifierID := result1["notifierID"]
+
+			createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(createdTable.TableName).To(Equal(models.GetTableName(appName, service)))
+
+			userID1 := uuid.NewV4().String()
+			token1 := uuid.NewV4().String()
+			locale := uuid.NewV4().String()[:2]
+			region := uuid.NewV4().String()[:2]
+			tz := "GMT+03:00"
+			buildN := uuid.NewV4().String()
+			optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+
+			_, err = models.UpsertToken(
+				a.Db, appName, service, userID1, token1, locale, region, tz, buildN, optOut,
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			userID2 := uuid.NewV4().String()
+			token2 := uuid.NewV4().String()
+
+			_, err = models.UpsertToken(
+				a.Db, appName, service, userID2, token2, locale, region, tz, buildN, optOut,
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			template := &models.Template{
+				Name:     "test_template",
+				Locale:   "en",
+				Service:  service,
+				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
+				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+			}
+			err = a.Db.Insert(template)
+			Expect(err).NotTo(HaveOccurred())
+
+			payload2 := map[string]interface{}{
+				"app":      appName,
+				"service":  service,
+				"pageSize": 10,
+				"filters": map[string]interface{}{
+					"locale":  locale,
+					"region":  region,
+					"tz":      tz,
+					"build_n": buildN,
+					"scope":   "testScope",
+				},
+				"message": map[string]interface{}{
+					"template": "test_template",
+					"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
+					"message":  map[string]interface{}{},
+					"metadata": map[string]interface{}{"meta": "data"},
+				},
+			}
+			url1 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
+			res2 := PostJSON(a, url1, payload2)
+
+			var result2 map[string]interface{}
+			Expect(res2.Raw().StatusCode).To(Equal(http.StatusOK))
+			json.Unmarshal([]byte(res2.Body().Raw()), &result2)
+			Expect(result2["success"]).To(BeTrue())
+
+			time.Sleep(500 * time.Millisecond)
+
+			url2 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
+			req := SendRequest(a, "GET", url2)
+			res3 := req.Expect()
+
+			var result3 map[string]interface{}
+			Expect(res3.Raw().StatusCode).To(Equal(http.StatusOK))
+			json.Unmarshal([]byte(res3.Body().Raw()), &result3)
+			Expect(result3["success"]).To(BeTrue())
+			fmt.Println(result3)
+		})
 	})
 })
