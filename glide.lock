@@ -1,5 +1,5 @@
-hash: ea76d8e70d7902c40431ddfe0753733815e60aee0aaf93121a46373740722a72
-updated: 2016-08-24T13:15:05.280340496-03:00
+hash: c3193905b57a55fded6626cb8da92442e61a910da52d1a3979803d4f7674cf68
+updated: 2016-08-25T16:11:39.003376515-03:00
 imports:
 - name: github.com/ajg/form
   version: 523a5da1a92f01b01f840b61689c0340a0243532
@@ -48,10 +48,10 @@ imports:
   subpackages:
   - hcl/ast
   - hcl/parser
-  - hcl/scanner
-  - hcl/strconv
   - hcl/token
   - json/parser
+  - hcl/scanner
+  - hcl/strconv
   - json/scanner
   - json/token
 - name: github.com/imdario/mergo
@@ -102,8 +102,8 @@ imports:
 - name: github.com/klauspost/compress
   version: 08fe86a420401e830c24114bdf9f1ba91331407a
   subpackages:
-  - flate
   - gzip
+  - flate
   - zlib
 - name: github.com/klauspost/cpuid
   version: 09cded8978dc9e80714c4d85b0322337b0a1e5e0
@@ -132,6 +132,11 @@ imports:
   version: 9dc199233bf72cc1aad9b61f73daf2f0075b9ee4
 - name: github.com/miekg/dns
   version: db96a2b759cdef4f11a34506a42eb8d1290c598e
+- name: github.com/minio/minio-go
+  version: a2e27c84cd20b86cd781b76639781d6366235d0c
+  subpackages:
+  - pkg/policy
+  - pkg/set
 - name: github.com/mitchellh/mapstructure
   version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
 - name: github.com/moul/http2curl
@@ -228,28 +233,28 @@ imports:
 - name: golang.org/x/crypto
   version: 986d3313588aa5c68f1df95eac956f79cf3b2c01
   subpackages:
-  - curve25519
-  - ed25519
-  - ed25519/internal/edwards25519
-  - ocsp
   - ssh
   - ssh/terminal
+  - curve25519
+  - ed25519
+  - ocsp
+  - ed25519/internal/edwards25519
 - name: golang.org/x/net
   version: 7394c112eae4dba7e96bfcfe738e6373d61772b4
   subpackages:
+  - publicsuffix
   - context
   - html
   - html/atom
-  - publicsuffix
 - name: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
-  - unix
-  - windows
   - windows/registry
   - windows/svc
   - windows/svc/eventlog
   - windows/svc/mgr
+  - unix
+  - windows
 - name: golang.org/x/text
   version: d69c40b4be55797923cec7457fac7a244d91a9b6
   subpackages:
@@ -281,4 +286,4 @@ imports:
   - json
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
-testImports: []
+devImports: []

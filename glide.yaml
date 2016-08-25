@@ -28,3 +28,4 @@ import:
   version: ~1.10.0
 - package: gopkg.in/redis.v4
   version: ~4.1.5
+- package: github.com/minio/minio-go
