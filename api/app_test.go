@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -19,7 +18,7 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should create app", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload := map[string]interface{}{
 				"appName":        appName,
@@ -50,7 +49,7 @@ var _ = Describe("Marathon API Handler", func() {
 			a := GetDefaultTestApp()
 
 			appName1 := randomdata.FirstName(randomdata.RandomGender)
-			service1 := randomdata.FirstName(randomdata.RandomGender)
+			service1 := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group1 := randomdata.FirstName(randomdata.RandomGender)
 			organizationID1 := uuid.NewV4()
 
@@ -87,7 +86,7 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should not create app with broken json", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload := map[string]interface{}{
 				"appName":        appName,
@@ -107,10 +106,10 @@ var _ = Describe("Marathon API Handler", func() {
 	})
 
 	Describe("Get Apps Handler", func() {
-		FIt("Should get apps with notifiers", func() {
+		It("Should get apps with notifiers", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)
+			service := randomdata.FirstName(randomdata.RandomGender)[:3]
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload := map[string]interface{}{
 				"appName":        appName,
@@ -142,7 +141,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
 			Expect(result["success"]).To(BeTrue())
-			fmt.Println(result)
 
 			// var status map[string]interface{}
 			// json.Unmarshal([]byte(result["status"].(string)), &status)
