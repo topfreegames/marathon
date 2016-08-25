@@ -21,6 +21,10 @@ type BatchPGWorker struct {
 	ID                          uuid.UUID
 	Config                      *viper.Viper
 	Logger                      zap.Logger
+	Notifier                    *models.Notifier
+	Message                     *messages.InputMessage
+	Filters                     [][]interface{}
+	Modifiers                   [][]interface{}
 	Db                          *models.DB
 	ConfigPath                  string
 	RedisClient                 *util.RedisClient
@@ -159,8 +163,8 @@ func (worker *BatchPGWorker) Configure() {
 	worker.connectRedis()
 }
 
-// StartWorker starts the workers according to the configuration and returns the workers object
-func (worker *BatchPGWorker) StartWorker(message *messages.InputMessage, filters [][]interface{}, modifiers [][]interface{}) {
+// Start starts the workers according to the configuration and returns the workers object
+func (worker *BatchPGWorker) Start() {
 	requireToken := false
 
 	worker.Logger.Info("Starting worker pipeline...")
@@ -197,7 +201,7 @@ func (worker *BatchPGWorker) StartWorker(message *messages.InputMessage, filters
 	worker.Logger.Debug("Started producer...", zap.Int("quantity", qtyProducers))
 
 	worker.Logger.Debug("Starting pgReader...")
-	go worker.pgReader(message, filters, modifiers, worker.PgToParserChan)
+	go worker.pgReader(worker.Message, worker.Filters, worker.Modifiers, worker.PgToParserChan)
 	worker.Logger.Debug("Started pgReader...")
 
 	worker.Logger.Info("Started worker pipeline...")
@@ -234,6 +238,10 @@ func (worker BatchPGWorker) GetStatus() map[string]interface{} {
 		"processedTokens":       worker.ProcessedTokens,
 		"totalPages":            worker.TotalPages,
 		"processedPages":        worker.ProcessedPages,
+		"notifier":              worker.Notifier,
+		"message":               worker.Message,
+		"filters":               worker.Filters,
+		"modifiers":             worker.Modifiers,
 		"batchPGWorkerDoneChan": len(worker.BatchPGWorkerDoneChan),
 		"pgToParserChan":        len(worker.PgToParserChan),
 		"parserDoneChan":        len(worker.ParserDoneChan),
@@ -258,8 +266,9 @@ func (worker *BatchPGWorker) SetStatus() {
 	}
 	strStatus := string(byteStatus)
 
+	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
 	// FIXME: What's the best TTL to set? 30 * time.Day ?
-	if err = cli.Set(worker.ID.String(), strStatus, 0).Err(); err != nil {
+	if err = cli.Set(redisKey, strStatus, 0).Err(); err != nil {
 		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
 	}
 }

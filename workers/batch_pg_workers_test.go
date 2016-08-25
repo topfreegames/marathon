@@ -104,13 +104,29 @@ var _ = Describe("Models", func() {
 
 	Describe("Batch pg workers", func() {
 		It("Send messages for segmented of users", func() {
+			appGroup := uuid.NewV4().String()
+			organizationID := uuid.NewV4()
+
+			app, createdAppErr := models.CreateApp(db, appName, organizationID, appGroup)
+			Expect(createdAppErr).To(BeNil())
+			appID := app.ID
+
+			notifier, createdNotifier1Err := models.CreateNotifier(db, appID, service)
+			Expect(createdNotifier1Err).To(BeNil())
+
 			userID1 := uuid.NewV4().String()
 			token1 := uuid.NewV4().String()
 			_, err = models.UpsertToken(db, appName, service, userID1, token1, locale, region, tz, buildN, optOut)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Batch worker that reads from pg and send to kafka
-			worker := &workers.BatchPGWorker{ConfigPath: "./../config/test.yaml"}
+			worker := &workers.BatchPGWorker{
+				ConfigPath: "./../config/test.yaml",
+				Message:    message,
+				Filters:    filters,
+				Modifiers:  modifiers,
+				Notifier:   notifier,
+			}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -127,7 +143,7 @@ var _ = Describe("Models", func() {
 
 			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
 
-			batchWorker.StartWorker(message, filters, modifiers)
+			batchWorker.Start()
 			Expect(batchWorker).NotTo(BeNil())
 
 			timeElapsed := time.Duration(0)
@@ -151,6 +167,17 @@ var _ = Describe("Models", func() {
 		})
 
 		It("Send messages for segmented of users", func() {
+			appGroup := uuid.NewV4().String()
+			organizationID := uuid.NewV4()
+
+			app, createdAppErr := models.CreateApp(db, appName, organizationID, appGroup)
+			Expect(createdAppErr).To(BeNil())
+
+			appID := app.ID
+
+			notifier, createdNotifier1Err := models.CreateNotifier(db, appID, service)
+			Expect(createdNotifier1Err).To(BeNil())
+
 			userID1 := uuid.NewV4().String()
 			token1 := uuid.NewV4().String()
 			_, err = models.UpsertToken(db, appName, service, userID1, token1, locale, region, tz, buildN, optOut)
@@ -169,7 +196,13 @@ var _ = Describe("Models", func() {
 			tokens := []string{token1, token2, token3}
 
 			// Batch worker that reads from pg and sent to continuous worker
-			worker := &workers.BatchPGWorker{ConfigPath: "./../config/test.yaml"}
+			worker := &workers.BatchPGWorker{
+				ConfigPath: "./../config/test.yaml",
+				Message:    message,
+				Filters:    filters,
+				Modifiers:  modifiers,
+				Notifier:   notifier,
+			}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -186,7 +219,7 @@ var _ = Describe("Models", func() {
 
 			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
 
-			batchWorker.StartWorker(message, filters, modifiers)
+			batchWorker.Start()
 			Expect(batchWorker).NotTo(BeNil())
 
 			timeElapsed := time.Duration(0)

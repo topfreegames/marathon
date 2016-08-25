@@ -35,7 +35,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["id"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
-			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
+			Expect(result["appGroup"]).To(Equal(group))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
 			appIdString := str(result["id"])
@@ -46,7 +46,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(dbApp.ID).To(Equal(appId))
 		})
 
-		It("Should create notifiers for different services and same app", func() {
+		It("Should create apps with repeated names but different services", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
@@ -66,7 +66,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["id"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
-			Expect(result["appGroup"]).To(Equal(payload["appGroup"]))
+			Expect(result["appGroup"]).To(Equal(group))
 			Expect(result["organizationID"]).To(Equal(payload["organizationID"]))
 
 			appIdString := str(result["id"])

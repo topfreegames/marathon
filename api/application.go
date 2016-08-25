@@ -217,8 +217,9 @@ func (application *Application) configureApplicationlication() error {
 	a.Get("/apps", GetAppsHandler(application))
 
 	// Send a push notification by filters
-	a.Post("/apps/notifications", SendNotificationHandler(application))
-	a.Get("/apps/notifications/:notificationId", GetNotificationStatusHandler(application))
+	a.Post("/notifiers/:notifierID/notifications", SendNotifierNotificationHandler(application))
+	a.Get("/notifiers/:notifierID/notifications/:notificationID", GetNotifierNotificationStatusHandler(application))
+	a.Get("/notifiers/:notifierID/notifications", GetNotifierNotifications(application))
 
 	// Send push notification through csv file
 	a.Get("/uploadurl", UploadHandler(application))

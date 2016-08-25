@@ -1,12 +1,15 @@
 package api
 
 import (
+	"strings"
 	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
+	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/workers"
 
 	"github.com/kataras/iris"
+	"github.com/satori/go.uuid"
 	"github.com/uber-go/zap"
 )
 
@@ -34,14 +37,33 @@ type notificationPayload struct {
 	Message  message `json:"message"`
 }
 
-// SendNotificationHandler is the handler responsible for creating new apps
-func SendNotificationHandler(application *Application) func(c *iris.Context) {
+// SendNotifierNotificationHandler is the handler responsible for creating new apps
+func SendNotifierNotificationHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
 		start := time.Now()
+		notifierID := c.Param("notifierID")
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
 			zap.String("operation", "sendNotification"),
 		)
+
+		notifierIDUuid, err := uuid.FromString(notifierID)
+		if err != nil {
+			l.Error(
+				"Could not convert notifierID into UUID.",
+				zap.Error(err),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
+			FailWith(400, err.Error(), c)
+			return
+		}
+
+		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
+		if err != nil {
+			l.Error("Could not find notifier.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			FailWith(400, err.Error(), c)
+			return
+		}
 
 		var payload notificationPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
@@ -77,20 +99,6 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 		// TODO: Should we accept as parameters ?
 		modifiers := [][]interface{}{{"LIMIT", payload.PageSize}}
 
-		workerConfig := &workers.BatchPGWorker{
-			ConfigPath: application.ConfigPath,
-			Logger:     l,
-		}
-		worker, err := workers.GetBatchPGWorker(workerConfig)
-		if err != nil {
-			l.Error(
-				"Invalid worker config,",
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
-			FailWith(400, err.Error(), c)
-		}
-
 		message := &messages.InputMessage{
 			App:     payload.App,
 			Service: payload.Service,
@@ -109,7 +117,21 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 			message.Metadata = payload.Message.Metadata
 		}
 
-		worker.StartWorker(message, filters, modifiers)
+		workerConfig := &workers.BatchPGWorker{
+			ConfigPath: application.ConfigPath,
+			Logger:     l,
+			Notifier:   notifier,
+			Message:    message,
+			Filters:    filters,
+			Modifiers:  modifiers,
+		}
+		worker, err := workers.GetBatchPGWorker(workerConfig)
+		if err != nil {
+			l.Error("Invalid worker config,", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			FailWith(400, err.Error(), c)
+		}
+
+		worker.Start()
 
 		SucceedWith(map[string]interface{}{
 			"id": worker.ID.String(),
@@ -117,19 +139,51 @@ func SendNotificationHandler(application *Application) func(c *iris.Context) {
 	}
 }
 
-// GetNotificationStatusHandler is the handler responsible retrieve a notification status
-func GetNotificationStatusHandler(application *Application) func(c *iris.Context) {
+// GetNotifierNotifications is the handler responsible retrieve a notification status
+func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
 		start := time.Now()
-		notificationID := c.Param("notificationId")
+		notifierID := c.Param("notifierID")
+		l := application.Logger.With(
+			zap.String("source", "notificationHandler"),
+			zap.String("operation", "getNotifications"),
+		)
+
+		cli := application.RedisClient.Client
+		redisKey := strings.Join([]string{notifierID, "*"}, "|")
+		l.Info("Get from redis", zap.String("redisKey", redisKey))
+		status, err := cli.Get(redisKey).Result()
+		if err != nil {
+			l.Panic(
+				"Failed to get notification status from redis",
+				zap.Error(err),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
+		}
+		l.Info(
+			"Got from redis",
+			zap.String("value", status),
+			zap.Duration("duration", time.Now().Sub(start)),
+		)
+		SucceedWith(map[string]interface{}{"status": status}, c)
+	}
+}
+
+// GetNotifierNotificationStatusHandler is the handler responsible retrieve a notification status
+func GetNotifierNotificationStatusHandler(application *Application) func(c *iris.Context) {
+	return func(c *iris.Context) {
+		start := time.Now()
+		notifierID := c.Param("notifierID")
+		notificationID := c.Param("notificationID")
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
 			zap.String("operation", "getNotificationStatus"),
 		)
 
 		cli := application.RedisClient.Client
-		l.Info("Get from redis", zap.String("key", notificationID))
-		status, err := cli.Get(notificationID).Result()
+		redisKey := strings.Join([]string{notifierID, notificationID}, "|")
+		l.Info("Get from redis", zap.String("redisKey", redisKey))
+		status, err := cli.Get(redisKey).Result()
 		if err != nil {
 			l.Panic(
 				"Failed to get notification status from redis",
