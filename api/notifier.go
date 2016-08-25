@@ -129,6 +129,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 		if err != nil {
 			l.Error("Invalid worker config,", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
 			FailWith(400, err.Error(), c)
+			return
 		}
 
 		worker.Start()
@@ -154,11 +155,13 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 		l.Info("Get from redis", zap.String("redisKey", redisKey))
 		keys, err := cli.Get(redisKey).Result()
 		if err != nil {
-			l.Panic(
+			l.Error(
 				"Failed to get notification status from redis",
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
+			FailWith(400, err.Error(), c)
+			return
 		}
 		l.Info(
 			"Got from redis",
@@ -171,12 +174,13 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 			key := string(keys[i])
 			status, err := cli.Get(key).Result()
 			if err != nil {
-				l.Panic(
+				l.Error(
 					"Failed to get notification status from redis",
 					zap.Error(err),
 					zap.String("key", key),
 					zap.Duration("duration", time.Now().Sub(start)),
 				)
+				FailWith(400, err.Error(), c)
 			}
 			statuses[strings.Split(key, "|")[1]] = status
 		}
@@ -201,11 +205,13 @@ func GetNotifierNotificationStatusHandler(application *Application) func(c *iris
 		l.Info("Get from redis", zap.String("redisKey", redisKey))
 		status, err := cli.Get(redisKey).Result()
 		if err != nil {
-			l.Panic(
+			l.Error(
 				"Failed to get notification status from redis",
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
+			FailWith(400, err.Error(), c)
+			return
 		}
 		l.Info(
 			"Got from redis",
