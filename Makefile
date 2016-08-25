@@ -57,7 +57,7 @@ run:
 	@go run main.go start -d -c ./config/local.yaml
 
 db-test-create:
-	@psql -d postgres -f db/drop-test.sql > /dev/null
+	@psql -d postgres -f db/drop-test.sql
 	@echo "Test database created successfully!"
 
 db-test-migrate:
