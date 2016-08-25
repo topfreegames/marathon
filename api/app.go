@@ -34,21 +34,40 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 			return
 		}
 
+		// FIXME: This should not work this way. We're ignoring organizationID and appGroup if appName exists
 		l.Debug("Creating app...")
 		app, err := models.CreateApp(application.Db, payload.AppName, payload.OrganizationID, payload.AppGroup)
 		if err != nil {
-			l.Error("Create app failed.", zap.Error(err))
-			FailWith(400, err.Error(), c)
-			return
+			if err.Error() == "pq: duplicate key value violates unique constraint \"index_apps_on_name\"" {
+				app, err = models.GetAppByName(application.Db, payload.AppName)
+				if err != nil {
+					l.Error("Get app failed.", zap.Error(err))
+					FailWith(400, err.Error(), c)
+					return
+				}
+				l.Info(
+					"App not created. Already exists",
+					zap.String("id", app.ID.String()),
+					zap.String("name", app.Name),
+					zap.String("group", app.AppGroup),
+					zap.String("organization_id", app.OrganizationID.String()),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+			} else {
+				l.Error("Create app failed.", zap.Error(err))
+				FailWith(400, err.Error(), c)
+				return
+			}
+		} else {
+			l.Info(
+				"App created successfully.",
+				zap.String("id", app.ID.String()),
+				zap.String("name", app.Name),
+				zap.String("group", app.AppGroup),
+				zap.String("organization_id", app.OrganizationID.String()),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
 		}
-		l.Info(
-			"App created successfully.",
-			zap.String("id", app.ID.String()),
-			zap.String("name", app.Name),
-			zap.String("group", app.AppGroup),
-			zap.String("organization_id", app.OrganizationID.String()),
-			zap.Duration("duration", time.Now().Sub(start)),
-		)
 
 		l.Debug("Creating notifier...")
 		notifier, err := models.CreateNotifier(application.Db, app.ID, payload.Service)
