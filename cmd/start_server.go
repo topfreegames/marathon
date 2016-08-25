@@ -34,11 +34,12 @@ var startServerCmd = &cobra.Command{
 			zap.Bool("debug", debug),
 		)
 
+		InitConfig(cmdL, configFile)
 		cmdL.Debug("Creating application...")
 		application := api.GetApplication(
 			host,
 			port,
-			ConfigFile,
+			configFile,
 			debug,
 			l,
 		)
@@ -55,4 +56,5 @@ func init() {
 	startServerCmd.Flags().StringVarP(&host, "bind", "b", "0.0.0.0", "Host to bind marathon to")
 	startServerCmd.Flags().IntVarP(&port, "port", "p", 8888, "Port to bind marathon to")
 	startServerCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Debug mode")
+	startServerCmd.Flags().StringVarP(&configFile, "configFile", "c", "./config/test.yaml", "Config file")
 }

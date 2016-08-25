@@ -8,9 +8,6 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// ConfigFile is the file containing all config
-var ConfigFile string
-
 // RootCmd is the root command for marathon CLI application
 var RootCmd = &cobra.Command{
 	Use:   "marathon",
