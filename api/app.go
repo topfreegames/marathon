@@ -94,7 +94,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 	}
 }
 
-// GetAppsHandler is the handler responsible for retrieaving a list of apps/services
+// GetAppsHandler is the handler responsible for retrieving a list of apps/services
 func GetAppsHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
 		start := time.Now()

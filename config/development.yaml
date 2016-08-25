@@ -4,6 +4,12 @@ postgres:
   host: "localhost"
   port: 5432
   sslmode: "disable"
+s3:
+  bucket: "tfg-push-notifications"
+  folder: "test/files"
+  daysExpiry: 1
+  accessKey: "ACCESS-KEY"
+  secretAccessKey: "SECRET-ACCESS-KEY"
 healthcheck:
   workingtext: "working"
 workers:

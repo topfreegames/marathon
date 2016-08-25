@@ -78,6 +78,12 @@ func (application *Application) setConfigurationDefaults() {
 	application.Config.SetDefault("redis.db", 0)
 	application.Config.SetDefault("redis.maxPoolSize", 20)
 
+	application.Config.SetDefault("s3.bucket", "tfg-push-notifications")
+	application.Config.SetDefault("s3.folder", "test/files")
+	application.Config.SetDefault("s3.daysExpiry", 1)
+	application.Config.SetDefault("s3.accessKey", "")
+	application.Config.SetDefault("s3.secretAccessKey", "")
+
 	l.Debug("Configuration defaults set.")
 }
 
@@ -213,6 +219,9 @@ func (application *Application) configureApplicationlication() error {
 	// Send a push notification by filters
 	a.Post("/apps/notifications", SendNotificationHandler(application))
 	a.Get("/apps/notifications/:notificationId", GetNotificationStatusHandler(application))
+
+	// Send push notification through csv file
+	a.Get("/uploadurl", UploadHandler(application))
 
 	redisHost := application.Config.GetString("redis.host")
 	redisPort := application.Config.GetInt("redis.port")
