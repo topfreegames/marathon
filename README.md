@@ -11,6 +11,9 @@ Run `make setup`.
 
 Run `make test`.
 
+You will need zookeeper and kafka installed.
+You also need to have a running redis server.
+
 ## TODO
 
  - Nested templates

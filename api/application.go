@@ -96,7 +96,7 @@ func (application *Application) loadConfiguration() {
 	if err := application.Config.ReadInConfig(); err == nil {
 		l.Info("Using config file", zap.String("file", application.Config.ConfigFileUsed()))
 	} else {
-		l.Panic(fmt.Sprintf("Could not load configuration file", zap.String("path", application.ConfigPath)))
+		l.Panic("Could not load configuration file", zap.String("path", application.ConfigPath))
 	}
 }
 
@@ -201,9 +201,10 @@ func (application *Application) configureApplicationlication() error {
 		ctx.Write("Not Found")
 	})
 
-	a.Get("/healthcheck", HealthCheckHandler(application))
-
 	// Routes
+
+	// Healthcheck
+	a.Get("/healthcheck", HealthCheckHandler(application))
 
 	// Create an app
 	a.Post("/apps", CreateAppHandler(application))
