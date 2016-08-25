@@ -88,6 +88,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 			"appGroup":            app.AppGroup,
 			"organizationID":      app.OrganizationID,
 			"service":             notifier.Service,
+			"notifierID":          notifier.ID,
 			"userTokensTableName": userTokensTable.TableName,
 		}, c)
 	}
