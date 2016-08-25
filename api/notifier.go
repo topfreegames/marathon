@@ -152,15 +152,25 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 
 		cli := application.RedisClient.Client
 		redisKey := strings.Join([]string{notifierID, "*"}, "|")
+		statuses := map[string]interface{}{}
+
 		l.Info("Get from redis", zap.String("redisKey", redisKey))
 		keys, err := cli.Get(redisKey).Result()
 		if err != nil {
-			l.Error(
-				"Failed to get notification status from redis",
-				zap.Error(err),
+			if err.Error() != "redis: nil" {
+				l.Error(
+					"Failed to get notification status from redis",
+					zap.Error(err),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+				FailWith(400, err.Error(), c)
+				return
+			}
+			l.Debug(
+				"No notifications status from redis",
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
-			FailWith(400, err.Error(), c)
+			SucceedWith(map[string]interface{}{"statuses": statuses}, c)
 			return
 		}
 		l.Info(
@@ -169,18 +179,27 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
 
-		statuses := map[string]interface{}{}
 		for i := range keys {
 			key := string(keys[i])
 			status, err := cli.Get(key).Result()
 			if err != nil {
-				l.Error(
-					"Failed to get notification status from redis",
-					zap.Error(err),
+				if err.Error() != "redis: nil" {
+					l.Error(
+						"Failed to get notification status from redis",
+						zap.Error(err),
+						zap.String("key", key),
+						zap.Duration("duration", time.Now().Sub(start)),
+					)
+					FailWith(400, err.Error(), c)
+					return
+				}
+				l.Debug(
+					"No notifications status from redis",
 					zap.String("key", key),
 					zap.Duration("duration", time.Now().Sub(start)),
 				)
-				FailWith(400, err.Error(), c)
+				SucceedWith(map[string]interface{}{"statuses": statuses}, c)
+				return
 			}
 			statuses[strings.Split(key, "|")[1]] = status
 		}
