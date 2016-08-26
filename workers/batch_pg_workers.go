@@ -12,6 +12,7 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/templates"
 	"git.topfreegames.com/topfreegames/marathon/util"
 	"github.com/Shopify/sarama"
+	"github.com/bsm/sarama-cluster"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
@@ -28,12 +29,16 @@ type BatchPGWorker struct {
 	Filters                     [][]interface{}
 	Modifiers                   [][]interface{}
 	StartedAt                   int64
-	Broker                      *sarama.Broker
+	KafkaClient                 *cluster.Client
+	KafkaTopic                  string
+	InitialKafkaOffset          int64
+	CurrentKafkaOffset          int64
 	Db                          *models.DB
 	ConfigPath                  string
 	RedisClient                 *util.RedisClient
 	TotalTokens                 int64
 	ProcessedTokens             int
+	TotalProcessedTokens        int
 	TotalPages                  int64
 	ProcessedPages              int64
 	BatchPGWorkerStatusDoneChan chan struct{}
@@ -155,6 +160,46 @@ func (worker *BatchPGWorker) loadConfiguration() {
 	}
 }
 
+func (worker *BatchPGWorker) configureKafkaClient() {
+	clusterConfig := cluster.NewConfig()
+	clusterConfig.Consumer.Return.Errors = true
+	clusterConfig.Group.Return.Notifications = true
+	clusterConfig.Version = sarama.V0_9_0_0
+	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+	brokers := worker.Config.GetStringSlice("workers.consumer.brokers")
+	// consumerGroupTemlate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
+	topicTemplate := worker.Config.GetString("workers.consumer.topicTemplate")
+	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
+	// consumerGroup := fmt.Sprintf(consumerGroupTemlate, worker.App.Name, worker.Notifier.Service)
+	worker.KafkaTopic = topic
+	client, err := cluster.NewClient(brokers, clusterConfig)
+	if err != nil {
+		worker.Logger.Error(
+			"Could not create kafka client",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.Logger.Debug(
+		"Created kafka client",
+		zap.String("client", fmt.Sprintf("%+v", client)),
+	)
+
+	currentOffset, err := client.GetOffset(topic, 0, sarama.OffsetNewest)
+	if err != nil {
+		worker.Logger.Error(
+			"Could not get kafka offset",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.Logger.Debug(
+		"Got kafka offset",
+		zap.Int64("Offset", currentOffset),
+	)
+
+	worker.InitialKafkaOffset = currentOffset
+	worker.KafkaClient = client
+}
+
 // Configure configures the worker
 func (worker *BatchPGWorker) Configure() {
 	worker.ID = uuid.NewV4()
@@ -165,20 +210,7 @@ func (worker *BatchPGWorker) Configure() {
 	worker.createChannels()
 	worker.connectDatabase()
 	worker.connectRedis()
-
-	// // FIXME: Always the first?
-	// brokers := worker.Config.GetStringSlice("workers.producer.brokers")
-	// fmt.Println("------------------------")
-	// fmt.Println(brokers)
-	// worker.Broker = sarama.NewBroker(brokers[0])
-	// saramaConfig := sarama.NewConfig()
-	// err := worker.Broker.Open(saramaConfig)
-	// if err != nil {
-	// 	worker.Logger.Error(
-	// 		"Could not connect to broker",
-	// 		zap.String("error", err.Error()),
-	// 	)
-	// }
+	worker.configureKafkaClient()
 }
 
 // Start starts the workers according to the configuration and returns the workers object
@@ -253,42 +285,45 @@ func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 // GetWorkerStatus returns a map[string]interface{} with the current worker status
 func (worker BatchPGWorker) GetWorkerStatus() map[string]interface{} {
 	return map[string]interface{}{
-		"notificationID":  worker.ID,
-		"startedAt":       worker.StartedAt,
-		"totalTokens":     worker.TotalTokens,
-		"processedTokens": worker.ProcessedTokens,
-		"totalPages":      worker.TotalPages,
-		"processedPages":  worker.ProcessedPages,
-		"message":         worker.Message,
-		"filters":         worker.Filters,
+		"notificationID":       worker.ID,
+		"startedAt":            worker.StartedAt,
+		"totalTokens":          worker.TotalTokens,
+		"totalProcessedTokens": worker.TotalProcessedTokens,
+		"totalPages":           worker.TotalPages,
+		"processedPages":       worker.ProcessedPages,
+		"message":              worker.Message,
+		"filters":              worker.Filters,
 	}
 }
 
-// // GetKafkaStatus returns a map[string]interface{} with the current kafka status
-// func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
-// 	consumerGroupTempllate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
-// 	consumerGroup := fmt.Sprintf(consumerGroupTempllate, worker.App.Name, worker.Notifier.Service)
-// 	offsetFetchRequest := &sarama.OffsetFetchRequest{
-// 		ConsumerGroup: consumerGroup,
-// 	}
-// 	offsetFetchResponse, err := worker.Broker.FetchOffset(offsetFetchRequest)
-// 	if err != nil {
-// 		worker.Logger.Error(
-// 			"Could not get offset from kafka",
-// 			zap.String("error", err.Error()),
-// 		)
-// 	}
-// 	fmt.Println("-------------------------------")
-// 	fmt.Println(offsetFetchResponse)
-// 	fmt.Println("-------------------------------")
-//
-// 	return map[string]interface{}{}
-// }
+// GetKafkaStatus returns a map[string]interface{} with the current kafka status
+func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
+	currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
+	if err != nil {
+		worker.Logger.Error(
+			"Could not get kafka offset",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.Logger.Debug(
+		"Got kafka offset",
+		zap.Int64("Offset", currentOffset),
+	)
+
+	worker.CurrentKafkaOffset = currentOffset
+	return map[string]interface{}{
+		"kafkaTopic":         worker.KafkaTopic,
+		"initialKafkaOffset": worker.InitialKafkaOffset,
+		"currentKafkaOffset": currentOffset,
+	}
+}
 
 // SetStatus sets the current notification status in redis
 func (worker *BatchPGWorker) SetStatus() {
 	cli := worker.RedisClient.Client
-	worker.Logger.Info("Set in redis", zap.String("key", worker.ID.String()))
+	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
+
+	worker.Logger.Info("Set in redis", zap.String("key", redisKey))
 
 	workerStatus := worker.GetWorkerStatus()
 	byteWorkerStatus, err := json.Marshal(workerStatus)
@@ -297,12 +332,25 @@ func (worker *BatchPGWorker) SetStatus() {
 	}
 	workerStrStatus := string(byteWorkerStatus)
 
-	// kafkaStatus := worker.GetKafkaStatus()
-	// fmt.Println(kafkaStatus)
+	kafkaStatus := worker.GetKafkaStatus()
+	byteKafkaStatus, err := json.Marshal(kafkaStatus)
+	if err != nil {
+		worker.Logger.Panic("Could not parse kafka status", zap.Error(err))
+	}
+	kafkaStrStatus := string(byteKafkaStatus)
 
-	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
+	status := map[string]interface{}{
+		"workerStatus": workerStrStatus,
+		"kafkaStatus":  kafkaStrStatus,
+	}
+	byteStatus, err := json.Marshal(status)
+	if err != nil {
+		worker.Logger.Panic("Could not parse status", zap.Error(err))
+	}
+	strStatus := string(byteStatus)
+
 	// FIXME: What's the best TTL to set? 30 * time.Day ?
-	if err = cli.Set(redisKey, workerStrStatus, 0).Err(); err != nil {
+	if err = cli.Set(redisKey, strStatus, 0).Err(); err != nil {
 		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
 	}
 }
@@ -399,6 +447,7 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 				l.Debug("pgRead - Send message to channel", zap.String("strMsg", string(strMsg)))
 				outChan <- string(strMsg)
 				worker.ProcessedTokens++
+				worker.TotalProcessedTokens++
 			}
 		}
 	}

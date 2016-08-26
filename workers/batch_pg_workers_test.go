@@ -126,6 +126,7 @@ var _ = Describe("Models", func() {
 				Filters:    filters,
 				Modifiers:  modifiers,
 				Notifier:   notifier,
+				App:        app,
 			}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())
@@ -202,6 +203,7 @@ var _ = Describe("Models", func() {
 				Filters:    filters,
 				Modifiers:  modifiers,
 				Notifier:   notifier,
+				App:        app,
 			}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())

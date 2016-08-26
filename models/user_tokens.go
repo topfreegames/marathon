@@ -334,7 +334,7 @@ func CreateUserTokensTable(db *DB, app string, service string) (*gorp.TableMap, 
 	db.Logger.Info(
 		"Created table",
 		zap.String("table name", tableName),
-		zap.String("table", fmt.Sprintf("%+v", created)),
+		zap.Object("table", created),
 	)
 
 	tableMap := db.AddTableWithName(UserToken{}, tableName).SetKeys(false, "ID")

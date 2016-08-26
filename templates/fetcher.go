@@ -1,8 +1,6 @@
 package templates
 
 import (
-	"fmt"
-
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 
@@ -22,7 +20,7 @@ func Fetcher(l zap.Logger, inChan <-chan *messages.InputMessage, outChan chan<- 
 			return // breaks out of the for
 		case input, ok := <-inChan:
 			if !ok {
-				l.Error("Not consuming InputMessages", zap.String("msg", fmt.Sprintf("%+v", input)))
+				l.Error("Not consuming InputMessages", zap.Object("msg", input))
 				return
 			}
 			output, err := FetchTemplate(l, input, db, tc)

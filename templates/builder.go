@@ -87,7 +87,7 @@ func ApnsMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (
 	if err != nil {
 		l.Error(
 			"Error building apns msg",
-			zap.String("msg", fmt.Sprintf("%+v", msg)),
+			zap.Object("msg", msg),
 			zap.Error(err),
 		)
 		return "", err
@@ -105,7 +105,7 @@ func GcmMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (s
 	if err != nil {
 		l.Error(
 			"Error building gcm msg",
-			zap.String("msg", fmt.Sprintf("%+v", msg)),
+			zap.Object("msg", msg),
 			zap.Error(err),
 		)
 		return "", err
@@ -118,7 +118,7 @@ func GcmMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (s
 	if err != nil {
 		l.Error(
 			"Error building gcm msg",
-			zap.String("msg", fmt.Sprintf("%+v", msg)),
+			zap.Object("msg", msg),
 			zap.Error(err),
 		)
 		return "", err

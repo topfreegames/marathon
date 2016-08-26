@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
+	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
 
@@ -229,19 +231,21 @@ var _ = Describe("Marathon API Handler", func() {
 			err = a.Db.Insert(template)
 			Expect(err).NotTo(HaveOccurred())
 
-			// // ===========================================================================================
-			// // Consume message produced by our pipeline
-			// outChan := make(chan string, 10)
-			// doneChan := make(chan struct{}, 1)
+			// ===========================================================================================
+			// Consume message produced by our pipeline
+			outChan := make(chan string, 10)
+			doneChan := make(chan struct{}, 1)
 			// defer close(doneChan)
-			// var config = viper.New()
-			// config.SetConfigFile("./../config/test.yaml")
-			// config.SetEnvPrefix("marathon")
-			// config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-			// config.AutomaticEnv()
-			// go consumer.Consumer(l, config, appName, service, outChan, doneChan)
-			// time.Sleep(time.Millisecond * 500)
-			// // ===========================================================================================
+			var config = viper.New()
+			config.SetConfigFile("./../config/test.yaml")
+			config.SetEnvPrefix("marathon")
+			config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			config.AutomaticEnv()
+			err = config.ReadInConfig()
+			Expect(err).NotTo(HaveOccurred())
+			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
+			time.Sleep(500 * time.Millisecond)
+			// ===========================================================================================
 
 			payload2 := map[string]interface{}{
 				"filters": map[string]interface{}{
@@ -278,10 +282,18 @@ var _ = Describe("Marathon API Handler", func() {
 
 			var status map[string]interface{}
 			json.Unmarshal([]byte(result3["status"].(string)), &status)
-			Expect(status["totalPages"]).To(Equal(float64(1)))
-			Expect(status["processedPages"]).To(Equal(float64(1)))
-			Expect(status["totalTokens"]).To(Equal(float64(2)))
-			Expect(status["processedTokens"]).To(Equal(float64(2)))
+
+			var kafkaStatus map[string]interface{}
+			json.Unmarshal([]byte(status["kafkaStatus"].(string)), &kafkaStatus)
+			Expect(kafkaStatus["initialKafkaOffset"]).To(Equal(float64(0)))
+			Expect(kafkaStatus["currentKafkaOffset"]).To(Equal(float64(2)))
+
+			var workerStatus map[string]interface{}
+			json.Unmarshal([]byte(status["workerStatus"].(string)), &workerStatus)
+			Expect(workerStatus["totalPages"]).To(Equal(float64(1)))
+			Expect(workerStatus["processedPages"]).To(Equal(float64(1)))
+			Expect(workerStatus["totalTokens"]).To(Equal(float64(2)))
+			Expect(workerStatus["totalProcessedTokens"]).To(Equal(float64(2)))
 		})
 
 		It("Should create a Notifications and get list", func() {

@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -64,8 +63,6 @@ var _ = Describe("Marathon API Handler", func() {
 			// Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
 			var result map[string]interface{}
 			json.Unmarshal([]byte(res.Body().Raw()), &result)
-			fmt.Println("-----------")
-			fmt.Println(result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))

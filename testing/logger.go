@@ -1,6 +1,7 @@
 package testing
 
 import "github.com/uber-go/zap"
+import "os"
 
 //NewMockKV is a mock key value store
 func NewMockKV() *MockKeyValue {
@@ -63,16 +64,18 @@ func (m *MockKeyValue) AddUint64(key string, value uint64) {
 
 //NewMockLogger returns a mock logger for tests
 func NewMockLogger(defaultFields ...zap.Field) zap.Logger {
-	return zap.New(
-		zap.NewJSONEncoder(),
-		zap.DebugLevel,
-		zap.AddCaller(),
-	)
-	// return &MockLogger{
-	// 	level:         zap.DebugLevel,
-	// 	DefaultFields: defaultFields,
-	// 	Messages:      []map[string]interface{}{},
-	// }
+	if os.Getenv("VERBOSE_TEST") == "true" {
+		return zap.New(
+			zap.NewJSONEncoder(),
+			zap.DebugLevel,
+			zap.AddCaller(),
+		)
+	}
+	return &MockLogger{
+		level:         zap.DebugLevel,
+		DefaultFields: defaultFields,
+		Messages:      []map[string]interface{}{},
+	}
 }
 
 //MockLogger implements the zap logger interface but stores all the logged messages for inspection

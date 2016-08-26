@@ -76,7 +76,7 @@ test: db-test-create db-test-migrate run-kafka-zookeeper
 	@ENV=test ginkgo --cover $(DIRS)
 
 test-verbose: db-test-create db-test-migrate run-kafka-zookeeper
-	@ENV=test ginkgo -v --cover $(DIRS)
+	@ENV=test VERBOSE_TEST=true ginkgo -v --cover $(DIRS)
 
 test-coverage: test
 	@rm -rf _build
@@ -136,11 +136,11 @@ kill-zookeeper:
 
 run-kafka:
 	@kafka-server-start ./testing/server.properties 2>&1 > /tmp/marathon-kafka.log &
-	@sleep 4
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app1-service1 --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app2-service2 --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumer-app3-service3 --zookeeper localhost:3535
-	@kafka-topics --create --partitions 1 --replication-factor 1 --topic producer-app1-service1 --zookeeper localhost:3535
+	@sleep 5
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp1-gcm --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp2-gcm --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp3-gcm --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic producerApp1-gcm --zookeeper localhost:3535
 
 kill-kafka:
 	@ps aux | egrep "./testing/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9

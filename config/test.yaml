@@ -22,19 +22,19 @@ healthcheck:
   workingtext: "working"
 workers:
   logger:
-    level: "debug"
+    level: "fatal"
   consumer:
     # FIXME: We have to keep this in sync with aguia
-    consumergroupTemplate: "push-%s_%s-production-single-group"
+    consumergroupTemplate: "push-%s_%s-test-single-group"
     # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
-    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
+    topicTemplate: "push-%s_%s-test-single-consumer-topic"
     brokers: [ "localhost:3536" ]
   producer:
     brokers: [ "localhost:3536" ]
     # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
-    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
+    topicTemplate: "push-%s_%s-test-single-consumer-topic"
   modules:
     producers: 1
     batchpgworkers: 1

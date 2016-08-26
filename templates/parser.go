@@ -70,7 +70,7 @@ func Parse(l zap.Logger, msg string, requireToken bool) (*messages.InputMessage,
 		l.Error(
 			"Template defined, but not Params",
 			zap.String("template", msgObj.Template),
-			zap.String("params", fmt.Sprintf("%+v", msgObj.Params)),
+			zap.Object("params", msgObj.Params),
 		)
 		e = parseError{"Template defined, but not Params"}
 	}
@@ -78,7 +78,7 @@ func Parse(l zap.Logger, msg string, requireToken bool) (*messages.InputMessage,
 		l.Error(
 			"Both Template and Message defined",
 			zap.String("template", msgObj.Template),
-			zap.String("message", fmt.Sprintf("%+v", msgObj.Message)),
+			zap.Object("message", msgObj.Message),
 		)
 		e = parseError{"Both Template and Message defined"}
 	}
@@ -86,7 +86,7 @@ func Parse(l zap.Logger, msg string, requireToken bool) (*messages.InputMessage,
 		l.Error(
 			"Either Template or Message should be defined",
 			zap.String("template", msgObj.Template),
-			zap.String("message", fmt.Sprintf("%+v", msgObj.Message)),
+			zap.Object("message", msgObj.Message),
 		)
 		e = parseError{"Either Template or Message should be defined"}
 	}

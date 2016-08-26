@@ -34,9 +34,10 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 	topicTemplate := config.GetString("workers.consumer.topicTemplate")
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}
 	consumerGroup := fmt.Sprintf(consumerGroupTemlate, app, service)
-	l.Warn(
+	l.Debug(
 		"Create consumer group",
-		zap.String("brokers", fmt.Sprintf("%+v", brokers)),
+		zap.Object("brokers", brokers),
+		zap.String("consumerGroupTemlate", consumerGroupTemlate),
 		zap.String("consumerGroup", consumerGroup),
 		zap.String("topicTemplate", topicTemplate),
 		zap.Object("topics", topics),
@@ -49,7 +50,16 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 		l.Error("Could not create consumer", zap.String("error", err.Error()))
 		return err
 	}
-	defer consumer.Close()
+	// FIXME: When we should close it
+	// defer consumer.Close()
+	l.Debug(
+		"Created consumer",
+		zap.Object("brokers", brokers),
+		zap.Object("consumerGroup", consumerGroup),
+		zap.Object("topics", topics),
+		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
+		zap.String("consumer", fmt.Sprintf("%+v", consumer)),
+	)
 
 	go func() {
 		for err := range consumer.Errors() {
@@ -59,7 +69,7 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 
 	go func() {
 		for notif := range consumer.Notifications() {
-			l.Info("Rebalanced", zap.String("", fmt.Sprintf("%+v", notif)))
+			l.Info("Rebalanced", zap.Object("", notif))
 		}
 	}()
 	l.Info("Starting kafka consumer")
@@ -76,7 +86,7 @@ func MainLoop(l zap.Logger, consumer *cluster.Consumer, outChan chan<- string, d
 			return // breaks out of the for
 		case msg, ok := <-consumer.Messages():
 			if !ok {
-				l.Error("Not ok consuming from Kafka", zap.String("msg", fmt.Sprintf("%+v", msg)))
+				l.Error("Not ok consuming from Kafka", zap.Object("msg", msg))
 				return // breaks out of the for
 			}
 			strMsg, err := Consume(l, msg)
@@ -84,6 +94,12 @@ func MainLoop(l zap.Logger, consumer *cluster.Consumer, outChan chan<- string, d
 				l.Error("Error reading kafka message", zap.Error(err))
 				continue
 			}
+
+			l.Debug(
+				"Consumed message",
+				zap.String("message", strMsg),
+				zap.String("consumer", fmt.Sprintf("%+v", consumer)),
+			)
 			// FIXME: Is it the rigth place to mark offset?
 			consumer.MarkOffset(msg, "")
 			outChan <- strMsg
@@ -93,7 +109,7 @@ func MainLoop(l zap.Logger, consumer *cluster.Consumer, outChan chan<- string, d
 
 // Consume extracts the message from the consumer message
 func Consume(l zap.Logger, kafkaMsg *sarama.ConsumerMessage) (string, error) {
-	l.Info("Consume message", zap.String("msg", fmt.Sprintf("%+v", kafkaMsg)))
+	l.Info("Consume message", zap.Object("msg", kafkaMsg))
 	msg := string(kafkaMsg.Value)
 	if msg == "" {
 		return "", consumeError{"Empty message"}
