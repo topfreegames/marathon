@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -172,6 +173,29 @@ func (worker *BatchCsvWorker) getCsvFromS3() {
 
 	// TODO: get total tokerns
 	worker.TotalTokens = 0
+	buf := make([]byte, 32*1024)
+	lineSep := []byte{'\n'}
+	for {
+		c, err := csvFile.Read(buf)
+		worker.TotalTokens += int64(bytes.Count(buf[:c], lineSep))
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+	}
+
+	// TODO: Bad idea, downloading file twice...
+	csvFile, err = s3Client.GetObject(worker.Bucket, worker.Key)
+	if err != nil {
+		worker.Logger.Panic(
+			"Could not download csv from S3...",
+			zap.String("bucket", worker.Bucket),
+			zap.String("key", worker.Key),
+			zap.String("error", err.Error()),
+		)
+	}
 
 	worker.Reader = csv.NewReader(csvFile)
 }
