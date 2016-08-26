@@ -170,6 +170,9 @@ func (worker *BatchCsvWorker) getCsvFromS3() {
 		)
 	}
 
+	// TODO: get total tokerns
+	worker.TotalTokens = 0
+
 	worker.Reader = csv.NewReader(csvFile)
 }
 
@@ -264,6 +267,8 @@ func (worker BatchCsvWorker) GetStatus() map[string]interface{} {
 		"notifier":               worker.Notifier,
 		"message":                worker.Message,
 		"modifiers":              worker.Modifiers,
+		"key":                    worker.Key,
+		"bucket":                 worker.Bucket,
 		"batchCsvWorkerDoneChan": len(worker.BatchCsvWorkerDoneChan),
 		"csvToParserChan":        len(worker.CsvToParserChan),
 		"parserDoneChan":         len(worker.ParserDoneChan),
@@ -328,16 +333,9 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 	}
 	l = l.With(zap.Int("limit", limit))
 
-	// TODO: get total tokerns
-	worker.TotalTokens = 0
+	worker.ProcessedTokens = 0
 
 	l = l.With(zap.Int64("worker.TotalTokens", worker.TotalTokens))
-
-	pages := 0
-
-	worker.TotalPages = int64(pages)
-
-	l = l.With(zap.Int64("worker.TotalPages", worker.TotalPages))
 
 	eof := false
 	for eof == false {
@@ -374,8 +372,7 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 
 		l.Debug("csvRead", zap.Object("len(userTokens)", len(userTokens)))
 
-		worker.ProcessedTokens = 0
-		for worker.ProcessedTokens < len(userTokens) {
+		for i := 0; i < len(userTokens); {
 			for _, userToken := range userTokens {
 				message.Token = userToken.Token
 				message.Locale = userToken.Locale
@@ -387,6 +384,7 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 				}
 				l.Debug("csvRead - Send message to channel", zap.String("strMsg", string(strMsg)))
 				outChan <- string(strMsg)
+				i++
 				worker.ProcessedTokens++
 			}
 		}

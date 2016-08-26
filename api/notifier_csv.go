@@ -13,12 +13,9 @@ import (
 )
 
 type csvNotificationPayload struct {
-	App      string  `json:"app"`
-	Service  string  `json:"service"`
-	PageSize int     `json:"pageSize"`
-	Message  message `json:"message"`
-	Bucket   string  `json:"bucket"`
-	Key      string  `json:"key"`
+	Message message `json:"message"`
+	Bucket  string  `json:"bucket"`
+	Key     string  `json:"key"`
 }
 
 // SendCsvNotificationHandler is the handler responsible for creating new pushes
@@ -42,13 +39,25 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 			return
 		}
 
+		l.Debug("Get notifier from DB")
 		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
 		if err != nil {
 			l.Error("Could not find notifier.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
 			FailWith(400, err.Error(), c)
 			return
 		}
+		l.Debug("Got notifier from DB")
 
+		l.Debug("Get app from DB")
+		app, err := models.GetAppByID(application.Db, notifier.AppID)
+		if err != nil {
+			l.Error("Could not find app.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			FailWith(400, err.Error(), c)
+			return
+		}
+		l.Debug("Got app from DB")
+
+		l.Debug("Parse payload")
 		var payload csvNotificationPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
 			l.Error(
@@ -59,12 +68,13 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 			FailWith(400, err.Error(), c)
 			return
 		}
+		l.Debug("Parsed payload", zap.Object("payload", payload))
 
-		modifiers := [][]interface{}{{"LIMIT", payload.PageSize}}
+		modifiers := [][]interface{}{{"LIMIT", 500}}
 
 		message := &messages.InputMessage{
-			App:     payload.App,
-			Service: payload.Service,
+			App:     app.Name,
+			Service: notifier.Service,
 		}
 
 		if payload.Message.Template != "" {
