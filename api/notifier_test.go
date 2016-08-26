@@ -86,9 +86,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			payload2 := map[string]interface{}{
-				"app":      appName,
-				"service":  service,
-				"pageSize": 10,
 				"filters": map[string]interface{}{
 					"user_id": userID,
 					"locale":  locale,
@@ -160,10 +157,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			payload2 := map[string]interface{}{
-				"app":      appName,
-				"service":  service,
-				"pageSize": 10,
-				"filters":  map[string]interface{}{"user_id": userID},
+				"filters": map[string]interface{}{"user_id": userID},
 				"message": map[string]interface{}{
 					"template": "test_template",
 					"params":   map[string]interface{}{"param1": "inputValue1", "param3": "inputValue3"},
@@ -236,9 +230,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			payload2 := map[string]interface{}{
-				"app":      appName,
-				"service":  service,
-				"pageSize": 10,
 				"filters": map[string]interface{}{
 					"locale":  locale,
 					"region":  region,
@@ -279,7 +270,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(status["processedTokens"]).To(Equal(float64(2)))
 		})
 
-		FIt("Should create a Notifications and get list", func() {
+		It("Should create a Notifications and get list", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
@@ -329,9 +320,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			payload2 := map[string]interface{}{
-				"app":      appName,
-				"service":  service,
-				"pageSize": 10,
 				"filters": map[string]interface{}{
 					"locale":  locale,
 					"region":  region,
@@ -364,7 +352,6 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(res3.Raw().StatusCode).To(Equal(http.StatusOK))
 			json.Unmarshal([]byte(res3.Body().Raw()), &result3)
 			Expect(result3["success"]).To(BeTrue())
-			fmt.Println(result3)
 		})
 	})
 })

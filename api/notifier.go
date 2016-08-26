@@ -31,11 +31,8 @@ type message struct {
 }
 
 type notificationPayload struct {
-	App      string  `json:"app"`
-	Service  string  `json:"service"`
-	PageSize int     `json:"pageSize"`
-	Filters  filter  `json:"filters"`
-	Message  message `json:"message"`
+	Filters filter  `json:"filters"`
+	Message message `json:"message"`
 }
 
 // SendNotifierNotificationHandler is the handler responsible for creating new apps
@@ -68,6 +65,15 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 			return
 		}
 		l.Debug("Got notifier from DB")
+
+		l.Debug("Get app from DB")
+		app, err := models.GetAppByID(application.Db, notifier.AppID)
+		if err != nil {
+			l.Error("Could not find app.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			FailWith(400, err.Error(), c)
+			return
+		}
+		l.Debug("Got app from DB")
 
 		l.Debug("Parse payload")
 		var payload notificationPayload
@@ -102,12 +108,12 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 			filters = append(filters, []interface{}{"scope", payload.Filters.Scope})
 		}
 
-		// TODO: Should we accept as parameters ?
-		modifiers := [][]interface{}{{"LIMIT", payload.PageSize}}
+		// TODO: Set in config
+		modifiers := [][]interface{}{{"LIMIT", 1000}}
 
 		message := &messages.InputMessage{
-			App:     payload.App,
-			Service: payload.Service,
+			App:     app.Name,
+			Service: notifier.Service,
 		}
 
 		if payload.Message.Template != "" {
