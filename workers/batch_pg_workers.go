@@ -25,6 +25,7 @@ type BatchPGWorker struct {
 	Message                     *messages.InputMessage
 	Filters                     [][]interface{}
 	Modifiers                   [][]interface{}
+	StartedAt                   int64
 	Db                          *models.DB
 	ConfigPath                  string
 	RedisClient                 *util.RedisClient
@@ -167,6 +168,8 @@ func (worker *BatchPGWorker) Configure() {
 func (worker *BatchPGWorker) Start() {
 	requireToken := false
 
+	worker.StartedAt = time.Now().Unix()
+
 	worker.Logger.Info("Starting worker pipeline...")
 
 	go worker.updateStatus(worker.BatchPGWorkerStatusDoneChan)
@@ -233,24 +236,14 @@ func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 // GetStatus returns a map[string]interface{} with the current worker status
 func (worker BatchPGWorker) GetStatus() map[string]interface{} {
 	return map[string]interface{}{
-		"id":                    worker.ID,
-		"totalTokens":           worker.TotalTokens,
-		"processedTokens":       worker.ProcessedTokens,
-		"totalPages":            worker.TotalPages,
-		"processedPages":        worker.ProcessedPages,
-		"notifier":              worker.Notifier,
-		"message":               worker.Message,
-		"filters":               worker.Filters,
-		"modifiers":             worker.Modifiers,
-		"batchPGWorkerDoneChan": len(worker.BatchPGWorkerDoneChan),
-		"pgToParserChan":        len(worker.PgToParserChan),
-		"parserDoneChan":        len(worker.ParserDoneChan),
-		"parserToFetcherChan":   len(worker.ParserToFetcherChan),
-		"fetcherDoneChan":       len(worker.FetcherDoneChan),
-		"fetcherToBuilderChan":  len(worker.FetcherToBuilderChan),
-		"builderDoneChan":       len(worker.BuilderDoneChan),
-		"builderToProducerChan": len(worker.BuilderToProducerChan),
-		"producerDoneChan":      len(worker.ProducerDoneChan),
+		"notificationID":  worker.ID,
+		"startedAt":       worker.StartedAt,
+		"totalTokens":     worker.TotalTokens,
+		"processedTokens": worker.ProcessedTokens,
+		"totalPages":      worker.TotalPages,
+		"processedPages":  worker.ProcessedPages,
+		"message":         worker.Message,
+		"filters":         worker.Filters,
 	}
 }
 

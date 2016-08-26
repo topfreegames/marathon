@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -45,6 +46,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
 			zap.String("operation", "sendNotification"),
+			zap.String("notifierID", notifierID),
 		)
 
 		notifierIDUuid, err := uuid.FromString(notifierID)
@@ -58,13 +60,16 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 			return
 		}
 
+		l.Debug("Get notifier from DB")
 		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
 		if err != nil {
 			l.Error("Could not find notifier.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
 			FailWith(400, err.Error(), c)
 			return
 		}
+		l.Debug("Got notifier from DB")
 
+		l.Debug("Parse payload")
 		var payload notificationPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
 			l.Error(
@@ -75,6 +80,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 			FailWith(400, err.Error(), c)
 			return
 		}
+		l.Debug("Parsed payload", zap.Object("payload", payload))
 
 		filters := [][]interface{}{}
 		if payload.Filters.UserID != "" {
@@ -125,14 +131,18 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 			Filters:    filters,
 			Modifiers:  modifiers,
 		}
+		l.Debug("Get BatchPGWorker...")
 		worker, err := workers.GetBatchPGWorker(workerConfig)
 		if err != nil {
 			l.Error("Invalid worker config,", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
 			FailWith(400, err.Error(), c)
 			return
 		}
+		l.Debug("Got BatchPGWorker...")
 
+		l.Debug("Start BatchPGWorker...")
 		worker.Start()
+		l.Debug("Started BatchPGWorker...")
 
 		SucceedWith(map[string]interface{}{
 			"id": worker.ID.String(),
@@ -148,14 +158,15 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 		l := application.Logger.With(
 			zap.String("source", "notificationHandler"),
 			zap.String("operation", "getNotifications"),
+			zap.String("notifierID", notifierID),
 		)
 
 		cli := application.RedisClient.Client
 		redisKey := strings.Join([]string{notifierID, "*"}, "|")
-		statuses := map[string]interface{}{}
+		statuses := []map[string]interface{}{}
 
 		l.Info("Get from redis", zap.String("redisKey", redisKey))
-		keys, err := cli.Get(redisKey).Result()
+		keys, err := cli.Keys(redisKey).Result()
 		if err != nil {
 			if err.Error() != "redis: nil" {
 				l.Error(
@@ -175,7 +186,7 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 		}
 		l.Info(
 			"Got from redis",
-			zap.String("keys", keys),
+			zap.Object("keys", keys),
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
 
@@ -201,7 +212,9 @@ func GetNotifierNotifications(application *Application) func(c *iris.Context) {
 				SucceedWith(map[string]interface{}{"statuses": statuses}, c)
 				return
 			}
-			statuses[strings.Split(key, "|")[1]] = status
+			var statusObj map[string]interface{}
+			err = json.Unmarshal([]byte(status), &statusObj)
+			statuses = append(statuses, statusObj)
 		}
 
 		SucceedWith(map[string]interface{}{"statuses": statuses}, c)

@@ -279,7 +279,7 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(status["processedTokens"]).To(Equal(float64(2)))
 		})
 
-		It("Should create a Notifications and get list", func() {
+		FIt("Should create a Notifications and get list", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := randomdata.FirstName(randomdata.RandomGender)[:3]
@@ -297,10 +297,6 @@ var _ = Describe("Marathon API Handler", func() {
 			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
 			notifierID := result1["notifierID"]
 
-			createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(createdTable.TableName).To(Equal(models.GetTableName(appName, service)))
-
 			userID1 := uuid.NewV4().String()
 			token1 := uuid.NewV4().String()
 			locale := uuid.NewV4().String()[:2]
@@ -309,7 +305,7 @@ var _ = Describe("Marathon API Handler", func() {
 			buildN := uuid.NewV4().String()
 			optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
 
-			_, err = models.UpsertToken(
+			_, err := models.UpsertToken(
 				a.Db, appName, service, userID1, token1, locale, region, tz, buildN, optOut,
 			)
 			Expect(err).NotTo(HaveOccurred())
