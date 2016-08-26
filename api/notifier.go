@@ -88,6 +88,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 		}
 		l.Debug("Parsed payload", zap.Object("payload", payload))
 
+		l.Debug("Build filters...")
 		filters := [][]interface{}{}
 		if payload.Filters.UserID != "" {
 			filters = append(filters, []interface{}{"user_id", payload.Filters.UserID})
@@ -107,6 +108,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 		if payload.Filters.Scope != "" {
 			filters = append(filters, []interface{}{"scope", payload.Filters.Scope})
 		}
+		l.Debug("Built filters...", zap.Object("filters", filters))
 
 		// TODO: Set in config
 		modifiers := [][]interface{}{{"LIMIT", 1000}}
