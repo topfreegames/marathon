@@ -10,27 +10,49 @@ import (
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 	"github.com/valyala/fasthttp"
 )
 
 // GetTestDB returns a connection to the test database
 func GetTestDB(l zap.Logger) (*models.DB, error) {
-	return models.GetDB(l, "localhost", "marathon_test", 5432, "disable", "marathon_test", "")
+	return models.GetDB(l, "localhost", "marathon", 9910, "disable", "marathon", "")
 }
 
 // GetFaultyTestDB returns an ill-configured test database
 func GetFaultyTestDB(l zap.Logger) *models.DB {
-	faultyDb, _ := models.InitDb(l, "localhost", "marathon_tet", 5432, "disable", "marathon_test", "")
+	faultyDb, _ := models.InitDb(l, "localhost", "marathon_tet", 9910, "disable", "marathon", "")
 	return faultyDb
 }
 
+func getConfig() (*viper.Viper, error) {
+	var config = viper.New()
+	config.SetConfigFile("./../config/test.yaml")
+	config.SetEnvPrefix("marathon")
+	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	config.AutomaticEnv()
+	err := config.ReadInConfig()
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
 // GetDefaultTestApp returns a new Marathon API Application bound to 0.0.0.0:8888 for test
-func GetDefaultTestApp() *api.Application {
+func GetDefaultTestApp(config *viper.Viper) *api.Application {
 	l := mt.NewMockLogger()
-	application := api.GetApplication("0.0.0.0", 8888, "../config/test.yaml", true, l)
-	application.Configure()
-	return application
+	if config != nil {
+		application := api.GetApplication("0.0.0.0", 8888, config, true, l)
+		return application
+	} else {
+		cfg, err := getConfig()
+		if err != nil {
+			l.Panic("Could not load config", zap.Object("config", config))
+		}
+		application := api.GetApplication("0.0.0.0", 8888, cfg, true, l)
+		return application
+	}
 }
 
 // Get returns a test request against specified URL

@@ -10,6 +10,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
+// UploadHandler handles a file upload
 func UploadHandler(application *Application) func(c *iris.Context) {
 	return func(c *iris.Context) {
 		start := time.Now()

@@ -35,7 +35,7 @@ var _ = Describe("Producer", func() {
 		err := config.ReadInConfig()
 		Expect(err).NotTo(HaveOccurred())
 
-		config.Set("workers.consumer.topicTemplate", "%s-%s")
+		// config.Set("workers.consumer.topicTemplate", "%s-%s")
 		topicTemplate := config.GetString("workers.consumer.topicTemplate")
 		topic := fmt.Sprintf(topicTemplate, app, service)
 

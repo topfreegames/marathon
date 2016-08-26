@@ -4,11 +4,11 @@ development:
 
 test:
     driver: postgres
-    open: user=marathon_test dbname=marathon_test sslmode=disable
+    open: user=marathon dbname=marathon sslmode=disable
 
 ci:
     driver: postgres
-    open: user=marathon_test dbname=marathon_test sslmode=disable
+    open: user=marathon dbname=marathon sslmode=disable
 
 nopassword:
     driver: postgres

@@ -1,14 +1,14 @@
-REVOKE ALL ON SCHEMA public FROM marathon_test;
-DROP DATABASE IF EXISTS marathon_test;
-DROP ROLE marathon_test;
+REVOKE ALL ON SCHEMA public FROM marathon;
+DROP DATABASE IF EXISTS marathon;
+DROP ROLE marathon;
 
-CREATE ROLE marathon_test LOGIN
+CREATE ROLE marathon LOGIN
   SUPERUSER INHERIT CREATEDB CREATEROLE;
 
-CREATE DATABASE marathon_test
-  WITH OWNER = marathon_test
+CREATE DATABASE marathon
+  WITH OWNER = marathon
        ENCODING = 'UTF8'
        TABLESPACE = pg_default
        TEMPLATE = template0;
 
-GRANT ALL ON SCHEMA public TO marathon_test;
+GRANT ALL ON SCHEMA public TO marathon;

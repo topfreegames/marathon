@@ -16,7 +16,7 @@ var _ = Describe("RedisClient", func() {
 
 	BeforeEach(func() {
 		var err error
-		redisClient, err = util.GetRedisClient("localhost", 6379, "", 0, 50, logger)
+		redisClient, err = util.GetRedisClient("localhost", 9920, "", 0, 50, logger)
 		Expect(err).NotTo(HaveOccurred())
 		conn := redisClient.GetConnection()
 		_, err = conn.Del("test").Result()

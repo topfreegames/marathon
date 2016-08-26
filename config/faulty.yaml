@@ -1,6 +1,6 @@
 postgres:
   user: "marathon_tet"
-  dbName: "marathon_test"
+  dbName: "marathon"
   host: "localhost"
   port: 5432
   sslMode: "disable"

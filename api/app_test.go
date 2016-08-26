@@ -3,20 +3,31 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
+	"github.com/spf13/viper"
 )
 
 var _ = Describe("Marathon API Handler", func() {
-	BeforeEach(func() {})
+	var config *viper.Viper
+	BeforeEach(func() {
+		var config = viper.New()
+		config.SetConfigFile("./../config/test.yaml")
+		config.SetEnvPrefix("marathon")
+		config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+		config.AutomaticEnv()
+		err := config.ReadInConfig()
+		Expect(err).NotTo(HaveOccurred())
+	})
 
 	Describe("Create App Handler", func() {
 		It("Should create app", func() {
-			a := GetDefaultTestApp()
+			a := GetDefaultTestApp(config)
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
@@ -47,7 +58,7 @@ var _ = Describe("Marathon API Handler", func() {
 		})
 
 		It("Should create notifiers for different services and same app", func() {
-			a := GetDefaultTestApp()
+			a := GetDefaultTestApp(config)
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
@@ -102,7 +113,7 @@ var _ = Describe("Marathon API Handler", func() {
 		})
 
 		It("Should not create app with broken json", func() {
-			a := GetDefaultTestApp()
+			a := GetDefaultTestApp(config)
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
@@ -126,7 +137,7 @@ var _ = Describe("Marathon API Handler", func() {
 	// TODO: Improve tests => Check notifier creation
 	Describe("Get Apps Handler", func() {
 		It("Should get apps with notifiers", func() {
-			a := GetDefaultTestApp()
+			a := GetDefaultTestApp(config)
 			appName := randomdata.FirstName(randomdata.RandomGender)
 			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)

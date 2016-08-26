@@ -41,7 +41,7 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 		zap.String("consumerGroup", consumerGroup),
 		zap.String("topicTemplate", topicTemplate),
 		zap.Object("topics", topics),
-		zap.Object("clusterConfig", clusterConfig),
+		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
 	)
 
 	// Create consumer defined by the configurations

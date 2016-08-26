@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"strings"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
@@ -30,12 +29,11 @@ type Application struct {
 }
 
 // GetApplication returns a new Marathon API Applicationlication
-func GetApplication(host string, port int, configPath string, debug bool, logger zap.Logger) *Application {
+func GetApplication(host string, port int, config *viper.Viper, debug bool, logger zap.Logger) *Application {
 	application := &Application{
 		Host:           host,
 		Port:           port,
-		ConfigPath:     configPath,
-		Config:         viper.New(),
+		Config:         config,
 		Debug:          debug,
 		Logger:         logger,
 		ReadBufferSize: 30000,
@@ -48,11 +46,10 @@ func GetApplication(host string, port int, configPath string, debug bool, logger
 // Configure instantiates the required dependencies for Marathon Api Applicationlication
 func (application *Application) Configure() error {
 	application.setConfigurationDefaults()
-	application.loadConfiguration()
 	application.configureSentry()
 	application.connectDatabase()
 
-	err := application.configureApplicationlication()
+	err := application.configureApplication()
 	if err != nil {
 		return err
 	}
@@ -85,25 +82,6 @@ func (application *Application) setConfigurationDefaults() {
 	application.Config.SetDefault("s3.secretAccessKey", "")
 
 	l.Debug("Configuration defaults set.")
-}
-
-func (application *Application) loadConfiguration() {
-	l := application.Logger.With(
-		zap.String("source", "app"),
-		zap.String("operation", "loadConfiguration"),
-		zap.String("configPath", application.ConfigPath),
-	)
-
-	application.Config.SetConfigFile(application.ConfigPath)
-	application.Config.SetEnvPrefix("marathon")
-	application.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	application.Config.AutomaticEnv()
-
-	if err := application.Config.ReadInConfig(); err == nil {
-		l.Info("Using config file", zap.String("file", application.Config.ConfigFileUsed()))
-	} else {
-		l.Panic("Could not load configuration file", zap.String("path", application.ConfigPath))
-	}
 }
 
 func (application *Application) configureSentry() {
@@ -172,7 +150,7 @@ func (application *Application) onErrorHandler(err error, stack []byte) {
 	raven.CaptureError(err, tags)
 }
 
-func (application *Application) configureApplicationlication() error {
+func (application *Application) configureApplication() error {
 	l := application.Logger.With(
 		zap.String("operation", "configureApplication"),
 	)

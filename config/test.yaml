@@ -1,12 +1,12 @@
 postgres:
-  user: "marathon_test"
-  dbname: "marathon_test"
+  user: "marathon"
+  dbname: "marathon"
   host: "localhost"
-  port: 5432
+  port: 9910
   sslmode: "disable"
 redis:
   host: localhost
-  port: 6379
+  port: 9920
   db: 0
   password: ""
   maxPoolSize: 20
@@ -25,16 +25,15 @@ workers:
     level: "fatal"
   consumer:
     # FIXME: We have to keep this in sync with aguia
-    consumergroupTemplate: "push-%s_%s-test-single-group"
+    consumergroupTemplate: "%s-%s-cg"
     # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
-    topicTemplate: "push-%s_%s-test-single-consumer-topic"
-    brokers: [ "localhost:3536" ]
+    topicTemplate: "%s-%s-c"
+    brokers: [ "localhost:9940" ]
   producer:
-    brokers: [ "localhost:3536" ]
-    # FIXME: We have to keep this in sync with aguia
+    brokers: [ "localhost:9940" ]
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
-    topicTemplate: "push-%s_%s-test-single-producer-topic"
+    topicTemplate: "%s-%s-p"
   modules:
     producers: 1
     batchpgworkers: 1

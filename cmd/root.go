@@ -26,20 +26,21 @@ func Execute(cmd *cobra.Command, l zap.Logger) {
 func init() {}
 
 // InitConfig reads in config file and ENV variables if set.
-func InitConfig(l zap.Logger, configFile string) {
+func InitConfig(l zap.Logger, configFile string) *viper.Viper {
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
 		l.Fatal("Config file does not exist", zap.String("configFile", configFile))
 		os.Exit(-1)
 	}
-	viper.SetConfigFile(configFile)
+	var config = viper.New()
+	config.SetConfigFile(configFile)
 
-	viper.SetConfigType("yaml")
-	viper.SetEnvPrefix("marathon")
-	viper.AddConfigPath(".") // optionally look for config in the working directory
-	viper.AutomaticEnv()     // read in environment variables that match
+	config.SetConfigType("yaml")
+	config.SetEnvPrefix("marathon")
+	config.AddConfigPath(".") // optionally look for config in the working directory
+	config.AutomaticEnv()     // read in environment variables that match
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err != nil {
+	if err := config.ReadInConfig(); err != nil {
 		l.Fatal("Error", zap.Error(err))
 		os.Exit(-1)
 	}
@@ -47,4 +48,5 @@ func InitConfig(l zap.Logger, configFile string) {
 		"Using config file",
 		zap.String("Config file", viper.ConfigFileUsed()),
 	)
+	return config
 }

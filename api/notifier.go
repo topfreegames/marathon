@@ -132,6 +132,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 		}
 
 		workerConfig := &workers.BatchPGWorker{
+			Config:     application.Config,
 			ConfigPath: application.ConfigPath,
 			Logger:     l,
 			Notifier:   notifier,
@@ -143,7 +144,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 		l.Debug("Get BatchPGWorker...")
 		worker, err := workers.GetBatchPGWorker(workerConfig)
 		if err != nil {
-			l.Error("Invalid worker config,", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			l.Error("Invalid worker config", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
 			FailWith(400, err.Error(), c)
 			return
 		}

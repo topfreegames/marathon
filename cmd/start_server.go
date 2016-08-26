@@ -34,12 +34,12 @@ var startServerCmd = &cobra.Command{
 			zap.Bool("debug", debug),
 		)
 
-		InitConfig(cmdL, configFile)
+		config := InitConfig(cmdL, configFile)
 		cmdL.Debug("Creating application...")
 		application := api.GetApplication(
 			host,
 			port,
-			configFile,
+			config,
 			debug,
 			l,
 		)

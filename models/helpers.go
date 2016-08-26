@@ -20,7 +20,7 @@ var _db *DB
 
 // GetTestDB returns a connection to the test database
 func GetTestDB(l zap.Logger) (*DB, error) {
-	return GetDB(l, "localhost", "marathon_test", 5432, "disable", "marathon_test", "")
+	return GetDB(l, "localhost", "marathon", 9910, "disable", "marathon", "")
 }
 
 // GetDB returns a DbMap connection to the database specified in the arguments

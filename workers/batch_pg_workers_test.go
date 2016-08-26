@@ -109,7 +109,7 @@ var _ = Describe("Models", func() {
 				err = workerConfig.ReadInConfig()
 				Expect(err).NotTo(HaveOccurred())
 
-				workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
+				// workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
 
 				// Batch worker that reads from pg and send to kafka
 				worker := &workers.BatchPGWorker{
@@ -236,7 +236,7 @@ var _ = Describe("Models", func() {
 				err = workerConfig.ReadInConfig()
 				Expect(err).NotTo(HaveOccurred())
 
-				workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
+				// workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
 
 				// Batch worker that reads from pg and sent to continuous worker
 				worker := &workers.BatchPGWorker{
@@ -367,7 +367,7 @@ var _ = Describe("Models", func() {
 				err = workerConfig.ReadInConfig()
 				Expect(err).NotTo(HaveOccurred())
 
-				workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
+				// workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
 
 				// Batch worker that reads from pg and send to kafka
 				worker := &workers.BatchPGWorker{
@@ -494,7 +494,7 @@ var _ = Describe("Models", func() {
 				err = workerConfig.ReadInConfig()
 				Expect(err).NotTo(HaveOccurred())
 
-				workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
+				// workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
 
 				// Batch worker that reads from pg and sent to continuous worker
 				worker := &workers.BatchPGWorker{

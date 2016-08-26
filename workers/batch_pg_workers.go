@@ -171,6 +171,7 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
 	worker.KafkaTopic = topic
 	client, err := cluster.NewClient(brokers, clusterConfig)
+
 	if err != nil {
 		worker.Logger.Error(
 			"Could not create kafka client",
@@ -182,10 +183,13 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 		zap.String("client", fmt.Sprintf("%+v", client)),
 	)
 
-	currentOffset, err := client.GetOffset(topic, 0, sarama.OffsetNewest)
+	partitionID := int32(0)
+	currentOffset, err := client.GetOffset(topic, partitionID, sarama.OffsetNewest)
 	if err != nil {
 		worker.Logger.Error(
 			"Could not get kafka offset",
+			zap.String("topic", topic),
+			zap.Int("partitionID", int(partitionID)),
 			zap.String("error", err.Error()),
 		)
 	}
@@ -298,8 +302,9 @@ func (worker BatchPGWorker) GetWorkerStatus() map[string]interface{} {
 func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
 	currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
 	if err != nil {
-		worker.Logger.Error(
+		worker.Logger.Warn(
 			"Could not get kafka offset",
+			zap.String("topic", worker.KafkaTopic),
 			zap.String("error", err.Error()),
 		)
 	}
