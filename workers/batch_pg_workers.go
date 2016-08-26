@@ -166,11 +166,9 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 	clusterConfig.Group.Return.Notifications = true
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-	brokers := worker.Config.GetStringSlice("workers.consumer.brokers")
-	// consumerGroupTemlate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
-	topicTemplate := worker.Config.GetString("workers.consumer.topicTemplate")
+	brokers := worker.Config.GetStringSlice("workers.producer.brokers")
+	topicTemplate := worker.Config.GetString("workers.producer.topicTemplate")
 	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
-	// consumerGroup := fmt.Sprintf(consumerGroupTemlate, worker.App.Name, worker.Notifier.Service)
 	worker.KafkaTopic = topic
 	client, err := cluster.NewClient(brokers, clusterConfig)
 	if err != nil {

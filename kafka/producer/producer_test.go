@@ -35,7 +35,7 @@ var _ = Describe("Producer", func() {
 		err := config.ReadInConfig()
 		Expect(err).NotTo(HaveOccurred())
 
-		config.SetDefault("workers.consumer.topicTemplate", "%s-%s")
+		config.Set("workers.consumer.topicTemplate", "%s-%s")
 		topicTemplate := config.GetString("workers.consumer.topicTemplate")
 		topic := fmt.Sprintf(topicTemplate, app, service)
 
@@ -66,7 +66,7 @@ var _ = Describe("Producer", func() {
 		brokers := []string{"localhost:3456"}
 
 		var producerConfig = viper.New()
-		producerConfig.SetDefault("workers.producer.brokers", brokers)
+		producerConfig.Set("workers.producer.brokers", brokers)
 
 		inChan := make(chan *messages.KafkaMessage, 10)
 		doneChan := make(chan struct{}, 1)

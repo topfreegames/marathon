@@ -34,7 +34,7 @@ workers:
     brokers: [ "localhost:3536" ]
     # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
-    topicTemplate: "push-%s_%s-test-single-consumer-topic"
+    topicTemplate: "push-%s_%s-test-single-producer-topic"
   modules:
     producers: 1
     batchpgworkers: 1

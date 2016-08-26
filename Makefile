@@ -140,6 +140,7 @@ run-kafka:
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp1-gcm --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp2-gcm --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp3-gcm --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp4-gcm --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic producerApp1-gcm --zookeeper localhost:3535
 
 kill-kafka:

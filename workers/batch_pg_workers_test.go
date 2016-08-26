@@ -24,25 +24,8 @@ var _ = Describe("Models", func() {
 		TableName string `db:"tablename"`
 	}
 	var (
-		db               *models.DB
-		l                zap.Logger
-		err              error
-		appName          string
-		service          string
-		templateName     string
-		locale           string
-		templateDefaults map[string]interface{}
-		templateBody     map[string]interface{}
-		region           string
-		tz               string
-		optOut           []string
-		buildN           string
-		pushExpiry       int64
-		msg              map[string]interface{}
-		metadata         map[string]interface{}
-		message          *messages.InputMessage
-		filters          [][]interface{}
-		modifiers        [][]interface{}
+		db *models.DB
+		l  zap.Logger
 	)
 
 	BeforeEach(func() {
@@ -63,47 +46,46 @@ var _ = Describe("Models", func() {
 			_, err = _db.Exec(fmt.Sprintf("TRUNCATE %s", strings.Join(tableNames, ",")))
 			Expect(err).NotTo(HaveOccurred())
 		}
-
-		templateName = "integrationtesttemplatename"
-		appName = "integrationtestappname"
-		service = "apns"
-		locale = "PT"
-		region = "BR"
-		tz = "GMT+03:00"
-		optOut = []string{"optout1", "optout2"}
-		buildN = "919191"
-		templateDefaults = map[string]interface{}{"username": "banduk"}
-		templateBody = map[string]interface{}{"alert": "{{username}} sent you a message."}
-		_, err = models.CreateTemplate(db, templateName, service, locale, templateDefaults, templateBody)
-		Expect(err).NotTo(HaveOccurred())
-
-		_, err = models.CreateUserTokensTable(db, appName, service)
-		Expect(err).NotTo(HaveOccurred())
-
-		pushExpiry = int64(0)
-		msg = map[string]interface{}{"aps": "hey"}
-		metadata = map[string]interface{}{"meta": "data"}
-
-		message = &messages.InputMessage{
-			App:        appName,
-			Service:    service,
-			PushExpiry: pushExpiry,
-			Locale:     locale,
-			Message:    msg,
-			Metadata:   metadata,
-		}
-
-		filters = [][]interface{}{
-			{"locale", locale},
-		}
-		modifiers = [][]interface{}{
-			{"ORDER BY", "updated_at ASC"},
-			{"LIMIT", 1},
-		}
 	})
 
 	Describe("Batch pg workers", func() {
-		It("Send messages for segmented of users", func() {
+		XIt("Send messages for segmented of users", func() {
+			appName := "integrationtestappname1"
+			templateName := "integrationtesttemplatename1"
+			service := "gcm"
+			locale := "PT"
+			region := "BR"
+			tz := "GMT+03:00"
+			optOut := []string{"optout1", "optout2"}
+			buildN := "919191"
+			templateDefaults := map[string]interface{}{"username": "banduk"}
+			templateBody := map[string]interface{}{"alert": "{{username}} sent you a message."}
+			_, err := models.CreateTemplate(db, templateName, service, locale, templateDefaults, templateBody)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = models.CreateUserTokensTable(db, appName, service)
+			Expect(err).NotTo(HaveOccurred())
+
+			pushExpiry := int64(0)
+			msg := map[string]interface{}{"aps": "hey"}
+			metadata := map[string]interface{}{"meta": "data"}
+
+			message := &messages.InputMessage{
+				App:        appName,
+				Service:    service,
+				PushExpiry: pushExpiry,
+				Locale:     locale,
+				Message:    msg,
+				Metadata:   metadata,
+			}
+
+			filters := [][]interface{}{
+				{"locale", locale},
+			}
+			modifiers := [][]interface{}{
+				{"ORDER BY", "updated_at ASC"},
+				{"LIMIT", 1},
+			}
 			appGroup := uuid.NewV4().String()
 			organizationID := uuid.NewV4()
 
@@ -136,11 +118,15 @@ var _ = Describe("Models", func() {
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
-			batchWorkerConfig := *worker.Config
 			var config = viper.New()
-			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("workers.producer.brokers"))
-			config.Set("workers.consumer.consumergroupTemplate", "%s_%s-1")
-			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("workers.producer.topicTemplate"))
+			config.SetConfigFile("./../config/test.yaml")
+			config.SetEnvPrefix("marathon")
+			config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			config.AutomaticEnv()
+			err = config.ReadInConfig()
+			Expect(err).NotTo(HaveOccurred())
+
+			config.Set("workers.consumer.topicTemplate", config.GetString("workers.producer.topicTemplate"))
 
 			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
 
@@ -167,7 +153,43 @@ var _ = Describe("Models", func() {
 			// FIXME: How to test the message?
 		})
 
-		It("Send messages for segmented of users", func() {
+		XIt("Send messages for segmented of users", func() {
+			appName := "integrationtestappname2"
+			templateName := "integrationtesttemplatename2"
+			service := "gcm"
+			locale := "PT"
+			region := "BR"
+			tz := "GMT+03:00"
+			optOut := []string{"optout1", "optout2"}
+			buildN := "919191"
+			templateDefaults := map[string]interface{}{"username": "banduk"}
+			templateBody := map[string]interface{}{"alert": "{{username}} sent you a message."}
+			_, err := models.CreateTemplate(db, templateName, service, locale, templateDefaults, templateBody)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = models.CreateUserTokensTable(db, appName, service)
+			Expect(err).NotTo(HaveOccurred())
+
+			pushExpiry := int64(0)
+			msg := map[string]interface{}{"aps": "hey"}
+			metadata := map[string]interface{}{"meta": "data"}
+
+			message := &messages.InputMessage{
+				App:        appName,
+				Service:    service,
+				PushExpiry: pushExpiry,
+				Locale:     locale,
+				Message:    msg,
+				Metadata:   metadata,
+			}
+
+			filters := [][]interface{}{
+				{"locale", locale},
+			}
+			modifiers := [][]interface{}{
+				{"ORDER BY", "updated_at ASC"},
+				{"LIMIT", 1},
+			}
 			appGroup := uuid.NewV4().String()
 			organizationID := uuid.NewV4()
 
@@ -213,11 +235,15 @@ var _ = Describe("Models", func() {
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
-			batchWorkerConfig := *worker.Config
 			var config = viper.New()
-			config.Set("workers.consumer.brokers", batchWorkerConfig.GetStringSlice("workers.producer.brokers"))
-			config.Set("workers.consumer.consumergroupTemplate", "%s_%s-1")
-			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("workers.producer.topicTemplate"))
+			config.SetConfigFile("./../config/test.yaml")
+			config.SetEnvPrefix("marathon")
+			config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			config.AutomaticEnv()
+			err = config.ReadInConfig()
+			Expect(err).NotTo(HaveOccurred())
+
+			config.Set("workers.consumer.topicTemplate", config.GetString("workers.producer.topicTemplate"))
 
 			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
 

@@ -45,6 +45,7 @@ func GetUserTokenByID(db *DB, app string, service string, id uuid.UUID) (*UserTo
 	return &userToken, nil
 }
 
+// GetUserTokenBatchByUserID retrieves user tokens based in user id
 func GetUserTokenBatchByUserID(db *DB, app string, service string, userIDs []string) ([]UserToken, error) {
 	var userTokens []UserToken
 	tableName := GetTableName(app, service)

@@ -67,7 +67,7 @@ var _ = Describe("Consumer", func() {
 			app := "consumerApp1"
 			service := "gcm"
 
-			config.SetDefault("workers.consumer.topicTemplate", "%s-%s")
+			config.Set("workers.consumer.topicTemplate", "%s-%s")
 			brokers := config.GetStringSlice("workers.consumer.brokers")
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
@@ -90,7 +90,7 @@ var _ = Describe("Consumer", func() {
 			service := "gcm"
 			message := "message%d"
 
-			config.SetDefault("workers.consumer.topicTemplate", "%s-%s")
+			config.Set("workers.consumer.topicTemplate", "%s-%s")
 			brokers := config.GetStringSlice("workers.consumer.brokers")
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
@@ -117,7 +117,7 @@ var _ = Describe("Consumer", func() {
 			service := "gcm"
 			message := "message"
 
-			config.SetDefault("workers.consumer.topicTemplate", "%s-%s")
+			config.Set("workers.consumer.topicTemplate", "%s-%s")
 			brokers := config.GetStringSlice("workers.consumer.brokers")
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
@@ -135,13 +135,12 @@ var _ = Describe("Consumer", func() {
 			Expect(consumedMessage).To(Equal(message))
 		})
 
-		XIt("Should not start a consumer if no broker found", func() {
+		It("Should not start a consumer if no broker found", func() {
 			app := "consumerApp4"
 			service := "gcm"
-
 			brokers := []string{"localhost:0666"}
-			config.SetDefault("workers.consumer.brokers", brokers)
-			config.SetDefault("workers.consumer.topicTemplate", "%s-%s")
+			config.Set("workers.consumer.brokers", brokers)
+			config.Set("workers.consumer.topicTemplate", "%s-%s")
 
 			outChan := make(chan string, 10)
 			doneChan := make(chan struct{}, 1)

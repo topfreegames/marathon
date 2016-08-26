@@ -40,7 +40,6 @@ var _ = Describe("Models", func() {
 		msg              map[string]interface{}
 		metadata         map[string]interface{}
 		message          *messages.InputMessage
-		filters          [][]interface{}
 		modifiers        [][]interface{}
 	)
 
@@ -92,9 +91,6 @@ var _ = Describe("Models", func() {
 			Metadata:   metadata,
 		}
 
-		filters = [][]interface{}{
-			{"locale", locale},
-		}
 		modifiers = [][]interface{}{
 			{"ORDER BY", "updated_at ASC"},
 			{"LIMIT", 1},
