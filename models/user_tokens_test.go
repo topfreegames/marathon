@@ -336,6 +336,47 @@ var _ = Describe("Models", func() {
 
 				Expect(len(dbUserTokens)).To(Equal(0))
 			})
+
+			It("Should find userTokens by user_id", func() {
+				app := "app_test_3_1"
+				service := "apns"
+				createdTable, err := models.CreateUserTokensTable(db, app, service)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
+
+				userID := uuid.NewV4().String()
+				token := uuid.NewV4().String()
+				locale := uuid.NewV4().String()[:2]
+				region := uuid.NewV4().String()[:2]
+				tz := "GMT+03:00"
+				buildN := uuid.NewV4().String()
+				optOut := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+				userToken, err := models.UpsertToken(
+					db, app, service, userID, token, locale, region, tz, buildN, optOut,
+				)
+				Expect(err).NotTo(HaveOccurred())
+
+				userID2 := uuid.NewV4().String()
+				token2 := uuid.NewV4().String()
+				locale2 := uuid.NewV4().String()[:2]
+				region2 := uuid.NewV4().String()[:2]
+				tz2 := "GMT+04:00"
+				optOut2 := []string{uuid.NewV4().String(), uuid.NewV4().String()}
+				userToken2, err := models.UpsertToken(
+					db, app, service, userID2, token2, locale2, region2, tz2, buildN, optOut2,
+				)
+				Expect(err).NotTo(HaveOccurred())
+
+				userIDList := []string{userID, userID2}
+				dbUserTokens, err := models.GetUserTokenBatchByUserID(db, app, service, userIDList)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(len(dbUserTokens)).To(Equal(2))
+
+				Expect(dbUserTokens[0].Token).To(Equal(userToken.Token))
+
+				Expect(dbUserTokens[1].Token).To(Equal(userToken2.Token))
+			})
 		})
 	})
 })

@@ -45,6 +45,22 @@ func GetUserTokenByID(db *DB, app string, service string, id uuid.UUID) (*UserTo
 	return &userToken, nil
 }
 
+func GetUserTokenBatchByUserID(db *DB, app string, service string, userIDs []string) ([]UserToken, error) {
+	var userTokens []UserToken
+	tableName := GetTableName(app, service)
+	escapedList := make([]string, len(userIDs))
+	for i, e := range userIDs {
+		escapedList[i] = fmt.Sprintf("'%s'", e)
+	}
+	query := fmt.Sprintf("SELECT token FROM %s WHERE user_id IN (%s)", tableName,
+		strings.Join(escapedList, ", "))
+	_, err := db.Select(&userTokens, query)
+	if err != nil || &userTokens == nil {
+		return nil, err
+	}
+	return userTokens, nil
+}
+
 // GetUserTokenByToken returns userToken with the given service,token
 func GetUserTokenByToken(db *DB, app string, service string, token string) (*UserToken, error) {
 	var userTokens []UserToken

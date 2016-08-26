@@ -222,7 +222,9 @@ func (application *Application) configureApplicationlication() error {
 	a.Get("/notifiers/:notifierID/notifications", GetNotifierNotifications(application))
 
 	// Send push notification through csv file
-	// a.Get("/uploadurl", UploadHandler(application))
+	a.Get("/uploadurl", UploadHandler(application))
+	a.Post("/notifiers/:notifierID/notifications_csv", SendCsvNotificationHandler(application))
+	// a.Get("/notifiers/:notifierID/notifications_csv/:notificationID", SendCsvNotificationHandler(application))
 
 	redisHost := application.Config.GetString("redis.host")
 	redisPort := application.Config.GetInt("redis.port")
