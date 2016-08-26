@@ -52,7 +52,7 @@ func GetUserTokenBatchByUserID(db *DB, app string, service string, userIDs []str
 	for i, e := range userIDs {
 		escapedList[i] = fmt.Sprintf("'%s'", e)
 	}
-	query := fmt.Sprintf("SELECT token FROM %s WHERE user_id IN (%s)", tableName,
+	query := fmt.Sprintf("SELECT * FROM %s WHERE user_id IN (%s)", tableName,
 		strings.Join(escapedList, ", "))
 	_, err := db.Select(&userTokens, query)
 	if err != nil || &userTokens == nil {

@@ -1,8 +1,10 @@
 package workers
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
 	"git.topfreegames.com/topfreegames/marathon/util"
+	"github.com/minio/minio-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
@@ -26,6 +29,7 @@ type BatchCsvWorker struct {
 	Modifiers                    [][]interface{}
 	Bucket                       string
 	Key                          string
+	Reader                       *csv.Reader
 	Db                           *models.DB
 	ConfigPath                   string
 	RedisClient                  *util.RedisClient
@@ -144,6 +148,31 @@ func (worker *BatchCsvWorker) loadConfiguration() {
 	}
 }
 
+func (worker *BatchCsvWorker) getCsvFromS3() {
+	s3AccessKeyID := worker.Config.GetString("s3.accessKey")
+	s3SecretAccessKey := worker.Config.GetString("s3.secretAccessKey")
+	ssl := true
+	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, ssl)
+	if err != nil {
+		worker.Logger.Panic(
+			"Could not authenticate with S3...",
+			zap.String("error", err.Error()),
+		)
+	}
+
+	csvFile, err := s3Client.GetObject(worker.Bucket, worker.Key)
+	if err != nil {
+		worker.Logger.Panic(
+			"Could not download csv from S3...",
+			zap.String("bucket", worker.Bucket),
+			zap.String("key", worker.Key),
+			zap.String("error", err.Error()),
+		)
+	}
+
+	worker.Reader = csv.NewReader(csvFile)
+}
+
 // Configure configures the worker
 func (worker *BatchCsvWorker) Configure() {
 	worker.ID = uuid.NewV4()
@@ -154,6 +183,7 @@ func (worker *BatchCsvWorker) Configure() {
 	worker.createChannels()
 	worker.connectDatabase()
 	worker.connectRedis()
+	worker.getCsvFromS3()
 }
 
 // Start starts the workers according to the configuration and returns the workers object
@@ -298,40 +328,41 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 	}
 	l = l.With(zap.Int("limit", limit))
 
-	var filters [][]interface{}
-	userTokensCount, err := models.CountUserTokensByFilters(
-		worker.Db, message.App, message.Service, filters, modifiers,
-	)
-	if err != nil {
-		l.Fatal("Error while counting tokens", zap.Error(err))
-	}
-
-	// TODO: why can't we assign this directly from `models.CountUserTokensByFilters` ?
-	worker.TotalTokens = userTokensCount
-
-	if worker.TotalTokens < int64(0) {
-		l.Fatal("worker.TotalTokens lower than 0", zap.Error(err))
-	}
+	// TODO: get total tokerns
+	worker.TotalTokens = 0
 
 	l = l.With(zap.Int64("worker.TotalTokens", worker.TotalTokens))
 
-	worker.TotalTokens = userTokensCount
+	pages := 0
 
-	pages := userTokensCount/int64(limit) + 1
-	workerModifiers := [2][]interface{}{ // TODO: Should we order ? {"ORDER BY", "updated_at ASC"}
-		{"LIMIT", limit},
-	}
-
-	worker.TotalPages = pages
+	worker.TotalPages = int64(pages)
 
 	l = l.With(zap.Int64("worker.TotalPages", worker.TotalPages))
 
-	for worker.ProcessedPages = int64(0); worker.ProcessedPages < worker.TotalPages; worker.ProcessedPages++ {
-		l.Debug("csvRead - Read page", zap.Int64("worker.ProcessedPages", worker.ProcessedPages))
+	eof := false
+	for eof == false {
+		l.Debug("csvRead - Read page")
 
-		workerModifiers[1] = []interface{}{"OFFSET", worker.ProcessedPages}
-		userTokens, err := models.GetUserTokensBatchByFilters(
-			worker.Db, message.App, message.Service, filters, modifiers,
+		userIDs := make([]string, 0, limit)
+		for i := 0; i < limit; i++ {
+			row, err := worker.Reader.Read()
+			if err == io.EOF {
+				eof = true
+				break
+			}
+			if err != nil {
+				l.Error(
+					"Error reading from csv",
+					zap.Error(err),
+				)
+				return outChan, err
+			}
+			// TODO: If more than one element per line this needs to be changed
+			userIDs = append(userIDs, row[0])
+		}
+
+		userTokens, err := models.GetUserTokenBatchByUserID(
+			worker.Db, message.App, message.Service, userIDs,
 		)
 		if err != nil {
 			l.Error(

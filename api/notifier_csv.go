@@ -100,6 +100,5 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 		SucceedWith(map[string]interface{}{
 			"id": worker.ID.String(),
 		}, c)
-
 	}
 }
