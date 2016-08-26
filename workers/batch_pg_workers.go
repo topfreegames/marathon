@@ -11,6 +11,7 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
 	"git.topfreegames.com/topfreegames/marathon/util"
+	"github.com/Shopify/sarama"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
@@ -22,10 +23,12 @@ type BatchPGWorker struct {
 	Config                      *viper.Viper
 	Logger                      zap.Logger
 	Notifier                    *models.Notifier
+	App                         *models.App
 	Message                     *messages.InputMessage
 	Filters                     [][]interface{}
 	Modifiers                   [][]interface{}
 	StartedAt                   int64
+	Broker                      *sarama.Broker
 	Db                          *models.DB
 	ConfigPath                  string
 	RedisClient                 *util.RedisClient
@@ -162,6 +165,20 @@ func (worker *BatchPGWorker) Configure() {
 	worker.createChannels()
 	worker.connectDatabase()
 	worker.connectRedis()
+
+	// // FIXME: Always the first?
+	// brokers := worker.Config.GetStringSlice("workers.producer.brokers")
+	// fmt.Println("------------------------")
+	// fmt.Println(brokers)
+	// worker.Broker = sarama.NewBroker(brokers[0])
+	// saramaConfig := sarama.NewConfig()
+	// err := worker.Broker.Open(saramaConfig)
+	// if err != nil {
+	// 	worker.Logger.Error(
+	// 		"Could not connect to broker",
+	// 		zap.String("error", err.Error()),
+	// 	)
+	// }
 }
 
 // Start starts the workers according to the configuration and returns the workers object
@@ -233,8 +250,8 @@ func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 	return worker, nil
 }
 
-// GetStatus returns a map[string]interface{} with the current worker status
-func (worker BatchPGWorker) GetStatus() map[string]interface{} {
+// GetWorkerStatus returns a map[string]interface{} with the current worker status
+func (worker BatchPGWorker) GetWorkerStatus() map[string]interface{} {
 	return map[string]interface{}{
 		"notificationID":  worker.ID,
 		"startedAt":       worker.StartedAt,
@@ -247,21 +264,45 @@ func (worker BatchPGWorker) GetStatus() map[string]interface{} {
 	}
 }
 
+// // GetKafkaStatus returns a map[string]interface{} with the current kafka status
+// func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
+// 	consumerGroupTempllate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
+// 	consumerGroup := fmt.Sprintf(consumerGroupTempllate, worker.App.Name, worker.Notifier.Service)
+// 	offsetFetchRequest := &sarama.OffsetFetchRequest{
+// 		ConsumerGroup: consumerGroup,
+// 	}
+// 	offsetFetchResponse, err := worker.Broker.FetchOffset(offsetFetchRequest)
+// 	if err != nil {
+// 		worker.Logger.Error(
+// 			"Could not get offset from kafka",
+// 			zap.String("error", err.Error()),
+// 		)
+// 	}
+// 	fmt.Println("-------------------------------")
+// 	fmt.Println(offsetFetchResponse)
+// 	fmt.Println("-------------------------------")
+//
+// 	return map[string]interface{}{}
+// }
+
 // SetStatus sets the current notification status in redis
 func (worker *BatchPGWorker) SetStatus() {
 	cli := worker.RedisClient.Client
 	worker.Logger.Info("Set in redis", zap.String("key", worker.ID.String()))
 
-	status := worker.GetStatus()
-	byteStatus, err := json.Marshal(status)
+	workerStatus := worker.GetWorkerStatus()
+	byteWorkerStatus, err := json.Marshal(workerStatus)
 	if err != nil {
 		worker.Logger.Panic("Could not parse worker status", zap.Error(err))
 	}
-	strStatus := string(byteStatus)
+	workerStrStatus := string(byteWorkerStatus)
+
+	// kafkaStatus := worker.GetKafkaStatus()
+	// fmt.Println(kafkaStatus)
 
 	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
 	// FIXME: What's the best TTL to set? 30 * time.Day ?
-	if err = cli.Set(redisKey, strStatus, 0).Err(); err != nil {
+	if err = cli.Set(redisKey, workerStrStatus, 0).Err(); err != nil {
 		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
 	}
 }

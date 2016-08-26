@@ -42,7 +42,7 @@ var _ = Describe("Models", func() {
 				insertAppErr := db.Insert(app)
 				Expect(insertAppErr).To(BeNil())
 
-				service := uuid.NewV4().String()[:4]
+				service := "gcm"
 				appID := app.ID
 
 				createdNotifier, createdNotifierErr := models.CreateNotifier(db, appID, service)
@@ -59,7 +59,7 @@ var _ = Describe("Models", func() {
 				insertAppErr := db.Insert(app)
 				Expect(insertAppErr).To(BeNil())
 
-				service := uuid.NewV4().String()[:4]
+				service := "gcm"
 				appID := app.ID
 
 				_, createdNotifier1Err := models.CreateNotifier(db, appID, service)
@@ -81,7 +81,7 @@ var _ = Describe("Models", func() {
 				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
 				Expect(insertAppErr).To(BeNil())
-				service := uuid.NewV4().String()[:4]
+				service := "gcm"
 				appID := app.ID
 
 				updatedNotifier, updatedNotifierErr := models.UpdateNotifier(db, notifier.ID, appID, service)
@@ -118,7 +118,7 @@ var _ = Describe("Models", func() {
 				Expect(appErr).To(BeNil())
 				insertAppErr := db.Insert(app)
 				Expect(insertAppErr).To(BeNil())
-				service := uuid.NewV4().String()[:4]
+				service := "gcm"
 				appID := app.ID
 				invalidID := uuid.NewV4()
 
@@ -220,7 +220,7 @@ var _ = Describe("Models", func() {
 				insertNotifierErr1 := db.Insert(notifier1)
 				Expect(insertNotifierErr1).To(BeNil())
 
-				invalidService := uuid.NewV4().String()[:4]
+				invalidService := "gcm2"
 
 				_, dbNotifiersErr := models.GetNotifiersByService(db, invalidService)
 				Expect(dbNotifiersErr).NotTo(BeNil())
@@ -255,7 +255,7 @@ var _ = Describe("Models", func() {
 				insertNotifierErr := db.Insert(notifier)
 				Expect(insertNotifierErr).To(BeNil())
 
-				invalidService := uuid.NewV4().String()[:4]
+				invalidService := "gcm"
 				_, dbNotifiersErr := models.GetNotifierByAppAndService(db, notifier.AppID, invalidService)
 				Expect(dbNotifiersErr).NotTo(BeNil())
 			})

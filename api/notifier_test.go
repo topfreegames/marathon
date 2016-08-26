@@ -46,7 +46,7 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should create a Notification", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)[:3]
+			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload1 := map[string]interface{}{
 				"appName":        appName,
@@ -113,7 +113,7 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should not create a Notification when broken json", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)[:3]
+			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload1 := map[string]interface{}{
 				"appName":        appName,
@@ -178,7 +178,7 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should create a Notification and get status", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)[:3]
+			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload1 := map[string]interface{}{
 				"appName":        appName,
@@ -229,6 +229,20 @@ var _ = Describe("Marathon API Handler", func() {
 			err = a.Db.Insert(template)
 			Expect(err).NotTo(HaveOccurred())
 
+			// // ===========================================================================================
+			// // Consume message produced by our pipeline
+			// outChan := make(chan string, 10)
+			// doneChan := make(chan struct{}, 1)
+			// defer close(doneChan)
+			// var config = viper.New()
+			// config.SetConfigFile("./../config/test.yaml")
+			// config.SetEnvPrefix("marathon")
+			// config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			// config.AutomaticEnv()
+			// go consumer.Consumer(l, config, appName, service, outChan, doneChan)
+			// time.Sleep(time.Millisecond * 500)
+			// // ===========================================================================================
+
 			payload2 := map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale":  locale,
@@ -273,7 +287,7 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should create a Notifications and get list", func() {
 			a := GetDefaultTestApp()
 			appName := randomdata.FirstName(randomdata.RandomGender)
-			service := randomdata.FirstName(randomdata.RandomGender)[:3]
+			service := "gcm"
 			group := randomdata.FirstName(randomdata.RandomGender)
 			payload1 := map[string]interface{}{
 				"appName":        appName,

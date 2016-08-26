@@ -40,7 +40,7 @@ var _ = Describe("Models", func() {
 
 			It("Should create a template", func() {
 				name := uuid.NewV4().String()
-				service := uuid.NewV4().String()[:4]
+				service :=  "gcm"
 				locale := uuid.NewV4().String()[:2]
 				defaults := map[string]interface{}{"username": "banduk"}
 				body := map[string]interface{}{"alert": "{{username}} sent you a message."}
@@ -57,7 +57,7 @@ var _ = Describe("Models", func() {
 
 			It("Should not create a template with repeated name,locale", func() {
 				name := uuid.NewV4().String()
-				service := uuid.NewV4().String()[:4]
+				service :=  "gcm"
 				locale := uuid.NewV4().String()[:2]
 				defaults1 := map[string]interface{}{"username": "banduk"}
 				body1 := map[string]interface{}{"alert1": "{{username1}} sent you a message1."}
@@ -80,7 +80,7 @@ var _ = Describe("Models", func() {
 			Expect(insertTemplateErr).To(BeNil())
 
 			name := uuid.NewV4().String()
-			service := uuid.NewV4().String()[:4]
+			service :=  "gcm"
 			locale := uuid.NewV4().String()[:2]
 			defaults := map[string]interface{}{"username": "banduk"}
 			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
@@ -167,7 +167,7 @@ var _ = Describe("Models", func() {
 			Expect(insertTemplateErr1).To(BeNil())
 
 			name := template1.Name
-			service := uuid.NewV4().String()[:4]
+			service :=  "gcm"
 			locale := uuid.NewV4().String()[:2]
 			defaults := map[string]interface{}{"username": "banduk"}
 			body := map[string]interface{}{"alert": "{{username}} sent you a message."}

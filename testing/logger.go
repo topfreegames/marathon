@@ -63,16 +63,16 @@ func (m *MockKeyValue) AddUint64(key string, value uint64) {
 
 //NewMockLogger returns a mock logger for tests
 func NewMockLogger(defaultFields ...zap.Field) zap.Logger {
-	// return zap.New(
-	// 	zap.NewJSONEncoder(),
-	// 	zap.DebugLevel,
-	// 	zap.AddCaller(),
-	// )
-	return &MockLogger{
-		level:         zap.DebugLevel,
-		DefaultFields: defaultFields,
-		Messages:      []map[string]interface{}{},
-	}
+	return zap.New(
+		zap.NewJSONEncoder(),
+		zap.DebugLevel,
+		zap.AddCaller(),
+	)
+	// return &MockLogger{
+	// 	level:         zap.DebugLevel,
+	// 	DefaultFields: defaultFields,
+	// 	Messages:      []map[string]interface{}{},
+	// }
 }
 
 //MockLogger implements the zap logger interface but stores all the logged messages for inspection

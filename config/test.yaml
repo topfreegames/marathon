@@ -22,14 +22,17 @@ healthcheck:
   workingtext: "working"
 workers:
   logger:
-    level: "fatal"
+    level: "debug"
   consumer:
-    consumergroup: "integration-test-consumer-group"
+    # FIXME: We have to keep this in sync with aguia
+    consumergroupTemplate: "push-%s_%s-production-single-group"
+    # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-consumer-topic"
     brokers: [ "localhost:3536" ]
   producer:
     brokers: [ "localhost:3536" ]
+    # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-consumer-topic"
   modules:

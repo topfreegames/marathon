@@ -56,15 +56,15 @@ var _ = Describe("Consumer", func() {
 	Describe("", func() {
 		It("Should consume one message correctly and retrieve it", func() {
 			app := "app1"
-			service := "service1"
+			service :=  "gcm"
 			topicTemplate := "consumer-%s-%s"
 			topic := fmt.Sprintf(topicTemplate, app, service)
 			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test-consumer-1"
+			consumerGroupTemplate := "%s-%s-1"
 
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
-			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.consumerGroupTemplate", consumerGroupTemplate)
 			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
@@ -82,16 +82,16 @@ var _ = Describe("Consumer", func() {
 
 		It("Should consume two messages correctly and retrieve them", func() {
 			app := "app2"
-			service := "service2"
+			service :=  "gcm"
 			topicTemplate := "consumer-%s-%s"
 			topic := fmt.Sprintf(topicTemplate, app, service)
 			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test-consumer-2"
+			consumerGroupTemplate := "%s-%s-2"
 			message := "message%d"
 
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
-			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.consumerGroupTemplate", consumerGroupTemplate)
 			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
@@ -113,16 +113,16 @@ var _ = Describe("Consumer", func() {
 
 		It("Should not output an empty message", func() {
 			app := "app3"
-			service := "service3"
+			service :=  "gcm"
 			topicTemplate := "consumer-%s-%s"
 			topic := fmt.Sprintf(topicTemplate, app, service)
 			brokers := []string{"localhost:3536"}
-			consumerGroup := "consumer-group-test-consumer-3"
+			consumerGroupTemplate := "%s-%s-3"
 			message := "message"
 
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
-			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.consumerGroupTemplate", consumerGroupTemplate)
 			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)
@@ -140,14 +140,14 @@ var _ = Describe("Consumer", func() {
 
 		It("Should not start a consumer if no broker found", func() {
 			app := "app4"
-			service := "service4"
+			service :=  "gcm"
 			topicTemplate := "consumer-%s-%s"
 			brokers := []string{"localhost:0666"}
-			consumerGroup := "consumer-group-test-consumer-4"
+			consumerGroupTemplate := "%s-%s-4"
 
 			var config = viper.New()
 			config.SetDefault("workers.consumer.brokers", brokers)
-			config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+			config.SetDefault("workers.consumer.consumerGroupTemplate", consumerGroupTemplate)
 			config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 			outChan := make(chan string, 10)

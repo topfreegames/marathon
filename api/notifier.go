@@ -135,6 +135,7 @@ func SendNotifierNotificationHandler(application *Application) func(c *iris.Cont
 			ConfigPath: application.ConfigPath,
 			Logger:     l,
 			Notifier:   notifier,
+			App:        app,
 			Message:    message,
 			Filters:    filters,
 			Modifiers:  modifiers,

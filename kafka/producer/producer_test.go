@@ -23,16 +23,16 @@ var _ = Describe("Producer", func() {
 	})
 	It("Should send messages received in the inChan to kafka", func() {
 		app := "app1"
-		service := "service1"
+		service :=  "gcm"
 		topicTemplate := "producer-%s-%s"
 		topic := fmt.Sprintf(topicTemplate, app, service)
 		brokers := []string{"localhost:3536"}
-		consumerGroup := "consumer-group-test-producer-1"
+		consumerGroupTemplate := "%s_%s-1"
 		message := "message%d"
 
 		var config = viper.New()
 		config.SetDefault("workers.consumer.brokers", brokers)
-		config.SetDefault("workers.consumer.consumergroup", consumerGroup)
+		config.SetDefault("workers.consumer.consumerGroupTemplate", consumerGroupTemplate)
 		config.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 		var producerConfig = viper.New()
@@ -53,7 +53,7 @@ var _ = Describe("Producer", func() {
 		// Consuming
 		var consumerConfig = viper.New()
 		consumerConfig.SetDefault("workers.consumer.brokers", brokers)
-		consumerConfig.SetDefault("workers.consumer.consumergroup", consumerGroup)
+		consumerConfig.SetDefault("workers.consumer.consumerGroupTemplate", consumerGroupTemplate)
 		consumerConfig.SetDefault("workers.consumer.topicTemplate", topicTemplate)
 
 		outChan := make(chan string, 10)

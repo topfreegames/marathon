@@ -152,6 +152,7 @@ func Build(l zap.Logger, config *viper.Viper, request *messages.TemplatedMessage
 	topicTemplate := config.GetString("workers.producer.topicTemplate")
 	topic := BuildTopicName(request.App, request.Service, topicTemplate)
 
+	// FIXME: The message types should be in config
 	var builtMessage string
 	if request.Service == "apns" {
 		builtMessage, err = ApnsMsg(l, request, content)

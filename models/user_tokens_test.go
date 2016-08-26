@@ -45,7 +45,7 @@ var _ = Describe("Models", func() {
 		Describe("Create UserTokens Table", func() {
 			It("Should succeed when data is correct", func() {
 				app := "app_test_1_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -54,13 +54,13 @@ var _ = Describe("Models", func() {
 
 			It("Should succeed creating 2 tables", func() {
 				app1 := "app_test_2_1"
-				service1 := "apns"
+				service1 :=  "gcm"
 				createdTable1, err := models.CreateUserTokensTable(db, app1, service1)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable1.TableName).To(Equal(models.GetTableName(app1, service1)))
 
 				app2 := "app_test_2_2"
-				service2 := "apns"
+				service2 :=  "gcm"
 				createdTable2, err := models.CreateUserTokensTable(db, app2, service2)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -71,7 +71,7 @@ var _ = Describe("Models", func() {
 		Describe("Create UserToken", func() {
 			It("Should create a user token through a factory", func() {
 				app := "app_test_2_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
@@ -93,7 +93,7 @@ var _ = Describe("Models", func() {
 
 			It("Should upsert a userToken when new userToken", func() {
 				app := "app_test_3_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
@@ -123,7 +123,7 @@ var _ = Describe("Models", func() {
 
 			It("Should upsert a userToken when userToken exists", func() {
 				app := "app_test_3_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
@@ -164,7 +164,7 @@ var _ = Describe("Models", func() {
 
 			It("Should upsert a userToken when userToken exists", func() {
 				app := "app_test_3_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
@@ -206,7 +206,7 @@ var _ = Describe("Models", func() {
 
 			It("Should find userToken by filters", func() {
 				app := "app_test_3_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
@@ -246,7 +246,7 @@ var _ = Describe("Models", func() {
 
 			It("Should find userTokens by filters", func() {
 				app := "app_test_3_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))
@@ -305,7 +305,7 @@ var _ = Describe("Models", func() {
 
 			It("Should ont find userToken by filters when there are no matches", func() {
 				app := "app_test_3_1"
-				service := "apns"
+				service :=  "gcm"
 				createdTable, err := models.CreateUserTokensTable(db, app, service)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(createdTable.TableName).To(Equal(models.GetTableName(app, service)))

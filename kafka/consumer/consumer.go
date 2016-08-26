@@ -30,9 +30,10 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	brokers := config.GetStringSlice("workers.consumer.brokers")
-	consumerGroup := config.GetString("workers.consumer.consumergroup")
+	consumerGroupTemlate := config.GetString("workers.consumer.consumergroupTemplate")
 	topicTemplate := config.GetString("workers.consumer.topicTemplate")
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}
+	consumerGroup := fmt.Sprintf(consumerGroupTemlate, app, service)
 	l.Warn(
 		"Create consumer group",
 		zap.String("brokers", fmt.Sprintf("%+v", brokers)),
