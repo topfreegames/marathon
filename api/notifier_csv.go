@@ -94,6 +94,7 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 			ConfigPath: application.ConfigPath,
 			Logger:     l,
 			Notifier:   notifier,
+			App:        app,
 			Message:    message,
 			Modifiers:  modifiers,
 			Bucket:     payload.Bucket,

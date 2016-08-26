@@ -14,6 +14,8 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
 	"git.topfreegames.com/topfreegames/marathon/util"
+	"github.com/Shopify/sarama"
+	"github.com/bsm/sarama-cluster"
 	"github.com/minio/minio-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
@@ -26,16 +28,23 @@ type BatchCsvWorker struct {
 	Config                       *viper.Viper
 	Logger                       zap.Logger
 	Notifier                     *models.Notifier
+	App                          *models.App
 	Message                      *messages.InputMessage
 	Modifiers                    [][]interface{}
+	StartedAt                    int64
 	Bucket                       string
 	Key                          string
 	Reader                       *csv.Reader
+	KafkaClient                  *cluster.Client
+	KafkaTopic                   string
+	InitialKafkaOffset           int64
+	CurrentKafkaOffset           int64
 	Db                           *models.DB
 	ConfigPath                   string
 	RedisClient                  *util.RedisClient
 	TotalTokens                  int64
 	ProcessedTokens              int
+	TotalProcessedTokens         int
 	TotalPages                   int64
 	ProcessedPages               int64
 	BatchCsvWorkerStatusDoneChan chan struct{}
@@ -200,6 +209,46 @@ func (worker *BatchCsvWorker) getCsvFromS3() {
 	worker.Reader = csv.NewReader(csvFile)
 }
 
+func (worker *BatchCsvWorker) configureKafkaClient() {
+	clusterConfig := cluster.NewConfig()
+	clusterConfig.Consumer.Return.Errors = true
+	clusterConfig.Group.Return.Notifications = true
+	clusterConfig.Version = sarama.V0_9_0_0
+	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+	brokers := worker.Config.GetStringSlice("workers.consumer.brokers")
+	// consumerGroupTemlate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
+	topicTemplate := worker.Config.GetString("workers.consumer.topicTemplate")
+	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
+	// consumerGroup := fmt.Sprintf(consumerGroupTemlate, worker.App.Name, worker.Notifier.Service)
+	worker.KafkaTopic = topic
+	client, err := cluster.NewClient(brokers, clusterConfig)
+	if err != nil {
+		worker.Logger.Error(
+			"Could not create kafka client",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.Logger.Debug(
+		"Created kafka client",
+		zap.String("client", fmt.Sprintf("%+v", client)),
+	)
+
+	currentOffset, err := client.GetOffset(topic, 0, sarama.OffsetNewest)
+	if err != nil {
+		worker.Logger.Error(
+			"Could not get kafka offset",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.Logger.Debug(
+		"Got kafka offset",
+		zap.Int64("Offset", currentOffset),
+	)
+
+	worker.InitialKafkaOffset = currentOffset
+	worker.KafkaClient = client
+}
+
 // Configure configures the worker
 func (worker *BatchCsvWorker) Configure() {
 	worker.ID = uuid.NewV4()
@@ -211,11 +260,14 @@ func (worker *BatchCsvWorker) Configure() {
 	worker.connectDatabase()
 	worker.connectRedis()
 	worker.getCsvFromS3()
+	worker.configureKafkaClient()
 }
 
 // Start starts the workers according to the configuration and returns the workers object
 func (worker *BatchCsvWorker) Start() {
 	requireToken := false
+
+	worker.StartedAt = time.Now().Unix()
 
 	worker.Logger.Info("Starting worker pipeline...")
 
@@ -280,44 +332,72 @@ func GetBatchCsvWorker(worker *BatchCsvWorker) (*BatchCsvWorker, error) {
 	return worker, nil
 }
 
-// GetStatus returns a map[string]interface{} with the current worker status
-func (worker BatchCsvWorker) GetStatus() map[string]interface{} {
+// GetWorkerStatus returns a map[string]interface{} with the current worker status
+func (worker BatchCsvWorker) GetWorkerStatus() map[string]interface{} {
 	return map[string]interface{}{
-		"id":                     worker.ID,
-		"totalTokens":            worker.TotalTokens,
-		"processedTokens":        worker.ProcessedTokens,
-		"totalPages":             worker.TotalPages,
-		"processedPages":         worker.ProcessedPages,
-		"notifier":               worker.Notifier,
-		"message":                worker.Message,
-		"modifiers":              worker.Modifiers,
-		"key":                    worker.Key,
-		"bucket":                 worker.Bucket,
-		"batchCsvWorkerDoneChan": len(worker.BatchCsvWorkerDoneChan),
-		"csvToParserChan":        len(worker.CsvToParserChan),
-		"parserDoneChan":         len(worker.ParserDoneChan),
-		"parserToFetcherChan":    len(worker.ParserToFetcherChan),
-		"fetcherDoneChan":        len(worker.FetcherDoneChan),
-		"fetcherToBuilderChan":   len(worker.FetcherToBuilderChan),
-		"builderDoneChan":        len(worker.BuilderDoneChan),
-		"builderToProducerChan":  len(worker.BuilderToProducerChan),
-		"producerDoneChan":       len(worker.ProducerDoneChan),
+		"notificationID":       worker.ID,
+		"startedAt":            worker.StartedAt,
+		"totalTokens":          worker.TotalTokens,
+		"totalProcessedTokens": worker.TotalProcessedTokens,
+		"totalPages":           worker.TotalPages,
+		"processedPages":       worker.ProcessedPages,
+		"message":              worker.Message,
+	}
+}
+
+// GetKafkaStatus returns a map[string]interface{} with the current kafka status
+func (worker BatchCsvWorker) GetKafkaStatus() map[string]interface{} {
+	currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
+	if err != nil {
+		worker.Logger.Error(
+			"Could not get kafka offset",
+			zap.String("error", err.Error()),
+		)
+	}
+	worker.Logger.Debug(
+		"Got kafka offset",
+		zap.Int64("Offset", currentOffset),
+	)
+
+	worker.CurrentKafkaOffset = currentOffset
+	return map[string]interface{}{
+		"kafkaTopic":         worker.KafkaTopic,
+		"initialKafkaOffset": worker.InitialKafkaOffset,
+		"currentKafkaOffset": currentOffset,
 	}
 }
 
 // SetStatus sets the current notification status in redis
 func (worker *BatchCsvWorker) SetStatus() {
 	cli := worker.RedisClient.Client
-	worker.Logger.Info("Set in redis", zap.String("key", worker.ID.String()))
+	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
 
-	status := worker.GetStatus()
-	byteStatus, err := json.Marshal(status)
+	worker.Logger.Info("Set in redis", zap.String("key", redisKey))
+
+	workerStatus := worker.GetWorkerStatus()
+	byteWorkerStatus, err := json.Marshal(workerStatus)
 	if err != nil {
 		worker.Logger.Panic("Could not parse worker status", zap.Error(err))
 	}
+	workerStrStatus := string(byteWorkerStatus)
+
+	kafkaStatus := worker.GetKafkaStatus()
+	byteKafkaStatus, err := json.Marshal(kafkaStatus)
+	if err != nil {
+		worker.Logger.Panic("Could not parse kafka status", zap.Error(err))
+	}
+	kafkaStrStatus := string(byteKafkaStatus)
+
+	status := map[string]interface{}{
+		"workerStatus": workerStrStatus,
+		"kafkaStatus":  kafkaStrStatus,
+	}
+	byteStatus, err := json.Marshal(status)
+	if err != nil {
+		worker.Logger.Panic("Could not parse status", zap.Error(err))
+	}
 	strStatus := string(byteStatus)
 
-	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
 	// FIXME: What's the best TTL to set? 30 * time.Day ?
 	if err = cli.Set(redisKey, strStatus, 0).Err(); err != nil {
 		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
