@@ -335,6 +335,8 @@ func GetBatchCsvWorker(worker *BatchCsvWorker) (*BatchCsvWorker, error) {
 // GetWorkerStatus returns a map[string]interface{} with the current worker status
 func (worker BatchCsvWorker) GetWorkerStatus() map[string]interface{} {
 	return map[string]interface{}{
+		"key":                  worker.Key,
+		"bucket":               worker.Bucket,
 		"notificationID":       worker.ID,
 		"startedAt":            worker.StartedAt,
 		"totalTokens":          worker.TotalTokens,
