@@ -28,11 +28,6 @@ func GetFaultyTestDB(l zap.Logger) *models.DB {
 // GetDefaultTestApp returns a new Marathon API Application bound to 0.0.0.0:8888 for test
 func GetDefaultTestApp() *api.Application {
 	l := mt.NewMockLogger()
-	// l := zap.New(
-	// 	zap.NewJSONEncoder(), // drop timestamps in tests
-	// 	zap.InfoLevel,
-	// 	zap.AddCaller(),
-	// )
 	application := api.GetApplication("0.0.0.0", 8888, "../config/test.yaml", true, l)
 	application.Configure()
 	return application
