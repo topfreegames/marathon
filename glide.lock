@@ -1,5 +1,5 @@
-hash: c3193905b57a55fded6626cb8da92442e61a910da52d1a3979803d4f7674cf68
-updated: 2016-08-25T16:11:39.003376515-03:00
+hash: 339717f10df217f97a60b488219a195ba26c6e7525e9f75b857687f23713ec78
+updated: 2016-08-29T17:16:19.793427355-03:00
 imports:
 - name: github.com/ajg/form
   version: 523a5da1a92f01b01f840b61689c0340a0243532
@@ -48,10 +48,10 @@ imports:
   subpackages:
   - hcl/ast
   - hcl/parser
-  - hcl/token
-  - json/parser
   - hcl/scanner
   - hcl/strconv
+  - hcl/token
+  - json/parser
   - json/scanner
   - json/token
 - name: github.com/imdario/mergo
@@ -89,6 +89,8 @@ imports:
   version: 35a2a004d880453f0bbd3716bcc63da1cb15b77b
   subpackages:
   - dialects/postgres
+- name: github.com/k0kubun/pp
+  version: fa6ef2628b80777cf9af03bff7ad351a12b774c4
 - name: github.com/kardianos/osext
   version: c2c54e542fb797ad986b31721e1baedf214ca413
 - name: github.com/kardianos/service
@@ -102,8 +104,8 @@ imports:
 - name: github.com/klauspost/compress
   version: 08fe86a420401e830c24114bdf9f1ba91331407a
   subpackages:
-  - gzip
   - flate
+  - gzip
   - zlib
 - name: github.com/klauspost/cpuid
   version: 09cded8978dc9e80714c4d85b0322337b0a1e5e0
@@ -144,9 +146,34 @@ imports:
 - name: github.com/onsi/ginkgo
   version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
   subpackages:
+  - config
   - ginkgo
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - types
 - name: github.com/onsi/gomega
-  version: c90bd38f8da6e92f8b114953db2f0ad7361fb4b4
+  version: 4dfabf7db2e4147ec99a86db32b2f2a3484cfee8
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
 - name: github.com/Pallinder/go-randomdata
   version: 104cc800bd6434e70cb0c3ad08c4541f4f2eb48b
 - name: github.com/pelletier/go-buffruneio
@@ -233,28 +260,28 @@ imports:
 - name: golang.org/x/crypto
   version: 986d3313588aa5c68f1df95eac956f79cf3b2c01
   subpackages:
-  - ssh
-  - ssh/terminal
   - curve25519
   - ed25519
-  - ocsp
   - ed25519/internal/edwards25519
+  - ocsp
+  - ssh
+  - ssh/terminal
 - name: golang.org/x/net
   version: 7394c112eae4dba7e96bfcfe738e6373d61772b4
   subpackages:
-  - publicsuffix
   - context
   - html
   - html/atom
+  - publicsuffix
 - name: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
+  - unix
+  - windows
   - windows/registry
   - windows/svc
   - windows/svc/eventlog
   - windows/svc/mgr
-  - unix
-  - windows
 - name: golang.org/x/text
   version: d69c40b4be55797923cec7457fac7a244d91a9b6
   subpackages:
@@ -286,4 +313,4 @@ imports:
   - json
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
-devImports: []
+testImports: []

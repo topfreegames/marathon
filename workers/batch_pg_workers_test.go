@@ -49,10 +49,11 @@ var _ = Describe("Models", func() {
 	})
 
 	Describe("Batch pg workers", func() {
-		XIt("Send messages for segmented of users", func() {
-			appName := "integrationtestappname1"
-			templateName := "integrationtesttemplatename1"
-			service := "gcm"
+		// FIXME: Test gcm
+		It("Send messages for segmented of users", func() {
+			appName := "batchWorkerApp1"
+			templateName := "batchWorkerTemplate1"
+			service := "apns"
 			locale := "PT"
 			region := "BR"
 			tz := "GMT+03:00"
@@ -83,7 +84,6 @@ var _ = Describe("Models", func() {
 				{"locale", locale},
 			}
 			modifiers := [][]interface{}{
-				{"ORDER BY", "updated_at ASC"},
 				{"LIMIT", 1},
 			}
 			appGroup := uuid.NewV4().String()
@@ -96,19 +96,29 @@ var _ = Describe("Models", func() {
 			notifier, createdNotifier1Err := models.CreateNotifier(db, appID, service)
 			Expect(createdNotifier1Err).To(BeNil())
 
-			userID1 := uuid.NewV4().String()
-			token1 := uuid.NewV4().String()
-			_, err = models.UpsertToken(db, appName, service, userID1, token1, locale, region, tz, buildN, optOut)
+			userID0 := uuid.NewV4().String()
+			token0 := uuid.NewV4().String()
+			_, err = models.UpsertToken(db, appName, service, userID0, token0, locale, region, tz, buildN, optOut)
 			Expect(err).NotTo(HaveOccurred())
+
+			var workerConfig = viper.New()
+			workerConfig.SetConfigFile("./../config/test.yaml")
+			workerConfig.SetEnvPrefix("marathon")
+			workerConfig.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			workerConfig.AutomaticEnv()
+			err = workerConfig.ReadInConfig()
+			Expect(err).NotTo(HaveOccurred())
+
+			workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
 
 			// Batch worker that reads from pg and send to kafka
 			worker := &workers.BatchPGWorker{
-				ConfigPath: "./../config/test.yaml",
-				Message:    message,
-				Filters:    filters,
-				Modifiers:  modifiers,
-				Notifier:   notifier,
-				App:        app,
+				Config:    workerConfig,
+				Message:   message,
+				Filters:   filters,
+				Modifiers: modifiers,
+				Notifier:  notifier,
+				App:       app,
 			}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())
@@ -118,17 +128,17 @@ var _ = Describe("Models", func() {
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
-			var config = viper.New()
-			config.SetConfigFile("./../config/test.yaml")
-			config.SetEnvPrefix("marathon")
-			config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-			config.AutomaticEnv()
-			err = config.ReadInConfig()
+			var consumerConfig = viper.New()
+			consumerConfig.SetConfigFile("./../config/test.yaml")
+			consumerConfig.SetEnvPrefix("marathon")
+			consumerConfig.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			consumerConfig.AutomaticEnv()
+			err = consumerConfig.ReadInConfig()
 			Expect(err).NotTo(HaveOccurred())
 
-			config.Set("workers.consumer.topicTemplate", config.GetString("workers.producer.topicTemplate"))
+			consumerConfig.Set("workers.consumer.topicTemplate", workerConfig.GetString("workers.producer.topicTemplate"))
 
-			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
+			go consumer.Consumer(l, consumerConfig, appName, service, outChan, doneChan)
 
 			batchWorker.Start()
 			Expect(batchWorker).NotTo(BeNil())
@@ -142,21 +152,22 @@ var _ = Describe("Models", func() {
 				}
 				timeElapsed += timeStepMillis
 			}
-			Expect(len(outChan)).To(Equal(2))
+			Expect(len(outChan)).To(Equal(1))
 
-			processedMessage := <-outChan
-			processedMessage = <-outChan
-			processedMessageObj := messages.NewApnsMessage()
-			json.Unmarshal([]byte(processedMessage), &processedMessageObj)
-			Expect(processedMessageObj.DeviceToken).To(Equal(token1))
-			Expect(processedMessageObj.PushExpiry).To(Equal(int64(0)))
+			processedMessage0 := <-outChan
+
+			processedMessageObj0 := messages.NewApnsMessage()
+			json.Unmarshal([]byte(processedMessage0), &processedMessageObj0)
+
+			Expect(processedMessageObj0.DeviceToken).To(Equal(token0))
+			Expect(processedMessageObj0.PushExpiry).To(Equal(int64(0)))
 			// FIXME: How to test the message?
 		})
 
-		XIt("Send messages for segmented of users", func() {
-			appName := "integrationtestappname2"
-			templateName := "integrationtesttemplatename2"
-			service := "gcm"
+		It("Send messages for segmented of users", func() {
+			appName := "batchWorkerApp2"
+			templateName := "batchWorkerTemplate2"
+			service := "apns"
 			locale := "PT"
 			region := "BR"
 			tz := "GMT+03:00"
@@ -187,7 +198,6 @@ var _ = Describe("Models", func() {
 				{"locale", locale},
 			}
 			modifiers := [][]interface{}{
-				{"ORDER BY", "updated_at ASC"},
 				{"LIMIT", 1},
 			}
 			appGroup := uuid.NewV4().String()
@@ -218,14 +228,24 @@ var _ = Describe("Models", func() {
 
 			tokens := []string{token1, token2, token3}
 
+			var workerConfig = viper.New()
+			workerConfig.SetConfigFile("./../config/test.yaml")
+			workerConfig.SetEnvPrefix("marathon")
+			workerConfig.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			workerConfig.AutomaticEnv()
+			err = workerConfig.ReadInConfig()
+			Expect(err).NotTo(HaveOccurred())
+
+			workerConfig.Set("workers.producer.topicTemplate", "%s-%s")
+
 			// Batch worker that reads from pg and sent to continuous worker
 			worker := &workers.BatchPGWorker{
-				ConfigPath: "./../config/test.yaml",
-				Message:    message,
-				Filters:    filters,
-				Modifiers:  modifiers,
-				Notifier:   notifier,
-				App:        app,
+				Config:    workerConfig,
+				Message:   message,
+				Filters:   filters,
+				Modifiers: modifiers,
+				Notifier:  notifier,
+				App:       app,
 			}
 			batchWorker, err := workers.GetBatchPGWorker(worker)
 			Expect(err).NotTo(HaveOccurred())
@@ -235,36 +255,38 @@ var _ = Describe("Models", func() {
 			doneChan := make(chan struct{}, 1)
 			defer close(doneChan)
 
-			var config = viper.New()
-			config.SetConfigFile("./../config/test.yaml")
-			config.SetEnvPrefix("marathon")
-			config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-			config.AutomaticEnv()
-			err = config.ReadInConfig()
+			var consumerConfig = viper.New()
+			consumerConfig.SetConfigFile("./../config/test.yaml")
+			consumerConfig.SetEnvPrefix("marathon")
+			consumerConfig.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			consumerConfig.AutomaticEnv()
+			err = consumerConfig.ReadInConfig()
 			Expect(err).NotTo(HaveOccurred())
 
-			config.Set("workers.consumer.topicTemplate", config.GetString("workers.producer.topicTemplate"))
+			consumerConfig.Set("workers.consumer.topicTemplate", workerConfig.GetString("workers.producer.topicTemplate"))
 
-			go consumer.Consumer(l, config, appName, service, outChan, doneChan)
+			go consumer.Consumer(l, consumerConfig, appName, service, outChan, doneChan)
 
 			batchWorker.Start()
 			Expect(batchWorker).NotTo(BeNil())
 
 			timeElapsed := time.Duration(0)
 			timeStepMillis := 500 * time.Millisecond
-			for len(outChan) < 3 {
+			for len(outChan) < 2 {
 				time.Sleep(timeStepMillis)
 				if timeElapsed > 5000*time.Millisecond {
 					Fail("Timeout while waiting out channel from consumer")
 				}
 				timeElapsed += timeStepMillis
 			}
-			Expect(len(outChan)).To(Equal(4))
+			Expect(len(outChan)).To(Equal(3))
 
-			processedMessage1 := <-outChan // Discard first message (from other test)
-			processedMessage1 = <-outChan
+			processedMessage0 := <-outChan // Discard first message (from other test)
+			processedMessage1 := <-outChan
 			processedMessage2 := <-outChan
-			processedMessage3 := <-outChan
+
+			processedMessageObj0 := messages.NewApnsMessage()
+			json.Unmarshal([]byte(processedMessage0), &processedMessageObj0)
 
 			processedMessageObj1 := messages.NewApnsMessage()
 			json.Unmarshal([]byte(processedMessage1), &processedMessageObj1)
@@ -272,17 +294,14 @@ var _ = Describe("Models", func() {
 			processedMessageObj2 := messages.NewApnsMessage()
 			json.Unmarshal([]byte(processedMessage2), &processedMessageObj2)
 
-			processedMessageObj3 := messages.NewApnsMessage()
-			json.Unmarshal([]byte(processedMessage3), &processedMessageObj3)
-
 			processedMessageObjs := []*messages.ApnsMessage{
+				processedMessageObj0,
 				processedMessageObj1,
 				processedMessageObj2,
-				processedMessageObj3,
 			}
 
 			for _, processedMessageObj := range processedMessageObjs {
-				Expect(util.SliceContains(tokens, processedMessageObj.DeviceToken)).To(BeTrue())
+				Expect(util.SliceRemove(tokens, processedMessageObj.DeviceToken)).To(BeTrue())
 				Expect(processedMessageObj.PushExpiry).To(Equal(int64(0)))
 				// FIXME: How to test the message?
 			}

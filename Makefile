@@ -142,6 +142,10 @@ run-kafka:
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp3-gcm --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic consumerApp4-gcm --zookeeper localhost:3535
 	@kafka-topics --create --partitions 1 --replication-factor 1 --topic producerApp1-gcm --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic batchWorkerApp1-apns --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic batchWorkerApp2-apns --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic batchWorkerApp3-gcm --zookeeper localhost:3535
+	@kafka-topics --create --partitions 1 --replication-factor 1 --topic batchWorkerApp4-gcm --zookeeper localhost:3535
 
 kill-kafka:
 	@ps aux | egrep "./testing/server.properties" | egrep -v egrep | awk ' { print $$2 } ' | xargs kill -9

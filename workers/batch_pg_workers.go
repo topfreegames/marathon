@@ -3,6 +3,7 @@ package workers
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -37,7 +38,6 @@ type BatchPGWorker struct {
 	ConfigPath                  string
 	RedisClient                 *util.RedisClient
 	TotalTokens                 int64
-	ProcessedTokens             int
 	TotalProcessedTokens        int
 	TotalPages                  int64
 	ProcessedPages              int64
@@ -122,7 +122,7 @@ func (worker *BatchPGWorker) connectRedis() {
 	rl.Info("Connected to redis successfully.")
 }
 
-// TODO: Set all default configs
+// TODO: Chec if all default configs are set
 func (worker *BatchPGWorker) setConfigurationDefaults() {
 	worker.Config.SetDefault("healthcheck.workingtext", "working")
 	worker.Config.SetDefault("postgres.host", "localhost")
@@ -201,9 +201,12 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 // Configure configures the worker
 func (worker *BatchPGWorker) Configure() {
 	worker.ID = uuid.NewV4()
-	worker.setConfigurationDefaults()
-	worker.Logger = ConfigureLogger(Log{Level: "warn"}, worker.Config)
-	worker.loadConfiguration()
+	if worker.Config == nil {
+		worker.Config = viper.New()
+		worker.setConfigurationDefaults()
+		worker.Logger = ConfigureLogger(Log{Level: "warn"}, worker.Config)
+		worker.loadConfiguration()
+	}
 	worker.Logger = ConfigureLogger(Log{}, worker.Config)
 	worker.createChannels()
 	worker.connectDatabase()
@@ -267,14 +270,11 @@ func (worker BatchPGWorker) Close() {
 
 // GetBatchPGWorker returns a new worker
 func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
-	if worker.ConfigPath == "" {
-		errStr := "Invalid worker config"
+	if worker.ConfigPath == "" && worker.Config == nil {
+		errStr := "Invalid worker config. Even Config or ConfigPath should be set"
 		worker.Logger.Error(errStr, zap.Object("worker", worker))
 		e := parseError{errStr}
 		return nil, e
-	}
-	if worker.Config == nil {
-		worker.Config = viper.New()
 	}
 	worker.Configure()
 	return worker, nil
@@ -306,13 +306,14 @@ func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
 	worker.Logger.Debug(
 		"Got kafka offset",
 		zap.Int64("Offset", currentOffset),
+		zap.String("topic", worker.KafkaTopic),
 	)
 
 	worker.CurrentKafkaOffset = currentOffset
 	return map[string]interface{}{
 		"kafkaTopic":         worker.KafkaTopic,
 		"initialKafkaOffset": worker.InitialKafkaOffset,
-		"currentKafkaOffset": currentOffset,
+		"currentKafkaOffset": worker.CurrentKafkaOffset,
 	}
 }
 
@@ -376,6 +377,7 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 		zap.Object("modifiers", modifiers),
 	)
 
+	l.Debug("Get limit")
 	limit := -1
 	for _, modifier := range modifiers {
 		if modifier[0] == "LIMIT" {
@@ -386,7 +388,9 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 		worker.Logger.Fatal("Limit should be greater than 0", zap.Int("limit", limit))
 	}
 	l = l.With(zap.Int("limit", limit))
+	l.Debug("Got limit")
 
+	l.Debug("Count userTokens")
 	userTokensCount, err := models.CountUserTokensByFilters(
 		worker.Db, message.App, message.Service, filters, modifiers,
 	)
@@ -400,26 +404,36 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 	if worker.TotalTokens < int64(0) {
 		l.Fatal("worker.TotalTokens lower than 0", zap.Error(err))
 	}
-
 	l = l.With(zap.Int64("worker.TotalTokens", worker.TotalTokens))
 
-	worker.TotalTokens = userTokensCount
+	l.Debug("Counted userTokens")
 
-	pages := userTokensCount/int64(limit) + 1
-	workerModifiers := [2][]interface{}{ // TODO: Should we order ? {"ORDER BY", "updated_at ASC"}
-		{"LIMIT", limit},
-	}
+	l.Debug("Get pages")
+	pages := int64(math.Ceil(float64(userTokensCount) / float64(limit)))
 
 	worker.TotalPages = pages
-
 	l = l.With(zap.Int64("worker.TotalPages", worker.TotalPages))
+	l.Debug("Got pages")
+
+	l.Debug("Build workerModifiers")
+	// TODO: Should we remove "ORDER BY" ?
+	// TODO: We're rebuilding the structure
+	workerModifiers := [][]interface{}{
+		{"ORDER BY", "updated_at ASC"},
+		{"LIMIT", limit},
+		{"OFFSET", int64(0)},
+	}
+	l = l.With(zap.Object("workerModifiers", workerModifiers))
+	l.Debug("Built workerModifiers")
+
+	worker.TotalProcessedTokens = 0
 
 	for worker.ProcessedPages = int64(0); worker.ProcessedPages < worker.TotalPages; worker.ProcessedPages++ {
 		l.Debug("pgRead - Read page", zap.Int64("worker.ProcessedPages", worker.ProcessedPages))
 
-		workerModifiers[1] = []interface{}{"OFFSET", worker.ProcessedPages}
+		workerModifiers[2] = []interface{}{"OFFSET", worker.ProcessedPages}
 		userTokens, err := models.GetUserTokensBatchByFilters(
-			worker.Db, message.App, message.Service, filters, modifiers,
+			worker.Db, message.App, message.Service, filters, workerModifiers,
 		)
 		if err != nil {
 			l.Error(
@@ -431,22 +445,18 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 
 		l.Debug("pgRead", zap.Object("len(userTokens)", len(userTokens)))
 
-		worker.ProcessedTokens = 0
-		for worker.ProcessedTokens < len(userTokens) {
-			for _, userToken := range userTokens {
-				message.Token = userToken.Token
-				message.Locale = userToken.Locale
+		for _, userToken := range userTokens {
+			message.Token = userToken.Token
+			message.Locale = userToken.Locale
 
-				strMsg, err := json.Marshal(message)
-				if err != nil {
-					l.Error("Failed to marshal msg", zap.Error(err))
-					return outChan, err
-				}
-				l.Debug("pgRead - Send message to channel", zap.String("strMsg", string(strMsg)))
-				outChan <- string(strMsg)
-				worker.ProcessedTokens++
-				worker.TotalProcessedTokens++
+			strMsg, err := json.Marshal(message)
+			if err != nil {
+				l.Error("Failed to marshal msg", zap.Error(err))
+				return outChan, err
 			}
+			l.Debug("pgRead - Send message to channel", zap.String("strMsg", string(strMsg)))
+			outChan <- string(strMsg)
+			worker.TotalProcessedTokens++
 		}
 	}
 	return outChan, nil

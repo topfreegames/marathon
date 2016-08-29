@@ -4,19 +4,17 @@ import (
 	// "encoding/json"
 	// "net/http"
 
-	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/uber-go/zap"
 )
 
 var _ = Describe("Marathon API Handler", func() {
-	var (
-		l zap.Logger
-	)
-	BeforeEach(func() {
-		l = mt.NewMockLogger()
-	})
+	// var (
+	// 	l zap.Logger
+	// )
+	// BeforeEach(func() {
+	// 	l = mt.NewMockLogger()
+	// })
 
 	Describe("Create upload handler", func() {
 		It("Should create a Notification (will fail without the AWS credentials", func() {
