@@ -1,0 +1,57 @@
+postgres:
+  user: "push_user"
+  dbname: "push"
+  host: "stag.crevvby4h2ik.us-east-1.rds.amazonaws.com"
+  port: 5432
+  sslmode: "disable"
+  password: "aeJJMeRLzSxJzshavR62Az2YscZCL3"
+healthcheck:
+  workingtext: "working"
+workers:
+  logger:
+    level: "debug"
+  consumer:
+    consumergroup: "integration-test-consumer-group"
+    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
+    brokers: [ "10.0.1.60:9092" ]
+  producer:
+    brokers: [ "10.0.1.60:9092" ]
+  modules:
+    consumers: 1
+    parsers: 1
+    fetchers: 1
+    builders: 1
+    producers: 1
+    kafkadonechansize: 1
+    fetcherdonechansize: 1
+    inputkafkachansize: 10
+    inputchansize: 10
+    kafkatoparserchansize: 10
+    parsertofetcherchansize: 10
+    fetchertobuilderchansize: 10
+    buildertokafkachansize: 10
+    buildertokafkadonechansize: 1
+batch_pg_workers:
+  logger:
+    level: "debug"
+  producer:
+    brokers: [ "10.0.1.60:9092" ]
+    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
+  modules:
+    producers: 1
+    batchpgworkers: 1
+    parsers: 1
+    fetchers: 1
+    builders: 1
+    producers: 1
+    batchpgworkerdonechan: 1
+    pgtoparserchan: 10000
+    parserdonechan: 1
+    parsertofetcherchan: 1000
+    fetcherdonechan: 1
+    fetchertobuilderchan: 1000
+    builderdonechan: 1
+    buildertoproducerchan: 1000
+    producerdonechan: 1
