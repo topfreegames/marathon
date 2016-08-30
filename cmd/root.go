@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,6 +37,7 @@ func InitConfig(l zap.Logger, configFile string) *viper.Viper {
 
 	config.SetConfigType("yaml")
 	config.SetEnvPrefix("marathon")
+	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	config.AddConfigPath(".") // optionally look for config in the working directory
 	config.AutomaticEnv()     // read in environment variables that match
 
