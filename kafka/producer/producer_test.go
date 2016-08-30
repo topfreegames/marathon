@@ -63,7 +63,7 @@ var _ = Describe("Producer", func() {
 	})
 
 	It("Should not create a producer if no broker found", func() {
-		brokers := []string{"localhost:3456"}
+		brokers := "localhost:3456"
 
 		var producerConfig = viper.New()
 		producerConfig.Set("workers.producer.brokers", brokers)

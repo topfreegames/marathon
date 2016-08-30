@@ -215,7 +215,8 @@ func (worker *BatchCsvWorker) configureKafkaClient() {
 	clusterConfig.Group.Return.Notifications = true
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-	brokers := worker.Config.GetStringSlice("workers.consumer.brokers")
+	brokersString := worker.Config.GetString("workers.consumer.brokers")
+	brokers := strings.Split(brokersString, ",")
 	// consumerGroupTemlate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
 	topicTemplate := worker.Config.GetString("workers.consumer.topicTemplate")
 	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)

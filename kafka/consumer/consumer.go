@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
@@ -29,7 +30,8 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
-	brokers := config.GetStringSlice("workers.consumer.brokers")
+	brokersString := config.GetString("workers.consumer.brokers")
+	brokers := strings.Split(brokersString, ",")
 	consumerGroupTemlate := config.GetString("workers.consumer.consumergroupTemplate")
 	topicTemplate := config.GetString("workers.consumer.topicTemplate")
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}

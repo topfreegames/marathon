@@ -29,9 +29,9 @@ workers:
     # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "%s-%s-c"
-    brokers: [ "localhost:9940" ]
+    brokers: "localhost:9940"
   producer:
-    brokers: [ "localhost:9940" ]
+    brokers: "localhost:9940"
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "%s-%s-p"
   modules:

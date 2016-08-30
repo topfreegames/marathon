@@ -68,7 +68,8 @@ var _ = Describe("Consumer", func() {
 			service := "gcm"
 
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-			brokers := config.GetStringSlice("workers.consumer.brokers")
+			brokersString := config.GetString("workers.consumer.brokers")
+			brokers := strings.Split(brokersString, ",")
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
 
@@ -91,7 +92,8 @@ var _ = Describe("Consumer", func() {
 			message := "message%d"
 
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-			brokers := config.GetStringSlice("workers.consumer.brokers")
+			brokersString := config.GetString("workers.consumer.brokers")
+			brokers := strings.Split(brokersString, ",")
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
 
@@ -118,7 +120,8 @@ var _ = Describe("Consumer", func() {
 			message := "message"
 
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-			brokers := config.GetStringSlice("workers.consumer.brokers")
+			brokersString := config.GetString("workers.consumer.brokers")
+			brokers := strings.Split(brokersString, ",")
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
 
@@ -138,7 +141,7 @@ var _ = Describe("Consumer", func() {
 		It("Should not start a consumer if no broker found", func() {
 			app := "consumerApp4"
 			service := "gcm"
-			brokers := []string{"localhost:0666"}
+			brokers := "localhost:0666"
 			config.Set("workers.consumer.brokers", brokers)
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
 
