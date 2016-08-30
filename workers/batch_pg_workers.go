@@ -149,6 +149,7 @@ func (worker *BatchPGWorker) setConfigurationDefaults() {
 
 func (worker *BatchPGWorker) loadConfiguration() {
 	worker.Config.SetConfigFile(worker.ConfigPath)
+	worker.Config.SetConfigType("yaml")
 	worker.Config.SetEnvPrefix("marathon")
 	worker.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	worker.Config.AutomaticEnv()
