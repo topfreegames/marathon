@@ -1,44 +1,40 @@
 postgres:
-  user: "push_user"
-  dbname: "push"
-  host: "stag.crevvby4h2ik.us-east-1.rds.amazonaws.com"
-  port: 5432
+  # host: "localhost"
+  # port: 9910
+  # password: ""
+  user: "marathon"
+  dbname: "marathon"
   sslmode: "disable"
-  password: "aeJJMeRLzSxJzshavR62Az2YscZCL3"
+redis:
+  # host: localhost
+  # port: 9920
+  # password: ""
+  db: 0
+  maxPoolSize: 20
+s3:
+  # accessKey: "ACCESS-KEY"
+  # secretAccessKey: "SECRET-ACCESS-KEY"
+  bucket: "tfg-push-notifications"
+  folder: "test/files"
+  daysExpiry: 1
+sentry:
+  # url: ""
 healthcheck:
   workingtext: "working"
 workers:
   logger:
     level: "debug"
   consumer:
-    consumergroup: "integration-test-consumer-group"
-    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
+    # FIXME: We have to keep this in sync with aguia
+    consumergroupTemplate: "push-%s-%s-staging-single-consumer-group"
+    # FIXME: We have to keep this in sync with aguia
+    # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-consumer-topic"
-    brokers: [ "10.0.1.60:9092" ]
+    # brokers: [ "localhost:9940" ]
   producer:
-    brokers: [ "10.0.1.60:9092" ]
-  modules:
-    consumers: 1
-    parsers: 1
-    fetchers: 1
-    builders: 1
-    producers: 1
-    kafkadonechansize: 1
-    fetcherdonechansize: 1
-    inputkafkachansize: 10
-    inputchansize: 10
-    kafkatoparserchansize: 10
-    parsertofetcherchansize: 10
-    fetchertobuilderchansize: 10
-    buildertokafkachansize: 10
-    buildertokafkadonechansize: 1
-batch_pg_workers:
-  logger:
-    level: "debug"
-  producer:
-    brokers: [ "10.0.1.60:9092" ]
-    # Notice WE SHOULD NOT HAVE UNDERSCORES HERE
-    topicTemplate: "push-%s_%s-staging-single-consumer-topic"
+    # brokers: [ "localhost:9940" ]
+    # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
+    topicTemplate: "push-%s_%s-staging-single-producer-topic"
   modules:
     producers: 1
     batchpgworkers: 1
@@ -46,6 +42,7 @@ batch_pg_workers:
     fetchers: 1
     builders: 1
     producers: 1
+    batchpgworkerstatusdonechan: 1
     batchpgworkerdonechan: 1
     pgtoparserchan: 10000
     parserdonechan: 1
