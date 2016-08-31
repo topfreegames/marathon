@@ -29,6 +29,7 @@ type BatchPGWorker struct {
 	Message                     *messages.InputMessage
 	Filters                     [][]interface{}
 	Modifiers                   [][]interface{}
+	HasKafkaStatus              bool
 	StartedAt                   int64
 	KafkaClient                 *cluster.Client
 	KafkaTopic                  string
@@ -207,6 +208,7 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 		zap.Int64("Offset", currentOffset),
 	)
 
+	worker.HasKafkaStatus = true
 	worker.InitialKafkaOffset = currentOffset
 	worker.KafkaClient = client
 }
@@ -309,21 +311,23 @@ func (worker BatchPGWorker) GetWorkerStatus() map[string]interface{} {
 
 // GetKafkaStatus returns a map[string]interface{} with the current kafka status
 func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
-	currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
-	if err != nil {
-		worker.Logger.Warn(
-			"Could not get kafka offset",
+	if worker.HasKafkaStatus == true {
+		currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
+		if err != nil {
+			worker.Logger.Warn(
+				"Could not get kafka offset",
+				zap.String("topic", worker.KafkaTopic),
+				zap.String("error", err.Error()),
+			)
+		}
+		worker.Logger.Debug(
+			"Got kafka offset",
+			zap.Int64("Offset", currentOffset),
 			zap.String("topic", worker.KafkaTopic),
-			zap.String("error", err.Error()),
 		)
-	}
-	worker.Logger.Debug(
-		"Got kafka offset",
-		zap.Int64("Offset", currentOffset),
-		zap.String("topic", worker.KafkaTopic),
-	)
 
-	worker.CurrentKafkaOffset = currentOffset
+		worker.CurrentKafkaOffset = currentOffset
+	}
 	return map[string]interface{}{
 		"kafkaTopic":         worker.KafkaTopic,
 		"initialKafkaOffset": worker.InitialKafkaOffset,
