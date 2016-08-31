@@ -343,7 +343,7 @@ func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
 		worker.Logger.Debug(
 			"Got kafka offset",
 			zap.Int64("Offset", worker.CurrentKafkaOffset),
-			zap.Int64("Offset", worker.InitialKafkaOffset),
+			zap.Int64("InitialOffset", worker.InitialKafkaOffset),
 			zap.String("topic", worker.KafkaTopic),
 		)
 	}
