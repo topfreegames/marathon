@@ -1,6 +1,8 @@
 package producer
 
 import (
+	"strings"
+
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
@@ -11,10 +13,9 @@ import (
 func Producer(l zap.Logger, config *viper.Viper, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
 	l.Info("Starting producer")
 	saramaConfig := sarama.NewConfig()
-	producer, err := sarama.NewSyncProducer(
-		config.GetStringSlice("workers.producer.brokers"),
-		saramaConfig,
-	)
+	brokersStr := config.GetString("workers.producer.brokers")
+	brokers := strings.Split(brokersStr, ",")
+	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
 	if err != nil {
 		l.Error("Failed to start kafka producer", zap.Error(err))
 		return

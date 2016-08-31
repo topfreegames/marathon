@@ -36,11 +36,11 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 	topicTemplate := config.GetString("workers.consumer.topicTemplate")
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}
 	consumerGroup := fmt.Sprintf(consumerGroupTemlate, app, service)
-	l.Debug(
-		"Create consumer group",
+
+	l = l.With(
 		zap.Object("brokers", brokers),
 		zap.String("consumerGroupTemlate", consumerGroupTemlate),
-		zap.String("consumerGroup", consumerGroup),
+		zap.Object("consumerGroup", consumerGroup),
 		zap.String("topicTemplate", topicTemplate),
 		zap.Object("topics", topics),
 		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
@@ -49,17 +49,16 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 	// Create consumer defined by the configurations
 	consumer, err := cluster.NewConsumer(brokers, consumerGroup, topics, clusterConfig)
 	if err != nil {
-		l.Error("Could not create consumer", zap.String("error", err.Error()))
+		l.Error(
+			"Could not create consumer",
+			zap.String("error", err.Error()),
+		)
 		return err
 	}
 	// FIXME: When we should close it
 	// defer consumer.Close()
 	l.Debug(
 		"Created consumer",
-		zap.Object("brokers", brokers),
-		zap.Object("consumerGroup", consumerGroup),
-		zap.Object("topics", topics),
-		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
 		zap.String("consumer", fmt.Sprintf("%+v", consumer)),
 	)
 
