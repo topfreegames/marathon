@@ -173,13 +173,21 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 	worker.KafkaTopic = topic
 	client, err := cluster.NewClient(brokers, clusterConfig)
 
+	l := worker.Logger.With(
+		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
+		zap.String("topicTemplate", topicTemplate),
+		zap.String("topic", topic),
+		zap.Object("brokers", brokers),
+	)
+
 	if err != nil {
-		worker.Logger.Error(
+		l.Error(
 			"Could not create kafka client",
-			zap.String("error", err.Error()),
+			zap.Error(err),
 		)
+		return
 	}
-	worker.Logger.Debug(
+	l.Debug(
 		"Created kafka client",
 		zap.String("client", fmt.Sprintf("%+v", client)),
 	)
@@ -187,14 +195,14 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 	partitionID := int32(0)
 	currentOffset, err := client.GetOffset(topic, partitionID, sarama.OffsetNewest)
 	if err != nil {
-		worker.Logger.Error(
+		l.Error(
 			"Could not get kafka offset",
-			zap.String("topic", topic),
 			zap.Int("partitionID", int(partitionID)),
 			zap.String("error", err.Error()),
 		)
+		return
 	}
-	worker.Logger.Debug(
+	l.Debug(
 		"Got kafka offset",
 		zap.Int64("Offset", currentOffset),
 	)
