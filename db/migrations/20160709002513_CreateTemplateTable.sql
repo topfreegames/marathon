@@ -7,8 +7,8 @@ CREATE TABLE templates (
   "locale" varchar(2) NOT NULL CHECK (locale <> ''),
   "defaults" JSONB NOT NULL DEFAULT '{}'::JSONB,
   "body" JSONB NOT NULL DEFAULT '{}'::JSONB,
-  "created_at" bigint NOT NULL,
-  "updated_at" bigint NULL
+  "created_at" timestamp without time zone NOT NULL,
+  "updated_at" timestamp without time zone NULL
 );
 CREATE UNIQUE INDEX "index_templates_on_name_and_locale" ON templates (name,locale);
 

@@ -13,8 +13,8 @@ type App struct {
 	Name           string    `db:"name"`
 	OrganizationID uuid.UUID `db:"organization_id"`
 	AppGroup       string    `db:"group"`
-	CreatedAt      int64     `db:"created_at"`
-	UpdatedAt      int64     `db:"updated_at"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
 }
 
 // AppNotifier identifies an app/notifier
@@ -23,26 +23,26 @@ type AppNotifier struct {
 	AppOrganizationID uuid.UUID `json:"appOrganizationID"`
 	AppName           string    `json:"appName"`
 	AppGroup          string    `json:"appGroup"`
-	AppCreatedAt      int64     `json:"appCreatedAt"`
-	AppUpdatedAt      int64     `json:"appUpdatedAt"`
+	AppCreatedAt      time.Time `json:"appCreatedAt"`
+	AppUpdatedAt      time.Time `json:"appUpdatedAt"`
 	NotifierID        uuid.UUID `json:"notifierID"`
 	NotifierAppID     uuid.UUID `json:"notifierAppID"`
 	NotifierService   string    `json:"notifierService"`
-	NotifierCreatedAt int64     `json:"notifierCreatedAt"`
-	NotifierUpdatedAt int64     `json:"notifierUpdatedAt"`
+	NotifierCreatedAt time.Time `json:"notifierCreatedAt"`
+	NotifierUpdatedAt time.Time `json:"notifierUpdatedAt"`
 }
 
 // PreInsert populates fields before inserting a new app
 func (a *App) PreInsert(s gorp.SqlExecutor) error {
 	a.ID = uuid.NewV4()
-	a.CreatedAt = time.Now().Unix()
+	a.CreatedAt = time.Now()
 	a.UpdatedAt = a.CreatedAt
 	return nil
 }
 
 // PreUpdate populates fields before updating an app
 func (a *App) PreUpdate(s gorp.SqlExecutor) error {
-	a.UpdatedAt = time.Now().Unix()
+	a.UpdatedAt = time.Now()
 	return nil
 }
 

@@ -5,8 +5,8 @@ CREATE TABLE apps (
   "organization_id" UUID NOT NULL,
   "name" varchar(200) NOT NULL CHECK (name <> ''),
   "group" varchar(200) NOT NULL CHECK (name <> ''),
-  "created_at" bigint NOT NULL,
-  "updated_at" bigint NULL
+  "created_at" timestamp without time zone NOT NULL,
+  "updated_at" timestamp without time zone NULL
 );
 CREATE UNIQUE INDEX "index_apps_on_name" ON apps (name);
 CREATE INDEX "index_apps_on_group" ON apps ("group");

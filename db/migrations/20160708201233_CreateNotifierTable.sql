@@ -4,8 +4,8 @@ CREATE TABLE notifiers (
   "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "app_id" UUID NOT NULL REFERENCES apps (id),
   "service" varchar(5) NOT NULL CHECK (service <> ''),
-  "created_at" bigint NOT NULL,
-  "updated_at" bigint NULL
+  "created_at" timestamp without time zone NOT NULL,
+  "updated_at" timestamp without time zone NULL
 );
 CREATE UNIQUE INDEX "index_notifiers_on_app_id_and_service" ON notifiers (app_id, service);
 

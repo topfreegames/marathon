@@ -15,21 +15,21 @@ type Template struct {
 	Service   string                 `db:"service"`
 	Defaults  map[string]interface{} `db:"defaults"`
 	Body      map[string]interface{} `db:"body"`
-	CreatedAt int64                  `db:"created_at"`
-	UpdatedAt int64                  `db:"updated_at"`
+	CreatedAt time.Time              `db:"created_at"`
+	UpdatedAt time.Time              `db:"updated_at"`
 }
 
 // PreInsert populates fields before inserting a new template
 func (o *Template) PreInsert(s gorp.SqlExecutor) error {
 	o.ID = uuid.NewV4()
-	o.CreatedAt = time.Now().Unix()
+	o.CreatedAt = time.Now()
 	o.UpdatedAt = o.CreatedAt
 	return nil
 }
 
 // PreUpdate populates fields before updating a template
 func (o *Template) PreUpdate(s gorp.SqlExecutor) error {
-	o.UpdatedAt = time.Now().Unix()
+	o.UpdatedAt = time.Now()
 	return nil
 }
 

@@ -13,21 +13,21 @@ type Notifier struct {
 	ID        uuid.UUID `db:"id"`
 	AppID     uuid.UUID `db:"app_id"`
 	Service   string    `db:"service"`
-	CreatedAt int64     `db:"created_at"`
-	UpdatedAt int64     `db:"updated_at"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // PreInsert populates fields before inserting a new noifier
 func (n *Notifier) PreInsert(s gorp.SqlExecutor) error {
 	n.ID = uuid.NewV4()
-	n.CreatedAt = time.Now().Unix()
+	n.CreatedAt = time.Now()
 	n.UpdatedAt = n.CreatedAt
 	return nil
 }
 
 // PreUpdate populates fields before updating an noifier
 func (n *Notifier) PreUpdate(s gorp.SqlExecutor) error {
-	n.UpdatedAt = time.Now().Unix()
+	n.UpdatedAt = time.Now()
 	return nil
 }
 

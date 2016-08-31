@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"git.topfreegames.com/topfreegames/marathon/util"
 	"github.com/satori/go.uuid"
 	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
@@ -21,14 +20,14 @@ type UserToken struct {
 	Tz        string    `db:"tz"`
 	BuildN    string    `db:"build_n"`
 	OptOut    []string  `db:"opt_out"`
-	CreatedAt int64     `db:"created_at"`
-	UpdatedAt int64     `db:"updated_at"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // PreInsert populates fields before inserting a new template
 func (o *UserToken) PreInsert(s gorp.SqlExecutor) error {
 	o.ID = uuid.NewV4()
-	o.CreatedAt = time.Now().Unix()
+	o.CreatedAt = time.Now()
 	o.UpdatedAt = o.CreatedAt
 	return nil
 }
@@ -240,7 +239,7 @@ func UpsertToken(db *DB, app string, service string, userID string, token string
 		}
 	}
 
-	params := []interface{}{userID, token, locale, region, tz, buildn, util.NowMilli(), util.NowMilli()}
+	params := []interface{}{userID, token, locale, region, tz, buildn, time.Now(), time.Now()}
 	startOptOutsAt := 9
 	optOuts := []string{}
 	for i := range optOut {
@@ -293,8 +292,8 @@ func CreateUserTokensTable(db *DB, app string, service string) (*gorp.TableMap, 
       tz varchar(20) NOT NULL CHECK (tz <> ''),
       build_n varchar(255) NOT NULL CHECK (build_n <> ''),
       opt_out varchar[] NOT NULL DEFAULT '{}',
-      created_at bigint NOT NULL,
-      updated_at bigint NOT NULL
+      created_at timestamp without time zone NOT NULL,
+      updated_at timestamp without time zone NOT NULL
     );
     CREATE INDEX IF NOT EXISTS index_%s_on_locale ON %s (lower(locale));
     CREATE INDEX IF NOT EXISTS index_%s_on_token ON %s (token);
