@@ -75,7 +75,7 @@ func (worker *BatchPGWorker) createChannels() {
 	worker.ProducerDoneChan = make(chan struct{}, worker.Config.GetInt("producerdonechansize"))
 }
 
-func (worker *BatchPGWorker) connectDatabase() {
+func (worker *BatchPGWorker) connectDatabase() error {
 	host := worker.Config.GetString("postgres.host")
 	user := worker.Config.GetString("postgres.user")
 	dbName := worker.Config.GetString("postgres.dbname")
@@ -86,7 +86,7 @@ func (worker *BatchPGWorker) connectDatabase() {
 	db, err := models.GetDB(worker.Logger, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
-		worker.Logger.Panic(
+		worker.Logger.Error(
 			"Could not connect to postgres...",
 			zap.String("host", host),
 			zap.Int("port", port),
@@ -94,11 +94,13 @@ func (worker *BatchPGWorker) connectDatabase() {
 			zap.String("dbName", dbName),
 			zap.String("error", err.Error()),
 		)
+		return err
 	}
 	worker.Db = db
+	return nil
 }
 
-func (worker *BatchPGWorker) connectRedis() {
+func (worker *BatchPGWorker) connectRedis() error {
 	redisHost := worker.Config.GetString("redis.host")
 	redisPort := worker.Config.GetInt("redis.port")
 	redisPass := worker.Config.GetString("redis.password")
@@ -114,13 +116,15 @@ func (worker *BatchPGWorker) connectRedis() {
 	rl.Debug("Connecting to redis...")
 	cli, err := util.GetRedisClient(redisHost, redisPort, redisPass, redisDB, redisMaxPoolSize, rl)
 	if err != nil {
-		rl.Panic(
+		rl.Error(
 			"Could not connect to redis...",
 			zap.String("error", err.Error()),
 		)
+		return err
 	}
 	worker.RedisClient = cli
 	rl.Info("Connected to redis successfully.")
+	return nil
 }
 
 // TODO: Chec if all default configs are set
@@ -162,7 +166,7 @@ func (worker *BatchPGWorker) loadConfiguration() {
 	}
 }
 
-func (worker *BatchPGWorker) configureKafkaClient() {
+func (worker *BatchPGWorker) configureKafkaClient() error {
 	clusterConfig := cluster.NewConfig()
 	clusterConfig.Consumer.Return.Errors = true
 	clusterConfig.Group.Return.Notifications = true
@@ -172,7 +176,6 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 	topicTemplate := worker.Config.GetString("workers.producer.topicTemplate")
 	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
 	worker.KafkaTopic = topic
-	client, err := cluster.NewClient(brokers, clusterConfig)
 
 	l := worker.Logger.With(
 		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
@@ -181,12 +184,13 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 		zap.Object("brokers", brokers),
 	)
 
+	client, err := cluster.NewClient(brokers, clusterConfig)
 	if err != nil {
 		l.Error(
 			"Could not create kafka client",
 			zap.Error(err),
 		)
-		return
+		return err
 	}
 	l.Debug(
 		"Created kafka client",
@@ -201,20 +205,20 @@ func (worker *BatchPGWorker) configureKafkaClient() {
 			zap.Int("partitionID", int(partitionID)),
 			zap.String("error", err.Error()),
 		)
-		return
+		return err
 	}
 	l.Debug(
 		"Got kafka offset",
 		zap.Int64("Offset", currentOffset),
 	)
 
-	worker.HasKafkaStatus = true
 	worker.InitialKafkaOffset = currentOffset
 	worker.KafkaClient = client
+	return nil
 }
 
 // Configure configures the worker
-func (worker *BatchPGWorker) Configure() {
+func (worker *BatchPGWorker) Configure() error {
 	worker.ID = uuid.NewV4()
 	if worker.Config == nil {
 		worker.Config = viper.New()
@@ -224,9 +228,21 @@ func (worker *BatchPGWorker) Configure() {
 	}
 	worker.Logger = ConfigureLogger(Log{}, worker.Config)
 	worker.createChannels()
-	worker.connectDatabase()
-	worker.connectRedis()
-	worker.configureKafkaClient()
+	err := worker.connectDatabase()
+	if err != nil {
+		return err
+	}
+
+	err = worker.connectRedis()
+	if err != nil {
+		return err
+	}
+
+	err = worker.configureKafkaClient()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Start starts the workers according to the configuration and returns the workers object
@@ -291,7 +307,10 @@ func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 		e := parseError{errStr}
 		return nil, e
 	}
-	worker.Configure()
+	err := worker.Configure()
+	if err != nil {
+		return nil, err
+	}
 	return worker, nil
 }
 
@@ -320,13 +339,13 @@ func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
 				zap.String("error", err.Error()),
 			)
 		}
+		worker.CurrentKafkaOffset = currentOffset
 		worker.Logger.Debug(
 			"Got kafka offset",
-			zap.Int64("Offset", currentOffset),
+			zap.Int64("Offset", worker.CurrentKafkaOffset),
+			zap.Int64("Offset", worker.InitialKafkaOffset),
 			zap.String("topic", worker.KafkaTopic),
 		)
-
-		worker.CurrentKafkaOffset = currentOffset
 	}
 	return map[string]interface{}{
 		"kafkaTopic":         worker.KafkaTopic,
