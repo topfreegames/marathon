@@ -3,14 +3,29 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
+	"regexp"
 
 	"git.topfreegames.com/topfreegames/marathon/util"
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
 	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
 )
+
+// QueryLogger logs a query with zap
+type QueryLogger interface {
+	Printf(format string, v ...interface{})
+}
+type queryLogger struct {
+	l zap.Logger
+}
+
+func (ql queryLogger) Printf(format string, v ...interface{}) {
+	r := regexp.MustCompile("[ ]*\n")
+	logStr := fmt.Sprintf(format, v...)
+	logStr = r.ReplaceAllString(logStr, " ")
+	ql.l.Info(logStr)
+}
 
 // DB is a gorp.DbMap with a Logger
 type DB struct {
@@ -62,7 +77,13 @@ func InitDb(l zap.Logger, host string, user string, port int, sslmode string, db
 
 	// TODO: Use config
 	if os.Getenv("LOG_QUERIES") == "true" {
-		dbmap.TraceOn("[postgres]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
+		ql := queryLogger{zap.New(
+			zap.NewJSONEncoder(),
+			zap.DebugLevel,
+			zap.AddCaller(),
+		)}
+		dbmap.TraceOn("", ql)
+		// dbmap.TraceOn("[postgres]", log.New(os.Stdout, "marathon:", log.Lmicroseconds))
 	}
 
 	return dbmap, nil
