@@ -1,9 +1,5 @@
 package messages
 
-import (
-	"encoding/json"
-)
-
 // KafkaMessage is the message to be sent to Kafka
 type KafkaMessage struct {
 	Message string
@@ -66,7 +62,7 @@ type ApnsMessage struct {
 
 // ApnsPayloadContent stores payload content of apns message
 type ApnsPayloadContent struct {
-	Aps json.RawMessage        `json:"aps"`
+	Aps map[string]interface{} `json:"aps"`
 	M   map[string]interface{} `json:"m,omitempty"`
 }
 

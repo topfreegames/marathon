@@ -78,7 +78,19 @@ func ApnsMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (
 	msg := messages.NewApnsMessage()
 	msg.DeviceToken = request.Token
 	msg.PushExpiry = request.PushExpiry
-	msg.Payload.Aps = json.RawMessage(content)
+
+	var cttMap map[string]interface{}
+	err := json.Unmarshal([]byte(content), &cttMap)
+	if err != nil {
+		l.Error(
+			"Error unmarshaling apns content",
+			zap.String("content", content),
+			zap.Error(err),
+		)
+		return "", err
+	}
+
+	msg.Payload.Aps = cttMap
 	if len(request.Metadata) > 0 {
 		msg.Payload.M = request.Metadata
 	}
