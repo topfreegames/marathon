@@ -31,4 +31,5 @@ vendor/
 bin/
 .imdone
 
+tmp/
 dump.rdb
