@@ -27,6 +27,13 @@ func Producer(l zap.Logger, config *viper.Viper, inChan <-chan *messages.KafkaMe
 		case <-doneChan:
 			return // breaks out of the for
 		case msg := <-inChan:
+			// r := regexp.MustCompile("\\")
+			// messageReplaced := r.ReplaceAllString(msg.Message, "")
+			// saramaMessage := &sarama.ProducerMessage{
+			// 	Topic: msg.Topic,
+			// 	Value: sarama.StringEncoder(messageReplaced),
+			// }
+
 			saramaMessage := &sarama.ProducerMessage{
 				Topic: msg.Topic,
 				Value: sarama.StringEncoder(msg.Message),
