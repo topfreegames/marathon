@@ -3,6 +3,8 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
 
 	"git.topfreegames.com/topfreegames/marathon/util"
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
@@ -57,6 +59,11 @@ func InitDb(l zap.Logger, host string, user string, port int, sslmode string, db
 	dbmap.AddTableWithName(App{}, "apps").SetKeys(false, "ID")
 	dbmap.AddTableWithName(Notifier{}, "notifiers").SetKeys(false, "ID")
 	dbmap.AddTableWithName(Template{}, "templates").SetKeys(false, "ID")
+
+	// TODO: Use config
+	if os.Getenv("LOG_QUERIES") == "true" {
+		dbmap.TraceOn("[postgres]", log.New(os.Stdout, "myapp:", log.Lmicroseconds))
+	}
 
 	return dbmap, nil
 }
