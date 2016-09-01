@@ -83,7 +83,7 @@ func ApnsMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (
 		msg.Payload.M = request.Metadata
 	}
 
-	b, err := json.Marshal(msg)
+	b, err := json.Marshal(&msg)
 	if err != nil {
 		l.Error(
 			"Error building apns msg",
