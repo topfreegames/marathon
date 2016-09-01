@@ -30,6 +30,7 @@ type BatchPGWorker struct {
 	Filters                     [][]interface{}
 	Modifiers                   [][]interface{}
 	StartedAt                   int64
+	FinishedAt                  int64
 	KafkaClient                 *cluster.Client
 	KafkaTopic                  string
 	InitialKafkaOffset          int64
@@ -258,6 +259,7 @@ func (worker *BatchPGWorker) Start() {
 	requireToken := false
 
 	worker.StartedAt = time.Now().Unix()
+	worker.FinishedAt = 0
 
 	worker.Logger.Info("Starting worker pipeline...")
 
@@ -407,6 +409,12 @@ func (worker *BatchPGWorker) updateStatus(doneChan <-chan struct{}) {
 			worker.Logger.Debug("Update worker status")
 			worker.SetStatus()
 			time.Sleep(250 * time.Millisecond)
+			if worker.CurrentKafkaOffset-worker.InitialKafkaOffset >= worker.TotalTokens {
+				// TODO: We should stop the worker here
+				worker.Logger.Info("Finished sending tokens. Stopping status updater")
+				worker.FinishedAt = time.Now().Unix()
+				return
+			}
 		}
 	}
 }
