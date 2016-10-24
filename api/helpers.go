@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"runtime"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/kataras/iris"
-	"github.com/satori/go.uuid"
+	"github.com/labstack/echo"
 	"github.com/uber-go/zap"
 )
 
@@ -29,37 +28,39 @@ func GetFileName() string {
 }
 
 // FailWith fails with the specified message
-func FailWith(status int, message string, c *iris.Context) {
-	result, _ := json.Marshal(map[string]interface{}{
-		"success": false,
-		"reason":  message,
-	})
-	c.SetStatusCode(status)
-	c.Write(string(result))
+func FailWith(status int, message string, c echo.Context) error {
+	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	return c.String(status, fmt.Sprintf(`{"success":false,"reason":"%s"}`, message))
 }
 
 // SucceedWith sends payload to user with status 200
-func SucceedWith(payload map[string]interface{}, c *iris.Context) {
+func SucceedWith(payload map[string]interface{}, c echo.Context) error {
+	if len(payload) == 0 {
+		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		return c.String(200, `{"success":true}`)
+	}
 	payload["success"] = true
-	result, _ := json.Marshal(payload)
-	c.SetStatusCode(200)
-	c.Write(string(result))
+	return c.JSON(200, payload)
 }
 
-// LoadJSONPayload loads the JSON payload to the given struct validating all fields are not null
-func LoadJSONPayload(payloadStruct interface{}, c *iris.Context, l zap.Logger) error {
+//LoadJSONPayload loads the JSON payload to the given struct validating all fields are not null
+func LoadJSONPayload(payloadStruct interface{}, c echo.Context, l zap.Logger) error {
 	l.Debug("Loading payload...")
 
-	if err := c.ReadJSON(payloadStruct); err != nil {
-		if err != nil {
-			l.Error("Loading payload failed.", zap.Error(err))
-			return err
-		}
+	data, err := GetRequestBody(c)
+	if err != nil {
+		l.Error("Loading payload failed.", zap.Error(err))
+		return err
 	}
 
-	data := c.RequestCtx.Request.Body()
+	err = json.Unmarshal([]byte(data), payloadStruct)
+	if err != nil {
+		l.Error("Loading payload failed.", zap.Error(err))
+		return err
+	}
+
 	var jsonPayload map[string]interface{}
-	err := json.Unmarshal(data, &jsonPayload)
+	err = json.Unmarshal([]byte(data), &jsonPayload)
 	if err != nil {
 		l.Error("Loading payload failed.", zap.Error(err))
 		return err
@@ -78,60 +79,41 @@ func LoadJSONPayload(payloadStruct interface{}, c *iris.Context, l zap.Logger) e
 	}
 
 	if len(missingFieldErrors) != 0 {
-		error := errors.New(strings.Join(missingFieldErrors[:], ", "))
+		err := errors.New(strings.Join(missingFieldErrors[:], ", "))
 		l.Error("Loading payload failed.", zap.Error(err))
-		return error
+		return err
 	}
 
 	l.Debug("Payload loaded successfully.")
 	return nil
 }
 
-// GetAsInt get a payload field as Int
-func GetAsInt(field string, payload interface{}) int {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return fieldValue.(int)
+//GetRequestBody from echo context
+func GetRequestBody(c echo.Context) (string, error) {
+	bodyCache := c.Get("requestBody")
+	if bodyCache != nil {
+		return bodyCache.(string), nil
+	}
+	body := c.Request().Body()
+	b, err := ioutil.ReadAll(body)
+	if err != nil {
+		return "", err
+	}
+	c.Set("requestBody", string(b))
+	return string(b), nil
 }
 
-// GetAsInt64 get a payload field as Int64
-func GetAsInt64(field string, payload interface{}) int64 {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return fieldValue.(int64)
-}
+//GetRequestJSON as the specified interface from echo context
+func GetRequestJSON(payloadStruct interface{}, c echo.Context) error {
+	body, err := GetRequestBody(c)
+	if err != nil {
+		return err
+	}
 
-// GetAsJSON get a payload field as JSON
-func GetAsJSON(field string, payload interface{}) map[string]interface{} {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return fieldValue.(map[string]interface{})
-}
+	err = json.Unmarshal([]byte(body), payloadStruct)
+	if err != nil {
+		return err
+	}
 
-// GetAsArray get a payload field as Array
-func GetAsArray(field string, payload interface{}) []string {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return fieldValue.([]string)
-}
-
-// GetAsString get a payload field as String
-func GetAsString(field string, payload interface{}) string {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return fieldValue.(string)
-}
-
-// GetAsUUID get a payload field as UUID
-func GetAsUUID(field string, payload interface{}) (uuid.UUID, error) {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return uuid.FromString(fieldValue.(string))
-}
-
-// GetAsRFC3339 get a payload field as RFC3339 time
-func GetAsRFC3339(field string, payload interface{}) (time.Time, error) {
-	v := reflect.ValueOf(payload)
-	fieldValue := v.FieldByName(field).Interface()
-	return time.Parse(time.RFC3339, fieldValue.(string))
+	return nil
 }

@@ -2,34 +2,41 @@ package api
 
 import (
 	"fmt"
+	"os"
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
 	"git.topfreegames.com/topfreegames/marathon/util"
 	"github.com/getsentry/raven-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
-	"github.com/kataras/iris"
-	"github.com/kataras/iris/config"
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/engine"
+	"github.com/labstack/echo/engine/fasthttp"
+	"github.com/labstack/echo/engine/standard"
+	"github.com/labstack/echo/middleware"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/khan/log"
 	"github.com/uber-go/zap"
 )
 
 // Application is a struct that represents a Marathon API Applicationlication
 type Application struct {
 	Debug          bool
+	Fast           bool
 	Port           int
 	Host           string
 	ConfigPath     string
-	Application    *iris.Framework
+	Application    *echo.Echo
 	Db             *models.DB
 	Config         *viper.Viper
+	Engine         engine.Server
 	Logger         zap.Logger
 	ReadBufferSize int
 	RedisClient    *util.RedisClient
 }
 
 // GetApplication returns a new Marathon API Applicationlication
-func GetApplication(host string, port int, config *viper.Viper, debug bool, logger zap.Logger) *Application {
+func GetApplication(host string, port int, config *viper.Viper, debug bool, fast bool, logger zap.Logger) *Application {
 	application := &Application{
 		Host:           host,
 		Port:           port,
@@ -136,7 +143,8 @@ func (application *Application) connectDatabase() {
 	application.Db = db
 }
 
-func (application *Application) onErrorHandler(err error, stack []byte) {
+// OnErrorHandler handles errors
+func (application *Application) OnErrorHandler(err error, stack []byte) {
 	application.Logger.Error(
 		"Panic occurred.",
 		zap.String("source", "app"),
@@ -155,35 +163,25 @@ func (application *Application) configureApplication() error {
 		zap.String("operation", "configureApplication"),
 	)
 
-	c := config.Iris{
-		DisableBanner: true,
+	application.Engine = standard.New(fmt.Sprintf("%s:%d", application.Host, application.Port))
+	if application.Fast {
+		rb := application.Config.GetInt("api.maxReadBufferSize")
+		engine := fasthttp.New(fmt.Sprintf("%s:%d", application.Host, application.Port))
+		engine.ReadBufferSize = rb
+		application.Engine = engine
 	}
 
-	application.Application = iris.New(c)
+	application.Application = echo.New()
 	a := application.Application
 
-	a.Use(NewLoggerMiddleware(application.Logger))
-	a.Use(&RecoveryMiddleware{OnError: application.onErrorHandler})
-	//a.Use(&TransactionMiddleware{App: app})
-	a.Use(&VersionMiddleware{Application: application})
-	a.Use(&SentryMiddleware{Application: application})
+	_, w, _ := os.Pipe()
+	a.SetLogOutput(w)
 
-	a.OnError(iris.StatusInternalServerError, func(ctx *iris.Context) {
-		application.Logger.Error(
-			"Internal server error happened.",
-			zap.String("error", string(ctx.Response.Body())),
-			zap.String("source", "app"),
-		)
-		ctx.Write(fmt.Sprintf("INTERNAL SERVER ERROR: %s", ctx.Response.Body()))
-	})
-
-	a.OnError(iris.StatusNotFound, func(ctx *iris.Context) {
-		application.Logger.Warn(
-			"Route not found.", zap.String("url", ctx.Request.URI().String()),
-			zap.String("source", "app"),
-		)
-		ctx.Write("Not Found")
-	})
+	a.Pre(middleware.RemoveTrailingSlash())
+	a.Use(NewLoggerMiddleware(application.Logger).Serve)
+	a.Use(NewRecoveryMiddleware(application.OnErrorHandler).Serve)
+	a.Use(NewVersionMiddleware().Serve)
+	a.Use(NewSentryMiddleware(application).Serve)
 
 	// Routes
 
@@ -232,6 +230,12 @@ func (application *Application) finalizeApplication() {
 
 // Start starts listening for web requests at specified host and port
 func (application *Application) Start() {
-	defer application.finalizeApplication()
-	application.Application.Listen(fmt.Sprintf("%s:%d", application.Host, application.Port))
+	l := application.Logger.With(
+		zap.String("source", "app"),
+		zap.String("operation", "Start"),
+	)
+	log.D(l, "App started.", func(cm log.CM) {
+		cm.Write(zap.String("host", application.Host), zap.Int("port", application.Port))
+	})
+	application.Application.Run(application.Engine)
 }

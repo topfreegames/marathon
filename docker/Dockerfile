@@ -71,7 +71,7 @@ ENV MARATHON_WORKERS_MODULES_PRODUCERDONECHAN=1
 RUN mkdir -p /etc/nginx/sites-enabled
 
 # configure supervisord
-ADD ./docker/deploy/supervisord-khan.conf /etc/supervisord-marathon.conf
+ADD ./docker/deploy/supervisord-marathon.conf /etc/supervisord-marathon.conf
 
 # Configure nginx
 ADD ./docker/deploy/nginx_conf /etc/nginx/nginx.conf

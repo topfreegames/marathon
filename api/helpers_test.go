@@ -1,18 +1,23 @@
 package api_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/api"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
-	"github.com/gavv/httpexpect"
+	"github.com/labstack/echo/engine/standard"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
-	"github.com/valyala/fasthttp"
 )
 
 // GetTestDB returns a connection to the test database
@@ -43,67 +48,57 @@ func getConfig() (*viper.Viper, error) {
 func GetDefaultTestApp(config *viper.Viper) *api.Application {
 	l := mt.NewMockLogger()
 	if config != nil {
-		application := api.GetApplication("0.0.0.0", 8888, config, true, l)
+		application := api.GetApplication("0.0.0.0", 8888, config, true, true, l)
 		return application
 	} else {
 		cfg, err := getConfig()
 		if err != nil {
 			l.Panic("Could not load config", zap.Object("config", config))
 		}
-		application := api.GetApplication("0.0.0.0", 8888, cfg, true, l)
+		application := api.GetApplication("0.0.0.0", 8888, cfg, true, true, l)
 		return application
 	}
 }
 
-// Get returns a test request against specified URL
-func Get(application *api.Application, url string, queryString ...map[string]interface{}) *httpexpect.Response {
-	req := SendRequest(application, "GET", url)
-	if len(queryString) == 1 {
-		for k, v := range queryString[0] {
-			req = req.WithQuery(k, v)
-		}
+// Get from server
+func Get(app *api.Application, url string) (int, string) {
+	return doRequest(app, "GET", url, "")
+}
+
+// Post to server
+func Post(app *api.Application, url, body string) (int, string) {
+	return doRequest(app, "POST", url, body)
+}
+
+// PostJSON to server
+func PostJSON(app *api.Application, url string, body interface{}) (int, string) {
+	result, err := json.Marshal(body)
+	if err != nil {
+		return 510, "Failed to marshal specified body to JSON format"
 	}
-	return req.Expect()
+	return Post(app, url, string(result))
 }
 
-// PostBody returns a test request against specified URL
-func PostBody(application *api.Application, url string, payload string) *httpexpect.Response {
-	return sendBody(application, "POST", url, payload)
+// Put to server
+func Put(app *api.Application, url, body string) (int, string) {
+	return doRequest(app, "PUT", url, body)
 }
 
-// PutBody returns a test request against specified URL
-func PutBody(application *api.Application, url string, payload string) *httpexpect.Response {
-	return sendBody(application, "PUT", url, payload)
+// PutJSON to server
+func PutJSON(app *api.Application, url string, body interface{}) (int, string) {
+	result, err := json.Marshal(body)
+	if err != nil {
+		return 510, "Failed to marshal specified body to JSON format"
+	}
+	return Put(app, url, string(result))
 }
 
-func sendBody(application *api.Application, method string, url string, payload string) *httpexpect.Response {
-	req := SendRequest(application, method, url)
-	return req.WithBytes([]byte(payload)).Expect()
+// Delete from server
+func Delete(app *api.Application, url string) (int, string) {
+	return doRequest(app, "DELETE", url, "")
 }
 
-// PostJSON returns a test request against specified URL
-func PostJSON(application *api.Application, url string, payload map[string]interface{}) *httpexpect.Response {
-	return SendJSON(application, "POST", url, payload)
-}
-
-// PutJSON returns a test request against specified URL
-func PutJSON(application *api.Application, url string, payload map[string]interface{}) *httpexpect.Response {
-	return SendJSON(application, "PUT", url, payload)
-}
-
-// SendJSON sends a json with a given payload to a given url through a gien method
-func SendJSON(application *api.Application, method, url string, payload map[string]interface{}) *httpexpect.Response {
-	req := SendRequest(application, method, url)
-	return req.WithJSON(payload).Expect()
-}
-
-// Delete returns a test request against specified URL
-func Delete(application *api.Application, url string) *httpexpect.Response {
-	req := SendRequest(application, "DELETE", url)
-	return req.Expect()
-}
-
-//GinkgoReporter implements tests for httpexpect
+// GinkgoReporter implements tests for httpexpect
 type GinkgoReporter struct {
 }
 
@@ -120,50 +115,42 @@ func (g *GinkgoPrinter) Logf(source string, args ...interface{}) {
 	fmt.Printf(source, args...)
 }
 
-// SendRequest sends a request to a given url through a given method
-func SendRequest(application *api.Application, method, url string) *httpexpect.Request {
-	api := application.Application
-	srv := api.Servers.Main()
+var client *http.Client
+var transport *http.Transport
 
-	if srv == nil { // maybe the user called this after .Listen/ListenTLS/ListenUNIX, the tester can be used as standalone (with no running iris instance) or inside a running instance/application
-		srv = api.ListenVirtual(api.Config.Tester.ListeningAddr)
+func initClient() {
+	if client == nil {
+		transport = &http.Transport{DisableKeepAlives: true}
+		client = &http.Client{Transport: transport}
 	}
+}
 
-	opened := api.Servers.GetAllOpened()
-	h := srv.Handler
-	baseURL := srv.FullHost()
-	if len(opened) > 1 {
-		baseURL = ""
-		//we have more than one server, so we will create a handler here and redirect by registered listening addresses
-		h = func(reqCtx *fasthttp.RequestCtx) {
-			for _, s := range opened {
-				if strings.HasPrefix(reqCtx.URI().String(), s.FullHost()) { // yes on :80 should be passed :80 also, this is inneed for multiserver testing
-					s.Handler(reqCtx)
-					break
-				}
-			}
-		}
-	}
+func doRequest(application *api.Application, method, url, body string) (int, string) {
+	initClient()
+	defer transport.CloseIdleConnections()
+	application.Engine.SetHandler(application.Application)
+	ts := httptest.NewServer(application.Engine.(*standard.Server))
 
-	if api.Config.Tester.ExplicitURL {
-		baseURL = ""
+	var bodyBuff io.Reader
+	if body != "" {
+		bodyBuff = bytes.NewBuffer([]byte(body))
 	}
+	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", ts.URL, url), bodyBuff)
+	req.Header.Set("Connection", "close")
+	req.Close = true
+	Expect(err).NotTo(HaveOccurred())
 
-	testConfiguration := httpexpect.Config{
-		BaseURL: baseURL,
-		Client: &http.Client{
-			Transport: httpexpect.NewFastBinder(h),
-			Jar:       httpexpect.NewJar(),
-		},
-		Reporter: &GinkgoReporter{},
-	}
-	if api.Config.Tester.Debug {
-		testConfiguration.Printers = []httpexpect.Printer{
-			httpexpect.NewDebugPrinter(&GinkgoPrinter{}, true),
-		}
-	}
+	res, err := client.Do(req)
+	ts.Close()
+	//Wait for port of httptest to be reclaimed by OS
+	time.Sleep(50 * time.Millisecond)
+	Expect(err).NotTo(HaveOccurred())
 
-	return httpexpect.WithConfig(testConfiguration).Request(method, url)
+	b, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	Expect(err).NotTo(HaveOccurred())
+
+	return res.StatusCode, string(b)
 }
 
 // GetGameRoute returns a clan route for the given game id.

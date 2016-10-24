@@ -15,7 +15,7 @@ package api_test
 //
 // 	g.Describe("App Struct", func() {
 // 		g.It("should create app with custom arguments", func() {
-// 			application := GetApplication("127.0.0.1", 9999, "../config/test.yaml", false)
+// 			application := GetApplication("127.0.0.1", 9999, "../config/test.yaml", false, false)
 // 			Expect(application.Port).To(Equal(9999))
 // 			Expect(application.Host).To(Equal("127.0.0.1"))
 // 		})

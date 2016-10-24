@@ -8,7 +8,7 @@ import (
 
 var host string
 var port int
-var debug bool
+var debug, fast bool
 
 // startCmd represents the start command
 var startServerCmd = &cobra.Command{
@@ -41,6 +41,7 @@ var startServerCmd = &cobra.Command{
 			port,
 			config,
 			debug,
+			fast,
 			l,
 		)
 		cmdL.Debug("Application created successfully.")
@@ -56,5 +57,6 @@ func init() {
 	startServerCmd.Flags().StringVarP(&host, "bind", "b", "0.0.0.0", "Host to bind marathon to")
 	startServerCmd.Flags().IntVarP(&port, "port", "p", 8888, "Port to bind marathon to")
 	startServerCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Debug mode")
+	startServerCmd.Flags().BoolVarP(&fast, "fast", "f", true, "FastHTTP server mode")
 	startServerCmd.Flags().StringVarP(&configFile, "configFile", "c", "./config/test.yaml", "Config file")
 }

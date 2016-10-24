@@ -35,16 +35,18 @@ var _ = Describe("Marathon API Handler", func() {
 	Describe("Create Notification Handler", func() {
 		It("Should respond with default WORKING string", func() {
 			a := GetDefaultTestApp(config)
-			res := Get(a, "/healthcheck")
+			status, body := Get(a, "/healthcheck")
 
-			res.Status(http.StatusOK).Body().Equal("working")
+			Expect(status).To(Equal(http.StatusOK), body)
+			Expect(body).To(Equal("working"))
 		})
 		It("Should respond with customized WORKING string", func() {
 			a := GetDefaultTestApp(config)
 			a.Config.Set("healthcheck.workingText", "OTHERWORKING")
-			res := Get(a, "/healthcheck")
+			status, body := Get(a, "/healthcheck")
 
-			res.Status(http.StatusOK).Body().Equal("OTHERWORKING")
+			Expect(status).To(Equal(http.StatusOK), body)
+			Expect(body).To(Equal("OTHERWORKING"))
 		})
 	})
 })

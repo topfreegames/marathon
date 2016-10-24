@@ -31,3 +31,4 @@ import:
 - package: github.com/minio/minio-go
 - package: github.com/k0kubun/pp
   version: ~2.1.0
+- package: github.com/labstack/echo

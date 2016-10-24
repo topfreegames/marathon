@@ -38,11 +38,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"appGroup":       group,
 			}
 
-			res := PostJSON(a, "/apps", payload)
+			status, body := PostJSON(a, "/apps", payload)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result map[string]interface{}
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			json.Unmarshal([]byte(body), &result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
@@ -69,11 +69,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"appGroup":       group,
 			}
 
-			res := PostJSON(a, "/apps", payload)
+			status, body := PostJSON(a, "/apps", payload)
 
-			// Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result map[string]interface{}
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			json.Unmarshal([]byte(body), &result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
@@ -94,10 +94,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
-			res = PostJSON(a, "/apps", payload2)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			status, body = PostJSON(a, "/apps", payload2)
+
+			Expect(status).To(Equal(http.StatusOK), body)
+			json.Unmarshal([]byte(body), &result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
@@ -127,10 +128,8 @@ var _ = Describe("Marathon API Handler", func() {
 			payloadStr, err := json.Marshal(payload)
 			wrongPayloadString := payloadStr[:len(payloadStr)-1]
 			Expect(err).NotTo(HaveOccurred())
-			req := SendRequest(a, "POST", "/apps")
-			res := req.WithBytes([]byte(wrongPayloadString)).Expect()
-
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusBadRequest))
+			status, _ := PostJSON(a, "/apps", wrongPayloadString)
+			Expect(status).To(Equal(http.StatusBadRequest))
 		})
 	})
 
@@ -148,11 +147,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"appGroup":       group,
 			}
 
-			res := PostJSON(a, "/apps", payload)
+			status, body := PostJSON(a, "/apps", payload)
 
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result map[string]interface{}
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			json.Unmarshal([]byte(body), &result)
 			Expect(result["success"]).To(BeTrue())
 			Expect(result["appID"]).NotTo(BeNil())
 			Expect(result["appName"]).To(Equal(appName))
@@ -166,10 +165,10 @@ var _ = Describe("Marathon API Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbApp.ID).To(Equal(appId))
 
-			req := SendRequest(a, "GET", "/apps")
-			res = req.Expect()
-			Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res.Body().Raw()), &result)
+			status, body = Get(a, "/apps")
+			Expect(status).To(Equal(http.StatusOK), body)
+			json.Unmarshal([]byte(body), &result)
+
 			Expect(result["success"]).To(BeTrue())
 
 			apps := result["apps"].([]interface{})

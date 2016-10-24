@@ -66,11 +66,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"appGroup":       group,
 			}
 
-			res1 := PostJSON(a, "/apps", payload1)
+			status, body := PostJSON(a, "/apps", payload1)
 
-			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result1 map[string]interface{}
-			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			json.Unmarshal([]byte(body), &result1)
 			notifierID := result1["notifierID"]
 
 			userID := uuid.NewV4().String()
@@ -113,11 +113,11 @@ var _ = Describe("Marathon API Handler", func() {
 				},
 			}
 			url1 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			res2 := PostJSON(a, url1, payload2)
+			status, body = PostJSON(a, url1, payload2)
 
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result2 map[string]interface{}
-			Expect(res2.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res2.Body().Raw()), &result2)
+			json.Unmarshal([]byte(body), &result2)
 			Expect(result2["success"]).To(BeTrue())
 		})
 
@@ -133,11 +133,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"appGroup":       group,
 			}
 
-			res1 := PostJSON(a, "/apps", payload1)
+			status, body := PostJSON(a, "/apps", payload1)
 
-			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result1 map[string]interface{}
-			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			json.Unmarshal([]byte(body), &result1)
 			notifierID := result1["notifierID"]
 
 			createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
@@ -180,10 +180,8 @@ var _ = Describe("Marathon API Handler", func() {
 			wrongPayloadString := payloadStr[:len(payloadStr)-1]
 			Expect(err).NotTo(HaveOccurred())
 			url := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			req := SendRequest(a, "POST", url)
-			res2 := req.WithBytes([]byte(wrongPayloadString)).Expect()
-
-			Expect(res2.Raw().StatusCode).To(Equal(http.StatusBadRequest))
+			status, body = PostJSON(a, url, wrongPayloadString)
+			Expect(status).To(Equal(http.StatusBadRequest), body)
 		})
 
 		It("Should create a Notification and get status", func() {
@@ -198,11 +196,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"appGroup":       group,
 			}
 
-			res1 := PostJSON(a, "/apps", payload1)
+			status, body := PostJSON(a, "/apps", payload1)
 
-			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result1 map[string]interface{}
-			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			json.Unmarshal([]byte(body), &result1)
 			notifierID := result1["notifierID"]
 
 			createdTable, err := models.CreateUserTokensTable(a.Db, appName, service)
@@ -273,33 +271,32 @@ var _ = Describe("Marathon API Handler", func() {
 				},
 			}
 			url1 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			res2 := PostJSON(a, url1, payload2)
+			status, body = PostJSON(a, url1, payload2)
 
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result2 map[string]interface{}
-			Expect(res2.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res2.Body().Raw()), &result2)
+			json.Unmarshal([]byte(body), &result2)
 			Expect(result2["success"]).To(BeTrue())
 
 			time.Sleep(500 * time.Millisecond)
 
 			url2 := fmt.Sprintf("/notifiers/%s/notifications/%s", notifierID, result2["id"])
-			req3 := SendRequest(a, "GET", url2)
-			res3 := req3.Expect()
+			status, body = Get(a, url2)
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result3 map[string]interface{}
-			Expect(res3.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res3.Body().Raw()), &result3)
+			json.Unmarshal([]byte(body), &result3)
 			Expect(result3["success"]).To(BeTrue())
 
-			var status map[string]interface{}
-			json.Unmarshal([]byte(result3["status"].(string)), &status)
+			var resStatus map[string]interface{}
+			json.Unmarshal([]byte(result3["status"].(string)), &resStatus)
 
 			var kafkaStatus map[string]interface{}
-			json.Unmarshal([]byte(status["kafkaStatus"].(string)), &kafkaStatus)
+			json.Unmarshal([]byte(resStatus["kafkaStatus"].(string)), &kafkaStatus)
 			Expect(kafkaStatus["initialKafkaOffset"]).To(Equal(float64(0)))
 			Expect(kafkaStatus["currentKafkaOffset"]).To(Equal(float64(2)))
 
 			var workerStatus map[string]interface{}
-			json.Unmarshal([]byte(status["workerStatus"].(string)), &workerStatus)
+			json.Unmarshal([]byte(resStatus["workerStatus"].(string)), &workerStatus)
 			Expect(workerStatus["totalPages"]).To(Equal(float64(1)))
 			Expect(workerStatus["processedPages"]).To(Equal(float64(1)))
 			Expect(workerStatus["totalTokens"]).To(Equal(float64(2)))
@@ -317,11 +314,11 @@ var _ = Describe("Marathon API Handler", func() {
 				"organizationID": uuid.NewV4().String(),
 				"appGroup":       group,
 			}
-			res1 := PostJSON(a, "/apps", payload1)
+			status, body := PostJSON(a, "/apps", payload1)
 
-			Expect(res1.Raw().StatusCode).To(Equal(http.StatusOK))
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result1 map[string]interface{}
-			json.Unmarshal([]byte(res1.Body().Raw()), &result1)
+			json.Unmarshal([]byte(body), &result1)
 			notifierID := result1["notifierID"]
 
 			userID1 := uuid.NewV4().String()
@@ -371,22 +368,20 @@ var _ = Describe("Marathon API Handler", func() {
 				},
 			}
 			url1 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			res2 := PostJSON(a, url1, payload2)
+			status, body = PostJSON(a, url1, payload2)
 
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result2 map[string]interface{}
-			Expect(res2.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res2.Body().Raw()), &result2)
+			json.Unmarshal([]byte(body), &result2)
 			Expect(result2["success"]).To(BeTrue())
 
 			time.Sleep(500 * time.Millisecond)
 
 			url2 := fmt.Sprintf("/notifiers/%s/notifications", notifierID)
-			req := SendRequest(a, "GET", url2)
-			res3 := req.Expect()
-
+			status, body = Get(a, url2)
+			Expect(status).To(Equal(http.StatusOK), body)
 			var result3 map[string]interface{}
-			Expect(res3.Raw().StatusCode).To(Equal(http.StatusOK))
-			json.Unmarshal([]byte(res3.Body().Raw()), &result3)
+			json.Unmarshal([]byte(body), &result3)
 			Expect(result3["success"]).To(BeTrue())
 		})
 	})

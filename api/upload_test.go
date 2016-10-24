@@ -29,10 +29,10 @@ var _ = Describe("Marathon API Handler", func() {
 		It("Should create a Notification (will fail without the AWS credentials", func() {
 			a := GetDefaultTestApp(config)
 
-			res := Get(a, "/uploadurl")
+			status, _ := Get(a, "/uploadurl")
 
 			// Expect(res.Raw().StatusCode).To(Equal(http.StatusOK))
-			Expect(res.Raw().StatusCode).To(Equal(400))
+			Expect(status).To(Equal(400))
 			// var result map[string]interface{}
 			// json.Unmarshal([]byte(res.Body().Raw()), &result)
 			// Expect(result["success"]).To(BeTrue())

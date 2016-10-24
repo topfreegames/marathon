@@ -5,14 +5,14 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/kataras/iris"
+	"github.com/labstack/echo"
 	"github.com/minio/minio-go"
 	"github.com/uber-go/zap"
 )
 
 // UploadHandler handles a file upload
-func UploadHandler(application *Application) func(c *iris.Context) {
-	return func(c *iris.Context) {
+func UploadHandler(application *Application) func(c echo.Context) error {
+	return func(c echo.Context) error {
 		start := time.Now()
 		l := application.Logger.With(
 			zap.String("source", "uploadHandler"),
@@ -34,8 +34,7 @@ func UploadHandler(application *Application) func(c *iris.Context) {
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 
 		u, err := s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
@@ -45,8 +44,7 @@ func UploadHandler(application *Application) func(c *iris.Context) {
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 		l.Info(
 			"Upload handler retrieved url and params successfully.",
@@ -61,10 +59,9 @@ func UploadHandler(application *Application) func(c *iris.Context) {
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
-			FailWith(500, err.Error(), c)
-			return
+			return FailWith(500, err.Error(), c)
 		}
 		m["url"] = uURL
-		SucceedWith(m, c)
+		return SucceedWith(m, c)
 	}
 }

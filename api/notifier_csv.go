@@ -7,7 +7,7 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/workers"
 
-	"github.com/kataras/iris"
+	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"github.com/uber-go/zap"
 )
@@ -19,8 +19,8 @@ type csvNotificationPayload struct {
 }
 
 // SendCsvNotificationHandler is the handler responsible for creating new pushes
-func SendCsvNotificationHandler(application *Application) func(c *iris.Context) {
-	return func(c *iris.Context) {
+func SendCsvNotificationHandler(application *Application) func(c echo.Context) error {
+	return func(c echo.Context) error {
 		start := time.Now()
 		notifierID := c.Param("notifierID")
 		l := application.Logger.With(
@@ -35,16 +35,14 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 
 		l.Debug("Get notifier from DB")
 		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
 		if err != nil {
 			l.Error("Could not find notifier.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 		l.Debug("Got notifier from DB")
 
@@ -52,8 +50,7 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 		app, err := models.GetAppByID(application.Db, notifier.AppID)
 		if err != nil {
 			l.Error("Could not find app.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 		l.Debug("Got app from DB")
 
@@ -65,8 +62,7 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 				zap.Error(err),
 				zap.Duration("duration", time.Now().Sub(start)),
 			)
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 		l.Debug("Parsed payload", zap.Object("payload", payload))
 
@@ -103,12 +99,12 @@ func SendCsvNotificationHandler(application *Application) func(c *iris.Context) 
 		worker, err := workers.GetBatchCsvWorker(workerConfig)
 		if err != nil {
 			l.Error("Invalid worker config,", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
-			FailWith(400, err.Error(), c)
+			return FailWith(400, err.Error(), c)
 		}
 
 		worker.Start()
 
-		SucceedWith(map[string]interface{}{
+		return SucceedWith(map[string]interface{}{
 			"id": worker.ID.String(),
 		}, c)
 	}

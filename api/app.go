@@ -5,7 +5,7 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
-	"github.com/kataras/iris"
+	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"github.com/uber-go/zap"
 )
@@ -18,8 +18,8 @@ type appPayload struct {
 }
 
 // CreateAppHandler is the handler responsible for creating new apps
-func CreateAppHandler(application *Application) func(c *iris.Context) {
-	return func(c *iris.Context) {
+func CreateAppHandler(application *Application) func(c echo.Context) error {
+	return func(c echo.Context) error {
 		start := time.Now()
 
 		l := application.Logger.With(
@@ -30,8 +30,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		var payload appPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
 			l.Error("Failed to parse json payload.", zap.Error(err))
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 
 		// FIXME: This should not work this way. We're ignoring organizationID and appGroup if appName exists
@@ -42,8 +41,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 				app, err = models.GetAppByName(application.Db, payload.AppName)
 				if err != nil {
 					l.Error("Get app failed.", zap.Error(err))
-					FailWith(400, err.Error(), c)
-					return
+					return FailWith(400, err.Error(), c)
 				}
 				l.Info(
 					"App not created. Already exists",
@@ -55,8 +53,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 				)
 			} else {
 				l.Error("Create app failed.", zap.Error(err))
-				FailWith(400, err.Error(), c)
-				return
+				return FailWith(400, err.Error(), c)
 			}
 		} else {
 			l.Info(
@@ -73,8 +70,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		notifier, err := models.CreateNotifier(application.Db, app.ID, payload.Service)
 		if err != nil {
 			l.Error("Create notifier failed.", zap.Error(err))
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 		l.Info(
 			"Notifier created successfully.",
@@ -87,8 +83,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 		userTokensTable, err := models.CreateUserTokensTable(application.Db, payload.AppName, payload.Service)
 		if err != nil {
 			l.Error("Create app failed.", zap.Error(err))
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 
 		l.Info(
@@ -101,7 +96,7 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
 
-		SucceedWith(map[string]interface{}{
+		return SucceedWith(map[string]interface{}{
 			"appID":               app.ID,
 			"appName":             app.Name,
 			"appGroup":            app.AppGroup,
@@ -114,8 +109,8 @@ func CreateAppHandler(application *Application) func(c *iris.Context) {
 }
 
 // GetAppsHandler is the handler responsible for retrieving a list of apps/services
-func GetAppsHandler(application *Application) func(c *iris.Context) {
-	return func(c *iris.Context) {
+func GetAppsHandler(application *Application) func(c echo.Context) error {
+	return func(c echo.Context) error {
 		start := time.Now()
 
 		l := application.Logger.With(
@@ -127,8 +122,7 @@ func GetAppsHandler(application *Application) func(c *iris.Context) {
 		appNotifiers, err := models.GetAppNotifiers(application.Db)
 		if err != nil {
 			l.Error("Get apps notifiers failed.", zap.Error(err))
-			FailWith(400, err.Error(), c)
-			return
+			return FailWith(400, err.Error(), c)
 		}
 		l.Info(
 			"Apps notifiers retrieved successfully.",
@@ -136,7 +130,7 @@ func GetAppsHandler(application *Application) func(c *iris.Context) {
 			zap.Duration("duration", time.Now().Sub(start)),
 		)
 
-		SucceedWith(map[string]interface{}{
+		return SucceedWith(map[string]interface{}{
 			"apps": serializeAppsNotifiers(appNotifiers),
 		}, c)
 	}
