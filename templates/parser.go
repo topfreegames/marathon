@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
@@ -23,7 +24,7 @@ func (e parseError) Error() string {
 // Multiple Parser instances should be able to run in parallel.
 func Parser(l zap.Logger, requireToken bool, inChan <-chan string, outChan chan<- *messages.InputMessage, doneChan <-chan struct{}) {
 	l = l.With(zap.Bool("requireToken", requireToken))
-	l.Info("Starting parser")
+	log.I(l, "Starting parser")
 	for {
 		select {
 		case <-doneChan:
@@ -31,10 +32,14 @@ func Parser(l zap.Logger, requireToken bool, inChan <-chan string, outChan chan<
 		case msg := <-inChan:
 			req, err := Parse(l, msg, requireToken)
 			if err != nil {
-				l.Error("Error parsing message", zap.Error(err))
+				log.E(l, "Error parsing message", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
 				continue
 			}
-			l.Debug("Parsed message", zap.String("input", msg))
+			log.D(l, "Parsed message", func(cm log.CM) {
+				cm.Write(zap.String("input", msg))
+			})
 			outChan <- req
 		}
 	}
@@ -54,12 +59,13 @@ func Parse(l zap.Logger, msg string, requireToken bool) (*messages.InputMessage,
 	e := parseError{}
 	// All fields should be set, except by either Template & Params or Message
 	if msgObj.App == "" || msgObj.Service == "" || (requireToken && msgObj.Token == "") {
-		l.Error(
-			"One of the mandatory fields is missing",
-			zap.String("app", msgObj.App),
-			zap.String("token", msgObj.Token),
-			zap.String("service", msgObj.Service),
-		)
+		log.E(l, "One of the mandatory fields is missing", func(cm log.CM) {
+			cm.Write(
+				zap.String("app", msgObj.App),
+				zap.String("token", msgObj.Token),
+				zap.String("service", msgObj.Service),
+			)
+		})
 		e = parseError{fmt.Sprintf(
 			"One of the mandatory fields is missing app=%s, token=%s, service=%s", msgObj.App, msgObj.Token, msgObj.Service),
 		}
@@ -67,33 +73,38 @@ func Parse(l zap.Logger, msg string, requireToken bool) (*messages.InputMessage,
 	// Either Template & Params should be defined or Message should be defined
 	// Not both at the same time
 	if msgObj.Template != "" && msgObj.Params == nil {
-		l.Error(
-			"Template defined, but not Params",
-			zap.String("template", msgObj.Template),
-			zap.Object("params", msgObj.Params),
-		)
+		log.E(l, "Template defined, but not Params", func(cm log.CM) {
+			cm.Write(
+				zap.String("template", msgObj.Template),
+				zap.Object("params", msgObj.Params),
+			)
+		})
 		e = parseError{"Template defined, but not Params"}
 	}
 	if msgObj.Template != "" && (msgObj.Message != nil && len(msgObj.Message) > 0) {
-		l.Error(
-			"Both Template and Message defined",
-			zap.String("template", msgObj.Template),
-			zap.Object("message", msgObj.Message),
-		)
+		log.E(l, "Both Template and Message defined", func(cm log.CM) {
+			cm.Write(
+				zap.String("template", msgObj.Template),
+				zap.Object("message", msgObj.Message),
+			)
+		})
 		e = parseError{"Both Template and Message defined"}
 	}
 	if msgObj.Template == "" && (msgObj.Message == nil || len(msgObj.Message) == 0) {
-		l.Error(
-			"Either Template or Message should be defined",
-			zap.String("template", msgObj.Template),
-			zap.Object("message", msgObj.Message),
-		)
+		log.E(l, "Either Template or Message should be defined", func(cm log.CM) {
+			cm.Write(
+				zap.String("template", msgObj.Template),
+				zap.Object("message", msgObj.Message),
+			)
+		})
 		e = parseError{"Either Template or Message should be defined"}
 	}
 
 	if msgObj.PushExpiry < 0 {
 		errStr := "PushExpiry should be above 0"
-		l.Error(errStr, zap.Int64("pushexpiry", msgObj.PushExpiry))
+		log.E(l, errStr, func(cm log.CM) {
+			cm.Write(zap.Int64("pushexpiry", msgObj.PushExpiry))
+		})
 		e = parseError{errStr}
 	}
 
@@ -101,6 +112,8 @@ func Parse(l zap.Logger, msg string, requireToken bool) (*messages.InputMessage,
 		return nil, e
 	}
 
-	l.Debug("Decoded message", zap.String("msg", msg))
+	log.D(l, "Decoded message", func(cm log.CM) {
+		cm.Write(zap.String("msg", msg))
+	})
 	return msgObj, nil
 }

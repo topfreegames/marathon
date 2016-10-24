@@ -3,6 +3,7 @@ package api
 import (
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/workers"
@@ -30,41 +31,46 @@ func SendCsvNotificationHandler(application *Application) func(c echo.Context) e
 
 		notifierIDUuid, err := uuid.FromString(notifierID)
 		if err != nil {
-			l.Error(
-				"Could not convert notifierID into UUID.",
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
+			log.E(l, "Could not convert notifierID into UUID.", func(cm log.CM) {
+				cm.Write(
+					zap.Error(err),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+			})
 			return FailWith(400, err.Error(), c)
 		}
 
-		l.Debug("Get notifier from DB")
+		log.D(l, "Get notifier from DB")
 		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
 		if err != nil {
-			l.Error("Could not find notifier.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			log.E(l, "Could not find notifier.", func(cm log.CM) {
+				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			})
 			return FailWith(400, err.Error(), c)
 		}
-		l.Debug("Got notifier from DB")
+		log.D(l, "Got notifier from DB")
 
-		l.Debug("Get app from DB")
+		log.D(l, "Get app from DB")
 		app, err := models.GetAppByID(application.Db, notifier.AppID)
 		if err != nil {
-			l.Error("Could not find app.", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			log.E(l, "Could not find app.", func(cm log.CM) {
+				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			})
 			return FailWith(400, err.Error(), c)
 		}
-		l.Debug("Got app from DB")
+		log.D(l, "Got app from DB")
 
-		l.Debug("Parse payload")
+		log.D(l, "Parse payload")
 		var payload csvNotificationPayload
 		if err := LoadJSONPayload(&payload, c, l); err != nil {
-			l.Error(
-				"Failed to parse json payload.",
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
+			log.E(l, "Failed to parse json payload.", func(cm log.CM) {
+				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			})
 			return FailWith(400, err.Error(), c)
 		}
-		l.Debug("Parsed payload", zap.Object("payload", payload))
+		log.D(l, "Parsed payload", func(cm log.CM) {
+			cm.Write(zap.Object("payload", payload))
+		})
 
 		modifiers := [][]interface{}{{"LIMIT", 500}}
 
@@ -98,7 +104,9 @@ func SendCsvNotificationHandler(application *Application) func(c echo.Context) e
 		}
 		worker, err := workers.GetBatchCsvWorker(workerConfig)
 		if err != nil {
-			l.Error("Invalid worker config,", zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			log.E(l, "Invalid worker config,", func(cm log.CM) {
+				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+			})
 			return FailWith(400, err.Error(), c)
 		}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/cmd"
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
 )
 
@@ -18,6 +19,6 @@ func main() {
 		zap.String("operation", "Execute"),
 	)
 
-	cmdL.Debug("Executing root cmd...")
+	log.D(cmdL, "Executing root cmd...")
 	cmd.Execute(cmd.RootCmd, cmdL)
 }

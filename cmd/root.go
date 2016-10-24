@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
@@ -19,7 +20,9 @@ var RootCmd = &cobra.Command{
 // Execute runs RootCmd to initialize marathon CLI application
 func Execute(cmd *cobra.Command, l zap.Logger) {
 	if err := cmd.Execute(); err != nil {
-		l.Fatal("Error", zap.Error(err))
+		log.F(l, "Error", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		os.Exit(-1)
 	}
 }
@@ -29,7 +32,9 @@ func init() {}
 // InitConfig reads in config file and ENV variables if set.
 func InitConfig(l zap.Logger, configFile string) *viper.Viper {
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		l.Fatal("Config file does not exist", zap.String("configFile", configFile))
+		log.F(l, "Config file does not exist", func(cm log.CM) {
+			cm.Write(zap.String("configFile", configFile))
+		})
 		os.Exit(-1)
 	}
 	var config = viper.New()
@@ -43,12 +48,13 @@ func InitConfig(l zap.Logger, configFile string) *viper.Viper {
 
 	// If a config file is found, read it in.
 	if err := config.ReadInConfig(); err != nil {
-		l.Fatal("Error", zap.Error(err))
+		log.F(l, "Error", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		os.Exit(-1)
 	}
-	l.Info(
-		"Using config file",
-		zap.String("Config file", viper.ConfigFileUsed()),
-	)
+	log.I(l, "Using config file", func(cm log.CM) {
+		cm.Write(zap.String("Config file", viper.ConfigFileUsed()))
+	})
 	return config
 }

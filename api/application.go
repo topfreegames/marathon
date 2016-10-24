@@ -6,6 +6,7 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/models"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/util"
 	"github.com/getsentry/raven-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
@@ -15,7 +16,6 @@ import (
 	"github.com/labstack/echo/engine/standard"
 	"github.com/labstack/echo/middleware"
 	"github.com/spf13/viper"
-	"github.com/topfreegames/khan/log"
 	"github.com/uber-go/zap"
 )
 
@@ -88,7 +88,7 @@ func (application *Application) setConfigurationDefaults() {
 	application.Config.SetDefault("s3.accessKey", "")
 	application.Config.SetDefault("s3.secretAccessKey", "")
 
-	l.Debug("Configuration defaults set.")
+	log.D(l, "Configuration defaults set.")
 }
 
 func (application *Application) configureSentry() {
@@ -97,7 +97,9 @@ func (application *Application) configureSentry() {
 		zap.String("operation", "configureSentry"),
 	)
 	sentryURL := application.Config.GetString("sentry.url")
-	l.Info("Configuring sentry", zap.String("url", sentryURL))
+	log.I(l, "Configuring sentry", func(cm log.CM) {
+		cm.Write(zap.String("url", sentryURL))
+	})
 	raven.SetDSN(sentryURL)
 	raven.SetRelease(VERSION)
 }
@@ -120,37 +122,36 @@ func (application *Application) connectDatabase() {
 		zap.String("sslMode", sslMode),
 	)
 
-	l.Debug("Connecting to database...")
+	log.D(l, "Connecting to database...")
 	db, err := models.GetDB(l, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
-		l.Panic(
-			"Could not connect to postgres...",
-			zap.String("error", err.Error()),
-		)
+		log.P(l, "Could not connect to postgres...", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
 
 	_, err = db.SelectInt("select 1")
 	if err != nil {
-		l.Panic(
-			"Could not connect to postgres...",
-			zap.String("error", err.Error()),
-		)
+		log.P(l, "Could not connect to postgres...", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
 
-	l.Info("Connected to database successfully.")
+	log.I(l, "Connected to database successfully.")
 
 	application.Db = db
 }
 
 // OnErrorHandler handles errors
 func (application *Application) OnErrorHandler(err error, stack []byte) {
-	application.Logger.Error(
-		"Panic occurred.",
-		zap.String("source", "app"),
-		zap.String("panicText", err.Error()),
-		zap.String("stack", string(stack)),
-	)
+	log.E(application.Logger, "Panic occurred.", func(cm log.CM) {
+		cm.Write(
+			zap.String("source", "app"),
+			zap.String("panicText", err.Error()),
+			zap.String("stack", string(stack)),
+		)
+	})
 	tags := map[string]string{
 		"source": "app",
 		"type":   "panic",
@@ -214,13 +215,13 @@ func (application *Application) configureApplication() error {
 		zap.Int("db", redisDB),
 		zap.Int("maxPoolSize", redisMaxPoolSize),
 	)
-	rl.Debug("Connecting to redis...")
+	log.D(rl, "Connecting to redis...")
 	cli, err := util.GetRedisClient(redisHost, redisPort, redisPass, redisDB, redisMaxPoolSize, l)
 	if err != nil {
 		return err
 	}
 	application.RedisClient = cli
-	rl.Info("Connected to redis successfully.")
+	log.I(rl, "Connected to redis successfully.")
 	return nil
 }
 

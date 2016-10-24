@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/templates"
@@ -86,14 +87,15 @@ func (worker *BatchPGWorker) connectDatabase() error {
 	db, err := models.GetDB(worker.Logger, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
-		worker.Logger.Error(
-			"Could not connect to postgres...",
-			zap.String("host", host),
-			zap.Int("port", port),
-			zap.String("user", user),
-			zap.String("dbName", dbName),
-			zap.String("error", err.Error()),
-		)
+		log.E(worker.Logger, "Could not connect to postgres...", func(cm log.CM) {
+			cm.Write(
+				zap.String("host", host),
+				zap.Int("port", port),
+				zap.String("user", user),
+				zap.String("dbName", dbName),
+				zap.String("error", err.Error()),
+			)
+		})
 		return err
 	}
 	worker.Db = db
@@ -113,17 +115,16 @@ func (worker *BatchPGWorker) connectRedis() error {
 		zap.Int("db", redisDB),
 		zap.Int("maxPoolSize", redisMaxPoolSize),
 	)
-	rl.Debug("Connecting to redis...")
+	log.D(rl, "Connecting to redis...")
 	cli, err := util.GetRedisClient(redisHost, redisPort, redisPass, redisDB, redisMaxPoolSize, rl)
 	if err != nil {
-		rl.Error(
-			"Could not connect to redis...",
-			zap.String("error", err.Error()),
-		)
+		log.E(rl, "Could not connect to redis...", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 		return err
 	}
 	worker.RedisClient = cli
-	rl.Info("Connected to redis successfully.")
+	log.I(rl, "Connected to redis successfully.")
 	return nil
 }
 
@@ -160,7 +161,9 @@ func (worker *BatchPGWorker) loadConfiguration() {
 	worker.Config.AutomaticEnv()
 
 	if err := worker.Config.ReadInConfig(); err == nil {
-		worker.Logger.Info("Loaded config file.", zap.String("configFile", worker.Config.ConfigFileUsed()))
+		log.I(worker.Logger, "Loaded config file.", func(cm log.CM) {
+			cm.Write(zap.String("configFile", worker.Config.ConfigFileUsed()))
+		})
 	} else {
 		panic(fmt.Sprintf("Could not load configuration file from: %s", worker.ConfigPath))
 	}
@@ -188,38 +191,38 @@ func (worker *BatchPGWorker) configureKafkaClient() error {
 
 	client, err := cluster.NewClient(brokers, clusterConfig)
 	if err != nil {
-		l.Error(
-			"Could not create kafka client",
-			zap.Error(err),
-		)
+		log.E(l, "Could not create kafka client", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return err
 	}
-	l.Debug(
-		"Created kafka client",
-		zap.String("client", fmt.Sprintf("%+v", client)),
-	)
+	log.D(l, "Created kafka client", func(cm log.CM) {
+		cm.Write(zap.String("client", fmt.Sprintf("%+v", client)))
+	})
 
 	partitionID := int32(0)
 	currentOffset := int64(-1)
 	currentOffset, err = client.GetOffset(topic, partitionID, sarama.OffsetNewest)
 	if err != nil {
-		l.Error(
-			"Could not get kafka offset",
-			zap.Int("partitionID", int(partitionID)),
-			zap.String("error", err.Error()),
-		)
+		log.E(l, "Could not get kafka offset", func(cm log.CM) {
+			cm.Write(
+				zap.Int("partitionID", int(partitionID)),
+				zap.String("error", err.Error()),
+			)
+		})
 		return err
 	}
 	if currentOffset == int64(-1) {
 		errStr := "Could not get offset from kafka"
-		l.Error(errStr, zap.Object("currentOffset", currentOffset))
+		log.E(l, errStr, func(cm log.CM) {
+			cm.Write(zap.Object("currentOffset", currentOffset))
+		})
 		err = parseError{errStr}
 		return err
 	}
-	l.Debug(
-		"Got kafka offset",
-		zap.Int64("Offset", currentOffset),
-	)
+	log.D(l, "Got kafka offset", func(cm log.CM) {
+		cm.Write(zap.Int64("Offset", currentOffset))
+	})
 
 	worker.InitialKafkaOffset = currentOffset
 	worker.KafkaClient = client
@@ -261,59 +264,77 @@ func (worker *BatchPGWorker) Start() {
 	worker.StartedAt = time.Now().Unix()
 	worker.FinishedAt = 0
 
-	worker.Logger.Info("Starting worker pipeline...")
+	log.I(worker.Logger, "Starting worker pipeline...")
 
 	go worker.updateStatus(worker.BatchPGWorkerStatusDoneChan)
 
 	// Run modules
 	qtyParsers := worker.Config.GetInt("workers.modules.parsers")
-	worker.Logger.Debug("Starting parser...", zap.Int("quantity", qtyParsers))
+	log.D(worker.Logger, "Starting parser...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyParsers))
+	})
 	for i := 0; i < qtyParsers; i++ {
 		go templates.Parser(worker.Logger, requireToken, worker.PgToParserChan, worker.ParserToFetcherChan, worker.ParserDoneChan)
 	}
-	worker.Logger.Debug("Started parser...", zap.Int("quantity", qtyParsers))
+	log.D(worker.Logger, "Started parser...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyParsers))
+	})
 
 	qtyFetchers := worker.Config.GetInt("workers.modules.fetchers")
-	worker.Logger.Debug("Starting fetcher...", zap.Int("quantity", qtyFetchers))
+	log.D(worker.Logger, "Starting fetcher...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyFetchers))
+	})
 	for i := 0; i < qtyFetchers; i++ {
 		go templates.Fetcher(worker.Logger, worker.ParserToFetcherChan, worker.FetcherToBuilderChan, worker.FetcherDoneChan, worker.Db)
 	}
-	worker.Logger.Debug("Started fetcher...", zap.Int("quantity", qtyFetchers))
+	log.D(worker.Logger, "Started fetcher...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyFetchers))
+	})
 
 	qtyBuilders := worker.Config.GetInt("workers.modules.builders")
-	worker.Logger.Debug("Starting builder...", zap.Int("quantity", qtyBuilders))
+	log.D(worker.Logger, "Starting builder...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyBuilders))
+	})
 	for i := 0; i < qtyBuilders; i++ {
 		go templates.Builder(worker.Logger, worker.Config, worker.FetcherToBuilderChan, worker.BuilderToProducerChan, worker.BuilderDoneChan)
 	}
-	worker.Logger.Debug("Started builder...", zap.Int("quantity", qtyBuilders))
+	log.D(worker.Logger, "Started builder...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyBuilders))
+	})
 
 	qtyProducers := worker.Config.GetInt("workers.modules.producers")
-	worker.Logger.Debug("Starting producer...", zap.Int("quantity", qtyProducers))
+	log.D(worker.Logger, "Starting producer...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyProducers))
+	})
 	for i := 0; i < qtyProducers; i++ {
 		go producer.Producer(worker.Logger, worker.Config, worker.BuilderToProducerChan, worker.ProducerDoneChan)
 	}
-	worker.Logger.Debug("Started producer...", zap.Int("quantity", qtyProducers))
+	log.D(worker.Logger, "Started producer...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyProducers))
+	})
 
-	worker.Logger.Debug("Starting pgReader...")
+	log.D(worker.Logger, "Starting pgReader...")
 	go worker.pgReader(worker.Message, worker.Filters, worker.Modifiers, worker.PgToParserChan)
-	worker.Logger.Debug("Started pgReader...")
+	log.D(worker.Logger, "Started pgReader...")
 
-	worker.Logger.Info("Started worker pipeline...")
+	log.I(worker.Logger, "Started worker pipeline...")
 }
 
 // Close stops the modules of the instance
 func (worker BatchPGWorker) Close() {
-	worker.Logger.Info("Stopping workers")
+	log.I(worker.Logger, "Stopping workers")
 	// close(worker.PgToKafkaChan)
 	// close(worker.DoneChan)
-	worker.Logger.Info("Stopped workers")
+	log.I(worker.Logger, "Stopped workers")
 }
 
 // GetBatchPGWorker returns a new worker
 func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 	if worker.ConfigPath == "" && worker.Config == nil {
 		errStr := "Invalid worker config. Even Config or ConfigPath should be set"
-		worker.Logger.Error(errStr, zap.Object("worker", worker))
+		log.E(worker.Logger, errStr, func(cm log.CM) {
+			cm.Write(zap.Object("worker", worker))
+		})
 		err := parseError{errStr}
 		return nil, err
 	}
@@ -342,19 +363,21 @@ func (worker BatchPGWorker) GetWorkerStatus() map[string]interface{} {
 func (worker BatchPGWorker) GetKafkaStatus() map[string]interface{} {
 	currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
 	if err != nil {
-		worker.Logger.Warn(
-			"Could not get kafka offset",
-			zap.String("topic", worker.KafkaTopic),
-			zap.String("error", err.Error()),
-		)
+		log.W(worker.Logger, "Could not get kafka offset", func(cm log.CM) {
+			cm.Write(
+				zap.String("topic", worker.KafkaTopic),
+				zap.String("error", err.Error()),
+			)
+		})
 	}
 	worker.CurrentKafkaOffset = currentOffset
-	worker.Logger.Debug(
-		"Got kafka offset",
-		zap.Int64("Offset", worker.CurrentKafkaOffset),
-		zap.Int64("InitialOffset", worker.InitialKafkaOffset),
-		zap.String("topic", worker.KafkaTopic),
-	)
+	log.D(worker.Logger, "Got kafka offset", func(cm log.CM) {
+		cm.Write(
+			zap.Int64("Offset", worker.CurrentKafkaOffset),
+			zap.Int64("InitialOffset", worker.InitialKafkaOffset),
+			zap.String("topic", worker.KafkaTopic),
+		)
+	})
 	return map[string]interface{}{
 		"kafkaTopic":         worker.KafkaTopic,
 		"initialKafkaOffset": worker.InitialKafkaOffset,
@@ -367,19 +390,25 @@ func (worker *BatchPGWorker) SetStatus() {
 	cli := worker.RedisClient.Client
 	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
 
-	worker.Logger.Info("Set in redis", zap.String("key", redisKey))
+	log.I(worker.Logger, "Set in redis", func(cm log.CM) {
+		cm.Write(zap.String("key", redisKey))
+	})
 
 	workerStatus := worker.GetWorkerStatus()
 	byteWorkerStatus, err := json.Marshal(workerStatus)
 	if err != nil {
-		worker.Logger.Panic("Could not parse worker status", zap.Error(err))
+		log.P(worker.Logger, "Could not parse worker status", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	workerStrStatus := string(byteWorkerStatus)
 
 	kafkaStatus := worker.GetKafkaStatus()
 	byteKafkaStatus, err := json.Marshal(kafkaStatus)
 	if err != nil {
-		worker.Logger.Panic("Could not parse kafka status", zap.Error(err))
+		log.P(worker.Logger, "Could not parse kafka status", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	kafkaStrStatus := string(byteKafkaStatus)
 
@@ -389,29 +418,33 @@ func (worker *BatchPGWorker) SetStatus() {
 	}
 	byteStatus, err := json.Marshal(status)
 	if err != nil {
-		worker.Logger.Panic("Could not parse status", zap.Error(err))
+		log.P(worker.Logger, "Could not parse status", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	strStatus := string(byteStatus)
 
 	// FIXME: What's the best TTL to set? 30 * time.Day ?
 	if err = cli.Set(redisKey, strStatus, 0).Err(); err != nil {
-		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
+		log.P(worker.Logger, "Failed to set notification key in redis", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 }
 
 func (worker *BatchPGWorker) updateStatus(doneChan <-chan struct{}) {
-	worker.Logger.Info("Starting status updater")
+	log.I(worker.Logger, "Starting status updater")
 	for {
 		select {
 		case <-doneChan:
 			return // breaks out of the for
 		default:
-			worker.Logger.Debug("Update worker status")
+			log.D(worker.Logger, "Update worker status")
 			worker.SetStatus()
 			time.Sleep(250 * time.Millisecond)
 			if worker.CurrentKafkaOffset-worker.InitialKafkaOffset >= worker.TotalTokens {
 				// TODO: We should stop the worker here
-				worker.Logger.Info("Finished sending tokens. Stopping status updater")
+				log.I(worker.Logger, "Finished sending tokens. Stopping status updater")
 				worker.FinishedAt = time.Now().Unix()
 				return
 			}
@@ -428,7 +461,7 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 		zap.Object("modifiers", modifiers),
 	)
 
-	l.Debug("Get limit")
+	log.D(l, "Get limit")
 	limit := -1
 	for _, modifier := range modifiers {
 		if modifier[0] == "LIMIT" {
@@ -436,37 +469,43 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 		}
 	}
 	if limit <= 0 {
-		worker.Logger.Fatal("Limit should be greater than 0", zap.Int("limit", limit))
+		log.F(worker.Logger, "Limit should be greater than 0", func(cm log.CM) {
+			cm.Write(zap.Int("limit", limit))
+		})
 	}
 	l = l.With(zap.Int("limit", limit))
-	l.Debug("Got limit")
+	log.D(l, "Got limit")
 
-	l.Debug("Count userTokens")
+	log.D(l, "Count userTokens")
 	userTokensCount, err := models.CountUserTokensByFilters(
 		worker.Db, message.App, message.Service, filters, modifiers,
 	)
 	if err != nil {
-		l.Fatal("Error while counting tokens", zap.Error(err))
+		log.F(l, "Error while counting tokens", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 
 	// TODO: why can't we assign this directly from `models.CountUserTokensByFilters` ?
 	worker.TotalTokens = userTokensCount
 
 	if worker.TotalTokens < int64(0) {
-		l.Fatal("worker.TotalTokens lower than 0", zap.Error(err))
+		log.F(l, "worker.TotalTokens lower than 0", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	l = l.With(zap.Int64("worker.TotalTokens", worker.TotalTokens))
 
-	l.Debug("Counted userTokens")
+	log.D(l, "Counted userTokens")
 
-	l.Debug("Get pages")
+	log.D(l, "Get pages")
 	pages := int64(math.Ceil(float64(userTokensCount) / float64(limit)))
 
 	worker.TotalPages = pages
 	l = l.With(zap.Int64("worker.TotalPages", worker.TotalPages))
-	l.Debug("Got pages")
+	log.D(l, "Got pages")
 
-	l.Debug("Build workerModifiers")
+	log.D(l, "Build workerModifiers")
 	// TODO: Should we remove "ORDER BY" ?
 	// TODO: We're rebuilding the structure
 	workerModifiers := [][]interface{}{
@@ -475,26 +514,29 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 		{"OFFSET", int64(0)},
 	}
 	l = l.With(zap.Object("workerModifiers", workerModifiers))
-	l.Debug("Built workerModifiers")
+	log.D(l, "Built workerModifiers")
 
 	worker.TotalProcessedTokens = 0
 
 	for worker.ProcessedPages = int64(0); worker.ProcessedPages < worker.TotalPages; worker.ProcessedPages++ {
-		l.Debug("pgRead - Read page", zap.Int64("worker.ProcessedPages", worker.ProcessedPages))
+		log.D(l, "pgRead - Read page", func(cm log.CM) {
+			cm.Write(zap.Int64("worker.ProcessedPages", worker.ProcessedPages))
+		})
 
 		workerModifiers[2] = []interface{}{"OFFSET", worker.ProcessedPages}
 		userTokens, err := models.GetUserTokensBatchByFilters(
 			worker.Db, message.App, message.Service, filters, workerModifiers,
 		)
 		if err != nil {
-			l.Error(
-				"Failed to get user tokens by filters and modifiers",
-				zap.Error(err),
-			)
+			log.E(l, "Failed to get user tokens by filters and modifiers", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
 			return outChan, err
 		}
 
-		l.Debug("pgRead", zap.Object("len(userTokens)", len(userTokens)))
+		log.D(l, "pgRead", func(cm log.CM) {
+			cm.Write(zap.Object("len(userTokens)", len(userTokens)))
+		})
 
 		for _, userToken := range userTokens {
 			message.Token = userToken.Token
@@ -502,10 +544,14 @@ func (worker *BatchPGWorker) pgReader(message *messages.InputMessage, filters []
 
 			strMsg, err := json.Marshal(message)
 			if err != nil {
-				l.Error("Failed to marshal msg", zap.Error(err))
+				log.E(l, "Failed to marshal msg", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
 				return outChan, err
 			}
-			l.Debug("pgRead - Send message to channel", zap.String("strMsg", string(strMsg)))
+			log.D(l, "pgRead - Send message to channel", func(cm log.CM) {
+				cm.Write(zap.String("strMsg", string(strMsg)))
+			})
 			outChan <- string(strMsg)
 			worker.TotalProcessedTokens++
 		}

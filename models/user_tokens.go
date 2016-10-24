@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
+
 	"github.com/satori/go.uuid"
 	"github.com/uber-go/zap"
 	"gopkg.in/gorp.v1"
@@ -276,10 +278,9 @@ func GetTableName(app string, service string) string {
 // CreateUserTokensTable creates a table for the model UserToken with the name based on app and service
 func CreateUserTokensTable(db *DB, app string, service string) (*gorp.TableMap, error) {
 	tableName := GetTableName(app, service)
-	db.Logger.Info(
-		"TableName",
-		zap.String("name", tableName),
-	)
+	log.I(db.Logger, "TableName", func(cm log.CM) {
+		cm.Write(zap.String("name", tableName))
+	})
 
 	// FIXME: try t avoid SQL INJECTION
 	createQuery := fmt.Sprintf(`
@@ -314,29 +315,31 @@ func CreateUserTokensTable(db *DB, app string, service string) (*gorp.TableMap, 
 	if createErr != nil {
 		_, dropErr := db.Exec(dropQuery)
 		if dropErr != nil {
-			db.Logger.Error(
-				"Could not exec queries",
-				zap.String("createQuery", createQuery),
-				zap.String("dropQuery", dropQuery),
-				zap.Error(createErr),
-				zap.Error(dropErr),
-			)
+			log.E(db.Logger, "Could not exec queries", func(cm log.CM) {
+				cm.Write(
+					zap.String("createQuery", createQuery),
+					zap.String("dropQuery", dropQuery),
+					zap.Error(createErr),
+					zap.Error(dropErr),
+				)
+			})
 			return nil, dropErr
 		}
-		db.Logger.Error(
-			"Could not exec query",
-			zap.String("query", createQuery),
-			zap.Error(createErr),
-		)
+		log.E(db.Logger, "Could not exec query", func(cm log.CM) {
+			cm.Write(
+				zap.String("query", createQuery),
+				zap.Error(createErr),
+			)
+		})
 		return nil, createErr
 	}
 
-	db.Logger.Info(
-		"Created table",
-		zap.String("table name", tableName),
-		zap.Object("table", created),
-	)
-
+	log.I(db.Logger, "Created table", func(cm log.CM) {
+		cm.Write(
+			zap.String("table name", tableName),
+			zap.Object("table", created),
+		)
+	})
 	tableMap := db.AddTableWithName(UserToken{}, tableName).SetKeys(false, "ID")
 
 	return tableMap, nil

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/labstack/echo"
 	"github.com/minio/minio-go"
 	"github.com/uber-go/zap"
@@ -29,36 +30,38 @@ func UploadHandler(application *Application) func(c echo.Context) error {
 		s3Key := fmt.Sprintf("%s/upload%v.csv", s3Folder, start.Unix())
 		s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, enableSSL)
 		if err != nil {
-			l.Error(
-				"Failed to create S3 client.",
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
+			log.E(l, "Failed to create S3 client.", func(cm log.CM) {
+				cm.Write(
+					zap.Error(err),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+			})
 			return FailWith(400, err.Error(), c)
 		}
 
 		u, err := s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
 		if err != nil {
-			l.Error(
-				"Failed to create presigned PUT policy.",
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
+			log.E(l, "Failed to create presigned PUT policy.", func(cm log.CM) {
+				cm.Write(
+					zap.Error(err),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+			})
 			return FailWith(400, err.Error(), c)
 		}
-		l.Info(
-			"Upload handler retrieved url and params successfully.",
-			zap.Duration("duration", time.Now().Sub(start)),
-		)
+		log.I(l, "Upload handler retrieved url and params successfully.", func(cm log.CM) {
+			cm.Write(zap.Duration("duration", time.Now().Sub(start)))
+		})
 		m := make(map[string]interface{})
 		// For some reason we need to unescape it
 		uURL, err := url.QueryUnescape(u.String())
 		if err != nil {
-			l.Error(
-				"Failed to unescape presigned URL.",
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
+			log.E(l, "Failed to unescape presigned URL.", func(cm log.CM) {
+				cm.Write(
+					zap.Error(err),
+					zap.Duration("duration", time.Now().Sub(start)),
+				)
+			})
 			return FailWith(500, err.Error(), c)
 		}
 		m["url"] = uURL

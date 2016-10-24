@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
+
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
@@ -83,14 +85,15 @@ func (worker *BatchCsvWorker) connectDatabase() {
 	db, err := models.GetDB(worker.Logger, host, user, port, sslMode, dbName, password)
 
 	if err != nil {
-		worker.Logger.Panic(
-			"Could not connect to postgres...",
-			zap.String("host", host),
-			zap.Int("port", port),
-			zap.String("user", user),
-			zap.String("dbName", dbName),
-			zap.String("error", err.Error()),
-		)
+		log.P(worker.Logger, "Could not connect to postgres...", func(cm log.CM) {
+			cm.Write(
+				zap.String("host", host),
+				zap.Int("port", port),
+				zap.String("user", user),
+				zap.String("dbName", dbName),
+				zap.String("error", err.Error()),
+			)
+		})
 	}
 	worker.Db = db
 }
@@ -108,16 +111,15 @@ func (worker *BatchCsvWorker) connectRedis() {
 		zap.Int("db", redisDB),
 		zap.Int("maxPoolSize", redisMaxPoolSize),
 	)
-	rl.Debug("Connecting to redis...")
+	log.D(rl, "Connecting to redis...")
 	cli, err := util.GetRedisClient(redisHost, redisPort, redisPass, redisDB, redisMaxPoolSize, rl)
 	if err != nil {
-		rl.Panic(
-			"Could not connect to redis...",
-			zap.String("error", err.Error()),
-		)
+		log.P(rl, "Could not connect to redis...", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
 	worker.RedisClient = cli
-	rl.Info("Connected to redis successfully.")
+	log.I(rl, "Connected to redis successfully.")
 }
 
 // TODO: Set all default configs
@@ -152,7 +154,9 @@ func (worker *BatchCsvWorker) loadConfiguration() {
 	worker.Config.AutomaticEnv()
 
 	if err := worker.Config.ReadInConfig(); err == nil {
-		worker.Logger.Info("Loaded config file.", zap.String("configFile", worker.Config.ConfigFileUsed()))
+		log.I(worker.Logger, "Loaded config file.", func(cm log.CM) {
+			cm.Write(zap.String("configFile", worker.Config.ConfigFileUsed()))
+		})
 	} else {
 		panic(fmt.Sprintf("Could not load configuration file from: %s", worker.ConfigPath))
 	}
@@ -164,20 +168,20 @@ func (worker *BatchCsvWorker) getCsvFromS3() {
 	ssl := true
 	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, ssl)
 	if err != nil {
-		worker.Logger.Panic(
-			"Could not authenticate with S3...",
-			zap.String("error", err.Error()),
-		)
+		log.P(worker.Logger, "Could not authenticate with S3...", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
 
 	csvFile, err := s3Client.GetObject(worker.Bucket, worker.Key)
 	if err != nil {
-		worker.Logger.Panic(
-			"Could not download csv from S3...",
-			zap.String("bucket", worker.Bucket),
-			zap.String("key", worker.Key),
-			zap.String("error", err.Error()),
-		)
+		log.P(worker.Logger, "Could not download csv from S3...", func(cm log.CM) {
+			cm.Write(
+				zap.String("bucket", worker.Bucket),
+				zap.String("key", worker.Key),
+				zap.String("error", err.Error()),
+			)
+		})
 	}
 
 	// TODO: get total tokerns
@@ -198,12 +202,13 @@ func (worker *BatchCsvWorker) getCsvFromS3() {
 	// TODO: Bad idea, downloading file twice...
 	csvFile, err = s3Client.GetObject(worker.Bucket, worker.Key)
 	if err != nil {
-		worker.Logger.Panic(
-			"Could not download csv from S3...",
-			zap.String("bucket", worker.Bucket),
-			zap.String("key", worker.Key),
-			zap.String("error", err.Error()),
-		)
+		log.P(worker.Logger, "Could not download csv from S3...", func(cm log.CM) {
+			cm.Write(
+				zap.String("bucket", worker.Bucket),
+				zap.String("key", worker.Key),
+				zap.String("error", err.Error()),
+			)
+		})
 	}
 
 	worker.Reader = csv.NewReader(csvFile)
@@ -224,27 +229,23 @@ func (worker *BatchCsvWorker) configureKafkaClient() {
 	worker.KafkaTopic = topic
 	client, err := cluster.NewClient(brokers, clusterConfig)
 	if err != nil {
-		worker.Logger.Error(
-			"Could not create kafka client",
-			zap.String("error", err.Error()),
-		)
+		log.E(worker.Logger, "Could not create kafka client", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
-	worker.Logger.Debug(
-		"Created kafka client",
-		zap.String("client", fmt.Sprintf("%+v", client)),
-	)
+	log.D(worker.Logger, "Created kafka client", func(cm log.CM) {
+		cm.Write(zap.String("client", fmt.Sprintf("%+v", client)))
+	})
 
 	currentOffset, err := client.GetOffset(topic, 0, sarama.OffsetNewest)
 	if err != nil {
-		worker.Logger.Error(
-			"Could not get kafka offset",
-			zap.String("error", err.Error()),
-		)
+		log.E(worker.Logger, "Could not get kafka offset", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
-	worker.Logger.Debug(
-		"Got kafka offset",
-		zap.Int64("Offset", currentOffset),
-	)
+	log.D(worker.Logger, "Got kafka offset", func(cm log.CM) {
+		cm.Write(zap.Int64("Offset", currentOffset))
+	})
 
 	worker.InitialKafkaOffset = currentOffset
 	worker.KafkaClient = client
@@ -270,59 +271,77 @@ func (worker *BatchCsvWorker) Start() {
 
 	worker.StartedAt = time.Now().Unix()
 
-	worker.Logger.Info("Starting worker pipeline...")
+	log.I(worker.Logger, "Starting worker pipeline...")
 
 	go worker.updateStatus(worker.BatchCsvWorkerStatusDoneChan)
 
 	// Run modules
 	qtyParsers := worker.Config.GetInt("workers.modules.parsers")
-	worker.Logger.Debug("Starting parser...", zap.Int("quantity", qtyParsers))
+	log.D(worker.Logger, "Starting parser...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyParsers))
+	})
 	for i := 0; i < qtyParsers; i++ {
 		go templates.Parser(worker.Logger, requireToken, worker.CsvToParserChan, worker.ParserToFetcherChan, worker.ParserDoneChan)
 	}
-	worker.Logger.Debug("Started parser...", zap.Int("quantity", qtyParsers))
+	log.D(worker.Logger, "Started parser...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyParsers))
+	})
 
 	qtyFetchers := worker.Config.GetInt("workers.modules.fetchers")
-	worker.Logger.Debug("Starting fetcher...", zap.Int("quantity", qtyFetchers))
+	log.D(worker.Logger, "Starting fetcher...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyFetchers))
+	})
 	for i := 0; i < qtyFetchers; i++ {
 		go templates.Fetcher(worker.Logger, worker.ParserToFetcherChan, worker.FetcherToBuilderChan, worker.FetcherDoneChan, worker.Db)
 	}
-	worker.Logger.Debug("Started fetcher...", zap.Int("quantity", qtyFetchers))
+	log.D(worker.Logger, "Started fetcher...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyFetchers))
+	})
 
 	qtyBuilders := worker.Config.GetInt("workers.modules.builders")
-	worker.Logger.Debug("Starting builder...", zap.Int("quantity", qtyBuilders))
+	log.D(worker.Logger, "Starting builder...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyBuilders))
+	})
 	for i := 0; i < qtyBuilders; i++ {
 		go templates.Builder(worker.Logger, worker.Config, worker.FetcherToBuilderChan, worker.BuilderToProducerChan, worker.BuilderDoneChan)
 	}
-	worker.Logger.Debug("Started builder...", zap.Int("quantity", qtyBuilders))
+	log.D(worker.Logger, "Started builder...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyBuilders))
+	})
 
 	qtyProducers := worker.Config.GetInt("workers.modules.producers")
-	worker.Logger.Debug("Starting producer...", zap.Int("quantity", qtyProducers))
+	log.D(worker.Logger, "Starting producer...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyProducers))
+	})
 	for i := 0; i < qtyProducers; i++ {
 		go producer.Producer(worker.Logger, worker.Config, worker.BuilderToProducerChan, worker.ProducerDoneChan)
 	}
-	worker.Logger.Debug("Started producer...", zap.Int("quantity", qtyProducers))
+	log.D(worker.Logger, "Started producer...", func(cm log.CM) {
+		cm.Write(zap.Int("quantity", qtyProducers))
+	})
 
-	worker.Logger.Debug("Starting csvReader...")
+	log.D(worker.Logger, "Starting csvReader...")
 	go worker.csvReader(worker.Message, worker.Modifiers, worker.CsvToParserChan)
-	worker.Logger.Debug("Started csvReader...")
+	log.D(worker.Logger, "Started csvReader...")
 
-	worker.Logger.Info("Started worker pipeline...")
+	log.I(worker.Logger, "Started worker pipeline...")
 }
 
 // Close stops the modules of the instance
 func (worker BatchCsvWorker) Close() {
-	worker.Logger.Info("Stopping workers")
+	log.I(worker.Logger, "Stopping workers")
 	// close(worker.CsvToKafkaChan)
 	// close(worker.DoneChan)
-	worker.Logger.Info("Stopped workers")
+	log.I(worker.Logger, "Stopped workers")
 }
 
 // GetBatchCsvWorker returns a new worker
 func GetBatchCsvWorker(worker *BatchCsvWorker) (*BatchCsvWorker, error) {
 	if worker.ConfigPath == "" {
 		errStr := "Invalid worker config"
-		worker.Logger.Error(errStr, zap.Object("worker", worker))
+		log.E(worker.Logger, errStr, func(cm log.CM) {
+			cm.Write(zap.Object("worker", worker))
+		})
 		e := parseError{errStr}
 		return nil, e
 	}
@@ -352,15 +371,13 @@ func (worker BatchCsvWorker) GetWorkerStatus() map[string]interface{} {
 func (worker BatchCsvWorker) GetKafkaStatus() map[string]interface{} {
 	currentOffset, err := worker.KafkaClient.GetOffset(worker.KafkaTopic, 0, sarama.OffsetNewest)
 	if err != nil {
-		worker.Logger.Error(
-			"Could not get kafka offset",
-			zap.String("error", err.Error()),
-		)
+		log.E(worker.Logger, "Could not get kafka offset", func(cm log.CM) {
+			cm.Write(zap.String("error", err.Error()))
+		})
 	}
-	worker.Logger.Debug(
-		"Got kafka offset",
-		zap.Int64("Offset", currentOffset),
-	)
+	log.D(worker.Logger, "Got kafka offset", func(cm log.CM) {
+		cm.Write(zap.Int64("Offset", currentOffset))
+	})
 
 	worker.CurrentKafkaOffset = currentOffset
 	return map[string]interface{}{
@@ -375,19 +392,25 @@ func (worker *BatchCsvWorker) SetStatus() {
 	cli := worker.RedisClient.Client
 	redisKey := strings.Join([]string{worker.Notifier.ID.String(), worker.ID.String()}, "|")
 
-	worker.Logger.Info("Set in redis", zap.String("key", redisKey))
+	log.I(worker.Logger, "Set in redis", func(cm log.CM) {
+		cm.Write(zap.String("key", redisKey))
+	})
 
 	workerStatus := worker.GetWorkerStatus()
 	byteWorkerStatus, err := json.Marshal(workerStatus)
 	if err != nil {
-		worker.Logger.Panic("Could not parse worker status", zap.Error(err))
+		log.P(worker.Logger, "Could not parse worker status", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	workerStrStatus := string(byteWorkerStatus)
 
 	kafkaStatus := worker.GetKafkaStatus()
 	byteKafkaStatus, err := json.Marshal(kafkaStatus)
 	if err != nil {
-		worker.Logger.Panic("Could not parse kafka status", zap.Error(err))
+		log.P(worker.Logger, "Could not parse kafka status", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	kafkaStrStatus := string(byteKafkaStatus)
 
@@ -397,24 +420,28 @@ func (worker *BatchCsvWorker) SetStatus() {
 	}
 	byteStatus, err := json.Marshal(status)
 	if err != nil {
-		worker.Logger.Panic("Could not parse status", zap.Error(err))
+		log.P(worker.Logger, "Could not parse status", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	strStatus := string(byteStatus)
 
 	// FIXME: What's the best TTL to set? 30 * time.Day ?
 	if err = cli.Set(redisKey, strStatus, 0).Err(); err != nil {
-		worker.Logger.Panic("Failed to set notification key in redis", zap.Error(err))
+		log.P(worker.Logger, "Failed to set notification key in redis", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 }
 
 func (worker *BatchCsvWorker) updateStatus(doneChan <-chan struct{}) {
-	worker.Logger.Info("Starting status updater")
+	log.I(worker.Logger, "Starting status updater")
 	for {
 		select {
 		case <-doneChan:
 			return // breaks out of the for
 		default:
-			worker.Logger.Debug("Update worker status")
+			log.D(worker.Logger, "Update worker status")
 			worker.SetStatus()
 			time.Sleep(250 * time.Millisecond)
 		}
@@ -436,7 +463,9 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 		}
 	}
 	if limit <= 0 {
-		worker.Logger.Fatal("Limit should be greater than 0", zap.Int("limit", limit))
+		log.F(worker.Logger, "Limit should be greater than 0", func(cm log.CM) {
+			cm.Write(zap.Int("limit", limit))
+		})
 	}
 	l = l.With(zap.Int("limit", limit))
 
@@ -446,7 +475,7 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 
 	eof := false
 	for eof == false {
-		l.Debug("csvRead - Read page")
+		log.D(l, "csvRead - Read page")
 
 		userIDs := make([]string, 0, limit)
 		for i := 0; i < limit; i++ {
@@ -456,10 +485,9 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 				break
 			}
 			if err != nil {
-				l.Error(
-					"Error reading from csv",
-					zap.Error(err),
-				)
+				log.E(l, "Error reading from csv", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
 				return outChan, err
 			}
 			// TODO: If more than one element per line this needs to be changed
@@ -470,14 +498,15 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 			worker.Db, message.App, message.Service, userIDs,
 		)
 		if err != nil {
-			l.Error(
-				"Failed to get user tokens by modifiers",
-				zap.Error(err),
-			)
+			log.E(l, "Failed to get user tokens by modifiers", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
 			return outChan, err
 		}
 
-		l.Debug("csvRead", zap.Object("len(userTokens)", len(userTokens)))
+		log.D(l, "csvRead", func(cm log.CM) {
+			cm.Write(zap.Object("len(userTokens)", len(userTokens)))
+		})
 
 		for i := 0; i < len(userTokens); {
 			for _, userToken := range userTokens {
@@ -486,10 +515,14 @@ func (worker *BatchCsvWorker) csvReader(message *messages.InputMessage,
 
 				strMsg, err := json.Marshal(message)
 				if err != nil {
-					l.Error("Failed to marshal msg", zap.Error(err))
+					log.E(l, "Failed to marshal msg", func(cm log.CM) {
+						cm.Write(zap.Error(err))
+					})
 					return outChan, err
 				}
-				l.Debug("csvRead - Send message to channel", zap.String("strMsg", string(strMsg)))
+				log.D(l, "csvRead - Send message to channel", func(cm log.CM) {
+					cm.Write(zap.String("strMsg", string(strMsg)))
+				})
 				outChan <- string(strMsg)
 				i++
 				worker.ProcessedTokens++

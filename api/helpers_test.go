@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"git.topfreegames.com/topfreegames/marathon/api"
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/labstack/echo/engine/standard"
@@ -53,7 +54,9 @@ func GetDefaultTestApp(config *viper.Viper) *api.Application {
 	} else {
 		cfg, err := getConfig()
 		if err != nil {
-			l.Panic("Could not load config", zap.Object("config", config))
+			log.P(l, "Could not load config", func(cm log.CM) {
+				cm.Write(zap.Object("config", config))
+			})
 		}
 		application := api.GetApplication("0.0.0.0", 8888, cfg, true, true, l)
 		return application

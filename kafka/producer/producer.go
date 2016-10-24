@@ -3,6 +3,7 @@ package producer
 import (
 	"strings"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
@@ -11,13 +12,15 @@ import (
 
 // Producer continuosly reads from inChan and sends the received messages to kafka
 func Producer(l zap.Logger, config *viper.Viper, inChan <-chan *messages.KafkaMessage, doneChan <-chan struct{}) {
-	l.Info("Starting producer")
+	log.I(l, "Starting producer")
 	saramaConfig := sarama.NewConfig()
 	brokersStr := config.GetString("workers.producer.brokers")
 	brokers := strings.Split(brokersStr, ",")
 	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
 	if err != nil {
-		l.Error("Failed to start kafka producer", zap.Error(err))
+		log.E(l, "Failed to start kafka producer", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return
 	}
 	defer producer.Close()
@@ -34,15 +37,18 @@ func Producer(l zap.Logger, config *viper.Viper, inChan <-chan *messages.KafkaMe
 
 			partition, offset, err := producer.SendMessage(saramaMessage)
 			if err != nil {
-				l.Error("Error sending message", zap.Object("KafkaMessage", saramaMessage), zap.Error(err))
+				log.E(l, "Error sending message", func(cm log.CM) {
+					cm.Write(zap.Object("KafkaMessage", saramaMessage), zap.Error(err))
+				})
 			} else {
-				l.Info(
-					"Sent message",
-					zap.Object("KafkaMessage", saramaMessage),
-					zap.String("topic", msg.Topic),
-					zap.Int("partition", int(partition)),
-					zap.Int64("offset", offset),
-				)
+				log.I(l, "Sent message", func(cm log.CM) {
+					cm.Write(
+						zap.Object("KafkaMessage", saramaMessage),
+						zap.String("topic", msg.Topic),
+						zap.Int("partition", int(partition)),
+						zap.Int64("offset", offset),
+					)
+				})
 			}
 		}
 	}

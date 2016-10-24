@@ -5,6 +5,7 @@ import (
 	"path"
 	"runtime"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/models"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,14 +26,15 @@ func getDatabase(l zap.Logger) (*models.DB, error) {
 	port := viper.GetInt("postgres.port")
 	sslMode := viper.GetString("postgres.sslMode")
 
-	l.Info(
-		"Connecting to postgres...",
-		zap.String("host", host),
-		zap.Int("port", port),
-		zap.String("user", user),
-		zap.String("dbName", dbName),
-		zap.String("sslMode", sslMode),
-	)
+	log.I(l, "Connecting to postgres...", func(cm log.CM) {
+		cm.Write(
+			zap.String("host", host),
+			zap.Int("port", port),
+			zap.String("user", user),
+			zap.String("dbName", dbName),
+			zap.String("sslMode", sslMode),
+		)
+	})
 	db, err := models.GetDB(l, host, user, port, sslMode, dbName, password)
 	return db, err
 }
@@ -90,10 +92,9 @@ func RunMigrations(migrationsDir string, migrationVersion int64, l zap.Logger) e
 	if err != nil {
 		return &MigrationError{fmt.Sprintf("could not run migrations to %d: %s", targetVersion, err.Error())}
 	}
-	l.Info(
-		"Migrated database successfully to version",
-		zap.Int64("targetVersion", targetVersion),
-	)
+	log.I(l, "Migrated database successfully to version", func(cm log.CM) {
+		cm.Write(zap.Int64("targetVersion", targetVersion))
+	})
 	return nil
 }
 
@@ -118,7 +119,7 @@ var migrateCmd = &cobra.Command{
 			zap.String("operation", "Run"),
 		)
 
-		cmdL.Debug("Initializing migration config...")
+		log.D(cmdL, "Initializing migration config...")
 
 		InitConfig(cmdL, configFile)
 		err := RunMigrations("", migrationVersion, cmdL)

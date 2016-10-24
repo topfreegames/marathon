@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"git.topfreegames.com/topfreegames/marathon/api"
+	"git.topfreegames.com/topfreegames/marathon/log"
+
 	"github.com/spf13/cobra"
 	"github.com/uber-go/zap"
 )
@@ -35,7 +37,7 @@ var startServerCmd = &cobra.Command{
 		)
 
 		config := InitConfig(cmdL, configFile)
-		cmdL.Debug("Creating application...")
+		log.D(cmdL, "Creating application...")
 		application := api.GetApplication(
 			host,
 			port,
@@ -44,9 +46,9 @@ var startServerCmd = &cobra.Command{
 			fast,
 			l,
 		)
-		cmdL.Debug("Application created successfully.")
+		log.D(cmdL, "Application created successfully.")
 
-		cmdL.Debug("Starting application...")
+		log.D(cmdL, "Starting application...")
 		application.Start()
 	},
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
+
 	"git.topfreegames.com/topfreegames/marathon/models"
 
 	"github.com/uber-go/zap"
@@ -43,11 +45,15 @@ func (tc *Cache) FindTemplate(l zap.Logger, name string, service string, locale 
 		if temp.Expiry.After(time.Now()) {
 			return temp.Cell
 		}
-		l.Debug("Template expired", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+		log.D(l, "Template expired", func(cm log.CM) {
+			cm.Write(zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+		})
 		// Expired, delete entry from cache
 		delete(tc.Cells, key)
 	}
-	l.Debug("No valid templates found in cache", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+	log.D(l, "No valid templates found in cache", func(cm log.CM) {
+		cm.Write(zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+	})
 	return nil
 }
 
@@ -61,6 +67,8 @@ func (tc *Cache) AddTemplate(l zap.Logger, name string, service string, locale s
 		Cell:         temp,
 		Expiry:       expiry,
 	}
-	l.Debug("Added template to template cach", zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+	log.D(l, "Added template to template cach", func(cm log.CM) {
+		cm.Write(zap.String("name", name), zap.String("service", service), zap.String("locale", locale))
+	})
 	tc.Cells[key] = tempCell
 }

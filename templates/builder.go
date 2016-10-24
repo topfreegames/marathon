@@ -8,6 +8,7 @@ import (
 
 	"git.topfreegames.com/topfreegames/marathon/messages"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 	"github.com/valyala/fasttemplate"
@@ -23,7 +24,7 @@ func (e buildError) Error() string {
 
 // Builder reads the messages from the inChan and generates messages to be sent to Kafka in the outChan
 func Builder(l zap.Logger, config *viper.Viper, inChan <-chan *messages.TemplatedMessage, outChan chan<- *messages.KafkaMessage, doneChan <-chan struct{}) {
-	l.Info("Starting builder")
+	log.I(l, "Starting builder")
 	for {
 		select {
 		case <-doneChan:
@@ -31,10 +32,14 @@ func Builder(l zap.Logger, config *viper.Viper, inChan <-chan *messages.Template
 		case msg := <-inChan:
 			message, err := Build(l, config, msg)
 			if err != nil {
-				l.Error("Error building message", zap.Error(err))
+				log.E(l, "Error building message", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
 				continue
 			}
-			l.Debug("Built message", zap.Object("message", message))
+			log.D(l, "Built message", func(cm log.CM) {
+				cm.Write(zap.Object("message", message))
+			})
 			outChan <- message
 		}
 	}
@@ -45,7 +50,9 @@ func Builder(l zap.Logger, config *viper.Viper, inChan <-chan *messages.Template
 func Replace(l zap.Logger, message string, params map[string]interface{}) (string, error) {
 	t, err := fasttemplate.NewTemplate(string(message), "{{", "}}")
 	if err != nil {
-		l.Error("Template Error", zap.Error(err))
+		log.E(l, "Template Error", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return "", err
 	}
 
@@ -82,11 +89,12 @@ func ApnsMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (
 	var cttMap map[string]interface{}
 	err := json.Unmarshal([]byte(content), &cttMap)
 	if err != nil {
-		l.Error(
-			"Error unmarshaling apns content",
-			zap.String("content", content),
-			zap.Error(err),
-		)
+		log.E(l, "Error unmarshaling apns content", func(cm log.CM) {
+			cm.Write(
+				zap.String("content", content),
+				zap.Error(err),
+			)
+		})
 		return "", err
 	}
 
@@ -97,11 +105,12 @@ func ApnsMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (
 
 	b, err := json.Marshal(&msg)
 	if err != nil {
-		l.Error(
-			"Error building apns msg",
-			zap.Object("msg", msg),
-			zap.Error(err),
-		)
+		log.E(l, "Error building apns msg", func(cm log.CM) {
+			cm.Write(
+				zap.Object("msg", msg),
+				zap.Error(err),
+			)
+		})
 		return "", err
 	}
 	strMsg := string(b)
@@ -115,11 +124,12 @@ func GcmMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (s
 	msg.PushExpiry = request.PushExpiry
 	err := json.Unmarshal([]byte(content), &msg.Data)
 	if err != nil {
-		l.Error(
-			"Error building gcm msg",
-			zap.Object("msg", msg),
-			zap.Error(err),
-		)
+		log.E(l, "Error building gcm msg", func(cm log.CM) {
+			cm.Write(
+				zap.Object("msg", msg),
+				zap.Error(err),
+			)
+		})
 		return "", err
 	}
 	if len(request.Metadata) > 0 {
@@ -128,11 +138,12 @@ func GcmMsg(l zap.Logger, request *messages.TemplatedMessage, content string) (s
 
 	b, err := json.Marshal(msg)
 	if err != nil {
-		l.Error(
-			"Error building gcm msg",
-			zap.Object("msg", msg),
-			zap.Error(err),
-		)
+		log.E(l, "Error building gcm msg", func(cm log.CM) {
+			cm.Write(
+				zap.Object("msg", msg),
+				zap.Error(err),
+			)
+		})
 		return "", err
 	}
 	strMsg := string(b)
@@ -151,13 +162,17 @@ func Build(l zap.Logger, config *viper.Viper, request *messages.TemplatedMessage
 	// Replace template
 	byteMessage, err := json.Marshal(request.Message)
 	if err != nil {
-		l.Error("Error marshalling message", zap.Error(err))
+		log.E(l, "Error marshalling message", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return nil, err
 	}
 	stringMessage := string(byteMessage)
 	content, err := Replace(l, stringMessage, request.Params)
 	if err != nil {
-		l.Error("Template replacing error", zap.Error(err))
+		log.E(l, "Template replacing error", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return nil, err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/util"
 	_ "github.com/lib/pq" //This is required to use postgres with database/sql
 	"github.com/uber-go/zap"
@@ -24,7 +25,7 @@ func (ql queryLogger) Printf(format string, v ...interface{}) {
 	r := regexp.MustCompile("[ ]*\n")
 	logStr := fmt.Sprintf(format, v...)
 	logStr = r.ReplaceAllString(logStr, " ")
-	ql.l.Info(logStr)
+	log.I(ql.l, logStr)
 }
 
 // DB is a gorp.DbMap with a Logger

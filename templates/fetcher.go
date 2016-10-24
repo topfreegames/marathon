@@ -4,6 +4,7 @@ import (
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"git.topfreegames.com/topfreegames/marathon/models"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/imdario/mergo"
 	_ "github.com/lib/pq" // Used by gorp
 	"github.com/uber-go/zap"
@@ -12,7 +13,7 @@ import (
 // Fetcher starts a new fetcher worker which reads from inChan and writes to
 // outChan, using the db
 func Fetcher(l zap.Logger, inChan <-chan *messages.InputMessage, outChan chan<- *messages.TemplatedMessage, doneChan <-chan struct{}, db *models.DB) {
-	l.Info("Starting fetcher")
+	log.I(l, "Starting fetcher")
 	tc := CreateTemplateCache(60)
 	for {
 		select {
@@ -20,15 +21,21 @@ func Fetcher(l zap.Logger, inChan <-chan *messages.InputMessage, outChan chan<- 
 			return // breaks out of the for
 		case input, ok := <-inChan:
 			if !ok {
-				l.Error("Not consuming InputMessages", zap.Object("msg", input))
+				log.E(l, "Not consuming InputMessages", func(cm log.CM) {
+					cm.Write(zap.Object("msg", input))
+				})
 				return
 			}
 			output, err := FetchTemplate(l, input, db, tc)
 			if err != nil {
-				l.Error("Error processing request message", zap.Error(err))
+				log.E(l, "Error processing request message", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
 				continue
 			}
-			l.Debug("Fetched template", zap.Object("TemplatedMessage", output))
+			log.D(l, "Fetched template", func(cm log.CM) {
+				cm.Write(zap.Object("TemplatedMessage", output))
+			})
 			outChan <- output
 		}
 	}
@@ -52,7 +59,9 @@ func FetchTemplate(l zap.Logger, input *messages.InputMessage, db *models.DB, tc
 		if template == nil {
 			dbTemplate, err := models.GetTemplateByNameServiceAndLocale(db, input.Template, input.Service, input.Locale)
 			if err != nil {
-				l.Error("Error fetching template", zap.Error(err))
+				log.E(l, "Error fetching template", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
 				return nil, err
 			}
 			tc.AddTemplate(l, input.Template, input.Service, input.Locale, dbTemplate)
@@ -63,7 +72,9 @@ func FetchTemplate(l zap.Logger, input *messages.InputMessage, db *models.DB, tc
 		templated.Locale = template.Locale
 		templated.Message = template.Body
 
-		l.Debug("Fetched template", zap.String("name", input.Template), zap.String("locale", input.Locale))
+		log.D(l, "Fetched template", func(cm log.CM) {
+			cm.Write(zap.String("name", input.Template), zap.String("locale", input.Locale))
+		})
 	}
 	return templated, nil
 }
