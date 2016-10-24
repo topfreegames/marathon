@@ -21,7 +21,7 @@ RUN chmod 777 $PGDATA
 VOLUME /pg_data
 
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
 
 EXPOSE 5432
 CMD ["postgres"]
