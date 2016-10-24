@@ -55,7 +55,7 @@ install:
 	@go install
 
 run:
-	@go run main.go start -d -c ./config/local.yaml
+	@go run main.go start-server -d -c ./config/local.yaml
 
 db-test-create:
 	@psql -d postgres -f db/drop-test.sql
