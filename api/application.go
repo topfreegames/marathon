@@ -48,7 +48,19 @@ func GetApplication(host string, port int, config *viper.Viper, debug bool, fast
 		ReadBufferSize: 30000,
 	}
 
-	application.Configure()
+	l := application.Logger.With(
+		zap.String("source", "app"),
+		zap.String("operation", "GetApplication"),
+	)
+
+	log.I(l, "Configuring application...")
+	err := application.Configure()
+	if err != nil {
+		log.P(l, "Failed to configure application.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+	}
+	log.I(l, "Configured application successfully.")
 	return application
 }
 
