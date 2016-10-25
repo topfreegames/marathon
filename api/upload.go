@@ -38,8 +38,11 @@ func UploadHandler(application *Application) func(c echo.Context) error {
 			})
 			return FailWith(400, err.Error(), c)
 		}
-
-		u, err := s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
+		var u *url.URL
+		err = WithSegment("s3client-getPresignedUrl", c, func() error {
+			u, err = s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Failed to create presigned PUT policy.", func(cm log.CM) {
 				cm.Write(

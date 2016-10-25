@@ -41,7 +41,11 @@ func SendCsvNotificationHandler(application *Application) func(c echo.Context) e
 		}
 
 		log.D(l, "Get notifier from DB")
-		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
+		var notifier *models.Notifier
+		err = WithSegment("notifier-retrieve", c, func() error {
+			notifier, err = models.GetNotifierByID(application.Db, notifierIDUuid)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Could not find notifier.", func(cm log.CM) {
 				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
@@ -51,7 +55,11 @@ func SendCsvNotificationHandler(application *Application) func(c echo.Context) e
 		log.D(l, "Got notifier from DB")
 
 		log.D(l, "Get app from DB")
-		app, err := models.GetAppByID(application.Db, notifier.AppID)
+		var app *models.App
+		err = WithSegment("app-retrieve", c, func() error {
+			app, err = models.GetAppByID(application.Db, notifier.AppID)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Could not find app.", func(cm log.CM) {
 				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
@@ -62,12 +70,20 @@ func SendCsvNotificationHandler(application *Application) func(c echo.Context) e
 
 		log.D(l, "Parse payload")
 		var payload csvNotificationPayload
-		if err := LoadJSONPayload(&payload, c, l); err != nil {
-			log.E(l, "Failed to parse json payload.", func(cm log.CM) {
-				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
-			})
+		err = WithSegment("payload", c, func() error {
+			if err := LoadJSONPayload(&payload, c, l); err != nil {
+				log.E(l, "Failed to parse json payload.", func(cm log.CM) {
+					cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
+				})
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
 			return FailWith(400, err.Error(), c)
 		}
+
 		log.D(l, "Parsed payload", func(cm log.CM) {
 			cm.Write(zap.Object("payload", payload))
 		})
@@ -102,7 +118,12 @@ func SendCsvNotificationHandler(application *Application) func(c echo.Context) e
 			Bucket:     payload.Bucket,
 			Key:        payload.Key,
 		}
-		worker, err := workers.GetBatchCsvWorker(workerConfig)
+
+		var worker *workers.BatchCsvWorker
+		err = WithSegment("batchCsvWorker-retrieve", c, func() error {
+			worker, err = workers.GetBatchCsvWorker(workerConfig)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Invalid worker config,", func(cm log.CM) {
 				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))

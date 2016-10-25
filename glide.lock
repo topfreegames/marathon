@@ -1,5 +1,5 @@
-hash: bcba32c176441cd1b2dc7fdc93aaff34dc0a191cf242dd96ae23f9266aa6c811
-updated: 2016-10-24T15:27:24.912452507-02:00
+hash: 30a816bc5335c9644e35dd3d9cafb4601db574896d899e8dde7cefe8fdeff0f6
+updated: 2016-10-24T17:15:45.086616569-02:00
 imports:
 - name: github.com/bluele/factory-go
   version: 8a28e9752dbc744626695b749a3ab474b8b372fa
@@ -104,6 +104,8 @@ imports:
   - pkg/set
 - name: github.com/mitchellh/mapstructure
   version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
+- name: github.com/newrelic/go-agent
+  version: 372845e16294c9fa73951b27d5631b601643fc51
 - name: github.com/onsi/ginkgo
   version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
   subpackages:

@@ -32,3 +32,4 @@ import:
 - package: github.com/k0kubun/pp
   version: ~2.1.0
 - package: github.com/labstack/echo
+- package: github.com/newrelic/go-agent

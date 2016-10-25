@@ -59,7 +59,11 @@ func SendNotifierNotificationHandler(application *Application) func(c echo.Conte
 		}
 
 		log.D(l, "Get notifier from DB")
-		notifier, err := models.GetNotifierByID(application.Db, notifierIDUuid)
+		var notifier *models.Notifier
+		err = WithSegment("notifier-retrieve", c, func() error {
+			notifier, err = models.GetNotifierByID(application.Db, notifierIDUuid)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Could not find notifier.", func(cm log.CM) {
 				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
@@ -69,7 +73,11 @@ func SendNotifierNotificationHandler(application *Application) func(c echo.Conte
 		log.D(l, "Got notifier from DB")
 
 		log.D(l, "Get app from DB")
-		app, err := models.GetAppByID(application.Db, notifier.AppID)
+		var app *models.App
+		err = WithSegment("retrieve-app", c, func() error {
+			app, err = models.GetAppByID(application.Db, notifier.AppID)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Could not find app.", func(cm log.CM) {
 				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
@@ -80,13 +88,19 @@ func SendNotifierNotificationHandler(application *Application) func(c echo.Conte
 
 		log.D(l, "Parse payload")
 		var payload notificationPayload
-		if err := LoadJSONPayload(&payload, c, l); err != nil {
-			log.E(l, "Failed to parse json payload.", func(cm log.CM) {
-				cm.Write(
-					zap.Error(err),
-					zap.Duration("duration", time.Now().Sub(start)),
-				)
-			})
+		err = WithSegment("payload", c, func() error {
+			if err := LoadJSONPayload(&payload, c, l); err != nil {
+				log.E(l, "Failed to parse json payload.", func(cm log.CM) {
+					cm.Write(
+						zap.Error(err),
+						zap.Duration("duration", time.Now().Sub(start)),
+					)
+				})
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return FailWith(400, err.Error(), c)
 		}
 		log.D(l, "Parsed payload", func(cm log.CM) {
@@ -149,7 +163,11 @@ func SendNotifierNotificationHandler(application *Application) func(c echo.Conte
 			Modifiers:  modifiers,
 		}
 		log.D(l, "Get BatchPGWorker...")
-		worker, err := workers.GetBatchPGWorker(workerConfig)
+		var worker *workers.BatchPGWorker
+		err = WithSegment("batchPGWorker-retrieve", c, func() error {
+			worker, err = workers.GetBatchPGWorker(workerConfig)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Invalid worker config", func(cm log.CM) {
 				cm.Write(zap.Error(err), zap.Duration("duration", time.Now().Sub(start)))
@@ -186,7 +204,12 @@ func GetNotifierNotifications(application *Application) func(c echo.Context) err
 		log.I(l, "Get from redis", func(cm log.CM) {
 			cm.Write(zap.String("redisKey", redisKey))
 		})
-		keys, err := cli.Keys(redisKey).Result()
+		var keys []string
+		var err error
+		err = WithSegment("redis-keys", c, func() error {
+			keys, err = cli.Keys(redisKey).Result()
+			return err
+		})
 		if err != nil {
 			if err.Error() != "redis: nil" {
 				log.E(l, "Failed to get notification status from redis", func(cm log.CM) {
@@ -211,7 +234,11 @@ func GetNotifierNotifications(application *Application) func(c echo.Context) err
 
 		for i := range keys {
 			key := string(keys[i])
-			status, err := cli.Get(key).Result()
+			var status string
+			err = WithSegment("redis-get", c, func() error {
+				status, err = cli.Get(key).Result()
+				return err
+			})
 			if err != nil {
 				if err.Error() != "redis: nil" {
 					log.E(l, "Failed to get notification status from redis", func(cm log.CM) {
@@ -233,6 +260,9 @@ func GetNotifierNotifications(application *Application) func(c echo.Context) err
 			}
 			var statusObj map[string]interface{}
 			err = json.Unmarshal([]byte(status), &statusObj)
+			if err != nil {
+				return FailWith(500, err.Error(), c)
+			}
 			statuses = append(statuses, statusObj)
 		}
 
@@ -256,7 +286,12 @@ func GetNotifierNotificationStatusHandler(application *Application) func(c echo.
 		log.I(l, "Get from redis", func(cm log.CM) {
 			cm.Write(zap.String("redisKey", redisKey))
 		})
-		status, err := cli.Get(redisKey).Result()
+		var status string
+		var err error
+		err = WithSegment("redis-get", c, func() error {
+			status, err = cli.Get(redisKey).Result()
+			return err
+		})
 		if err != nil {
 			log.E(l, "Failed to get notification status from redis", func(cm log.CM) {
 				cm.Write(

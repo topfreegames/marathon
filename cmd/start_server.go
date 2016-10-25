@@ -49,7 +49,12 @@ var startServerCmd = &cobra.Command{
 		log.D(cmdL, "Application created successfully.")
 
 		log.D(cmdL, "Starting application...")
-		application.Start()
+		err := application.Start()
+		if err != nil {
+			log.F(l, "Could not start Marathon server.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+		}
 	},
 }
 

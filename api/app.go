@@ -3,11 +3,13 @@ package api
 import (
 	"time"
 
+	gorp "gopkg.in/gorp.v1"
+
 	"git.topfreegames.com/topfreegames/marathon/models"
 
+	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
-	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
 )
 
@@ -29,19 +31,34 @@ func CreateAppHandler(application *Application) func(c echo.Context) error {
 		)
 
 		var payload appPayload
-		if err := LoadJSONPayload(&payload, c, l); err != nil {
-			log.E(l, "Failed to parse json payload.", func(cm log.CM) {
-				cm.Write(zap.Error(err))
-			})
+		err := WithSegment("payload", c, func() error {
+			if err := LoadJSONPayload(&payload, c, l); err != nil {
+				log.E(l, "Failed to parse json payload.", func(cm log.CM) {
+					cm.Write(zap.Error(err))
+				})
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
 			return FailWith(400, err.Error(), c)
 		}
 
 		// FIXME: This should not work this way. We're ignoring organizationID and appGroup if appName exists
 		log.D(l, "Creating app...")
-		app, err := models.CreateApp(application.Db, payload.AppName, payload.OrganizationID, payload.AppGroup)
+		var app *models.App
+		err = WithSegment("app-create", c, func() error {
+			app, err = models.CreateApp(application.Db, payload.AppName, payload.OrganizationID, payload.AppGroup)
+			return err
+		})
+
 		if err != nil {
 			if err.Error() == "pq: duplicate key value violates unique constraint \"index_apps_on_name\"" {
-				app, err = models.GetAppByName(application.Db, payload.AppName)
+				err = WithSegment("app-retrive-by-name", c, func() error {
+					app, err = models.GetAppByName(application.Db, payload.AppName)
+					return err
+				})
 				if err != nil {
 					log.E(l, "Get app failed.", func(cm log.CM) {
 						cm.Write(zap.Error(err))
@@ -63,20 +80,24 @@ func CreateAppHandler(application *Application) func(c echo.Context) error {
 				})
 				return FailWith(400, err.Error(), c)
 			}
-		} else {
-			log.I(l, "App created successfully.", func(cm log.CM) {
-				cm.Write(
-					zap.String("id", app.ID.String()),
-					zap.String("name", app.Name),
-					zap.String("group", app.AppGroup),
-					zap.String("organization_id", app.OrganizationID.String()),
-					zap.Duration("duration", time.Now().Sub(start)),
-				)
-			})
 		}
 
+		log.I(l, "App created successfully.", func(cm log.CM) {
+			cm.Write(
+				zap.String("id", app.ID.String()),
+				zap.String("name", app.Name),
+				zap.String("group", app.AppGroup),
+				zap.String("organization_id", app.OrganizationID.String()),
+				zap.Duration("duration", time.Now().Sub(start)),
+			)
+		})
+
 		log.D(l, "Creating notifier...")
-		notifier, err := models.CreateNotifier(application.Db, app.ID, payload.Service)
+		var notifier *models.Notifier
+		err = WithSegment("notifier-create", c, func() error {
+			notifier, err = models.CreateNotifier(application.Db, app.ID, payload.Service)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Create notifier failed.", func(cm log.CM) {
 				cm.Write(zap.Error(err))
@@ -92,7 +113,11 @@ func CreateAppHandler(application *Application) func(c echo.Context) error {
 			)
 		})
 
-		userTokensTable, err := models.CreateUserTokensTable(application.Db, payload.AppName, payload.Service)
+		var userTokensTable *gorp.TableMap
+		err = WithSegment("userTokensTable-create", c, func() error {
+			userTokensTable, err = models.CreateUserTokensTable(application.Db, payload.AppName, payload.Service)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Create app failed.", func(cm log.CM) {
 				cm.Write(zap.Error(err))
@@ -134,7 +159,12 @@ func GetAppsHandler(application *Application) func(c echo.Context) error {
 		)
 
 		log.D(l, "Getting app...")
-		appNotifiers, err := models.GetAppNotifiers(application.Db)
+		var appNotifiers []models.AppNotifier
+		var err error
+		err = WithSegment("appNotifiers-retrieve", c, func() error {
+			appNotifiers, err = models.GetAppNotifiers(application.Db)
+			return err
+		})
 		if err != nil {
 			log.E(l, "Get apps notifiers failed.", func(cm log.CM) {
 				cm.Write(zap.Error(err))
@@ -148,8 +178,10 @@ func GetAppsHandler(application *Application) func(c echo.Context) error {
 			)
 		})
 
-		return SucceedWith(map[string]interface{}{
-			"apps": serializeAppsNotifiers(appNotifiers),
-		}, c)
+		return WithSegment("response-serialize", c, func() error {
+			return SucceedWith(map[string]interface{}{
+				"apps": serializeAppsNotifiers(appNotifiers),
+			}, c)
+		})
 	}
 }

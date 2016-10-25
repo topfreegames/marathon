@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"git.topfreegames.com/topfreegames/marathon/models"
-
 	"git.topfreegames.com/topfreegames/marathon/log"
+	"git.topfreegames.com/topfreegames/marathon/models"
 	"git.topfreegames.com/topfreegames/marathon/util"
+
 	"github.com/getsentry/raven-go"
 	_ "github.com/jinzhu/gorm/dialects/postgres" // This is required to use postgres with gorm
 	"github.com/labstack/echo"
@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/engine/fasthttp"
 	"github.com/labstack/echo/engine/standard"
 	"github.com/labstack/echo/middleware"
+	newrelic "github.com/newrelic/go-agent"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
@@ -33,6 +34,7 @@ type Application struct {
 	Logger         zap.Logger
 	ReadBufferSize int
 	RedisClient    *util.RedisClient
+	NewRelic       newrelic.Application
 }
 
 // GetApplication returns a new Marathon API Applicationlication
@@ -56,7 +58,12 @@ func (application *Application) Configure() error {
 	application.configureSentry()
 	application.connectDatabase()
 
-	err := application.configureApplication()
+	err := application.configureNewRelic()
+	if err != nil {
+		return err
+	}
+
+	err = application.configureApplication()
 	if err != nil {
 		return err
 	}
@@ -102,6 +109,33 @@ func (application *Application) configureSentry() {
 	})
 	raven.SetDSN(sentryURL)
 	raven.SetRelease(VERSION)
+}
+
+func (application *Application) configureNewRelic() error {
+	newRelicKey := application.Config.GetString("newrelic.key")
+
+	l := application.Logger.With(
+		zap.String("source", "app"),
+		zap.String("operation", "configureNewRelic"),
+	)
+
+	config := newrelic.NewConfig("Marathon", newRelicKey)
+	if newRelicKey == "" {
+		log.I(l, "New Relic is not enabled..")
+		config.Enabled = false
+	}
+	nr, err := newrelic.NewApplication(config)
+	if err != nil {
+		log.E(l, "Failed to initialize New Relic.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return err
+	}
+
+	application.NewRelic = nr
+	log.I(l, "Initialized New Relic successfully.")
+
+	return nil
 }
 
 func (application *Application) connectDatabase() {
@@ -183,6 +217,7 @@ func (application *Application) configureApplication() error {
 	a.Use(NewRecoveryMiddleware(application.OnErrorHandler).Serve)
 	a.Use(NewVersionMiddleware().Serve)
 	a.Use(NewSentryMiddleware(application).Serve)
+	a.Use(NewNewRelicMiddleware(application, application.Logger).Serve)
 
 	// Routes
 
@@ -230,13 +265,24 @@ func (application *Application) finalizeApplication() {
 }
 
 // Start starts listening for web requests at specified host and port
-func (application *Application) Start() {
+func (application *Application) Start() error {
 	l := application.Logger.With(
 		zap.String("source", "app"),
 		zap.String("operation", "Start"),
 	)
-	log.D(l, "App started.", func(cm log.CM) {
+	err := application.Application.Run(application.Engine)
+	if err != nil {
+		log.E(l, "App failed to start.", func(cm log.CM) {
+			cm.Write(
+				zap.String("host", application.Host),
+				zap.Int("port", application.Port),
+				zap.Error(err),
+			)
+		})
+		return err
+	}
+	log.I(l, "App started.", func(cm log.CM) {
 		cm.Write(zap.String("host", application.Host), zap.Int("port", application.Port))
 	})
-	application.Application.Run(application.Engine)
+	return nil
 }
