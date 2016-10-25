@@ -18,13 +18,13 @@ var (
 	configFile       string
 )
 
-func getDatabase(l zap.Logger) (*models.DB, error) {
-	host := viper.GetString("postgres.host")
-	user := viper.GetString("postgres.user")
-	dbName := viper.GetString("postgres.dbname")
-	password := viper.GetString("postgres.password")
-	port := viper.GetInt("postgres.port")
-	sslMode := viper.GetString("postgres.sslMode")
+func getDatabase(l zap.Logger, config *viper.Viper) (*models.DB, error) {
+	host := config.GetString("postgres.host")
+	user := config.GetString("postgres.user")
+	dbName := config.GetString("postgres.dbname")
+	password := config.GetString("postgres.password")
+	port := config.GetInt("postgres.port")
+	sslMode := config.GetString("postgres.sslMode")
 
 	log.I(l, "Connecting to postgres...", func(cm log.CM) {
 		cm.Write(
@@ -70,9 +70,9 @@ func (err *MigrationError) Error() string {
 }
 
 // RunMigrations runs all migrations in a given directory
-func RunMigrations(migrationsDir string, migrationVersion int64, l zap.Logger) error {
+func RunMigrations(migrationsDir string, migrationVersion int64, config *viper.Viper, l zap.Logger) error {
 	conf := getGooseConf(migrationsDir)
-	db, err := getDatabase(l)
+	db, err := getDatabase(l, config)
 	if err != nil {
 		return &MigrationError{fmt.Sprintf("could not connect to database: %s", err.Error())}
 	}
@@ -121,8 +121,8 @@ var migrateCmd = &cobra.Command{
 
 		log.D(cmdL, "Initializing migration config...")
 
-		InitConfig(cmdL, configFile)
-		err := RunMigrations("", migrationVersion, cmdL)
+		config := InitConfig(cmdL, configFile)
+		err := RunMigrations("", migrationVersion, config, cmdL)
 		if err != nil {
 			panic(err.Error())
 		}
