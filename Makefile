@@ -54,8 +54,11 @@ cross: build-linux-386 build-linux-amd64 build-darwin-386 build-darwin-amd64
 install:
 	@go install
 
-run:
-	@go run main.go start-server -d -c ./config/local.yaml
+start-dev-dependencies:
+	@MY_IP=${MY_IP} ./docker/dev/start.sh
+
+run: start-dev-dependencies
+	@go run main.go start-server -d -c ./config/development.yaml
 
 db-test-create:
 	@psql -d postgres -f db/drop-test.sql

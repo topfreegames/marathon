@@ -1,46 +1,49 @@
 postgres:
-  user: "postgres"
-  dbname: "marathon_development"
+  user: "marathon"
+  dbname: "marathon"
   host: "localhost"
-  port: 5432
+  port: 9911
   sslmode: "disable"
+redis:
+  host: localhost
+  port: 9922
+  db: 0
+  password: ""
+  maxPoolSize: 20
 s3:
   bucket: "tfg-push-notifications"
   folder: "test/files"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
+sentry:
+  url:
 healthcheck:
   workingtext: "working"
 workers:
   logger:
     level: "fatal"
   consumer:
-    consumergroup: "integration-development-consumer-group"
-    topics: [ "integration-development-input-topic" ]
-    brokers: [ "localhost:3536" ]
+    consumergroupTemplate: "%s-%s-cg"
+    topicTemplate: "%s-%s-c"
+    brokers: "localhost:9944"
   producer:
-    brokers: [ "localhost:3536" ]
+    brokers: "localhost:9944"
+    topicTemplate: "%s-%s-p"
   modules:
-    consumers: 1
+    producers: 1
+    batchpgworkers: 1
     parsers: 1
     fetchers: 1
     builders: 1
     producers: 1
-    kafkadonechansize: 1
-    fetcherdonechansize: 1
-    inputkafkachansize: 10
-    inputchansize: 10
-    kafkatoparserchansize: 10
-    parsertofetcherchansize: 10
-    fetchertobuilderchansize: 10
-    buildertokafkachansize: 10
-    buildertokafkadonechansize: 1
-batch_pg_workers:
-  logger:
-    level: "fatal"
-  producer:
-    brokers: [ "localhost:3536" ]
-  modules:
-    producers: 1
-    pgtokafkachansize: 10
+    batchpgworkerstatusdonechan: 1
+    batchpgworkerdonechan: 1
+    pgtoparserchan: 10000
+    parserdonechan: 1
+    parsertofetcherchan: 1000
+    fetcherdonechan: 1
+    fetchertobuilderchan: 1000
+    builderdonechan: 1
+    buildertoproducerchan: 1000
+    producerdonechan: 1
