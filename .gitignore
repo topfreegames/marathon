@@ -33,3 +33,5 @@ bin/
 
 tmp/
 dump.rdb
+
+docker/dev/dev_docker_data

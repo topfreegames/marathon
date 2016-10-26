@@ -3,7 +3,6 @@ cd ./docker/dev
 
 stop () {
   docker-compose -p marathon_dev stop
-  docker-compose -p marathon_dev rm -f -v
 }
 
 stop
@@ -29,7 +28,6 @@ until docker exec marathondev_postgres_1 pg_isready
 done
 
 createuser -h localhost -p 9911 -s -U postgres marathon
-dropdb -h localhost -p 9911 -U marathon marathon
 createdb -h localhost -p 9911 -U marathon marathon
 
 cd ./../..
