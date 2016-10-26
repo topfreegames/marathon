@@ -231,6 +231,14 @@ func (application *Application) configureApplication() error {
 	a.Use(NewSentryMiddleware(application).Serve)
 	a.Use(NewNewRelicMiddleware(application, application.Logger).Serve)
 
+	basicAuthUser := application.Config.GetString("basicauth.username")
+	if basicAuthUser != "" {
+		basicAuthPass := application.Config.GetString("basicauth.password")
+		a.Use(middleware.BasicAuth(func(username, password string) bool {
+			return username == basicAuthUser && password == basicAuthPass
+		}))
+	}
+
 	// Routes
 
 	// Healthcheck

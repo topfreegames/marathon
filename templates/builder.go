@@ -48,7 +48,7 @@ func Builder(l zap.Logger, config *viper.Viper, inChan <-chan *messages.Template
 // Replace replaces the template parameters from message with the values of the keys in params.
 // the function returns the built string
 func Replace(l zap.Logger, message string, params map[string]interface{}) (string, error) {
-	t, err := fasttemplate.NewTemplate(string(message), "{{", "}}")
+	t, err := fasttemplate.NewTemplate(string(message), "%{", "}")
 	if err != nil {
 		log.E(l, "Template Error", func(cm log.CM) {
 			cm.Write(zap.Error(err))

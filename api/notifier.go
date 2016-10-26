@@ -127,7 +127,7 @@ func SendNotifierNotificationHandler(application *Application) func(c echo.Conte
 		if payload.Filters.Scope != "" {
 			filters = append(filters, []interface{}{"scope", payload.Filters.Scope})
 		}
-		log.D(l, "Built filters...", func(cm log.CM) {
+		log.D(l, "Built filters successfully", func(cm log.CM) {
 			cm.Write(zap.Object("filters", filters))
 		})
 

@@ -22,7 +22,7 @@ healthcheck:
   workingtext: "working"
 workers:
   logger:
-    level: "fatal"
+    level: "debug"
   consumer:
     consumergroupTemplate: "%s-%s-cg"
     topicTemplate: "%s-%s-c"

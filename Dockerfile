@@ -1,25 +1,16 @@
-FROM golang:1.6.2-alpine
+FROM golang:1.7.3-alpine
 
 MAINTAINER TFG Co <backend@tfgco.com>
 
-EXPOSE 80
+RUN mkdir /app
+ADD ./bin/marathon-linux-amd64 /app
+ADD ./config /app/config
 
-RUN apk update
-RUN apk add git make g++ nginx supervisor apache2-utils
-
-RUN go get -u github.com/Masterminds/glide/...
-RUN go get -u github.com/topfreegames/goose/cmd/goose
-
-ADD . /go/src/git.topfreegames.com/topfreegames/marathon
-
-WORKDIR /go/src/git.topfreegames.com/topfreegames/marathon
-RUN glide install
-RUN go install git.topfreegames.com/topfreegames/marathon
+WORKDIR /app
 
 # BASIC AUTH
-ENV BASICAUTH_USERNAME marathon
-ENV BASICAUTH_PASSWORD marathon
-ENV USE_BASICAUTH false
+ENV MARATHON_BASICAUTH_USERNAME ""
+ENV MARATHON_BASICAUTH_PASSWORD ""
 
 # POSTGRES
 ENV MARATHON_POSTGRES_HOST 0.0.0.0
@@ -43,7 +34,7 @@ ENV MARATHON_S3_ACCESSKEY="ACCESS-KEY"
 ENV MARATHON_S3_SECRETACCESSKEY="SECRET-ACCESS-KEY"
 
 # WORKERS
-ENV MARATHON_WORKERS_LOGGER="debug"
+ENV MARATHON_WORKERS_LOGGER_LEVEL="debug"
 # FIXME: WE HAVE TO KEEP THIS IN SYNC WITH AGUIA AND WE SHOULD NOT HAVE UNDERSCORES HERE
 ENV MARATHON_WORKERS_CONSUMER_CONSUMERGROUPTEMPLATE="%s-%s-cg"
 ENV MARATHON_WORKERS_PRODUCER_topicTemplate="%s-%s-p"
@@ -67,13 +58,6 @@ ENV MARATHON_WORKERS_MODULES_BUILDERDONECHAN=1
 ENV MARATHON_WORKERS_MODULES_BUILDERTOPRODUCERCHAN=1000
 ENV MARATHON_WORKERS_MODULES_PRODUCERDONECHAN=1
 
+EXPOSE 80
 
-RUN mkdir -p /etc/nginx/sites-enabled
-
-# configure supervisord
-ADD ./docker/deploy/supervisord-marathon.conf /etc/supervisord-marathon.conf
-
-# Configure nginx
-ADD ./docker/deploy/nginx_conf /etc/nginx/nginx.conf
-
-CMD /bin/sh -l -c docker/start.sh
+CMD /app/marathon-linux-amd64 start-server -p 80 -c /app/config/default.yaml

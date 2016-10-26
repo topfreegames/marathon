@@ -1,6 +1,24 @@
 version: '2'
 
 services:
+  marathon:
+    build:
+      context: ./../../
+    environment:
+      - MARATHON_POSTGRES_USER=marathon
+      - MARATHON_POSTGRES_DBNAME=marathon
+      - MARATHON_POSTGRES_HOST=postgres
+      - MARATHON_POSTGRES_PORT=5432
+      - MARATHON_REDIS_HOST=redis
+      - MARATHON_REDIS_PORT=6379
+      - MARATHON_WORKERS_CONSUMER_BROKERS="kafka:9092"
+      - MARATHON_WORKERS_PRODUCER_BROKERS="kafka:9092"
+    ports:
+      - "8888:80"
+    depends_on:
+      - postgres
+      - redis
+      - kafka
   postgres:
     image: postgres:9.5
     ports:

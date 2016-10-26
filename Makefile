@@ -57,7 +57,12 @@ install:
 start-dev-dependencies:
 	@MY_IP=${MY_IP} ./docker/dev/start.sh
 
-run: start-dev-dependencies
+start-dev: build-linux-amd64 start-dev-dependencies
+
+image: build-linux-amd64
+	@docker build -t marathon ./docker
+
+run:
 	@go run main.go start-server -d -c ./config/development.yaml
 
 db-test-create:
