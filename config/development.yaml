@@ -23,12 +23,12 @@ healthcheck:
 workers:
   logger:
     level: "debug"
+  zookeeperHosts:
+    - "127.0.0.1"
   consumer:
     consumergroupTemplate: "%s-%s-cg"
     topicTemplate: "%s-%s-c"
-    brokers: "localhost:9944"
   producer:
-    brokers: "localhost:9944"
     topicTemplate: "%s-%s-p"
   modules:
     producers: 1

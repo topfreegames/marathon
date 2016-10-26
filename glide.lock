@@ -1,5 +1,5 @@
-hash: 30a816bc5335c9644e35dd3d9cafb4601db574896d899e8dde7cefe8fdeff0f6
-updated: 2016-10-24T17:15:45.086616569-02:00
+hash: 9938efe84b3e265c9d8cbe4a53ba1a5d13f0db2de6d66290377887636c124294
+updated: 2016-10-26T14:16:19.896507942-02:00
 imports:
 - name: github.com/bluele/factory-go
   version: 8a28e9752dbc744626695b749a3ab474b8b372fa
@@ -36,10 +36,10 @@ imports:
   subpackages:
   - hcl/ast
   - hcl/parser
-  - hcl/token
-  - json/parser
   - hcl/scanner
   - hcl/strconv
+  - hcl/token
+  - json/parser
   - json/scanner
   - json/token
 - name: github.com/imdario/mergo
@@ -71,18 +71,18 @@ imports:
 - name: github.com/labstack/echo
   version: 459f5647e6c25a73eebb1de349abafbd63a4bb89
   subpackages:
+  - context
   - engine
   - engine/fasthttp
   - engine/standard
-  - middleware
-  - context
   - log
+  - middleware
 - name: github.com/labstack/gommon
   version: 2d272df536d051e737aea353b86c979d6e88bce0
   subpackages:
-  - log
   - bytes
   - color
+  - log
   - random
 - name: github.com/lib/pq
   version: 80f8150043c80fb52dee6bc863a709cdac7ec8f8
@@ -106,12 +106,44 @@ imports:
   version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
 - name: github.com/newrelic/go-agent
   version: 372845e16294c9fa73951b27d5631b601643fc51
+  subpackages:
+  - internal
+  - internal/jsonx
+  - internal/logger
+  - internal/sysinfo
+  - internal/utilization
 - name: github.com/onsi/ginkgo
   version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
   subpackages:
+  - config
   - ginkgo
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - types
 - name: github.com/onsi/gomega
   version: c90bd38f8da6e92f8b114953db2f0ad7361fb4b4
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/oraclematcher
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
 - name: github.com/Pallinder/go-randomdata
   version: 104cc800bd6434e70cb0c3ad08c4541f4f2eb48b
 - name: github.com/pelletier/go-buffruneio
@@ -122,6 +154,8 @@ imports:
   version: 17b591df37844cde689f4d5813e5cea0927d8dd2
 - name: github.com/pkg/sftp
   version: a71e8f580e3b622ebff585309160b1cc549ef4d2
+- name: github.com/samuel/go-zookeeper
+  version: 87e1bca4477a3cc767ca71be023ced183d74e538
 - name: github.com/satori/go.uuid
   version: 0aa62d5ddceb50dbcb909d790b5345affd3669b6
 - name: github.com/Shopify/sarama
@@ -166,10 +200,10 @@ imports:
 - name: golang.org/x/crypto
   version: 986d3313588aa5c68f1df95eac956f79cf3b2c01
   subpackages:
-  - ssh
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
+  - ssh
 - name: golang.org/x/net
   version: 7394c112eae4dba7e96bfcfe738e6373d61772b4
   subpackages:
@@ -200,4 +234,4 @@ imports:
   version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
-devImports: []
+testImports: []

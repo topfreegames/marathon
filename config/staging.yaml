@@ -30,9 +30,7 @@ workers:
     # FIXME: We have to keep this in sync with aguia
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-consumer-topic"
-    # brokers: [ "localhost:9940" ]
   producer:
-    # brokers: [ "localhost:9940" ]
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "push-%s_%s-staging-single-producer-topic"
   modules:

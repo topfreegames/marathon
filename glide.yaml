@@ -33,3 +33,4 @@ import:
   version: ~2.1.0
 - package: github.com/labstack/echo
 - package: github.com/newrelic/go-agent
+- package: github.com/samuel/go-zookeeper
