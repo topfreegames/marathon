@@ -25,7 +25,7 @@ var _ = Describe("Template", func() {
 					"someone": "banduk",
 				}
 
-				message := "{{param1}}, {{someone}} is awesome"
+				message := "%{param1}, %{someone} is awesome"
 
 				resp, tplErr := templates.Replace(l, message, params)
 				Expect(tplErr).To(BeNil())
@@ -36,7 +36,7 @@ var _ = Describe("Template", func() {
 				params := map[string]interface{}{
 					"param1": "hello",
 				}
-				message := "{{param1}}, {{param1}}, {{param1}}"
+				message := "%{param1}, %{param1}, %{param1}"
 				resp, rplTplErr := templates.Replace(l, message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("hello, hello, hello"))
@@ -53,7 +53,7 @@ var _ = Describe("Template", func() {
 						"param2_2": "value2_2",
 					},
 				}
-				message := "{{param1.param1_1}}, {{param1.param1_2}}, {{param2.param2_2}}"
+				message := "%{param1.param1_1}, %{param1.param1_2}, %{param2.param2_2}"
 				resp, rplTplErr := templates.Replace(l, message, params)
 				Expect(rplTplErr).To(BeNil())
 				Expect(resp).To(Equal("value1_1, value1_2, value2_2"))
@@ -63,7 +63,7 @@ var _ = Describe("Template", func() {
 				params := map[string]interface{}{
 					"param1": "hello",
 				}
-				message := "{{param1}"
+				message := "%{param1"
 				resp, rplTplErr := templates.Replace(l, message, params)
 				Expect(rplTplErr).NotTo(BeNil())
 				Expect(resp).To(Equal(""))
@@ -152,7 +152,7 @@ var _ = Describe("Template", func() {
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Service:    "apns",
-					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
+					Message:    map[string]interface{}{"alert": "%{param1}, %{param2}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 
@@ -190,7 +190,7 @@ var _ = Describe("Template", func() {
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Service:    "gcm",
-					Message:    map[string]interface{}{"title": "{{param1}}, {{param2}}", "subtitle": "{{param1}}"},
+					Message:    map[string]interface{}{"title": "%{param1}, %{param2}", "subtitle": "%{param1}"},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 				var config = viper.New()
@@ -224,7 +224,7 @@ var _ = Describe("Template", func() {
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Service:    "unknown",
-					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
+					Message:    map[string]interface{}{"alert": "%{param1}, %{param2}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 				var config = viper.New()
@@ -252,7 +252,7 @@ var _ = Describe("Template", func() {
 					Metadata:   map[string]interface{}{"meta": "data"},
 					App:        "colorfy",
 					Service:    "apns",
-					Message:    map[string]interface{}{"alert": "{{param1}}, {{param2}}", "badge": 1},
+					Message:    map[string]interface{}{"alert": "%{param1}, %{param2}", "badge": 1},
 					Params:     map[string]interface{}{"param1": "Hello", "param2": "world"},
 				}
 

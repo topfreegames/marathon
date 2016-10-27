@@ -34,7 +34,7 @@ var _ = Describe("Fetcher", func() {
 				Name:     "test_template1",
 				Locale:   "en",
 				Defaults: map[string]interface{}{"param1": "value1", "param2": "value2"},
-				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+				Body:     map[string]interface{}{"alert": "%{param1}, %{param2}, %{param3}"},
 			}
 			errInsert := db.Insert(template)
 			Expect(errInsert).To(BeNil())
@@ -72,7 +72,7 @@ var _ = Describe("Fetcher", func() {
 				Name:     "test_template2",
 				Locale:   "pt",
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
-				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+				Body:     map[string]interface{}{"alert": "%{param1}, %{param2}, %{param3}"},
 			}
 			errInsert := db.Insert(template)
 			Expect(errInsert).To(BeNil())
@@ -112,7 +112,7 @@ var _ = Describe("Fetcher", func() {
 				Name:     "test_template3",
 				Locale:   "en",
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
-				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+				Body:     map[string]interface{}{"alert": "%{param1}, %{param2}, %{param3}"},
 			}
 			errInsert := db.Insert(template)
 			Expect(errInsert).To(BeNil())
@@ -152,7 +152,7 @@ var _ = Describe("Fetcher", func() {
 				Name:     "test_template4",
 				Locale:   "en",
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
-				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
+				Body:     map[string]interface{}{"alert": "%{param1}, %{param2}, %{param3}"},
 			}
 			errInsert := db.Insert(template)
 			Expect(errInsert).To(BeNil())
@@ -180,7 +180,7 @@ var _ = Describe("Fetcher", func() {
 				Name:     "test_template5",
 				Locale:   "en",
 				Defaults: map[string]interface{}{"param1": "default1", "param2": "default2"},
-				Body:     map[string]interface{}{"alert": "{{value1}}, {{value2}}"},
+				Body:     map[string]interface{}{"alert": "%{value1}, %{value2}"},
 			}
 			errInsert := db.Insert(template)
 			Expect(errInsert).To(BeNil())
@@ -227,7 +227,7 @@ var _ = Describe("Fetcher", func() {
 				Name:     "test_template6",
 				Locale:   "en",
 				Defaults: map[string]interface{}{"param1": "default1", "param2": "default2"},
-				Body:     map[string]interface{}{"alert": "{{value1}}, {{value2}}"},
+				Body:     map[string]interface{}{"alert": "%{value1}, %{value2}"},
 			}
 			errInsert := db.Insert(template)
 			Expect(errInsert).To(BeNil())

@@ -46,7 +46,7 @@ func GetTemplateByNameAndLocale(db *DB, name string, locale string) (*Template, 
 	err := db.SelectOne(&template, "SELECT * FROM templates WHERE name=$1 AND locale=$2", name, locale)
 	if err != nil && locale != "en" {
 		// If no templates with the specified locale were found try en
-		err = db.SelectOne(&template, "SELECT * FROM templates WHERE name=$1 AND AND locale=$2", name, "en")
+		err = db.SelectOne(&template, "SELECT * FROM templates WHERE name=$1 AND locale=$2", name, "en")
 	}
 	if err != nil || &template == nil {
 		return nil, &ModelNotFoundError{"Template", "name", name}

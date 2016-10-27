@@ -52,14 +52,12 @@ var TemplateFactory = factory.NewFactory(
 	&models.Template{},
 ).Attr("Name", func(args factory.Args) (interface{}, error) {
 	return uuid.NewV4().String(), nil
-}).Attr("Service", func(args factory.Args) (interface{}, error) {
-	return uuid.NewV4().String()[:4], nil
 }).Attr("Locale", func(args factory.Args) (interface{}, error) {
 	return uuid.NewV4().String()[:2], nil
 }).Attr("Defaults", func(args factory.Args) (interface{}, error) {
 	return map[string]interface{}{"username": "banduk"}, nil
 }).Attr("Body", func(args factory.Args) (interface{}, error) {
-	return map[string]interface{}{"alert": "{{username}} sent you a message."}, nil
+	return map[string]interface{}{"alert": "%{username} sent you a message."}, nil
 })
 
 // CreateTemplateFactory is responsible for constructing test template instances

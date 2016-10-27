@@ -71,8 +71,8 @@ var _ = Describe("Models", func() {
 		optOut = []string{"optout1", "optout2"}
 		buildN = "919191"
 		templateDefaults = map[string]interface{}{"username": "banduk"}
-		templateBody = map[string]interface{}{"alert": "{{username}} sent you a message."}
-		_, err = models.CreateTemplate(db, templateName, service, locale, templateDefaults, templateBody)
+		templateBody = map[string]interface{}{"alert": "%{username} sent you a message."}
+		_, err = models.CreateTemplate(db, templateName, locale, templateDefaults, templateBody)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = models.CreateUserTokensTable(db, appName, service)

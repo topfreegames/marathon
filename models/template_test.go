@@ -42,7 +42,7 @@ var _ = Describe("Models", func() {
 				name := uuid.NewV4().String()
 				locale := uuid.NewV4().String()[:2]
 				defaults := map[string]interface{}{"username": "banduk"}
-				body := map[string]interface{}{"alert": "{{username}} sent you a message."}
+				body := map[string]interface{}{"alert": "%{username} sent you a message."}
 				createdTemplate, createdTemplateErr := models.CreateTemplate(db, name, locale, defaults, body)
 				Expect(createdTemplateErr).To(BeNil())
 
@@ -58,9 +58,9 @@ var _ = Describe("Models", func() {
 				name := uuid.NewV4().String()
 				locale := uuid.NewV4().String()[:2]
 				defaults1 := map[string]interface{}{"username": "banduk"}
-				body1 := map[string]interface{}{"alert1": "{{username1}} sent you a message1."}
+				body1 := map[string]interface{}{"alert1": "%{username1} sent you a message1."}
 				defaults2 := map[string]interface{}{"username": "banduk"}
-				body2 := map[string]interface{}{"alert2": "{{username2}} sent you a message2."}
+				body2 := map[string]interface{}{"alert2": "%{username2} sent you a message2."}
 
 				_, createdTemplateErr1 := models.CreateTemplate(db, name, locale, defaults1, body1)
 				Expect(createdTemplateErr1).To(BeNil())
@@ -80,7 +80,7 @@ var _ = Describe("Models", func() {
 			name := uuid.NewV4().String()
 			locale := uuid.NewV4().String()[:2]
 			defaults := map[string]interface{}{"username": "banduk"}
-			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
+			body := map[string]interface{}{"alert": "%{username} sent you a message."}
 			updatedTemplate, updatedTemplateErr := models.UpdateTemplate(db, template.ID, name, locale, defaults, body)
 			Expect(updatedTemplateErr).To(BeNil())
 
@@ -108,7 +108,7 @@ var _ = Describe("Models", func() {
 			Expect(insertTemplateErr2).To(BeNil())
 
 			defaults := map[string]interface{}{"username": "banduk"}
-			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
+			body := map[string]interface{}{"alert": "%{username} sent you a message."}
 			_, updatedTemplateErr := models.UpdateTemplate(db, template2.ID, template1.Name, template1.Locale, defaults, body)
 			Expect(updatedTemplateErr).NotTo(BeNil())
 			dbTemplate, dbTemplateErr := models.GetTemplateByID(db, template2.ID)
@@ -126,7 +126,7 @@ var _ = Describe("Models", func() {
 			Expect(insertTemplateErr).To(BeNil())
 
 			defaults := map[string]interface{}{"username": "banduk"}
-			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
+			body := map[string]interface{}{"alert": "%{username} sent you a message."}
 			invalidID := uuid.NewV4()
 			_, updatedTemplateErr := models.UpdateTemplate(db, invalidID, template.Name, template.Locale, defaults, body)
 			Expect(updatedTemplateErr).NotTo(BeNil())
@@ -166,7 +166,7 @@ var _ = Describe("Models", func() {
 			name := template1.Name
 			locale := uuid.NewV4().String()[:2]
 			defaults := map[string]interface{}{"username": "banduk"}
-			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
+			body := map[string]interface{}{"alert": "%{username} sent you a message."}
 			template2, templateErr2 := models.CreateTemplate(db, name, locale, defaults, body)
 			Expect(templateErr2).To(BeNil())
 			templates = append(templates, template2)
