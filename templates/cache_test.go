@@ -23,7 +23,6 @@ var _ = Describe("Cache", func() {
 			tc := templates.CreateTemplateCache(1)
 			template := &models.Template{
 				Name:     "test_cached_template1",
-				Service:  "gcm",
 				Locale:   "en",
 				Defaults: map[string]interface{}{"param1": "value1", "param2": "value2"},
 				Body:     map[string]interface{}{"alert": "{{value1}}, {{value2}}"},

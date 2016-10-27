@@ -33,7 +33,6 @@ var _ = Describe("Fetcher", func() {
 			template := &models.Template{
 				Name:     "test_template1",
 				Locale:   "en",
-				Service:  "gcm",
 				Defaults: map[string]interface{}{"param1": "value1", "param2": "value2"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -72,7 +71,6 @@ var _ = Describe("Fetcher", func() {
 			template := &models.Template{
 				Name:     "test_template2",
 				Locale:   "pt",
-				Service:  "gcm",
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -113,7 +111,6 @@ var _ = Describe("Fetcher", func() {
 			template := &models.Template{
 				Name:     "test_template3",
 				Locale:   "en",
-				Service:  "gcm",
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -154,7 +151,6 @@ var _ = Describe("Fetcher", func() {
 			template := &models.Template{
 				Name:     "test_template4",
 				Locale:   "en",
-				Service:  "gcm",
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -183,7 +179,6 @@ var _ = Describe("Fetcher", func() {
 			template := &models.Template{
 				Name:     "test_template5",
 				Locale:   "en",
-				Service:  "gcm",
 				Defaults: map[string]interface{}{"param1": "default1", "param2": "default2"},
 				Body:     map[string]interface{}{"alert": "{{value1}}, {{value2}}"},
 			}
@@ -231,7 +226,6 @@ var _ = Describe("Fetcher", func() {
 			template := &models.Template{
 				Name:     "test_template6",
 				Locale:   "en",
-				Service:  "gcm",
 				Defaults: map[string]interface{}{"param1": "default1", "param2": "default2"},
 				Body:     map[string]interface{}{"alert": "{{value1}}, {{value2}}"},
 			}

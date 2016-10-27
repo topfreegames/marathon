@@ -40,11 +40,10 @@ var _ = Describe("Models", func() {
 
 			It("Should create a template", func() {
 				name := uuid.NewV4().String()
-				service :=  "gcm"
 				locale := uuid.NewV4().String()[:2]
 				defaults := map[string]interface{}{"username": "banduk"}
 				body := map[string]interface{}{"alert": "{{username}} sent you a message."}
-				createdTemplate, createdTemplateErr := models.CreateTemplate(db, name, service, locale, defaults, body)
+				createdTemplate, createdTemplateErr := models.CreateTemplate(db, name, locale, defaults, body)
 				Expect(createdTemplateErr).To(BeNil())
 
 				dbTemplate, dbTemplateErr := models.GetTemplateByID(db, createdTemplate.ID)
@@ -57,17 +56,16 @@ var _ = Describe("Models", func() {
 
 			It("Should not create a template with repeated name,locale", func() {
 				name := uuid.NewV4().String()
-				service :=  "gcm"
 				locale := uuid.NewV4().String()[:2]
 				defaults1 := map[string]interface{}{"username": "banduk"}
 				body1 := map[string]interface{}{"alert1": "{{username1}} sent you a message1."}
 				defaults2 := map[string]interface{}{"username": "banduk"}
 				body2 := map[string]interface{}{"alert2": "{{username2}} sent you a message2."}
 
-				_, createdTemplateErr1 := models.CreateTemplate(db, name, service, locale, defaults1, body1)
+				_, createdTemplateErr1 := models.CreateTemplate(db, name, locale, defaults1, body1)
 				Expect(createdTemplateErr1).To(BeNil())
 
-				_, createdTemplateErr2 := models.CreateTemplate(db, name, service, locale, defaults2, body2)
+				_, createdTemplateErr2 := models.CreateTemplate(db, name, locale, defaults2, body2)
 				Expect(createdTemplateErr2).NotTo(BeNil())
 			})
 		})
@@ -80,11 +78,10 @@ var _ = Describe("Models", func() {
 			Expect(insertTemplateErr).To(BeNil())
 
 			name := uuid.NewV4().String()
-			service :=  "gcm"
 			locale := uuid.NewV4().String()[:2]
 			defaults := map[string]interface{}{"username": "banduk"}
 			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
-			updatedTemplate, updatedTemplateErr := models.UpdateTemplate(db, template.ID, name, service, locale, defaults, body)
+			updatedTemplate, updatedTemplateErr := models.UpdateTemplate(db, template.ID, name, locale, defaults, body)
 			Expect(updatedTemplateErr).To(BeNil())
 
 			dbTemplate, dbTemplateErr := models.GetTemplateByID(db, template.ID)
@@ -99,7 +96,7 @@ var _ = Describe("Models", func() {
 			Expect(updatedTemplate.Body).To(Equal(body))
 		})
 
-		It("Should not update a template with repeated name,locale,service", func() {
+		It("Should not update a template with repeated name and locale", func() {
 			template1, templateErr1 := CreateTemplateFactory(db, map[string]interface{}{})
 			Expect(templateErr1).To(BeNil())
 			insertTemplateErr1 := db.Insert(template1)
@@ -112,7 +109,7 @@ var _ = Describe("Models", func() {
 
 			defaults := map[string]interface{}{"username": "banduk"}
 			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
-			_, updatedTemplateErr := models.UpdateTemplate(db, template2.ID, template1.Name, template1.Service, template1.Locale, defaults, body)
+			_, updatedTemplateErr := models.UpdateTemplate(db, template2.ID, template1.Name, template1.Locale, defaults, body)
 			Expect(updatedTemplateErr).NotTo(BeNil())
 			dbTemplate, dbTemplateErr := models.GetTemplateByID(db, template2.ID)
 			Expect(dbTemplateErr).To(BeNil())
@@ -131,7 +128,7 @@ var _ = Describe("Models", func() {
 			defaults := map[string]interface{}{"username": "banduk"}
 			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
 			invalidID := uuid.NewV4()
-			_, updatedTemplateErr := models.UpdateTemplate(db, invalidID, template.Name, template.Service, template.Locale, defaults, body)
+			_, updatedTemplateErr := models.UpdateTemplate(db, invalidID, template.Name, template.Locale, defaults, body)
 			Expect(updatedTemplateErr).NotTo(BeNil())
 		})
 	})
@@ -167,11 +164,10 @@ var _ = Describe("Models", func() {
 			Expect(insertTemplateErr1).To(BeNil())
 
 			name := template1.Name
-			service :=  "gcm"
 			locale := uuid.NewV4().String()[:2]
 			defaults := map[string]interface{}{"username": "banduk"}
 			body := map[string]interface{}{"alert": "{{username}} sent you a message."}
-			template2, templateErr2 := models.CreateTemplate(db, name, service, locale, defaults, body)
+			template2, templateErr2 := models.CreateTemplate(db, name, locale, defaults, body)
 			Expect(templateErr2).To(BeNil())
 			templates = append(templates, template2)
 
@@ -189,13 +185,13 @@ var _ = Describe("Models", func() {
 			Expect(dbTemplateErr).NotTo(BeNil())
 		})
 
-		It("Should retrieve a template for existent name,service,locale", func() {
+		It("Should retrieve a template for existent name and locale", func() {
 			template, templateErr := CreateTemplateFactory(db, map[string]interface{}{})
 			Expect(templateErr).To(BeNil())
 			insertTemplateErr := db.Insert(template)
 			Expect(insertTemplateErr).To(BeNil())
 
-			dbTemplate, dbTemplateErr := models.GetTemplateByNameServiceAndLocale(db, template.Name, template.Service, template.Locale)
+			dbTemplate, dbTemplateErr := models.GetTemplateByNameAndLocale(db, template.Name, template.Locale)
 			Expect(dbTemplateErr).To(BeNil())
 			Expect(dbTemplate.Name).To(Equal(template.Name))
 			Expect(dbTemplate.Locale).To(Equal(template.Locale))
@@ -203,14 +199,14 @@ var _ = Describe("Models", func() {
 			Expect(dbTemplate.Body).To(Equal(template.Body))
 		})
 
-		It("Should not retrieve a template for invalid name,service,locale", func() {
+		It("Should not retrieve a template for invalid name and locale", func() {
 			template, templateErr := CreateTemplateFactory(db, map[string]interface{}{})
 			Expect(templateErr).To(BeNil())
 			insertTemplateErr := db.Insert(template)
 			Expect(insertTemplateErr).To(BeNil())
 
 			invalidLocale := uuid.NewV4().String()[:2]
-			_, dbTemplateErr := models.GetTemplateByNameServiceAndLocale(db, template.Name, template.Service, invalidLocale)
+			_, dbTemplateErr := models.GetTemplateByNameAndLocale(db, template.Name, invalidLocale)
 			Expect(dbTemplateErr).NotTo(BeNil())
 		})
 	})

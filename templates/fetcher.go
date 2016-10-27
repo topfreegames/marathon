@@ -57,7 +57,7 @@ func FetchTemplate(l zap.Logger, input *messages.InputMessage, db *models.DB, tc
 		// First search the cache for valid templates
 		template := tc.FindTemplate(l, input.Template, input.Service, input.Locale)
 		if template == nil {
-			dbTemplate, err := models.GetTemplateByNameServiceAndLocale(db, input.Template, input.Service, input.Locale)
+			dbTemplate, err := models.GetTemplateByNameAndLocale(db, input.Template, input.Locale)
 			if err != nil {
 				log.E(l, "Error fetching template", func(cm log.CM) {
 					cm.Write(zap.Error(err))

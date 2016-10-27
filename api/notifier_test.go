@@ -89,7 +89,6 @@ var _ = Describe("Marathon API Handler", func() {
 			template := &models.Template{
 				Name:     "test_template",
 				Locale:   "en",
-				Service:  service,
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -160,7 +159,6 @@ var _ = Describe("Marathon API Handler", func() {
 			template := &models.Template{
 				Name:     "test_template",
 				Locale:   "en",
-				Service:  service,
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -231,7 +229,6 @@ var _ = Describe("Marathon API Handler", func() {
 			template := &models.Template{
 				Name:     "test_template",
 				Locale:   "en",
-				Service:  service,
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
@@ -345,7 +342,6 @@ var _ = Describe("Marathon API Handler", func() {
 			template := &models.Template{
 				Name:     "test_template",
 				Locale:   "en",
-				Service:  service,
 				Defaults: map[string]interface{}{"param2": "templateValue2", "param3": "templateValue3"},
 				Body:     map[string]interface{}{"alert": "{{param1}}, {{param2}}, {{param3}}"},
 			}
