@@ -54,10 +54,10 @@ cross: build-linux-386 build-linux-amd64 build-darwin-386 build-darwin-amd64
 install:
 	@go install
 
-start-dev-dependencies:
+start-dev-dependencies: build-linux-amd64
 	@MY_IP=${MY_IP} ./docker/dev/start.sh
 
-start-dev: build-linux-amd64 start-dev-dependencies
+start-dev: start-dev-dependencies
 
 image: build-linux-amd64
 	@docker build -t marathon ./docker
