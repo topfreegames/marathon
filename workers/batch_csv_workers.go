@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/extensions"
 	"git.topfreegames.com/topfreegames/marathon/log"
 
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
@@ -30,6 +31,7 @@ type BatchCsvWorker struct {
 	Config                       *viper.Viper
 	Logger                       zap.Logger
 	Notifier                     *models.Notifier
+	zkClient                     *extensions.ZkClient
 	App                          *models.App
 	Message                      *messages.InputMessage
 	Modifiers                    [][]interface{}
@@ -162,6 +164,10 @@ func (worker *BatchCsvWorker) loadConfiguration() {
 	}
 }
 
+func (worker *BatchCsvWorker) configureZookeeperClient() {
+	worker.zkClient = extensions.GetZkClient(worker.ConfigPath)
+}
+
 func (worker *BatchCsvWorker) getCsvFromS3() {
 	s3AccessKeyID := worker.Config.GetString("s3.accessKey")
 	s3SecretAccessKey := worker.Config.GetString("s3.secretAccessKey")
@@ -220,13 +226,20 @@ func (worker *BatchCsvWorker) configureKafkaClient() {
 	clusterConfig.Group.Return.Notifications = true
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-	brokersString := worker.Config.GetString("workers.consumer.brokers")
-	brokers := strings.Split(brokersString, ",")
 	// consumerGroupTemlate := worker.Config.GetString("workers.consumer.consumergroupTemplate")
 	topicTemplate := worker.Config.GetString("workers.consumer.topicTemplate")
 	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
 	// consumerGroup := fmt.Sprintf(consumerGroupTemlate, worker.App.Name, worker.Notifier.Service)
 	worker.KafkaTopic = topic
+
+	brokers, err := worker.zkClient.GetKafkaBrokers()
+
+	if err != nil {
+		log.E(worker.Logger, "Could not get kafka brokers", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+	}
+
 	client, err := cluster.NewClient(brokers, clusterConfig)
 	if err != nil {
 		log.E(worker.Logger, "Could not create kafka client", func(cm log.CM) {
@@ -262,6 +275,7 @@ func (worker *BatchCsvWorker) Configure() {
 	worker.connectDatabase()
 	worker.connectRedis()
 	worker.getCsvFromS3()
+	worker.configureZookeeperClient()
 	worker.configureKafkaClient()
 }
 

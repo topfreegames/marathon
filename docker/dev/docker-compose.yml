@@ -1,24 +1,6 @@
 version: '2'
 
 services:
-  marathon:
-    build:
-      context: ./../../
-    environment:
-      - MARATHON_POSTGRES_USER=marathon
-      - MARATHON_POSTGRES_DBNAME=marathon
-      - MARATHON_POSTGRES_HOST=postgres
-      - MARATHON_POSTGRES_PORT=5432
-      - MARATHON_REDIS_HOST=redis
-      - MARATHON_REDIS_PORT=6379
-      - MARATHON_WORKERS_CONSUMER_BROKERS=kafka:9092
-      - MARATHON_WORKERS_PRODUCER_BROKERS=kafka:9092
-    ports:
-      - "8888:80"
-    depends_on:
-      - postgres
-      - redis
-      - kafka
   postgres:
     image: postgres:9.5
     ports:
@@ -43,7 +25,7 @@ services:
       - "9944:9092"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: ${MY_IP}
-      KAFKA_ADVERTISED_PORT: 9940
+      KAFKA_ADVERTISED_PORT: 9944
       KAFKA_CREATE_TOPICS: "consumerApp1-gcm-c:1:1,consumerApp1-gcm-p:1:1,consumerApp2-gcm-c:1:1,consumerApp2-gcm-p:1:1,consumerApp3-gcm-c:1:1,consumerApp3-gcm-p:1:1,consumerApp4-gcm-c:1:1,consumerApp4-gcm-p:1:1,producerApp1-gcm-c:1:1,producerApp1-gcm-p:1:1,notifierApp1-gcm-c:1:1,notifierApp1-gcm-p:1:1,notifierApp2-gcm-c:1:1,notifierApp2-gcm-p:1:1,notifierApp3-gcm-c:1:1,notifierApp3-gcm-p:1:1,notifierApp4-gcm-c:1:1,notifierApp4-gcm-p:1:1,batchWorkerApp1-apns-c:1:1,batchWorkerApp1-apns-p:1:1,batchWorkerApp2-apns-c:1:1,batchWorkerApp2-apns-p:1:1,batchWorkerApp3-gcm-c:1:1,batchWorkerApp3-gcm-p:1:1,batchWorkerApp4-gcm-c:1:1,batchWorkerApp4-gcm-p:1:1"
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
       KAFKA_LOG_DIRS: "/kafka/kafka-logs"

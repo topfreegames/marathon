@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"git.topfreegames.com/topfreegames/marathon/extensions"
 	"git.topfreegames.com/topfreegames/marathon/kafka/consumer"
 	mt "git.topfreegames.com/topfreegames/marathon/testing"
 	"github.com/Shopify/sarama"
@@ -33,8 +34,9 @@ func produceMessage(brokers []string, topic string, message string, partition in
 
 var _ = Describe("Consumer", func() {
 	var (
-		l      zap.Logger
-		config *viper.Viper
+		l        zap.Logger
+		config   *viper.Viper
+		zkClient *extensions.ZkClient
 	)
 	BeforeEach(func() {
 		l = mt.NewMockLogger()
@@ -44,6 +46,8 @@ var _ = Describe("Consumer", func() {
 		config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 		config.AutomaticEnv()
 		err := config.ReadInConfig()
+		Expect(err).NotTo(HaveOccurred())
+		zkClient = extensions.GetZkClient(config.ConfigFileUsed())
 		Expect(err).NotTo(HaveOccurred())
 	})
 	Describe("Consume", func() {
@@ -68,8 +72,7 @@ var _ = Describe("Consumer", func() {
 			service := "gcm"
 
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-			brokersString := config.GetString("workers.consumer.brokers")
-			brokers := strings.Split(brokersString, ",")
+
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
 
@@ -80,6 +83,10 @@ var _ = Describe("Consumer", func() {
 
 			// Produce Messages
 			message := "message"
+
+			brokers, err := zkClient.GetKafkaBrokers()
+			Expect(err).NotTo(HaveOccurred())
+
 			produceMessage(brokers, topic, message, int32(0), int64(0))
 
 			consumedMessage := <-outChan
@@ -92,8 +99,9 @@ var _ = Describe("Consumer", func() {
 			message := "message%d"
 
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-			brokersString := config.GetString("workers.consumer.brokers")
-			brokers := strings.Split(brokersString, ",")
+			brokers, err := zkClient.GetKafkaBrokers()
+			Expect(err).NotTo(HaveOccurred())
+
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
 
@@ -120,8 +128,8 @@ var _ = Describe("Consumer", func() {
 			message := "message"
 
 			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-			brokersString := config.GetString("workers.consumer.brokers")
-			brokers := strings.Split(brokersString, ",")
+			brokers, err := zkClient.GetKafkaBrokers()
+			Expect(err).NotTo(HaveOccurred())
 			topicTemplate := config.GetString("workers.consumer.topicTemplate")
 			topic := fmt.Sprintf(topicTemplate, app, service)
 

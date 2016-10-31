@@ -2,8 +2,8 @@ package consumer
 
 import (
 	"fmt"
-	"strings"
 
+	"git.topfreegames.com/topfreegames/marathon/extensions"
 	"git.topfreegames.com/topfreegames/marathon/log"
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
@@ -31,8 +31,14 @@ func Consumer(l zap.Logger, config *viper.Viper, app, service string, outChan ch
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
-	brokersString := config.GetString("workers.consumer.brokers")
-	brokers := strings.Split(brokersString, ",")
+	zkClient := extensions.GetZkClient(config.ConfigFileUsed())
+
+	brokers, err := zkClient.GetKafkaBrokers()
+
+	if err != nil {
+		panic(err)
+	}
+
 	consumerGroupTemlate := config.GetString("workers.consumer.consumergroupTemplate")
 	topicTemplate := config.GetString("workers.consumer.topicTemplate")
 	topics := []string{fmt.Sprintf(topicTemplate, app, service)}

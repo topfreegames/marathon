@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/extensions"
 	"git.topfreegames.com/topfreegames/marathon/kafka/producer"
 	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/messages"
@@ -24,6 +25,7 @@ import (
 type BatchPGWorker struct {
 	ID                          uuid.UUID
 	Config                      *viper.Viper
+	zkClient                    *extensions.ZkClient
 	Logger                      zap.Logger
 	Notifier                    *models.Notifier
 	App                         *models.App
@@ -102,6 +104,10 @@ func (worker *BatchPGWorker) connectDatabase() error {
 	return nil
 }
 
+func (worker *BatchPGWorker) configureZookeeperClient() {
+	worker.zkClient = extensions.GetZkClient(worker.ConfigPath)
+}
+
 func (worker *BatchPGWorker) connectRedis() error {
 	redisHost := worker.Config.GetString("redis.host")
 	redisPort := worker.Config.GetInt("redis.port")
@@ -175,19 +181,24 @@ func (worker *BatchPGWorker) configureKafkaClient() error {
 	clusterConfig.Group.Return.Notifications = true
 	clusterConfig.Version = sarama.V0_9_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-	brokersStr := worker.Config.GetString("workers.producer.brokers")
-	brokers := strings.Split(brokersStr, ",")
 	topicTemplate := worker.Config.GetString("workers.producer.topicTemplate")
 	topic := fmt.Sprintf(topicTemplate, worker.App.Name, worker.Notifier.Service)
 	worker.KafkaTopic = topic
+
+	brokers, err := worker.zkClient.GetKafkaBrokers()
 
 	l := worker.Logger.With(
 		zap.String("clusterConfig", fmt.Sprintf("%+v", clusterConfig)),
 		zap.String("topicTemplate", topicTemplate),
 		zap.String("topic", topic),
-		zap.Object("brokersStr", brokersStr),
 		zap.Object("brokers", brokers),
 	)
+
+	if err != nil {
+		log.E(l, "Could not get kafka brokers", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+	}
 
 	client, err := cluster.NewClient(brokers, clusterConfig)
 	if err != nil {
@@ -250,10 +261,13 @@ func (worker *BatchPGWorker) Configure() error {
 		return err
 	}
 
+	worker.configureZookeeperClient()
+
 	err = worker.configureKafkaClient()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

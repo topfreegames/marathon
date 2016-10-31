@@ -151,7 +151,6 @@ var _ = Describe("Models", func() {
 			defer close(doneChan)
 
 			batchWorkerConfig := *worker.Config
-			config.Set("workers.consumer.brokers", batchWorkerConfig.GetString("workers.producer.brokers"))
 			config.Set("workers.consumer.consumergroup", "consumer-group-test-1")
 			config.Set("workers.consumer.topicTemplate", batchWorkerConfig.GetString("workers.producer.topicTemplate"))
 

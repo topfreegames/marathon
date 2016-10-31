@@ -24,7 +24,7 @@ workers:
   logger:
     level: "debug"
   zookeeperHosts:
-    - "127.0.0.1"
+    - "127.0.0.1:9933"
   consumer:
     consumergroupTemplate: "%s-%s-cg"
     topicTemplate: "%s-%s-c"

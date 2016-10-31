@@ -1,12 +1,6 @@
 #!/bin/bash
 cd ./docker/dev
 
-stop () {
-  docker-compose -p marathon_dev stop
-}
-
-stop
-
 docker network create marathon_dev
 
 echo "MY IP IS:" $MY_IP
@@ -33,7 +27,3 @@ createdb -h localhost -p 9911 -U marathon marathon
 cd ./../..
 
 ./marathon migrate -c ./config/development.yaml
-
-cd ./docker/dev
-
-env MY_IP=${MY_IP} docker-compose -p marathon_dev up --remove-orphans marathon

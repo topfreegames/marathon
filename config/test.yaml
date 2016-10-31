@@ -32,6 +32,8 @@ workers:
   producer:
     # FIXME: WE SHOULD NOT HAVE UNDERSCORES HERE
     topicTemplate: "%s-%s-p"
+  zookeeperHosts:
+    - "127.0.0.1:9930"
   modules:
     producers: 1
     batchpgworkers: 1

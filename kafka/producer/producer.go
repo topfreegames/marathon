@@ -1,9 +1,9 @@
 package producer
 
 import (
-	"strings"
 	"time"
 
+	"git.topfreegames.com/topfreegames/marathon/extensions"
 	"git.topfreegames.com/topfreegames/marathon/log"
 	"git.topfreegames.com/topfreegames/marathon/messages"
 	"github.com/Shopify/sarama"
@@ -17,8 +17,13 @@ func Producer(l zap.Logger, config *viper.Viper, inChan <-chan *messages.KafkaMe
 	log.I(l, "Starting producer")
 	saramaConfig := sarama.NewConfig()
 	//TODO: replace
-	brokersStr := config.GetString("workers.producer.brokers")
-	brokers := strings.Split(brokersStr, ",")
+	zkClient := extensions.GetZkClient(config.ConfigFileUsed())
+
+	brokers, err := zkClient.GetKafkaBrokers()
+
+	if err != nil {
+		panic(err)
+	}
 	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
 	zookeeperHosts := config.GetStringSlice("workers.zookeeperHosts")
 	c, _, err := zk.Connect(zookeeperHosts, time.Second*10)
