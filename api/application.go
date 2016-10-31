@@ -43,6 +43,7 @@ func GetApplication(host string, port int, config *viper.Viper, debug bool, fast
 		Host:           host,
 		Port:           port,
 		Config:         config,
+		ConfigPath:     config.ConfigFileUsed(),
 		Debug:          debug,
 		Logger:         logger,
 		ReadBufferSize: 30000,
@@ -60,7 +61,9 @@ func GetApplication(host string, port int, config *viper.Viper, debug bool, fast
 			cm.Write(zap.Error(err))
 		})
 	}
-	log.I(l, "Configured application successfully.")
+	log.I(l, "Configured application successfully.", func(cm log.CM) {
+		cm.Write(zap.String("configPath", application.ConfigPath))
+	})
 	return application
 }
 
@@ -130,7 +133,6 @@ func (application *Application) configureNewRelic() error {
 		zap.String("source", "app"),
 		zap.String("operation", "configureNewRelic"),
 	)
-
 	config := newrelic.NewConfig("Marathon", newRelicKey)
 	if newRelicKey == "" {
 		log.I(l, "New Relic is not enabled..")

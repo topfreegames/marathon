@@ -49,12 +49,16 @@ build-darwin-amd64:
 	@echo "Building for darwin-amd64..."
 	@env GOOS=darwin GOARCH=amd64 go build -o ./bin/marathon-darwin-amd64
 
+build-docker:
+	@cd ./docker/dev && docker-compose -p marathon_dev build
+	@cd ../../
+
 cross: build-linux-386 build-linux-amd64 build-darwin-386 build-darwin-amd64
 
 install:
 	@go install
 
-start-dev-dependencies: build-linux-amd64
+start-dev-dependencies: build-linux-amd64 build-docker
 	@MY_IP=${MY_IP} ./docker/dev/start.sh
 
 start-dev: start-dev-dependencies
