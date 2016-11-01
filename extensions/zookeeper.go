@@ -44,9 +44,9 @@ func GetZkClient(configPath string) *ZkClient {
 		zkClient = &ZkClient{
 			configPath: configPath,
 		}
-		zkClient.configureLogger()
 		zkClient.loadConfiguration(configPath)
 		zkClient.loadDefaults()
+		zkClient.configureLogger()
 		zkClient.configureConn()
 	})
 	return zkClient
@@ -57,9 +57,29 @@ func (z *ZkClient) loadDefaults() {
 }
 
 func (z *ZkClient) configureLogger() {
+	var ll zap.Option
+	level := z.config.GetString("workers.logger.level")
+
+	switch level {
+	case "debug":
+		ll = zap.DebugLevel
+	case "info":
+		ll = zap.InfoLevel
+	case "warn":
+		ll = zap.WarnLevel
+	case "error":
+		ll = zap.ErrorLevel
+	case "panic":
+		ll = zap.PanicLevel
+	case "fatal":
+		ll = zap.FatalLevel
+	default:
+		ll = zap.InfoLevel
+	}
+
 	z.Logger = zap.New(
 		zap.NewJSONEncoder(),
-		zap.DebugLevel,
+		ll,
 		zap.AddCaller(),
 	)
 }
