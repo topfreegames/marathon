@@ -290,7 +290,7 @@ var _ = Describe("Marathon API Handler", func() {
 			var kafkaStatus map[string]interface{}
 			json.Unmarshal([]byte(resStatus["kafkaStatus"].(string)), &kafkaStatus)
 			Expect(kafkaStatus["initialKafkaOffset"]).To(Equal(float64(0)))
-			// Expect(kafkaStatus["currentKafkaOffset"]).To(Equal(float64(2)))    TODO: uncomment this
+			Expect(kafkaStatus["currentKafkaOffset"]).To(Equal(float64(2)))
 
 			var workerStatus map[string]interface{}
 			json.Unmarshal([]byte(resStatus["workerStatus"].(string)), &workerStatus)
