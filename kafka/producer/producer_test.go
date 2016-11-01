@@ -62,17 +62,4 @@ var _ = Describe("Producer", func() {
 		Expect(consumedMessage2).To(Equal(message2))
 	})
 
-	It("Should not create a producer if no broker found", func() {
-		brokers := "localhost:3456"
-
-		var producerConfig = viper.New()
-		producerConfig.Set("workers.producer.brokers", brokers)
-
-		inChan := make(chan *messages.KafkaMessage, 10)
-		doneChan := make(chan struct{}, 1)
-		defer close(doneChan)
-
-		// Producer returns here and don't get blocked
-		producer.Producer(l, producerConfig, inChan, doneChan)
-	})
 })

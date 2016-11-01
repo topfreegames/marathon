@@ -146,19 +146,5 @@ var _ = Describe("Consumer", func() {
 			Expect(consumedMessage).To(Equal(message))
 		})
 
-		It("Should not start a consumer if no broker found", func() {
-			app := "consumerApp4"
-			service := "gcm"
-			brokers := "localhost:0666"
-			config.Set("workers.consumer.brokers", brokers)
-			// config.Set("workers.consumer.topicTemplate", "%s-%s")
-
-			outChan := make(chan string, 10)
-			doneChan := make(chan struct{}, 1)
-			defer close(doneChan)
-
-			// Consumer returns here and don't get blocked
-			consumer.Consumer(l, config, app, service, outChan, doneChan)
-		})
 	})
 })

@@ -345,7 +345,7 @@ func (worker BatchPGWorker) Close() {
 // GetBatchPGWorker returns a new worker
 func GetBatchPGWorker(worker *BatchPGWorker) (*BatchPGWorker, error) {
 	if worker.ConfigPath == "" && worker.Config == nil {
-		errStr := "Invalid worker config. Even Config or ConfigPath should be set"
+		errStr := "Invalid worker config. Either Config or ConfigPath should be set"
 		log.E(worker.Logger, errStr, func(cm log.CM) {
 			cm.Write(zap.Object("worker", worker))
 		})

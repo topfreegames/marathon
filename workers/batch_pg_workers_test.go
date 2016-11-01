@@ -113,12 +113,13 @@ var _ = Describe("Models", func() {
 
 				// Batch worker that reads from pg and send to kafka
 				worker := &workers.BatchPGWorker{
-					Config:    workerConfig,
-					Message:   message,
-					Filters:   filters,
-					Modifiers: modifiers,
-					Notifier:  notifier,
-					App:       app,
+					Config:     workerConfig,
+					ConfigPath: "./../config/test.yaml",
+					Message:    message,
+					Filters:    filters,
+					Modifiers:  modifiers,
+					Notifier:   notifier,
+					App:        app,
 				}
 				batchWorker, err := workers.GetBatchPGWorker(worker)
 				Expect(err).NotTo(HaveOccurred())
@@ -240,12 +241,13 @@ var _ = Describe("Models", func() {
 
 				// Batch worker that reads from pg and sent to continuous worker
 				worker := &workers.BatchPGWorker{
-					Config:    workerConfig,
-					Message:   message,
-					Filters:   filters,
-					Modifiers: modifiers,
-					Notifier:  notifier,
-					App:       app,
+					Config:     workerConfig,
+					ConfigPath: "./../config/test.yaml",
+					Message:    message,
+					Filters:    filters,
+					Modifiers:  modifiers,
+					Notifier:   notifier,
+					App:        app,
 				}
 				batchWorker, err := workers.GetBatchPGWorker(worker)
 				Expect(err).NotTo(HaveOccurred())
@@ -371,12 +373,13 @@ var _ = Describe("Models", func() {
 
 				// Batch worker that reads from pg and send to kafka
 				worker := &workers.BatchPGWorker{
-					Config:    workerConfig,
-					Message:   message,
-					Filters:   filters,
-					Modifiers: modifiers,
-					Notifier:  notifier,
-					App:       app,
+					Config:     workerConfig,
+					ConfigPath: "./../config/test.yaml",
+					Message:    message,
+					Filters:    filters,
+					Modifiers:  modifiers,
+					Notifier:   notifier,
+					App:        app,
 				}
 				batchWorker, err := workers.GetBatchPGWorker(worker)
 				Expect(err).NotTo(HaveOccurred())
@@ -498,12 +501,13 @@ var _ = Describe("Models", func() {
 
 				// Batch worker that reads from pg and sent to continuous worker
 				worker := &workers.BatchPGWorker{
-					Config:    workerConfig,
-					Message:   message,
-					Filters:   filters,
-					Modifiers: modifiers,
-					Notifier:  notifier,
-					App:       app,
+					Config:     workerConfig,
+					ConfigPath: "./../config/test.yaml",
+					Message:    message,
+					Filters:    filters,
+					Modifiers:  modifiers,
+					Notifier:   notifier,
+					App:        app,
 				}
 				batchWorker, err := workers.GetBatchPGWorker(worker)
 				Expect(err).NotTo(HaveOccurred())
