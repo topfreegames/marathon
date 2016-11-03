@@ -1,4 +1,8 @@
 import Sequelize from 'sequelize'
+import fs from 'fs'
+import path from 'path'
+
+const basename = path.join(path.resolve(__dirname, '../models'))
 
 export async function check(db) {
   const result = {
@@ -70,20 +74,54 @@ export async function connect(pgUrl, options, logger) {
     opt = {}
   }
 
+  const logr = logger.child({
+    pgUrl,
+    options,
+    source: 'postgresql-extension',
+  })
   opt.dialect = 'postgres'
 
-  logger.debug({ pgUrl, opt }, 'Connecting to PostgreSQL...')
+  logr.debug({ pgUrl, opt }, 'Connecting to PostgreSQL...')
 
   try {
-    const db = new Sequelize(pgUrl, opt)
+    const db = {}
+    const client = new Sequelize(pgUrl, opt)
     const query = 'select 1;'
-    const res = await db.query(query, { type: Sequelize.QueryTypes.SELECT })
+    const res = await client.query(query, { type: Sequelize.QueryTypes.SELECT })
     if (!res) {
       const err = new Error('Failed to connect to PostgreSQL.')
-      logger.error({ pgUrl, err }, err.message)
+      logr.error({ pgUrl, err }, err.message)
       throw err
     }
 
+    logr.debug('Loading models...')
+    fs.readdirSync(basename)
+      .filter(file =>
+        (file.indexOf('.') !== 0) &&
+          (file !== basename) &&
+          (file.slice(-3) === '.js') &&
+          file !== 'index.js'
+      )
+      .forEach((file) => {
+        const modelPath = path.join(basename, file)
+        logr.debug({ modelPath }, 'Loading model...')
+        const model = client.import(modelPath)
+        logr.debug({ modelPath }, 'Model loaded successfully.')
+        db[model.name] = model
+      })
+
+    logr.debug('All models loaded successfully.')
+
+    logr.debug('Loading model associations...')
+    Object.keys(db).forEach((modelName) => {
+      if (db[modelName].associate) {
+        logr.debug({ modelName }, 'Loading model associations...')
+        db[modelName].associate(db)
+        logr.debug({ modelName }, 'Model associations loaded successfully.')
+      }
+    })
+
+    db.client = client
     logger.info({ pgUrl }, 'Successfully connected to PostgreSQL.')
     return db
   } catch (err) {

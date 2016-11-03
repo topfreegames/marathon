@@ -7,7 +7,7 @@ setup: setup-global
 	@npm install
 
 setup-global:
-	@npm install -g nodemon babel-cli webpack mocha bunyan
+	@npm install -g nodemon babel-cli webpack mocha bunyan sequelize
 
 build:
 	@rm -rf lib/
@@ -80,6 +80,7 @@ docker-stop:
 
 db migrate:
 	@psql -h localhost -p 22222 -U postgres -c "SHOW SERVER_VERSION" postgres
+	@sequelize db:migrate --url=postgresql://marathon@localhost:22222/marathon
 
 drop:
 	@psql -h localhost -p 22222 -U postgres -f db/drop.sql > /dev/null
@@ -87,6 +88,7 @@ drop:
 
 _db-test _migrate-test:
 	@psql -h localhost -p 22222 -U postgres -d postgres -c "SHOW SERVER_VERSION"
+	@sequelize db:migrate --url=postgresql://marathon_test@localhost:22222/marathon_test
 
 _drop-test:
 	@psql -h localhost -p 22222 -U postgres -c "SELECT pg_terminate_backend(pid.pid) FROM pg_stat_activity, (SELECT pid FROM pg_stat_activity where pid <> pg_backend_pid()) pid WHERE datname='marathon_test';" postgres
