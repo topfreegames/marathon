@@ -1,58 +1,47 @@
-//export async function check(kafkaClient) {
-  //const result = {
-    //up: false,
-    //error: null,
-  //}
+import kafka from 'kafka-node'
 
-  //try {
-    //const res = await redisClient.infoAsync()
-    //if (res) {
-      //const info = parser.parse(res)
-      //result.up = true
-      //result.uptime = info.uptime_in_seconds
-      //result.connectedClients = info.connected_clients
-      //result.blockedClients = info.blocked_clients
-      //result.usedMemory = info.used_memory_human
-      //result.totalSystemMemory = info.total_system_memory_human
-      //result.maxMemory = info.maxmemory_human
-      //result.rejectedConnections = info.rejected_connections
-      //result.cpuUsage = info.used_cpu_user
-    //} else {
-      //result.error = 'Could not get server status!'
-    //}
-  //} catch (error) {
-    //result.error = error.message
-  //}
+export async function check(producer) {
+  const result = {
+    up: false,
+    error: null,
+  }
 
-  //return result
-//}
+  try {
+    result.up = producer.ready
+  } catch (error) {
+    result.error = error.message
+  }
 
-//export async function connect(redisUrl, options, logger) {
-  //logger.debug({ redisUrl, options }, 'connecting to redis...')
-  //if (!options.shouldReconnect) {
-    //options.retry_strategy = () => undefined
-  //}
-  //const redisClient = redis.createClient(redisUrl, options)
+  return result
+}
 
-  //redisClient.on('error', (err) => {
-    //logger.error({ err }, 'redis error')
-  //})
+export async function connect(client, options, logger) {
+  const logr = logger.child({
+    source: 'kafka-producer-extension',
+    options,
+  })
+  logr.debug('Connecting to kafka producer...')
+  const producer = new kafka.Producer(client, options)
 
-  //const result = await redisClient.pingAsync()
-  //if (!result) {
-    //throw new Error('Failed to get server status from redis.')
-  //}
-  //logger.info({ redisUrl }, 'successfully connected to redis')
-  //return redisClient
-//}
+  const hasConnected = new Promise((resolve, reject) => {
+    if (producer.ready) {
+      logr.debug('Connection to Kafka producer has been established successfully.')
+      resolve(producer)
+      return
+    }
 
-//export async function withCriticalSection(redisClient, f) {
-  //if (!Lock) {
-    //const options = { retryCount: 50, retryDelay: 10 }
-    //Lock = new Redlock([redisClient], options)
-  //}
-  //const rlock = await Lock.lock(LockKey, LockTTL)
-  //const res = await f()
-  //await rlock.unlock()
-  //return res
-//}
+    producer.on('ready', () => {
+      logr.debug('Connection to Kafka producer has been established successfully.')
+      resolve(producer)
+    })
+    producer.on('error', (err) => {
+      logr.error({ err }, 'Connection to Kafka producer failed.')
+      reject(err)
+    })
+  })
+
+  await hasConnected
+
+  logr.info('Successfully connected to Kafka producer.')
+  return producer
+}

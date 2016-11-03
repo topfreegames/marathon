@@ -1,6 +1,7 @@
 import { check as redisCheck } from '../../extensions/redis'
 import { check as pgCheck } from '../../extensions/postgresql'
 import { check as kafkaClientCheck } from '../../extensions/kafkaClient'
+import { check as kafkaProducerCheck } from '../../extensions/kafkaProducer'
 
 export default class HealthcheckHandler {
   constructor(app) {
@@ -14,6 +15,7 @@ export default class HealthcheckHandler {
       redis: { up: false },
       postgreSQL: { up: false },
       apiKafkaClient: { up: false },
+      apiKafkaProducer: { up: false },
     }
   }
 
@@ -21,7 +23,8 @@ export default class HealthcheckHandler {
     return (
       !this.services.redis.up ||
       !this.services.postgreSQL.up ||
-      !this.services.apiKafkaClient.up
+      !this.services.apiKafkaClient.up ||
+      !this.services.apiKafkaProducer.up
     )
   }
 
@@ -29,6 +32,7 @@ export default class HealthcheckHandler {
     this.services.redis = await redisCheck(this.app.redisClient)
     this.services.postgreSQL = await pgCheck(this.app.db)
     this.services.apiKafkaClient = await kafkaClientCheck(this.app.apiKafkaClient)
+    this.services.apiKafkaProducer = await kafkaProducerCheck(this.app.apiKafkaProducer)
     ctx.body = JSON.stringify(this.services)
 
     if (this.hasFailed()) {

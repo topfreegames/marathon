@@ -4,7 +4,6 @@ describe('Handlers', () => {
   describe('Healthcheck Handler', () => {
     it('should return 200 if all services up', async function () {
       const res = await this.request.get('/healthcheck')
-      console.log(res.text)
       expect(res.status).to.equal(200)
 
       const body = res.text

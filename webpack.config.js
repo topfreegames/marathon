@@ -12,7 +12,7 @@ fs.readdirSync('node_modules')
 
 module.exports = {
   entry: {
-    'marathon': ['babel-polyfill', './src/index.js'],
+    marathon: ['babel-polyfill', './src/index.js'],
   },
   target: 'node',
   module: {

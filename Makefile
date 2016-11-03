@@ -46,6 +46,8 @@ _test-unit-coverage-html:
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/.bin/babel-node node_modules/.bin/babel-istanbul report --include=./coverage/coverage.json html
 
 static-analysis:
+	@eslint_d .
+	#@./node_modules/.bin/flow check
 	@./node_modules/.bin/plato -r -e .eslintrc -d report src/
 	@open ./report/index.html
 

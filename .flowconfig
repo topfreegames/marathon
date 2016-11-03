@@ -1,0 +1,9 @@
+[include]
+./src/index.js
+
+[ignore]
+.*/lib/.*
+.*/node_modules/.*
+
+[options]
+all=true

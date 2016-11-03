@@ -48,21 +48,35 @@ export async function check(redisClient) {
 }
 
 export async function connect(redisUrl, options, logger) {
-  logger.debug({ redisUrl, options }, 'connecting to redis...')
+  const logr = logger.child({
+    redisUrl,
+    options,
+    source: 'redis-extension',
+  })
+  logr.debug({ redisUrl, options }, 'connecting to redis...')
   if (!options.shouldReconnect) {
     options.retry_strategy = () => undefined
   }
   const redisClient = redis.createClient(redisUrl, options)
 
-  redisClient.on('error', (err) => {
-    logger.error({ err }, 'redis error')
+  const hasConnected = new Promise((resolve, reject) => {
+    redisClient.on('ready', () => {
+      logr.debug('Connection to redis has been established successfully.')
+      resolve(redisClient)
+    })
+    redisClient.on('error', (err) => {
+      logr.error({ err }, 'redis error')
+      reject(err)
+    })
   })
+
+  await hasConnected
 
   const result = await redisClient.pingAsync()
   if (!result) {
     throw new Error('Failed to get server status from redis.')
   }
-  logger.info({ redisUrl }, 'successfully connected to redis')
+  logr.info({ redisUrl }, 'Successfully connected to redis.')
   return redisClient
 }
 

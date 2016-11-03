@@ -6,6 +6,7 @@ import Logger from '../extensions/logger'
 import { connect as redisConnect } from '../extensions/redis'
 import { connect as pgConnect } from '../extensions/postgresql'
 import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
+import { connect as kafkaProducerConnect } from '../extensions/kafkaProducer'
 
 
 export default class MarathonApp {
@@ -44,7 +45,9 @@ export default class MarathonApp {
   }
 
   configureLogger() {
-    this.logger = new Logger(this.config).logger
+    this.logger = new Logger(this.config).logger.child({
+      source: 'app',
+    })
   }
 
   async configureRedis() {
@@ -77,10 +80,20 @@ export default class MarathonApp {
     }
   }
 
-  async configureKafkaClient() {
+  async configureKafka() {
     try {
+      this.logger.debug('Connecting API Kafka client...')
       const cfg = this.config.get('app.services.kafka.api.client')
       this.apiKafkaClient = await kafkaClientConnect(cfg.url, cfg.clientId, this.logger)
+
+      this.logger.debug('Connecting API Kafka producer...')
+      const producerCfg = this.config.get('app.services.kafka.api.producer')
+      console.log(producerCfg, kafkaProducerConnect)
+      this.apiKafkaProducer = await kafkaProducerConnect(
+        this.apiKafkaClient,
+        producerCfg,
+        this.logger
+      )
     } catch (err) {
       this.exit(err)
     }
@@ -88,9 +101,12 @@ export default class MarathonApp {
 
   async initializeServices() {
     try {
+      this.logger.debug('Starting redis configuration...')
       await this.configureRedis()
+      this.logger.debug('Starting PostgreSQL configuration...')
       await this.configurePostgreSQL()
-      await this.configureKafkaClient()
+      this.logger.debug('Starting Kafka configuration...')
+      await this.configureKafka()
     } catch (err) {
       this.exit(err)
     }
