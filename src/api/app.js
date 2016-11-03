@@ -88,7 +88,6 @@ export default class MarathonApp {
 
       this.logger.debug('Connecting API Kafka producer...')
       const producerCfg = this.config.get('app.services.kafka.api.producer')
-      console.log(producerCfg, kafkaProducerConnect)
       this.apiKafkaProducer = await kafkaProducerConnect(
         this.apiKafkaClient,
         producerCfg,
