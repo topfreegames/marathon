@@ -50,9 +50,13 @@
     "koa": "^2.0.0-alpha.7",
     "koa-route": "^3.2.0",
     "mongoose": "^4.6.5",
+    "pg": "^6.1.0",
+    "pg-hstore": "^2.3.2",
+    "pg-native": "^1.10.0",
     "redis": "^2.6.2",
     "redis-info": "^3.0.6",
     "redlock": "^2.0.1",
+    "sequelize": "^3.24.7",
     "utf-8-validate": "^1.2.1",
     "validator": "^6.0.0"
   },

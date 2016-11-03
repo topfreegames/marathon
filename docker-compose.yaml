@@ -1,9 +1,9 @@
 version: '2'
 services:
-  mongo:
-    image: mongo:3.3
+  postgres:
+    image: postgres:9.6
     ports:
-      - "22222:27017"
+      - "22222:5432"
   redis:
     image: redis:3.2.4-alpine
     ports:

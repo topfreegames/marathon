@@ -1,3 +1,5 @@
+.PHONY: db
+
 MY_IP?=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
 CONTAINER_PID:=`docker ps -a | grep marathon | awk ' { print $$1 } '`
 
@@ -68,3 +70,18 @@ docker-run: docker-stop
 
 docker-stop:
 	@-echo "Stopping container ${CONTAINER_PID}..." && docker stop ${CONTAINER_PID} && echo "Removing container ${CONTAINER_PID}..." && docker rm ${CONTAINER_PID}
+
+db migrate:
+	@psql -h localhost -p 22222 -U postgres -c "SHOW SERVER_VERSION" postgres
+
+drop:
+	@psql -h localhost -p 22222 -U postgres -f db/drop.sql > /dev/null
+	@echo "Database created successfully!"
+
+db-test migrate-test:
+	@psql -h localhost -p 22222 -U postgres -d postgres -c "SHOW SERVER_VERSION"
+
+drop-test:
+	@psql -h localhost -p 22222 -U postgres -c "SELECT pg_terminate_backend(pid.pid) FROM pg_stat_activity, (SELECT pid FROM pg_stat_activity where pid <> pg_backend_pid()) pid WHERE datname='khan_test';" postgres
+	@psql -h localhost -p 22222 -U postgres -f db/drop-test.sql > /dev/null
+	@echo "Test database created successfully!"

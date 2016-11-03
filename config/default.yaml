@@ -12,7 +12,11 @@ app:
       db: 0
       password: ''
       shouldReconnect: true
-    mongo: mongodb://localhost:22222/marathon
+    postgresql:
+      url: postgresql://marathon@localhost:22222/marathon
+      options:
+        native: true
+        ssl: true
   port: 9000
   trophyRange: 500
   matchmaking:

@@ -4,6 +4,7 @@ import Koa from 'koa'
 import _ from 'koa-route'
 import Logger from '../extensions/logger'
 import { connect as redisConnect } from '../extensions/redis'
+import { connect as pgConnect } from '../extensions/postgresql'
 
 
 export default class MarathonApp {
@@ -17,6 +18,7 @@ export default class MarathonApp {
     this.handlersPath = path.join(__dirname, '../api/handlers')
     this.handlers = this.getHandlers()
     this.redisConfig = config.get('app.services.redis')
+    this.pgConfig = config.get('app.services.postgresql')
   }
 
   getHandlers() {
@@ -62,9 +64,22 @@ export default class MarathonApp {
     }
   }
 
+  async configurePostgreSQL() {
+    try {
+      this.db = await pgConnect(
+        this.pgConfig.url,
+        this.pgConfig.options,
+        this.logger
+      )
+    } catch (err) {
+      this.exit(err)
+    }
+  }
+
   async initializeServices() {
     try {
       await this.configureRedis()
+      await this.configurePostgreSQL()
     } catch (err) {
       this.exit(err)
     }
@@ -100,6 +115,8 @@ export default class MarathonApp {
   async run() {
     const PORT = this.config.get('app.port')
     await this.initializeApp()
+
+    this.logger.info(`Listening on port ${ PORT }...`)
     this.koaApp.listen(PORT)
   }
 }
