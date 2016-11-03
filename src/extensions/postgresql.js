@@ -100,7 +100,7 @@ export async function connect(pgUrl, options, logger) {
         (file.indexOf('.') !== 0) &&
           (file !== basename) &&
           (file.slice(-3) === '.js') &&
-          file !== 'index.js'
+          (file !== 'index.js')
       )
       .forEach((file) => {
         const modelPath = path.join(basename, file)
