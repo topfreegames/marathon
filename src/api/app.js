@@ -36,7 +36,7 @@ export default class MarathonApp {
 
   exit(err) {
     if (process.env.NODE_ENV === 'test') {
-      return
+      throw err
     }
     this.logger.fatal({ err })
     process.exit(1)

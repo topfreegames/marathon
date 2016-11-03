@@ -16,7 +16,7 @@ app:
       url: postgresql://marathon@localhost:22222/marathon
       options:
         native: true
-        ssl: true
+        ssl: false
   port: 9000
   trophyRange: 500
   matchmaking:

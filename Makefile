@@ -25,7 +25,7 @@ ci-test-shutdown:
 	@-docker-compose -p marathon -f ./docker-compose-ci.yaml stop
 
 # test your application (tests in the test/ directory)
-test: _services _test-unit
+test: _services _drop-test _db-test _test-unit
 
 test-watch: _services
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/mocha/bin/mocha --watch --require babel-polyfill --compilers js:babel-core/register 'test/**/*Test.js'
@@ -51,6 +51,7 @@ static-analysis:
 
 _services: _services-shutdown
 	@docker-compose -p marathon -f ./docker-compose.yaml up -d
+	@sleep 5
 
 _services-shutdown:
 	@docker-compose -p marathon -f ./docker-compose.yaml stop
@@ -78,10 +79,10 @@ drop:
 	@psql -h localhost -p 22222 -U postgres -f db/drop.sql > /dev/null
 	@echo "Database created successfully!"
 
-db-test migrate-test:
+_db-test _migrate-test:
 	@psql -h localhost -p 22222 -U postgres -d postgres -c "SHOW SERVER_VERSION"
 
-drop-test:
-	@psql -h localhost -p 22222 -U postgres -c "SELECT pg_terminate_backend(pid.pid) FROM pg_stat_activity, (SELECT pid FROM pg_stat_activity where pid <> pg_backend_pid()) pid WHERE datname='khan_test';" postgres
+_drop-test:
+	@psql -h localhost -p 22222 -U postgres -c "SELECT pg_terminate_backend(pid.pid) FROM pg_stat_activity, (SELECT pid FROM pg_stat_activity where pid <> pg_backend_pid()) pid WHERE datname='marathon_test';" postgres
 	@psql -h localhost -p 22222 -U postgres -f db/drop-test.sql > /dev/null
 	@echo "Test database created successfully!"

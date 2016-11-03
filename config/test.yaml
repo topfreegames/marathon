@@ -11,7 +11,11 @@ app:
       db: 1
       password: ''
       shouldReconnect: false
-    mongo: mongodb://localhost:22222/marathon-tests
+    postgresql:
+      url: postgresql://marathon_test@localhost:22222/marathon_test
+      options:
+        native: true
+        ssl: false
   port: 5051
   matchmaking:
     timeout: 30
