@@ -17,6 +17,12 @@ app:
       options:
         native: true
         ssl: false
+    kafka:
+      api:
+        client:
+          url: localhost:22224
+          clientId: marathonApiProducer
+
   port: 9000
   trophyRange: 500
   matchmaking:

@@ -5,6 +5,7 @@ import _ from 'koa-route'
 import Logger from '../extensions/logger'
 import { connect as redisConnect } from '../extensions/redis'
 import { connect as pgConnect } from '../extensions/postgresql'
+import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
 
 
 export default class MarathonApp {
@@ -76,10 +77,20 @@ export default class MarathonApp {
     }
   }
 
+  async configureKafkaClient() {
+    try {
+      const cfg = this.config.get('app.services.kafka.api.client')
+      this.apiKafkaClient = await kafkaClientConnect(cfg.url, cfg.clientId, this.logger)
+    } catch (err) {
+      this.exit(err)
+    }
+  }
+
   async initializeServices() {
     try {
       await this.configureRedis()
       await this.configurePostgreSQL()
+      await this.configureKafkaClient()
     } catch (err) {
       this.exit(err)
     }
