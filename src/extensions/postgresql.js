@@ -35,11 +35,10 @@ export async function check(db) {
             'AND blocking_locks.pid != blocked_locks.pid ' +
         'JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid ' +
         'WHERE NOT blocked_locks.GRANTED; '
-    const res = await db.query(query, { type: Sequelize.QueryTypes.SELECT })
+    const res = await db.client.query(query, { type: Sequelize.QueryTypes.SELECT })
     if (res) {
-      result.up = true
       result.activeOperations = res.length
-      const deadlock = await db.query(deadlockQuery, { type: Sequelize.QueryTypes.SELECT })
+      const deadlock = await db.client.query(deadlockQuery, { type: Sequelize.QueryTypes.SELECT })
       result.deadlock = deadlock.length === 0
       result.deadlockOperations = []
       deadlock.forEach((row) => {
@@ -58,6 +57,7 @@ export async function check(db) {
           },
         })
       })
+      result.up = true
     } else {
       result.error = 'Could not get server status!'
     }
