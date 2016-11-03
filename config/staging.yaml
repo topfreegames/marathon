@@ -1,0 +1,11 @@
+---
+app:
+  services:
+    redis:
+      url: //redis-service.default:6379
+      db: 1
+      password: ''
+      shouldReconnect: true
+  port: 8000
+  matchmaking:
+    timeout: 30

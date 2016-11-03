@@ -1,0 +1,6 @@
+---
+app:
+  services:
+    redis:
+      url: "REDIS_URL"
+  port: "PORT"

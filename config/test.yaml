@@ -1,0 +1,17 @@
+---
+app:
+  log:
+    level: error
+    logToStdOut: false
+    logToFile: false
+  name: 'Marathon'
+  services:
+    redis:
+      url: //localhost:22223
+      db: 1
+      password: ''
+      shouldReconnect: false
+    mongo: mongodb://localhost:22222/marathon-tests
+  port: 5051
+  matchmaking:
+    timeout: 30

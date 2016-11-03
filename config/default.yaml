@@ -1,0 +1,20 @@
+---
+app:
+  log:
+    level: debug
+    logToStdOut: true
+    logToFile: false
+    file: /tmp/marathon.log
+  name: 'Marathon'
+  services:
+    redis:
+      url: //localhost:22223
+      db: 0
+      password: ''
+      shouldReconnect: true
+    mongo: mongodb://localhost:22222/marathon
+  port: 9000
+  trophyRange: 500
+  matchmaking:
+    timeout: 30
+    timeoutDiffOffset: 2

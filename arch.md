@@ -3,7 +3,7 @@ Marathon Architecture
 
 ## Introduction
 
-Marathon is divided in four major parts:
+Marathon is divided in three major parts:
 
 * UI for starting new jobs (Philipides);
 * Ingestion API;
@@ -20,13 +20,13 @@ It is responsible for:
 * Creating a new app;
 * Granting access to an app for a specific user;
 * Submitting templates;
-* Accepting new jobs to be processed (with a CSV of tokens or a segment of users);
+* Accepting new jobs to be processed (with a CSV of users or a segment of users);
 * Storing a job in the Database to be updated by the workers;
-* Storing the job as batches in a queue (redis);
+* Storing the job as batches in a queue (kue);
 * Reporting on the status of a job;
 * Stopping a job;
-* Allow apps to report user tokens;
-* Allow one user push notifications.
+* Allow apps to report user tokens;   // Marathon V3
+* Allow one user push notifications.  // Marathon V3
 
 The API should create both an entry in a table for Jobs in the relational Database as well as creating a job in Kue:
 
@@ -34,8 +34,8 @@ The API should create both an entry in a table for Jobs in the relational Databa
 
 ```
 Jobs Table
-id                                      batches
-8C3090B0-A5F9-4685-B4BB-F04BA001518F    123
+id                                      batches     completed_at
+8C3090B0-A5F9-4685-B4BB-F04BA001518F    123         2016-10-10 10:10:10
 
 FailedJobs Table
 id                                      batch   notification_index      error
@@ -77,5 +77,6 @@ Let's say our batches contain 1000 notifications each (1000 user ids), then the 
 
 * Retrieve the token for all users in the batch;
 * Merge the context sent with the batch with the defaults for the given template;
+* Compile the template with the context;
 * Send the batch as a whole (batch send in kafka lib) to Kafka for processing by other systems;
 * Incrementing either successful or failed counters in redis as well as storing failures in the database.
