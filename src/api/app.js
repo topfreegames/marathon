@@ -116,7 +116,7 @@ export default class MarathonApp {
     const PORT = this.config.get('app.port')
     await this.initializeApp()
 
-    this.logger.info(`Listening on port ${ PORT }...`)
+    this.logger.info(`Listening on port ${PORT}...`)
     this.koaApp.listen(PORT)
   }
 }
