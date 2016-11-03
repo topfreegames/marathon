@@ -49,13 +49,17 @@ static-analysis:
 	@./node_modules/.bin/plato -r -e .eslintrc -d report src/
 	@open ./report/index.html
 
-_services: _services-shutdown
-	@docker-compose -p marathon -f ./docker-compose.yaml up -d
+_ensure_kafka_dir:
+	@mkdir -p /tmp/marathon/kafka
+	@mkdir -p /tmp/marathon/kafka2
+
+_services: _ensure_kafka_dir _services-shutdown
+	@env MY_IP=${MY_IP} docker-compose -p marathon -f ./docker-compose.yaml up -d
 	@sleep 5
 
 _services-shutdown:
-	@docker-compose -p marathon -f ./docker-compose.yaml stop
-	@docker-compose -p marathon -f ./docker-compose.yaml rm -f
+	@env MY_IP=${MY_IP} docker-compose -p marathon -f ./docker-compose.yaml stop
+	@env MY_IP=${MY_IP} docker-compose -p marathon -f ./docker-compose.yaml rm -f
 
 docker-build:
 	@docker build -t marathon .
