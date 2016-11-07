@@ -12,7 +12,7 @@ RUN mkdir -p /var/apps/marathon/lib
 RUN mkdir -p /var/apps/marathon/config
 WORKDIR /var/apps/marathon
 COPY package.json /var/apps/marathon
-RUN npm install
+RUN npm install --silent --no-progress
 COPY Makefile /var/apps/marathon
 
 RUN make setup-global
