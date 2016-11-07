@@ -4,10 +4,10 @@ MY_IP?=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9
 CONTAINER_PID:=`docker ps -a | grep marathon | awk ' { print $$1 } '`
 
 setup: setup-global
-	@npm install
+	@npm install --silent --no-progress
 
 setup-global:
-	@npm install -g nodemon babel-cli webpack mocha bunyan sequelize-cli
+	@npm install --silent --no-progress -g nodemon babel-cli webpack mocha bunyan sequelize-cli
 
 build:
 	@rm -rf lib/
