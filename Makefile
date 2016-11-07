@@ -63,11 +63,11 @@ _services-shutdown:
 	@env MY_IP=${MY_IP} docker-compose -p marathon -f ./docker-compose.yaml stop
 	@env MY_IP=${MY_IP} docker-compose -p marathon -f ./docker-compose.yaml rm -f
 
-docker-build:
+docker-build: build
 	@docker build -t marathon .
 
 docker-run:
-	@docker run -i -t \
+	@docker run -d -t \
 		-e "NODE_ENV=development" \
 		-e "PORT=8000" \
 		-e "PG_URL=postgresql://marathon@${MY_IP}:22222/marathon" \
