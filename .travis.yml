@@ -17,6 +17,5 @@ script:
 
 after_success:
   - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage
-  #- make cross
-  #- ./push_to_docker.sh
+  - ./push_to_docker.sh
   #- /bin/bash -c '[ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && curl -H POST $TEST_FARM_URL'
