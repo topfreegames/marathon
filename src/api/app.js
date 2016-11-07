@@ -1,8 +1,8 @@
 import path from 'path'
-import fs from 'fs'
 import Koa from 'koa'
 import _ from 'koa-route'
 import Logger from '../extensions/logger'
+import HealthcheckHandler from './handlers/healthcheck'
 import { connect as redisConnect } from '../extensions/redis'
 import { connect as pgConnect } from '../extensions/postgresql'
 import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
@@ -26,12 +26,9 @@ export default class MarathonApp {
   getHandlers() {
     const self = this
     const handlers = []
-    fs
-      .readdirSync(this.handlersPath)
-      .forEach((file) => {
-        const Handler = require(`./handlers/${file}`).default  // eslint-disable-line
-        handlers.push(new Handler(self))
-      })
+
+    // Include handlers here
+    handlers.push(new HealthcheckHandler(self))
 
     return handlers
   }

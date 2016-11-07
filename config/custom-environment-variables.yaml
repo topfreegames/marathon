@@ -1,6 +1,15 @@
 ---
 app:
+  log:
+    level: "LOG_LEVEL"
   services:
     redis:
       url: "REDIS_URL"
+    postgresql:
+      url: "PG_URL"
+    kafka:
+      api:
+        client:
+          url: "KAFKA_URL"
+          clientId: "KAFKA_CLIENT_ID"
   port: "PORT"

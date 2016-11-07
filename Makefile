@@ -45,7 +45,7 @@ _test-run-ci:
 	@rm -rf ./coverage
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/.bin/babel-node node_modules/.bin/babel-istanbul cover node_modules/.bin/_mocha --report lcovonly --check-coverage -- -u tdd 'test/unit/**/*Test.js'
 
-static-analysis:
+static-analysis static:
 	@eslint_d .
 	#@./node_modules/.bin/flow check
 	@./node_modules/.bin/plato -r -e .eslintrc -d report src/
@@ -66,17 +66,15 @@ _services-shutdown:
 docker-build:
 	@docker build -t marathon .
 
-docker-run: docker-stop
-	@docker run -d -t \
-		-e "AUTH_USERNAME=auth-username" \
-		-e "AUTH_PASSWORD=auth-password" \
-		-e "REDIS_URL=//${MY_IP}:6377" \
+docker-run:
+	@docker run -i -t \
+		-e "NODE_ENV=development" \
 		-e "PORT=8000" \
+		-e "PG_URL=postgresql://marathon@${MY_IP}:22222/marathon" \
+		-e "REDIS_URL=redis://${MY_IP}:22223" \
+		-e "KAFKA_URL=${MY_IP}:22224" \
 		-p 8000:8000 \
 		marathon
-
-docker-stop:
-	@-echo "Stopping container ${CONTAINER_PID}..." && docker stop ${CONTAINER_PID} && echo "Removing container ${CONTAINER_PID}..." && docker rm ${CONTAINER_PID}
 
 db migrate:
 	@psql -h localhost -p 22222 -U postgres -c "SHOW SERVER_VERSION" postgres

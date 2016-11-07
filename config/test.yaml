@@ -17,5 +17,3 @@ app:
         native: true
         ssl: false
   port: 5051
-  matchmaking:
-    timeout: 30

@@ -1,8 +1,5 @@
 import Sequelize from 'sequelize'
-import fs from 'fs'
-import path from 'path'
-
-const basename = path.join(path.resolve(__dirname, '../models'))
+import models from '../models/index'
 
 export async function check(db) {
   const result = {
@@ -95,20 +92,10 @@ export async function connect(pgUrl, options, logger) {
     }
 
     logr.debug('Loading models...')
-    fs.readdirSync(basename)
-      .filter(file =>
-        (file.indexOf('.') !== 0) &&
-          (file !== basename) &&
-          (file.slice(-3) === '.js') &&
-          (file !== 'index.js')
-      )
-      .forEach((file) => {
-        const modelPath = path.join(basename, file)
-        logr.debug({ modelPath }, 'Loading model...')
-        const model = client.import(modelPath)
-        logr.debug({ modelPath }, 'Model loaded successfully.')
-        db[model.name] = model
-      })
+    models.forEach((model) => {
+      db[model.name] = model
+      logr.debug({ model: model.name }, 'Model loaded successfully.')
+    })
 
     logr.debug('All models loaded successfully.')
 
