@@ -16,4 +16,5 @@ app:
       options:
         native: true
         ssl: false
+        logging: false
   port: 5051
