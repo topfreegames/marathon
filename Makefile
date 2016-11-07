@@ -7,7 +7,7 @@ setup: setup-global
 	@npm install
 
 setup-global:
-	@npm install -g nodemon babel-cli webpack mocha bunyan sequelize
+	@npm install -g nodemon babel-cli webpack mocha bunyan sequelize-cli
 
 build:
 	@rm -rf lib/
