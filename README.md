@@ -2,8 +2,6 @@
 
 [![Build Status](https://travis-ci.org/topfreegames/marathon.svg?branch=master)](https://travis-ci.org/topfreegames/marathon)
 [![Coverage Status](https://coveralls.io/repos/github/topfreegames/marathon/badge.svg?branch=master)](https://coveralls.io/github/topfreegames/marathon?branch=master)
-[![Code Climate](https://codeclimate.com/github/topfreegames/marathon/badges/gpa.svg)](https://codeclimate.com/github/topfreegames/marathon)
-[![Go Report Card](https://goreportcard.com/badge/github.com/topfreegames/marathon)](https://goreportcard.com/report/github.com/topfreegames/marathon)
 [![Docs](https://readthedocs.org/projects/marathon/badge/?version=latest
 )](http://marathon.readthedocs.io/en/latest/)
 [![](https://imagelayers.io/badge/tfgco/marathon:latest.svg)](https://imagelayers.io/?images=tfgco/marathon:latest 'Marathon Image Layers')
