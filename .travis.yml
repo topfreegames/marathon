@@ -9,10 +9,11 @@ services:
   - docker
 
 before_script:
-  - make setup
+  - make setup-global
 
 script:
   - sudo service postgresql stop
+  - /home/travis/.nvm/versions/node/v6.8.0/bin/sequelize --help
   - make ci-test
 
 after_success:
