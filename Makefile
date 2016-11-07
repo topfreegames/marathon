@@ -18,12 +18,6 @@ _run-app:
 
 run: _run-app
 
-ci-test: ci-test-shutdown docker-build
-	@docker-compose -p marathon -f ./docker-compose-ci.yaml run --rm --entrypoint="make _test-unit" app
-
-ci-test-shutdown:
-	@-docker-compose -p marathon -f ./docker-compose-ci.yaml stop
-
 # test your application (tests in the test/ directory)
 test: _services _drop-test _db-test _test-unit
 
@@ -44,6 +38,12 @@ _test-unit-coverage:
 
 _test-unit-coverage-html:
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/.bin/babel-node node_modules/.bin/babel-istanbul report --include=./coverage/coverage.json html
+
+ci-test: _services _drop-test _db-test _test-run-ci
+
+_test-run-ci:
+	@rm -rf ./coverage
+	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/.bin/babel-node node_modules/.bin/babel-istanbul cover node_modules/.bin/_mocha --report lcovonly --check-coverage -- -u tdd 'test/unit/**/*Test.js'
 
 static-analysis:
 	@eslint_d .

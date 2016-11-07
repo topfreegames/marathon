@@ -1,0 +1,25 @@
+language: node_js
+
+node_js:
+  - 6.8.0
+
+sudo: required
+
+services:
+  - docker
+
+install:
+ - make setup
+
+before_script:
+  - sleep 10
+
+script:
+  - sudo service postgresql stop
+  - make ci-test
+
+after_success:
+  - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage
+  #- make cross
+  #- ./push_to_docker.sh
+  #- /bin/bash -c '[ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && curl -H POST $TEST_FARM_URL'
