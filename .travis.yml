@@ -8,12 +8,8 @@ sudo: required
 services:
   - docker
 
-install:
-  - make setup
-  - env
-
 before_script:
-  - sleep 10
+  - make setup
 
 script:
   - sudo service postgresql stop
