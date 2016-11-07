@@ -1,3 +1,4 @@
+import Sequelize from 'sequelize'
 import { expect } from '../common'
 import { check as pgCheck, connect as pgConnect } from '../../../src/extensions/postgresql'
 
@@ -14,12 +15,14 @@ describe('Extensions', () => {
       })
 
       it('should fail check if the connection to postgresql is wrong', async () => {
-        const result = await pgCheck(null)
+        const client = new Sequelize('postgres://marathonfake@localhost:22222/marathonfake', {})
+        const result = await pgCheck({ client })
         expect(result).to.exist()
         expect(result.up).to.be.false()
-        expect(result.error).to.equal('Cannot read property \'query\' of null')
+        expect(result.error).to.equal('role "marathonfake" does not exist')
       })
     })
+
     describe('connect', () => {
       it('should connect successfully to pg', async function () {
         const pgConfig = this.app.config.get('app.services.postgresql')

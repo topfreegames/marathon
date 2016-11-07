@@ -60,13 +60,24 @@ export async function connect(redisUrl, options, logger) {
   const redisClient = redis.createClient(redisUrl, options)
 
   const hasConnected = new Promise((resolve, reject) => {
+    if (redisClient.ready) {
+      resolve(redisClient)
+      return
+    }
+
     redisClient.on('ready', () => {
       logr.debug('Connection to redis has been established successfully.')
       resolve(redisClient)
     })
+
     redisClient.on('error', (err) => {
-      logr.error({ err }, 'redis error')
+      logr.error({ err }, 'Redis error connecting.')
       reject(err)
+    })
+
+    redisClient.on('end', () => {
+      logr.error('Redis connection closed.')
+      reject(new Error('Redis connection closed.'))
     })
   })
 

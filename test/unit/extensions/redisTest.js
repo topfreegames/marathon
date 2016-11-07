@@ -16,8 +16,10 @@ describe('Extensions', () => {
     describe('connect', () => {
       it('should connect successfully to redis', async function () {
         const redisConfig = this.app.config.get('app.services.redis')
-        const redisClient = await redisConnect(redisConfig.url, { db: redisConfig.db },
-            this.app.logger)
+        const redisClient = await redisConnect(
+          redisConfig.url, { db: redisConfig.db },
+          this.app.logger
+        )
         expect(redisClient).to.exist()
       })
 
