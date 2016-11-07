@@ -13,7 +13,7 @@ before_script:
 
 script:
   - sudo service postgresql stop
-  - ls -lah /home/travis/.nvm/versions/node/v6.8.0/bin/sequelize
+  - ls -lah /home/travis/.nvm/versions/node/v6.8.0/bin/
   - make ci-test
 
 after_success:
