@@ -9,8 +9,8 @@ services:
   - docker
 
 install:
-  - npm install -g sequelize
   - make setup
+  - env
 
 before_script:
   - sleep 10
