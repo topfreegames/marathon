@@ -31,11 +31,11 @@ module.exports = {
         defaultValue: Sequelize.fn('now'),
         field: 'updated_at',
       },
-    })
+    }).then(() => queryInterface.addIndex('apps', ['bundleId'], { indicesType: 'UNIQUE' }))
 
     return App
   },
 
   down: queryInterface =>
-    queryInterface.dropTable('apps'),
+    queryInterface.removeIndex('apps', ['bundleId']).then(() => queryInterface.dropTable('apps')),
 }

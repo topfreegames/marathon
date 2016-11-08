@@ -19,7 +19,7 @@ describe('Handlers', () => {
       it('should return 200 and a list of apps', async function () {
         const app = {
           key: uuid.v4(),
-          bundleId: 'com.app.my',
+          bundleId: `com.app.${uuid.v4().split('-')[0]}`,
           createdBy: 'someone@somewhere.com',
         }
         await this.app.db.App.create(app)
@@ -47,7 +47,7 @@ describe('Handlers', () => {
       beforeEach(() => {
         app = {
           key: uuid.v4(),
-          bundleId: 'com.app.my',
+          bundleId: `com.app.${uuid.v4().split('-')[0]}`,
         }
         userEmail = 'someone@somewhere.com'
       })
@@ -67,8 +67,15 @@ describe('Handlers', () => {
         expect(body.app.createdBy).to.equal(userEmail)
       })
 
-      describe('Should fail if missing', () => {
-        it('user-email header', async function () {
+      describe('Should fail if', () => {
+        it('app with same key already exists', async function () {
+          await this.request.post('/apps').send(app).set('user-email', userEmail)
+
+          const res = await this.request.post('/apps').send(app).set('user-email', userEmail)
+          expect(res.status).to.equal(409)
+        })
+
+        it('missing user-email header', async function () {
           const res = await this.request.post('/apps').send(app)
           expect(res.status).to.equal(422)
 
@@ -87,7 +94,7 @@ describe('Handlers', () => {
         ]
 
         tests.forEach((test) => {
-          it(test.args, async function () {
+          it(`missing ${test.args}`, async function () {
             delete app[test.args]
             const res = await this.request.post('/apps').send(app).set('user-email', userEmail)
             expect(res.status).to.equal(422)
@@ -103,9 +110,30 @@ describe('Handlers', () => {
         })
       })
 
-      describe('Should fail if invalid', () => {
-        it('user-email header', async function () {
-          const res = await this.request.post('/apps').send(app).set('user-email', 'not an email')
+      it('invalid user-email header', async function () {
+        const res = await this.request.post('/apps').send(app).set('user-email', 'not an email')
+        expect(res.status).to.equal(422)
+
+        const body = res.body
+        expect(body).to.be.an('object')
+
+        expect(body.data).to.exist()
+        expect(body.data).to.have.length(1)
+        expect(body.data[0]).to.have.property('user-email')
+        expect(body.data[0]['user-email']).to.contain('email format')
+      })
+
+      const tests = [
+        { args: 'key', invalidParam: '', reason: 'empty' },
+        // { args: 'key', invalidParam: 'a'.repeat(256), reason: 'too long' },
+        { args: 'bundleId', invalidParam: '', reason: 'empty' },
+        { args: 'bundleId', invalidParam: 'a.s', reason: 'bad format.' },
+      ]
+
+      tests.forEach((test) => {
+        it(`invalid ${test.args}`, async function () {
+          app[test.args] = test.invalidParam
+          const res = await this.request.post('/apps').send(app).set('user-email', userEmail)
           expect(res.status).to.equal(422)
 
           const body = res.body
@@ -113,31 +141,8 @@ describe('Handlers', () => {
 
           expect(body.data).to.exist()
           expect(body.data).to.have.length(1)
-          expect(body.data[0]).to.have.property('user-email')
-          expect(body.data[0]['user-email']).to.contain('email format')
-        })
-
-        const tests = [
-          { args: 'key', invalidParam: '', reason: 'empty' },
-          // { args: 'key', invalidParam: 'a'.repeat(256), reason: 'too long' },
-          { args: 'bundleId', invalidParam: '', reason: 'empty' },
-          { args: 'bundleId', invalidParam: 'a.s', reason: 'bad format.' },
-        ]
-
-        tests.forEach((test) => {
-          it(test.args, async function () {
-            app[test.args] = test.invalidParam
-            const res = await this.request.post('/apps').send(app).set('user-email', userEmail)
-            expect(res.status).to.equal(422)
-
-            const body = res.body
-            expect(body).to.be.an('object')
-
-            expect(body.data).to.exist()
-            expect(body.data).to.have.length(1)
-            expect(body.data[0]).to.have.property(test.args)
-            expect(body.data[0][test.args]).to.contain(test.reason)
-          })
+          expect(body.data[0]).to.have.property(test.args)
+          expect(body.data[0][test.args]).to.contain(test.reason)
         })
       })
     })

@@ -21,7 +21,7 @@ module.exports = sequelize => (
     timestamps: true,
     underscored: true,
     indexes: [
-      { fields: ['key'], unique: true },
+      { fields: ['bundleId'], unique: true },
     ],
   })
 )

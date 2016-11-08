@@ -29,9 +29,17 @@ export class AppsHandler {
   async post(ctx) {
     const body = ctx.request.body
     body.createdBy = ctx.request.header['user-email']
-    const app = await this.app.db.App.create(body)
-    ctx.body = { app }
-    ctx.status = 201
+    try {
+      const app = await this.app.db.App.create(body)
+      ctx.body = { app }
+      ctx.status = 201
+    } catch (err) {
+      if (err.name === 'SequelizeUniqueConstraintError') {
+        ctx.status = 409
+        return
+      }
+      throw err
+    }
   }
 }
 
