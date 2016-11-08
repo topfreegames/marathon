@@ -5,8 +5,10 @@
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
 import App from './app'
+import Template from './template'
 
 const models = {
   App,
+  Template,
 }
 export default models
