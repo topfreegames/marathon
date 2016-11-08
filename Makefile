@@ -16,7 +16,12 @@ build:
 _run-app:
 	@nodemon --exec babel-node --presets=es2015 -- src/index.js start | bunyan -o short
 
+_run-worker:
+	@nodemon --exec babel-node --presets=es2015 -- src/index.js worker | bunyan -o short
+
 run: _run-app
+
+worker: _run-worker
 
 # test your application (tests in the test/ directory)
 test: _services _drop-test _db-test _test-unit
@@ -29,7 +34,7 @@ test-watch: _services
 _test-unit: _test-unit-coverage
 
 _test-unit-fast:
-	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/mocha/bin/mocha --require babel-polyfill --compilers js:babel-core/register 'test/unit/**/*Test.js'
+	@env ALLOW_CONFIG_MUTATIONS=true LOG_LEVEL=info LOG_STDOUT=true ./node_modules/mocha/bin/mocha --require babel-polyfill --compilers js:babel-core/register 'test/unit/**/*Test.js'
 
 _test-unit-watch:
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/mocha/bin/mocha --watch --require babel-polyfill --compilers js:babel-core/register 'test/unit/**/*Test.js'
