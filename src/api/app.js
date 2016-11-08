@@ -12,6 +12,7 @@ import { connect as pgConnect } from '../extensions/postgresql'
 import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
 import { connect as kafkaProducerConnect } from '../extensions/kafkaProducer'
 
+process.setMaxListeners(50)
 
 export default class MarathonApp {
   constructor(config) {
@@ -27,14 +28,13 @@ export default class MarathonApp {
     this.pgConfig = config.get('app.services.postgresql')
   }
 
-  getHandlers() {
-    const self = this
+  getHandlers() { //eslint-disable-line
     const handlers = []
 
     // Include handlers here
-    handlers.push(new HealthcheckHandler(self))
-    handlers.push(new AppsHandler(self))
-    handlers.push(new AppHandler(self))
+    handlers.push(HealthcheckHandler)
+    handlers.push(AppsHandler)
+    handlers.push(AppHandler)
 
     return handlers
   }
@@ -126,22 +126,28 @@ export default class MarathonApp {
   }
 
   async initializeApp() {
+    const self = this
     await this.initializeServices()
     const router = koaRouter()
-    this.handlers.forEach((handler) => {
+    this.handlers.forEach((HandlerClass) => {
+      const inst = new HandlerClass(self)
       this.allowedMethods.forEach((methodName) => {
-        if (!handler[methodName]) {
+        if (!inst[methodName]) {
           return
         }
-        const handlerMethod = handler[methodName].bind(handler)
+        const handlerMethod = inst[methodName]
         const method = router[methodName]
-        const args = [handler.route]
+        const args = [inst.route]
         const validateName = camelize(`validate_${methodName}`)
-        if (handler[validateName]) {
-          args.push(handler[validateName].bind(handler))
+        if (inst[validateName]) {
+          args.push(async (ctx, next) => {
+            const handlerInstance = new HandlerClass(self)
+            await handlerInstance[validateName].bind(handlerInstance)(ctx, next)
+          })
         }
         args.push(async (ctx) => {
-          await handlerMethod.apply(handler, [ctx])
+          const handlerInstance = new HandlerClass(self)
+          await handlerMethod.apply(handlerInstance, [ctx])
         })
         method.apply(router, args)
       })

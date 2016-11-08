@@ -21,6 +21,8 @@ run: _run-app
 # test your application (tests in the test/ directory)
 test: _services _drop-test _db-test _test-unit
 
+unit: _drop-test _db-test _test-unit-fast
+
 test-watch: _services
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/mocha/bin/mocha --watch --require babel-polyfill --compilers js:babel-core/register 'test/**/*Test.js'
 
