@@ -31,6 +31,10 @@ module.exports = {
         type: Sequelize.JSONB,
         allowNull: false,
       },
+      compiledBody: {
+        type: Sequelize.STRING,
+        allowNull: false,
+      },
       createdBy: {
         type: Sequelize.STRING,
         allowNull: false,

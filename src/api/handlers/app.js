@@ -4,7 +4,7 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-const Boom = require('boom')
+import Boom from 'boom'
 
 export class AppsHandler {
   constructor(app) {

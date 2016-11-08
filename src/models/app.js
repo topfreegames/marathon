@@ -4,7 +4,7 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-const Sequelize = require('sequelize')
+import Sequelize from 'sequelize'
 
 module.exports = sequelize => (
   sequelize.define('app', {

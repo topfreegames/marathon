@@ -4,7 +4,7 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-const Sequelize = require('sequelize')
+import Sequelize from 'sequelize'
 
 module.exports = sequelize => (
   sequelize.define('templates', {
@@ -30,6 +30,10 @@ module.exports = sequelize => (
     },
     body: {
       type: Sequelize.JSONB,
+      allowNull: false,
+    },
+    compiledBody: {
+      type: Sequelize.STRING,
       allowNull: false,
     },
     createdBy: {

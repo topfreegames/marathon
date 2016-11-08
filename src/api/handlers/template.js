@@ -4,7 +4,8 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-const Boom = require('boom')
+import dust from 'dustjs-linkedin'
+import Boom from 'boom'
 
 export class TemplatesHandler {
   constructor(app) {
@@ -56,6 +57,7 @@ export class TemplatesHandler {
     const body = ctx.request.body
     body.createdBy = ctx.request.header['user-email']
     body.appId = ctx.params.id
+    body.compiledBody = dust.compile(body.body, 'body')
     try {
       const template = await this.app.db.Template.create(body)
       ctx.body = { template }
@@ -133,6 +135,7 @@ export class TemplateHandler {
       return
     }
 
+    body.compiledBody = dust.compile(body.body, 'body')
     const updatedTemplate = await template.updateAttributes(body)
     ctx.body = { template: updatedTemplate }
     ctx.status = 200

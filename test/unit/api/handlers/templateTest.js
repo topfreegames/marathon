@@ -40,6 +40,7 @@ describe('API', () => {
             name: uuid.v4(),
             defaults: { default: 'value' },
             body: { my: 'body' },
+            compiledBody: 'compiled-body-string',
             locale: 'pt',
             createdBy: 'someone@somewhere.com',
             appId: existingApp.id,
@@ -91,6 +92,7 @@ describe('API', () => {
           expect(body.template).to.be.an('object')
 
           expect(body.template.id).to.exist()
+          expect(body.template.compiledBody).to.exist()
           expect(body.template.appId).to.equal(existingApp.id)
           expect(body.template.name).to.equal(template.name)
           expect(body.template.locale).to.equal(template.locale)
@@ -239,6 +241,7 @@ describe('API', () => {
           locale: 'pt',
           defaults: { default: 'value' },
           body: { my: 'body' },
+          compiledBody: 'compiled-body-string',
           createdBy: 'someone@somewhere.com',
           appId: existingApp.id,
         })
@@ -260,6 +263,7 @@ describe('API', () => {
           expect(body.template.defaults).to.deep.equal(existingTemplate.defaults)
           expect(body.template.locale).to.equal(existingTemplate.locale)
           expect(body.template.body).to.deep.equal(existingTemplate.body)
+          expect(body.template.compiledBody).to.exist()
           expect(body.template.createdBy).to.equal(existingTemplate.createdBy)
           expect(body.template.appId).to.equal(existingTemplate.appId)
           expect(body.template.appId).to.equal(existingApp.id)
@@ -293,6 +297,7 @@ describe('API', () => {
           expect(body.template.defaults).to.equal(template.defaults)
           expect(body.template.locale).to.equal(template.locale)
           expect(body.template.body).to.equal(template.body)
+          expect(body.template.compiledBody).to.not.equal(template.compiledBody)
           expect(body.template.createdBy).to.equal(existingTemplate.createdBy)
           expect(body.template.appId).to.equal(existingTemplate.appId)
           expect(body.template.appId).to.equal(existingApp.id)
@@ -301,6 +306,7 @@ describe('API', () => {
           expect(dbTemplate.name).to.equal(template.name)
           expect(dbTemplate.defaults).to.equal(template.defaults)
           expect(dbTemplate.body).to.equal(template.body)
+          expect(dbTemplate.compiledBody).to.not.equal(template.body)
           expect(dbTemplate.locale).to.equal(template.locale)
           expect(dbTemplate.createdBy).to.equal(existingTemplate.createdBy)
           expect(dbTemplate.appId).to.equal(existingApp.id)
