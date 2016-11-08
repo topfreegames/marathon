@@ -1,4 +1,4 @@
-import { expect } from '../../common'
+import { expect } from '../common'
 
 describe('Handlers', () => {
   describe('Healthcheck Handler', () => {

@@ -1,4 +1,4 @@
-import { expect } from '../../common'
+import { expect } from '../common'
 import uuid from 'uuid'
 
 describe('Handlers', () => {

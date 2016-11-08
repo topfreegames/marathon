@@ -1,5 +1,5 @@
 import Sequelize from 'sequelize'
-import { expect } from '../common'
+import { expect } from './common'
 import { check as pgCheck, connect as pgConnect } from '../../../src/extensions/postgresql'
 
 describe('Extensions', () => {

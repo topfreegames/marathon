@@ -13,7 +13,7 @@ app:
     file: /tmp/marathon.log
   name: 'Marathon'
   worker:
-    loopTimeout: 30
+    loopTimeout: 1000
   services:
     redis:
       url: //localhost:22223

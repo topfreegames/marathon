@@ -1,5 +1,6 @@
 import program from 'commander'
 import StartCmd from './cmd/start'
+import WorkerCmd from './cmd/worker'
 import { version } from './extensions/version'
 
 export default class RootCmd {
@@ -16,5 +17,6 @@ export default class RootCmd {
 if (!module.parent) {
   const cmd = new RootCmd()
   new StartCmd(cmd.rootCmd) //eslint-disable-line
+  new WorkerCmd(cmd.rootCmd) //eslint-disable-line
   cmd.run(process.argv)
 }

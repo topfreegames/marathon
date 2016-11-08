@@ -1,4 +1,4 @@
-import { expect } from '../common'
+import { expect } from './common'
 import { check as redisCheck, connect as redisConnect } from '../../../src/extensions/redis'
 
 describe('Extensions', () => {

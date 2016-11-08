@@ -1,8 +1,8 @@
-import { expect as exp, chai as chaiMod } from '../common'
+import { expect as exp, chai as chaiMod } from '../../common'
 import config from 'config'
 import * as sap from 'supertest-as-promised'
 
-import MarathonApp from '../../src/api/app'
+import MarathonApp from '../../../src/api/app'
 
 export const expect = exp
 export const chai = chaiMod
@@ -18,7 +18,6 @@ beforeEach(async function () {
     app = new MarathonApp(config)
   }
   this.app = app
-  this.wssPort = PORT
   this.request = sap.agent(this.app.koaApp.listen())
   await this.app.run()
 })
