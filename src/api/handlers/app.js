@@ -10,17 +10,24 @@ export class AppsHandler {
   constructor(app) {
     this.app = app
     this.route = '/apps'
+    this.logger = this.app.logger.child({
+      source: 'AppsHandler',
+    })
   }
 
   async validatePost(ctx, next) {
+    const logr = this.logger.child({
+      operation: 'validatePost',
+    })
     ctx.checkHeader('user-email').notEmpty().isEmail()
     ctx.checkBody('bundleId').notEmpty().match(/^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)+$/i)
     ctx.checkBody('key').notEmpty().len(1, 255)
     if (ctx.errors) {
-      const error = Boom.badData('wrong arguments', ctx.errors)
+      const err = Boom.badData('wrong arguments', ctx.errors)
       ctx.status = 422
-      ctx.body = error.output.payload
-      ctx.body.data = error.data
+      ctx.body = err.output.payload
+      ctx.body.data = err.data
+      logr.warn({ err }, 'Failed validation.')
       return
     }
     await next()
@@ -33,6 +40,9 @@ export class AppsHandler {
   }
 
   async post(ctx) {
+    const logr = this.logger.child({
+      operation: 'post',
+    })
     const body = ctx.request.body
     body.createdBy = ctx.request.header['user-email']
     try {
@@ -41,6 +51,7 @@ export class AppsHandler {
       ctx.status = 201
     } catch (err) {
       if (err.name === 'SequelizeUniqueConstraintError') {
+        logr.warn({ err }, 'App with same bundle already exists.')
         ctx.status = 409
         return
       }
@@ -53,16 +64,23 @@ export class AppHandler {
   constructor(app) {
     this.app = app
     this.route = '/apps/:id'
+    this.logger = this.app.logger.child({
+      source: 'AppHandler',
+    })
   }
 
   async validatePut(ctx, next) {
+    const logr = this.logger.child({
+      operation: 'validatePut',
+    })
     ctx.checkBody('bundleId').notEmpty().match(/^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)+$/i)
     ctx.checkBody('key').notEmpty().len(1, 255)
     if (ctx.errors) {
-      const error = Boom.badData('wrong arguments', ctx.errors)
+      const err = Boom.badData('wrong arguments', ctx.errors)
       ctx.status = 422
-      ctx.body = error.output.payload
-      ctx.body.data = error.data
+      ctx.body = err.output.payload
+      ctx.body.data = err.data
+      logr.warn({ err }, 'Failed validation.')
       return
     }
     await next()
