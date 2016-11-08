@@ -3,7 +3,10 @@
 MY_IP?=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
 CONTAINER_PID:=`docker ps -a | grep marathon | awk ' { print $$1 } '`
 
-setup: setup-global
+setup-hooks:
+	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
+
+setup: setup-global setup-hooks
 	@npm install --silent --no-progress
 
 setup-global:
