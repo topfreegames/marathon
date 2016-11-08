@@ -16,7 +16,6 @@ beforeEach(async function () {
   config.app.port = PORT
   if (!app) {
     app = new MarathonApp(config)
-    await app.initializeApp()
   }
   this.app = app
   this.wssPort = PORT

@@ -1,6 +1,6 @@
 import App from './app'
 
-const models = [
+const models = {
   App,
-]
+}
 export default models

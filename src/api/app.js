@@ -1,7 +1,11 @@
+import { camelize } from 'humps'
+import koaBodyparser from 'koa-bodyparser'
+import koaRouter from 'koa-router'
+import koaValidate from 'koa-validate'
 import path from 'path'
 import Koa from 'koa'
-import _ from 'koa-route'
 import Logger from '../extensions/logger'
+import { AppHandler, AppsHandler } from './handlers/app'
 import HealthcheckHandler from './handlers/healthcheck'
 import { connect as redisConnect } from '../extensions/redis'
 import { connect as pgConnect } from '../extensions/postgresql'
@@ -29,6 +33,8 @@ export default class MarathonApp {
 
     // Include handlers here
     handlers.push(new HealthcheckHandler(self))
+    handlers.push(new AppsHandler(self))
+    handlers.push(new AppHandler(self))
 
     return handlers
   }
@@ -109,30 +115,39 @@ export default class MarathonApp {
   }
 
   configureMiddleware() {
+    this.koaApp.use(koaBodyparser())
     this.koaApp.use(async (ctx, next) => {
       const start = new Date()
       await next()
       const ms = new Date() - start
       ctx.set('X-Response-Time', `${ms}ms`)
     })
+    koaValidate(this.koaApp)
   }
 
   async initializeApp() {
     await this.initializeServices()
+    const router = koaRouter()
     this.handlers.forEach((handler) => {
       this.allowedMethods.forEach((methodName) => {
         if (!handler[methodName]) {
           return
         }
         const handlerMethod = handler[methodName].bind(handler)
-        const method = _[methodName]
-        this.koaApp.use(
-          method(handler.route, async (ctx) => {
-            await handlerMethod(ctx)
-          })
-        )
+        const method = router[methodName]
+        const args = [handler.route]
+        const validateName = camelize(`validate_${methodName}`)
+        if (handler[validateName]) {
+          args.push(handler[validateName].bind(handler))
+        }
+        args.push(async (ctx) => {
+          await handlerMethod.apply(handler, [ctx])
+        })
+        method.apply(router, args)
       })
     })
+    this.koaApp.use(router.routes())
+    this.koaApp.use(router.allowedMethods())
   }
 
   async run() {

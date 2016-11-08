@@ -92,9 +92,9 @@ export async function connect(pgUrl, options, logger) {
     }
 
     logr.debug('Loading models...')
-    models.forEach((model) => {
-      db[model.name] = model
-      logr.debug({ model: model.name }, 'Model loaded successfully.')
+    Object.keys(models).forEach((model) => {
+      db[model] = models[model](client, Sequelize.DataTypes)
+      logr.debug({ model }, 'Model loaded successfully.')
     })
 
     logr.debug('All models loaded successfully.')
