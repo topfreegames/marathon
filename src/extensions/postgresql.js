@@ -122,3 +122,7 @@ export async function connect(pgUrl, options, logger) {
     throw err
   }
 }
+
+export async function disconnect(client) {
+  await client.connectionManager.disconnect()
+}

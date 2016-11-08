@@ -107,3 +107,17 @@ export async function withCriticalSection(redisClient, f) {
   await rlock.unlock()
   return res
 }
+
+export async function disconnect(client) {
+  const hasDisconnected = new Promise((resolve, reject) => {
+    client.quit((err, res) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve(res)
+    })
+  })
+
+  await hasDisconnected
+}
