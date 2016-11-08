@@ -1,3 +1,9 @@
+// marathon
+// https://github.com/topfreegames/marathon
+// Licensed under the MIT license:
+// http://www.opensource.org/licenses/mit-license
+// Copyright © 2016 Top Free Games <backend@tfgco.com>
+
 // The following is not needed to create a session file. We don't want to
 // re-create & re-allocate memory every time we receive a message so we cache
 // them in a variable.

@@ -1,3 +1,9 @@
+# marathon
+# https://github.com/topfreegames/marathon
+# Licensed under the MIT license:
+# http://www.opensource.org/licenses/mit-license
+# Copyright © 2016 Top Free Games <backend@tfgco.com>
+
 .PHONY: db
 
 MY_IP?=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
