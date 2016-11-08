@@ -13,12 +13,13 @@ import Koa from 'koa'
 import Logger from '../extensions/logger'
 import { AppHandler, AppsHandler } from './handlers/app'
 import HealthcheckHandler from './handlers/healthcheck'
+import { TemplateHandler, TemplatesHandler } from './handlers/template'
 import { connect as redisConnect } from '../extensions/redis'
 import { connect as pgConnect } from '../extensions/postgresql'
 import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
 import { connect as kafkaProducerConnect } from '../extensions/kafkaProducer'
 
-process.setMaxListeners(50)
+process.setMaxListeners(60)
 
 export default class MarathonApp {
   constructor(config) {
@@ -38,9 +39,18 @@ export default class MarathonApp {
     const handlers = []
 
     // Include handlers here
+    // Be careful as this will influence the order routes are added to the router
+    // Correct order:
+    // GET /apps/blabla
+    // GET /apps/:id
+    // Bad order (will always match the first route):
+    // GET /apps/:id
+    // GET /apps/blabla
     handlers.push(HealthcheckHandler)
     handlers.push(AppsHandler)
     handlers.push(AppHandler)
+    handlers.push(TemplatesHandler)
+    handlers.push(TemplateHandler)
 
     return handlers
   }

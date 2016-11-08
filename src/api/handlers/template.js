@@ -6,12 +6,12 @@
 
 const Boom = require('boom')
 
-export class AppsHandler {
+export class TemplatesHandler {
   constructor(app) {
     this.app = app
-    this.route = '/apps'
+    this.route = '/apps/:id/templates'
     this.logger = this.app.logger.child({
-      source: 'AppsHandler',
+      source: 'TemplatesHandler',
     })
   }
 
@@ -20,8 +20,10 @@ export class AppsHandler {
       operation: 'validatePost',
     })
     ctx.checkHeader('user-email').notEmpty().isEmail()
-    ctx.checkBody('bundleId').notEmpty().match(/^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)+$/i)
-    ctx.checkBody('key').notEmpty().len(1, 255)
+    ctx.checkBody('name').notEmpty().len(1, 255)
+    ctx.checkBody('defaults').notEmpty().isJSON()
+    ctx.checkBody('body').notEmpty().isJSON()
+    ctx.checkBody('locale').optional().len(1, 10)
     if (ctx.errors) {
       const err = Boom.badData('wrong arguments', ctx.errors)
       ctx.status = 422
@@ -34,8 +36,16 @@ export class AppsHandler {
   }
 
   async get(ctx) {
-    const apps = await this.app.db.App.findAll()
-    ctx.body = { apps }
+    const templates = await this.app.db.Template.findAll({ where: { appId: ctx.params.id } })
+    ctx.body = {
+      templates: templates.map(t => ({
+        id: t.id,
+        name: t.name,
+        locale: t.locale,
+        appId: t.appId,
+        createdBy: t.createdBy,
+      })),
+    }
     ctx.status = 200
   }
 
@@ -45,9 +55,10 @@ export class AppsHandler {
     })
     const body = ctx.request.body
     body.createdBy = ctx.request.header['user-email']
+    body.appId = ctx.params.id
     try {
-      const app = await this.app.db.App.create(body)
-      ctx.body = { app }
+      const template = await this.app.db.Template.create(body)
+      ctx.body = { template }
       ctx.status = 201
     } catch (err) {
       if (err.name === 'SequelizeUniqueConstraintError') {
@@ -58,17 +69,26 @@ export class AppsHandler {
         logr.warn({ err }, 'Template with same name and appId already exists.')
         return
       }
+      if (err.name === 'SequelizeForeignKeyConstraintError') {
+        const error = Boom.badData('wrong arguments', [err])
+        ctx.status = 422
+        ctx.body = error.output.payload
+        ctx.body.data = error.data
+        logr.warn({ err }, 'App with given appId does not exist.')
+        ctx.status = 422
+        return
+      }
       throw err
     }
   }
 }
 
-export class AppHandler {
+export class TemplateHandler {
   constructor(app) {
     this.app = app
-    this.route = '/apps/:id'
+    this.route = '/apps/:id/templates/:tid'
     this.logger = this.app.logger.child({
-      source: 'AppHandler',
+      source: 'TemplateHandler',
     })
   }
 
@@ -76,8 +96,10 @@ export class AppHandler {
     const logr = this.logger.child({
       operation: 'validatePut',
     })
-    ctx.checkBody('bundleId').notEmpty().match(/^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)+$/i)
-    ctx.checkBody('key').notEmpty().len(1, 255)
+    ctx.checkBody('name').notEmpty().len(1, 255)
+    ctx.checkBody('defaults').notEmpty().isJSON()
+    ctx.checkBody('body').notEmpty().isJSON()
+    ctx.checkBody('locale').optional().len(1, 10)
     if (ctx.errors) {
       const err = Boom.badData('wrong arguments', ctx.errors)
       ctx.status = 422
@@ -90,36 +112,42 @@ export class AppHandler {
   }
 
   async get(ctx) {
-    const app = await this.app.db.App.findById(ctx.params.id)
-    if (!app) {
+    const template = await this.app.db.Template.find({
+      where: { id: ctx.params.tid, appId: ctx.params.id },
+    })
+    if (!template) {
       ctx.status = 404
       return
     }
-    ctx.body = { app }
+    ctx.body = { template }
     ctx.status = 200
   }
 
   async put(ctx) {
     const body = ctx.request.body
-    const app = await this.app.db.App.findById(ctx.params.id)
-    if (!app) {
+    const template = await this.app.db.Template.find({
+      where: { id: ctx.params.tid, appId: ctx.params.id },
+    })
+    if (!template) {
       ctx.status = 404
       return
     }
 
-    const updatedApp = await app.updateAttributes(body)
-    ctx.body = { app: updatedApp }
+    const updatedTemplate = await template.updateAttributes(body)
+    ctx.body = { template: updatedTemplate }
     ctx.status = 200
   }
 
   async delete(ctx) {
-    const app = await this.app.db.App.findById(ctx.params.id)
-    if (!app) {
+    const template = await this.app.db.Template.find({
+      where: { id: ctx.params.tid, appId: ctx.params.id },
+    })
+    if (!template) {
       ctx.status = 404
       return
     }
 
-    await app.destroy()
+    await template.destroy()
     ctx.status = 204
   }
 }

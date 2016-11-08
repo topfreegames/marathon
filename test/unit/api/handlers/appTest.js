@@ -16,7 +16,7 @@ describe('API', () => {
 
       describe('GET', () => {
         it('should return 200 and an empty list of apps if there are no apps', async function () {
-          await this.app.db.App.destroy({ truncate: true })
+          await this.app.db.App.destroy({ truncate: true, cascade: true })
           const res = await this.request.get('/apps')
           expect(res.status).to.equal(200)
 
