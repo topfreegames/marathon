@@ -43,7 +43,7 @@ test-watch: _services
 _test-unit: _test-unit-coverage
 
 _test-unit-fast:
-	@env ALLOW_CONFIG_MUTATIONS=true LOG_LEVEL=info LOG_STDOUT=true ./node_modules/mocha/bin/mocha --require babel-polyfill --compilers js:babel-core/register 'test/unit/**/*Test.js'
+	@env ALLOW_CONFIG_MUTATIONS=true LOG_LEVEL=fatal LOG_STDOUT=true ./node_modules/mocha/bin/mocha --require babel-polyfill --compilers js:babel-core/register 'test/unit/**/*Test.js'
 
 _test-unit-watch:
 	@env ALLOW_CONFIG_MUTATIONS=true ./node_modules/mocha/bin/mocha --watch --require babel-polyfill --compilers js:babel-core/register 'test/unit/**/*Test.js'
