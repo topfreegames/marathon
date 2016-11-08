@@ -34,6 +34,7 @@ describe('Handlers', () => {
 
         const myApp = body.apps.filter(a => a.key === app.key)[0]
         expect(myApp).to.exist()
+        expect(myApp.id).to.exist()
         expect(myApp.key).to.equal(app.key)
         expect(myApp.bundleId).to.equal(app.bundleId)
         expect(myApp.createdBy).to.equal(app.createdBy)
@@ -62,9 +63,15 @@ describe('Handlers', () => {
         expect(body.app).to.exist()
         expect(body.app).to.be.an('object')
 
+        expect(body.app.id).to.exist()
         expect(body.app.key).to.equal(app.key)
         expect(body.app.bundleId).to.equal(app.bundleId)
         expect(body.app.createdBy).to.equal(userEmail)
+
+        const dbApp = await this.app.db.App.findById(body.app.id)
+        expect(dbApp.key).to.equal(app.key)
+        expect(dbApp.bundleId).to.equal(app.bundleId)
+        expect(dbApp.createdBy).to.equal(userEmail)
       })
 
       describe('Should fail if', () => {
@@ -197,9 +204,15 @@ describe('Handlers', () => {
         expect(body.app).to.exist()
         expect(body.app).to.be.an('object')
 
+        expect(body.app.id).to.exist()
         expect(body.app.key).to.equal(app.key)
         expect(body.app.bundleId).to.equal(app.bundleId)
         expect(body.app.createdBy).to.equal(existingApp.createdBy)
+
+        const dbApp = await this.app.db.App.findById(body.app.id)
+        expect(dbApp.key).to.equal(app.key)
+        expect(dbApp.bundleId).to.equal(app.bundleId)
+        expect(dbApp.createdBy).to.equal(existingApp.createdBy)
       })
 
       describe('Should fail if', () => {
@@ -258,6 +271,9 @@ describe('Handlers', () => {
       it('should return 204 if the app exists', async function () {
         const res = await this.request.delete(`/apps/${existingApp.id}`)
         expect(res.status).to.equal(204)
+
+        const dbApp = await this.app.db.App.findById(existingApp.id)
+        expect(dbApp).not.to.exist()
       })
 
       it('should return 404 if the app does not exist', async function () {
