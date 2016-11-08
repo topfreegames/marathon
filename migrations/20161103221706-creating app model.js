@@ -2,9 +2,9 @@ module.exports = {
   up: (queryInterface, Sequelize) => {
     const App = queryInterface.createTable('apps', {
       id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
         primaryKey: true,
-        autoIncrement: true,
+        defaultValue: Sequelize.UUIDV4,
       },
       key: {
         type: Sequelize.STRING,

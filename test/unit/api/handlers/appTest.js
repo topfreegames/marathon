@@ -125,7 +125,7 @@ describe('Handlers', () => {
 
       const tests = [
         { args: 'key', invalidParam: '', reason: 'empty' },
-        // { args: 'key', invalidParam: 'a'.repeat(256), reason: 'too long' },
+        { args: 'key', invalidParam: 'a'.repeat(256), reason: 'length must equal or less than' },
         { args: 'bundleId', invalidParam: '', reason: 'empty' },
         { args: 'bundleId', invalidParam: 'a.s', reason: 'bad format.' },
       ]
@@ -144,6 +144,125 @@ describe('Handlers', () => {
           expect(body.data[0]).to.have.property(test.args)
           expect(body.data[0][test.args]).to.contain(test.reason)
         })
+      })
+    })
+  })
+
+  describe('App Handler', () => {
+    let app
+    let existingApp
+
+    beforeEach(async function () {
+      app = {
+        key: uuid.v4(),
+        bundleId: `com.app.${uuid.v4().split('-')[0]}`,
+      }
+      existingApp = await this.app.db.App.create({
+        key: uuid.v4(),
+        bundleId: `com.app.${uuid.v4().split('-')[0]}`,
+        createdBy: 'another@somewhere.com',
+      })
+    })
+
+    describe('GET', () => {
+      it('should return 200 if the app exists', async function () {
+        const res = await this.request.get(`/apps/${existingApp.id}`)
+        expect(res.status).to.equal(200)
+
+        const body = res.body
+        expect(body).to.be.an('object')
+
+        expect(body.app).to.exist()
+        expect(body.app).to.be.an('object')
+
+        expect(body.app.key).to.equal(existingApp.key)
+        expect(body.app.bundleId).to.equal(existingApp.bundleId)
+        expect(body.app.createdBy).to.equal(existingApp.createdBy)
+      })
+
+      it('should return 404 if the app does not exist', async function () {
+        const res = await this.request.get(`/apps/${uuid.v4()}`)
+        expect(res.status).to.equal(404)
+      })
+    })
+
+    describe('PUT', () => {
+      it('should return 200 and the updated app', async function () {
+        const res = await this.request.put(`/apps/${existingApp.id}`).send(app)
+        expect(res.status).to.equal(200)
+
+        const body = res.body
+        expect(body).to.be.an('object')
+
+        expect(body.app).to.exist()
+        expect(body.app).to.be.an('object')
+
+        expect(body.app.key).to.equal(app.key)
+        expect(body.app.bundleId).to.equal(app.bundleId)
+        expect(body.app.createdBy).to.equal(existingApp.createdBy)
+      })
+
+      describe('Should fail if', () => {
+        it('app does not exist', async function () {
+          const res = await this.request.put(`/apps/${uuid.v4()}`).send(app)
+          expect(res.status).to.equal(404)
+        })
+
+        const tests = [
+          { args: 'key' },
+          { args: 'bundleId' },
+        ]
+
+        tests.forEach((test) => {
+          it(`missing ${test.args}`, async function () {
+            delete app[test.args]
+            const res = await this.request.put(`/apps/${existingApp.id}`).send(app)
+            expect(res.status).to.equal(422)
+
+            const body = res.body
+            expect(body).to.be.an('object')
+
+            expect(body.data).to.exist()
+            expect(body.data).to.have.length(1)
+            expect(body.data[0]).to.have.property(test.args)
+            expect(body.data[0][test.args]).to.contain('empty')
+          })
+        })
+      })
+
+      const tests = [
+        { args: 'key', invalidParam: '', reason: 'empty' },
+        { args: 'key', invalidParam: 'a'.repeat(256), reason: 'length must equal or less than' },
+        { args: 'bundleId', invalidParam: '', reason: 'empty' },
+        { args: 'bundleId', invalidParam: 'a.s', reason: 'bad format.' },
+      ]
+
+      tests.forEach((test) => {
+        it(`invalid ${test.args}`, async function () {
+          app[test.args] = test.invalidParam
+          const res = await this.request.put(`/apps/${existingApp.id}`).send(app)
+          expect(res.status).to.equal(422)
+
+          const body = res.body
+          expect(body).to.be.an('object')
+
+          expect(body.data).to.exist()
+          expect(body.data).to.have.length(1)
+          expect(body.data[0]).to.have.property(test.args)
+          expect(body.data[0][test.args]).to.contain(test.reason)
+        })
+      })
+    })
+
+    describe('DELETE', () => {
+      it('should return 204 if the app exists', async function () {
+        const res = await this.request.delete(`/apps/${existingApp.id}`)
+        expect(res.status).to.equal(204)
+      })
+
+      it('should return 404 if the app does not exist', async function () {
+        const res = await this.request.delete(`/apps/${uuid.v4()}`)
+        expect(res.status).to.equal(404)
       })
     })
   })

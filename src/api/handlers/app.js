@@ -63,7 +63,7 @@ export class AppHandler {
   }
 
   async get(ctx) {
-    const app = await this.app.db.App.findById(this.params.id)
+    const app = await this.app.db.App.findById(ctx.params.id)
     if (!app) {
       ctx.status = 404
       return
@@ -74,7 +74,7 @@ export class AppHandler {
 
   async put(ctx) {
     const body = ctx.request.body
-    const app = await this.app.db.App.findById(this.params.id)
+    const app = await this.app.db.App.findById(ctx.params.id)
     if (!app) {
       ctx.status = 404
       return
@@ -86,7 +86,7 @@ export class AppHandler {
   }
 
   async delete(ctx) {
-    const app = await this.app.db.App.findById(this.params.id)
+    const app = await this.app.db.App.findById(ctx.params.id)
     if (!app) {
       ctx.status = 404
       return

@@ -2,6 +2,11 @@ const Sequelize = require('sequelize')
 
 module.exports = sequelize => (
   sequelize.define('app', {
+    id: {
+      type: Sequelize.UUID,
+      primaryKey: true,
+      defaultValue: Sequelize.UUIDV4,
+    },
     key: {
       type: Sequelize.STRING,
       allowNull: false,
