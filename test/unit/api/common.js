@@ -23,3 +23,7 @@ export async function beforeEachFunc(self) {
   self.request = sap.agent(self.app.koaApp.listen())
   await self.app.run()
 }
+
+export async function afterEachFunc(self) {
+  await self.app.stop()
+}

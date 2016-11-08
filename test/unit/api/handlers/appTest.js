@@ -4,7 +4,7 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-import { expect, beforeEachFunc } from '../common'
+import { expect, beforeEachFunc, afterEachFunc } from '../common'
 import uuid from 'uuid'
 
 describe('API', () => {
@@ -12,6 +12,10 @@ describe('API', () => {
     describe('Apps Handler', () => {
       beforeEach(async function () {
         await beforeEachFunc(this)
+      })
+
+      afterEach(async function () {
+        await afterEachFunc(this)
       })
 
       describe('GET', () => {

@@ -123,6 +123,19 @@ export async function connect(pgUrl, options, logger) {
   }
 }
 
-export async function disconnect(client) {
-  await client.connectionManager.disconnect()
+export async function disconnect(db) {
+  const hasDisconnected = new Promise((resolve) => {
+    const manager = db.client.connectionManager
+    if (manager.pool) {
+      manager.pool.drain(() => {
+        manager.pool.destroyAllNow(() => {
+          resolve()
+        })
+      })
+    } else {
+      resolve()
+    }
+  })
+
+  await hasDisconnected
 }

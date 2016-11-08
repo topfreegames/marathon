@@ -14,9 +14,9 @@ import Logger from '../extensions/logger'
 import { AppHandler, AppsHandler } from './handlers/app'
 import HealthcheckHandler from './handlers/healthcheck'
 import { TemplateHandler, TemplatesHandler } from './handlers/template'
-import { connect as redisConnect } from '../extensions/redis'
-import { connect as pgConnect } from '../extensions/postgresql'
-import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
+import { connect as redisConnect, disconnect as redisDisconnect } from '../extensions/redis'
+import { connect as pgConnect, disconnect as pgDisconnect } from '../extensions/postgresql'
+import { connect as kafkaClientConnect, disconnect as kafkaClientDisconnect } from '../extensions/kafkaClient'
 import { connect as kafkaProducerConnect } from '../extensions/kafkaProducer'
 
 process.setMaxListeners(60)
@@ -87,6 +87,11 @@ export default class MarathonApp {
     }
   }
 
+  async stopRedis() {
+    await redisDisconnect(this.redisClient)
+    this.redisClient = null
+  }
+
   async configurePostgreSQL() {
     try {
       this.db = await pgConnect(
@@ -97,6 +102,11 @@ export default class MarathonApp {
     } catch (err) {
       this.exit(err)
     }
+  }
+
+  async stopPostgreSQL() {
+    await pgDisconnect(this.db)
+    this.db = null
   }
 
   async configureKafka() {
@@ -117,6 +127,12 @@ export default class MarathonApp {
     }
   }
 
+  async stopKafka() {
+    await kafkaClientDisconnect(this.apiKafkaClient)
+    this.apiKafkaClient = null
+    this.apiKafkaProducer = null
+  }
+
   async initializeServices() {
     try {
       this.logger.debug('Starting redis configuration...')
@@ -129,6 +145,20 @@ export default class MarathonApp {
       this.exit(err)
     }
   }
+
+  async stopServices() {
+    try {
+      this.logger.debug('Stopping redis...')
+      await this.stopRedis()
+      this.logger.debug('Stopping PostgreSQL...')
+      await this.stopPostgreSQL()
+      this.logger.debug('Stopping Kafka...')
+      await this.stopKafka()
+    } catch (err) {
+      this.exit(err)
+    }
+  }
+
 
   configureMiddleware() {
     this.koaApp.use(koaBodyparser())
@@ -178,5 +208,9 @@ export default class MarathonApp {
 
     this.logger.info(`Listening on port ${PORT}...`)
     this.koaApp.listen(PORT)
+  }
+
+  async stop() {
+    await this.stopServices()
   }
 }

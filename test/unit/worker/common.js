@@ -17,3 +17,7 @@ export async function beforeEachFunc(self) {
   self.worker = new MarathonWorkerApp(config)
   await self.worker.initializeWorker()
 }
+
+export async function afterEachFunc(self) {
+  await self.worker.stop()
+}

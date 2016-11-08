@@ -1,7 +1,7 @@
 import Logger from '../extensions/logger'
 import { connect as redisConnect } from '../extensions/redis'
 import { connect as pgConnect } from '../extensions/postgresql'
-import { connect as kafkaClientConnect } from '../extensions/kafkaClient'
+import { connect as kafkaClientConnect, disconnect as kafkaClientDisconnect } from '../extensions/kafkaClient'
 import { connect as kafkaProducerConnect } from '../extensions/kafkaProducer'
 
 const timeout = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -77,6 +77,12 @@ export default class MarathonWorkerApp {
     }
   }
 
+  async stopKafka() {
+    await kafkaClientDisconnect()
+    this.apiKafkaClient = null
+    this.apiKafkaProducer = null
+  }
+
   async initializeServices() {
     try {
       this.logger.debug('Starting redis configuration...')
@@ -85,6 +91,19 @@ export default class MarathonWorkerApp {
       await this.configurePostgreSQL()
       this.logger.debug('Starting Kafka configuration...')
       await this.configureKafka()
+    } catch (err) {
+      this.exit(err)
+    }
+  }
+
+  async stopServices() {
+    try {
+      // this.logger.debug('Starting redis configuration...')
+      // await this.configureRedis()
+      // this.logger.debug('Starting PostgreSQL configuration...')
+      // await this.configurePostgreSQL()
+      this.logger.debug('Starting Kafka configuration...')
+      await this.stopKafka()
     } catch (err) {
       this.exit(err)
     }
@@ -127,5 +146,9 @@ export default class MarathonWorkerApp {
 
       if (!res) await timeout(timeoutInMs)
     }
+  }
+
+  async stop() {
+    await this.stopServices()
   }
 }

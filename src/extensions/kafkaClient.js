@@ -40,3 +40,13 @@ export async function connect(url, clientId, logger) {
   logr.info('Successfully connected to kafka.')
   return kafkaClient
 }
+
+export async function disconnect(client) {
+  const hasDisconnected = new Promise((resolve) => {
+    client.close(() => {
+      resolve()
+    })
+  })
+
+  await hasDisconnected
+}

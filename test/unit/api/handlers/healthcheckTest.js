@@ -4,13 +4,17 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-import { expect, beforeEachFunc } from '../common'
+import { expect, beforeEachFunc, afterEachFunc } from '../common'
 
 describe('API', () => {
   describe('Handlers', () => {
     describe('Healthcheck Handler', () => {
       beforeEach(async function () {
         await beforeEachFunc(this)
+      })
+
+      afterEach(async function () {
+        await afterEachFunc(this)
       })
 
       it('should return 200 if all services up', async function () {
