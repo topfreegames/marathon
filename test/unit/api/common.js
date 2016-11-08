@@ -14,16 +14,12 @@ export const expect = exp
 export const chai = chaiMod
 
 let PORT = 9000
-let app = null
 
-// Before each test create and destroy the app if it does not exist
-beforeEach(async function () {
+export async function beforeEachFunc(self) {
   PORT += 1
   config.app.port = PORT
-  if (!app) {
-    app = new MarathonApp(config)
-  }
-  this.app = app
-  this.request = sap.agent(this.app.koaApp.listen())
-  await this.app.run()
-})
+  const app = new MarathonApp(config)
+  self.app = app
+  self.request = sap.agent(self.app.koaApp.listen())
+  await self.app.run()
+}

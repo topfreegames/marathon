@@ -13,7 +13,7 @@ export const expect = exp
 export const chai = chaiMod
 
 // Before each test create and destroy the app if it does not exist
-beforeEach(async function () {
-  this.worker = new MarathonWorkerApp(config)
-  await this.worker.initializeWorker()
-})
+export async function beforeEachFunc(self) {
+  self.worker = new MarathonWorkerApp(config)
+  await self.worker.initializeWorker()
+}

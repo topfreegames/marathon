@@ -5,16 +5,20 @@
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
 import Sequelize from 'sequelize'
-import { expect } from './common'
+import { expect, beforeEachFunc } from './common'
 import { check as pgCheck, connect as pgConnect } from '../../../src/extensions/postgresql'
 
 describe('Extensions', () => {
   describe('PostgreSQL Extension', () => {
+    beforeEach(async function () {
+      await beforeEachFunc(this)
+    })
+
     describe('check', () => {
       it('should check successfully if the connection to postgresql is up', async function () {
-        const pgConfig = this.app.config.get('app.services.postgresql')
+        const pgConfig = this.config.get('app.services.postgresql')
         const pgClient = await pgConnect(pgConfig.url, { db: pgConfig.db },
-            this.app.logger)
+            this.logger)
         const result = await pgCheck(pgClient)
         expect(result).to.exist()
         expect(result.up).to.be.true()
@@ -31,17 +35,17 @@ describe('Extensions', () => {
 
     describe('connect', () => {
       it('should connect successfully to pg', async function () {
-        const pgConfig = this.app.config.get('app.services.postgresql')
+        const pgConfig = this.config.get('app.services.postgresql')
         const pgClient = await pgConnect(pgConfig.url, { db: pgConfig.db },
-            this.app.logger)
+            this.logger)
         expect(pgClient).to.exist()
       })
 
       it('should throw error if pg is not up', async function () {
-        const pgConfig = this.app.config.get('app.services.postgresql')
+        const pgConfig = this.config.get('app.services.postgresql')
         const faultyUrl = '//localhost:4334'
         try {
-          await pgConnect(faultyUrl, { db: pgConfig.db }, this.app.logger)
+          await pgConnect(faultyUrl, { db: pgConfig.db }, this.logger)
         } catch (e) {
           expect(e).to.exist()
           return
