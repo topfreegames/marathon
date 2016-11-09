@@ -15,6 +15,7 @@ import { AppHandler, AppsHandler } from './handlers/app'
 import HealthcheckHandler from './handlers/healthcheck'
 import { JobsHandler } from './handlers/job'
 import { TemplateHandler, TemplatesHandler } from './handlers/template'
+import { connect as kueConnect } from '../extensions/kue'
 import { connect as redisConnect, disconnect as redisDisconnect } from '../extensions/redis'
 import { connect as pgConnect, disconnect as pgDisconnect } from '../extensions/postgresql'
 import { connect as kafkaClientConnect, disconnect as kafkaClientDisconnect } from '../extensions/kafkaClient'
@@ -135,6 +136,16 @@ export default class MarathonApp {
     this.apiKafkaProducer = null
   }
 
+  async configureKue() {
+    try {
+      this.logger.debug('Connecting API Kue client...')
+      const cfg = this.config.get('app.services.kue')
+      this.kue = await kueConnect(this.redisClient, cfg, this.logger)
+    } catch (err) {
+      this.exit(err)
+    }
+  }
+
   async initializeServices() {
     try {
       this.logger.debug('Starting redis configuration...')
@@ -143,6 +154,8 @@ export default class MarathonApp {
       await this.configurePostgreSQL()
       this.logger.debug('Starting Kafka configuration...')
       await this.configureKafka()
+      this.logger.debug('Starting Kue configuration...')
+      await this.configureKue()
     } catch (err) {
       this.exit(err)
     }

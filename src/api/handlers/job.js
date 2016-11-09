@@ -55,7 +55,7 @@ export class JobsHandler {
         service: job.service,
         expiration: job.expireAt,
       }
-      await produceJob(this.app.producer, jobPayload)
+      await produceJob(this.app.producer, jobPayload, this.logger)
       ctx.body = { job }
       ctx.status = 201
     } catch (err) {

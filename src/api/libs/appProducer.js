@@ -4,7 +4,9 @@
 // http://www.opensource.org/licenses/mit-license
 // Copyright © 2016 Top Free Games <backend@tfgco.com>
 
-export default async function produceJob(producer, job) {
+import { createJob } from '../../extensions/kue'
+
+export default async function produceJob(client, job, logger) {
   const message = {
     jobId: job.id,
     context: job.context,
@@ -13,18 +15,11 @@ export default async function produceJob(producer, job) {
     expiration: job.expiration,
   }
 
-  const payload = {
-    topic: 'marathonjobs',
-    messages: JSON.stringify(message),
-  }
-
-  await new Promise((resolve, reject) => {
-    producer.send(payload, (err, data) => {
-      if (err) {
-        reject(err)
-        return
-      }
-      resolve(data)
-    })
-  })
+  const res = await createJob(
+    client,
+    'marathon-jobs',
+    message,
+    logger,
+  )
+  return res
 }

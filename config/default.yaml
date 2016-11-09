@@ -11,7 +11,7 @@ app:
     logToStdOut: true
     logToFile: false
     file: /tmp/marathon.log
-  name: 'Marathon'
+  name: Marathon
   worker:
     loopTimeout: 1000
   services:
@@ -20,6 +20,8 @@ app:
       db: 0
       password: ''
       shouldReconnect: true
+    kue:
+      prefix: marathon
     postgresql:
       url: postgresql://marathon@localhost:22222/marathon
       options:
