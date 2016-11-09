@@ -13,6 +13,7 @@ import Koa from 'koa'
 import Logger from '../extensions/logger'
 import { AppHandler, AppsHandler } from './handlers/app'
 import HealthcheckHandler from './handlers/healthcheck'
+import { JobsHandler } from './handlers/job'
 import { TemplateHandler, TemplatesHandler } from './handlers/template'
 import { connect as redisConnect, disconnect as redisDisconnect } from '../extensions/redis'
 import { connect as pgConnect, disconnect as pgDisconnect } from '../extensions/postgresql'
@@ -51,6 +52,7 @@ export default class MarathonApp {
     handlers.push(AppHandler)
     handlers.push(TemplatesHandler)
     handlers.push(TemplateHandler)
+    handlers.push(JobsHandler)
 
     return handlers
   }

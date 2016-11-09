@@ -38,6 +38,7 @@ app:
           ackTimeoutMs: 100
           # Partitioner type (default = 0, random = 1, cyclic = 2, keyed = 3), default 0
           partitionerType: 0
+          topicName: 'marathonjobs'
         consumer:
           # ZooKeeper URL
           url: localhost:22224
