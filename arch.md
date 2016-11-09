@@ -34,8 +34,8 @@ The API should create both an entry in a table for Jobs in the relational Databa
 
 ```
 Jobs Table
-id                                      batches     completed_at
-8C3090B0-A5F9-4685-B4BB-F04BA001518F    123         2016-10-10 10:10:10
+id                                      total_batches     completed_batches    completed_at
+8C3090B0-A5F9-4685-B4BB-F04BA001518F    123               123                  2016-10-10 10:10:10
 
 FailedJobs Table
 id                                      batch   notification_index      error
