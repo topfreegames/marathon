@@ -26,7 +26,6 @@ module.exports = {
       },
       completedAt: {
         type: Sequelize.DATE,
-        defaultValue: Sequelize.fn('now'),
         field: 'completed_at',
       },
       expireAt: {
