@@ -6,35 +6,36 @@
 
 module.exports = {
   up: (queryInterface, Sequelize) => {
-    const Template = queryInterface.createTable('templates', {
+    const Job = queryInterface.createTable('jobs', {
       id: {
         type: Sequelize.UUID,
         primaryKey: true,
         defaultValue: Sequelize.UUIDV4,
       },
-      name: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        validate: { len: [1, 255] },
+      totalBatches: {
+        type: Sequelize.INTEGER,
+        validate: { min: 1 },
+        field: 'total_batches',
       },
-      locale: {
-        type: Sequelize.STRING,
+      completedBatches: {
+        type: Sequelize.INTEGER,
         allowNull: false,
-        validate: { len: [1, 10] },
-        defaultValue: 'en',
+        validate: { min: 0 },
+        defaultValue: 0,
+        field: 'completed_batches',
       },
-      defaults: {
+      completedAt: {
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.fn('now'),
+        field: 'completed_at',
+      },
+      filters: {
         type: Sequelize.JSONB,
-        allowNull: false,
       },
-      body: {
-        type: Sequelize.JSONB,
-        allowNull: false,
-      },
-      compiledBody: {
+      csvUrl: {
         type: Sequelize.STRING,
-        allowNull: false,
-        field: 'compiled_body',
+        validate: { isUrl: true },
+        field: 'csv_url',
       },
       createdBy: {
         type: Sequelize.STRING,
@@ -60,14 +61,18 @@ module.exports = {
           key: 'id',
         },
       },
-    }).then(() =>
-      queryInterface.addIndex('templates', ['app_id', 'name', 'locale'], { indicesType: 'UNIQUE' }))
+      templateId: {
+        type: Sequelize.UUID,
+        field: 'template_id',
+        references: {
+          model: 'templates',
+          key: 'id',
+        },
+      },
+    })
 
-    return Template
+    return Job
   },
 
-  down: queryInterface =>
-    queryInterface.removeIndex('templates', ['app_id', 'name', 'locale']).then(
-      () => queryInterface.dropTable('templates')
-    ),
+  down: queryInterface => () => queryInterface.dropTable('templates'),
 }
