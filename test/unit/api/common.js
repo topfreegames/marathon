@@ -22,8 +22,10 @@ export async function beforeEachFunc(self) {
   self.app = app
   self.request = sap.agent(self.app.koaApp.listen())
   await self.app.run()
+  self.app.kue.testMode.enter()
 }
 
 export async function afterEachFunc(self) {
+  self.app.kue.testMode.exit()
   await self.app.stop()
 }

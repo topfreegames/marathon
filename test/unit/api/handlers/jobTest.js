@@ -141,6 +141,20 @@ describe('API', () => {
           expect(dbJob.createdBy).to.equal(userEmail)
           expect(dbJob.appId).to.equal(existingApp.id)
           expect(dbJob.templateId).to.equal(existingTemplate.id)
+
+          const tm = this.app.kue.testMode
+          expect(tm.jobs).to.exist()
+          expect(tm.jobs).to.length(1)
+
+          const kueJob = tm.jobs[0]
+          expect(kueJob.type).to.equal('marathon-jobs')
+          expect(kueJob.data).to.eql({
+            bundleId: existingApp.bundleId,
+            context: '{"body":"value"}',
+            expiration: dbJob.expireAt,
+            jobId: dbJob.id,
+            service: dbJob.service,
+          })
         })
 
         it('should return 201 and the created job with csvUrl', async function () {

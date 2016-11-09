@@ -7,18 +7,10 @@
 import { createJob } from '../../extensions/kue'
 
 export default async function produceJob(client, job, logger) {
-  const message = {
-    jobId: job.id,
-    context: job.context,
-    app: job.bundleId,
-    service: job.service,
-    expiration: job.expiration,
-  }
-
   const res = await createJob(
     client,
     'marathon-jobs',
-    message,
+    job,
     logger,
   )
   return res

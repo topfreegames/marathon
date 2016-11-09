@@ -89,7 +89,7 @@ export class JobsHandler {
         service: job.service,
         expiration: job.expireAt,
       }
-      await produceJob(this.app.producer, jobPayload, this.logger)
+      await produceJob(this.app.kue, jobPayload, this.logger)
       ctx.body = { job }
       ctx.status = 201
     } catch (err) {
