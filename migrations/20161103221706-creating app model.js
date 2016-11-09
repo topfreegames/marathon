@@ -21,11 +21,13 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
         validate: { len: [1, 2000] },
+        field: 'bundle_id',
       },
       createdBy: {
         type: Sequelize.STRING,
         allowNull: false,
         validate: { len: [1, 2000] },
+        field: 'created_by',
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -37,11 +39,11 @@ module.exports = {
         defaultValue: Sequelize.fn('now'),
         field: 'updated_at',
       },
-    }).then(() => queryInterface.addIndex('apps', ['bundleId'], { indicesType: 'UNIQUE' }))
+    }).then(() => queryInterface.addIndex('apps', ['bundle_id'], { indicesType: 'UNIQUE' }))
 
     return App
   },
 
   down: queryInterface =>
-    queryInterface.removeIndex('apps', ['bundleId']).then(() => queryInterface.dropTable('apps')),
+    queryInterface.removeIndex('apps', ['bundle_id']).then(() => queryInterface.dropTable('apps')),
 }

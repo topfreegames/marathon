@@ -34,11 +34,13 @@ module.exports = {
       compiledBody: {
         type: Sequelize.STRING,
         allowNull: false,
+        field: 'compiled_body',
       },
       createdBy: {
         type: Sequelize.STRING,
         allowNull: false,
         validate: { len: [1, 2000] },
+        field: 'created_by',
       },
       createdAt: {
         type: Sequelize.DATE,
@@ -52,19 +54,20 @@ module.exports = {
       },
       appId: {
         type: Sequelize.UUID,
+        field: 'app_id',
         references: {
           model: 'apps',
           key: 'id',
         },
       },
     }).then(() =>
-      queryInterface.addIndex('templates', ['appId', 'name', 'locale'], { indicesType: 'UNIQUE' }))
+      queryInterface.addIndex('templates', ['app_id', 'name', 'locale'], { indicesType: 'UNIQUE' }))
 
     return App
   },
 
   down: queryInterface =>
-    queryInterface.removeIndex('templates', ['appId', 'name', 'locale']).then(
+    queryInterface.removeIndex('templates', ['app_id', 'name', 'locale']).then(
       () => queryInterface.dropTable('templates')
     ),
 }

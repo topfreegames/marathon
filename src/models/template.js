@@ -35,11 +35,13 @@ module.exports = sequelize => (
     compiledBody: {
       type: Sequelize.STRING,
       allowNull: false,
+      field: 'compiled_body',
     },
     createdBy: {
       type: Sequelize.STRING,
       allowNull: false,
       validate: { len: [1, 2000] },
+      field: 'created_by',
     },
   }, {
     timestamps: true,
@@ -52,7 +54,7 @@ module.exports = sequelize => (
         models.Template.belongsTo(models.App, {
           foreignKey: {
             allowNull: false,
-            field: 'appId',
+            field: 'app_id',
             fieldName: 'appId',
           },
         })

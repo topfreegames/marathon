@@ -22,11 +22,13 @@ module.exports = sequelize => (
       type: Sequelize.STRING,
       allowNull: false,
       validate: { len: [1, 2000] },
+      field: 'bundle_id',
     },
     createdBy: {
       type: Sequelize.STRING,
       allowNull: false,
       validate: { len: [1, 2000] },
+      field: 'created_by',
     },
   }, {
     timestamps: true,
