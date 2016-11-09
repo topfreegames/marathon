@@ -29,6 +29,19 @@ module.exports = {
         defaultValue: Sequelize.fn('now'),
         field: 'completed_at',
       },
+      expireAt: {
+        type: Sequelize.DATE,
+        field: 'expire_at',
+      },
+      context: {
+        type: Sequelize.JSONB,
+        allowNull: false,
+      },
+      service: {
+        type: Sequelize.ENUM,
+        allowNull: false,
+        values: ['apns', 'gcm'],
+      },
       filters: {
         type: Sequelize.JSONB,
       },
