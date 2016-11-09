@@ -17,25 +17,59 @@ export class JobsHandler {
     })
   }
 
-  // async validatePost(ctx, next) {
-  //   const logr = this.logger.child({
-  //     operation: 'validatePost',
-  //   })
-  //   ctx.checkHeader('user-email').notEmpty().isEmail()
-  //   ctx.checkBody('name').notEmpty().len(1, 255)
-  //   ctx.checkBody('defaults').notEmpty().isJSON()
-  //   ctx.checkBody('body').notEmpty().isJSON()
-  //   ctx.checkBody('locale').optional().len(1, 10)
-  //   if (ctx.errors) {
-  //     const err = Boom.badData('wrong arguments', ctx.errors)
-  //     ctx.status = 422
-  //     ctx.body = err.output.payload
-  //     ctx.body.data = err.data
-  //     logr.warn({ err }, 'Failed validation.')
-  //     return
-  //   }
-  //   await next()
-  // }
+  async validatePost(ctx, next) {
+    const logr = this.logger.child({
+      operation: 'validatePost',
+    })
+    ctx.checkHeader('user-email').notEmpty().isEmail()
+    ctx.checkBody('context').notEmpty().isJSON()
+    ctx.checkBody('service').notEmpty().in(['apns', 'gcm'])
+    ctx.checkBody('filters').optional().isJSON()
+    ctx.checkBody('csvUrl').optional().isUrl()
+    ctx.checkBody('expireAt').optional().isDate().toDate()
+
+    if (ctx.request.body.filters && ctx.request.body.csvUrl) {
+      const err = [
+        { filters: 'filters or csvUrl must exist, not both.' },
+        { csvUrl: 'filters or csvUrl must exist, not both.' },
+      ]
+      if (ctx.errors) {
+        ctx.errors = ctx.errors.concat(err)
+      } else {
+        ctx.errors = err
+      }
+    }
+
+    if (!ctx.request.body.filters && !ctx.request.body.csvUrl) {
+      const err = [
+        { filters: 'filters or csvUrl must exist.' },
+        { csvUrl: 'filters or csvUrl must exist.' },
+      ]
+      if (ctx.errors) {
+        ctx.errors = ctx.errors.concat(err)
+      } else {
+        ctx.errors = err
+      }
+    }
+
+    if (ctx.errors) {
+      const err = Boom.badData('wrong arguments', ctx.errors)
+      ctx.status = 422
+      ctx.body = err.output.payload
+      ctx.body.data = err.data
+      logr.warn({ err }, 'Failed validation.')
+      return
+    }
+    await next()
+  }
+
+  async get(ctx) {
+    const jobs = await this.app.db.Job.findAll({
+      where: { appId: ctx.params.id, templateId: ctx.params.tid },
+    })
+    ctx.body = { jobs }
+    ctx.status = 200
+  }
 
   async post(ctx) {
     const logr = this.logger.child({
@@ -47,7 +81,7 @@ export class JobsHandler {
     body.templateId = ctx.params.tid
     try {
       const job = await this.app.db.Job.create(body)
-      const app = await this.app.App.findById(body.appId)
+      const app = await this.app.db.App.findById(body.appId)
       const jobPayload = {
         jobId: job.id,
         context: job.context,
@@ -71,4 +105,28 @@ export class JobsHandler {
       throw err
     }
   }
+}
+
+export class JobHandler {
+  constructor(app) {
+    this.app = app
+    this.route = '/apps/:id/templates/:tid/jobs/:jid'
+    this.logger = this.app.logger.child({
+      source: 'JobHandler',
+    })
+  }
+
+  async get(ctx) {
+    const job = await this.app.db.Job.find({
+      where: { id: ctx.params.jid, appId: ctx.params.id, templateId: ctx.params.tid },
+    })
+    if (!job) {
+      ctx.status = 404
+      return
+    }
+    ctx.body = { job }
+    ctx.status = 200
+  }
+
+  // TODO: add stop job
 }

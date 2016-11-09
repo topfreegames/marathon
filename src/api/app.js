@@ -13,7 +13,7 @@ import Koa from 'koa'
 import Logger from '../extensions/logger'
 import { AppHandler, AppsHandler } from './handlers/app'
 import HealthcheckHandler from './handlers/healthcheck'
-import { JobsHandler } from './handlers/job'
+import { JobHandler, JobsHandler } from './handlers/job'
 import { TemplateHandler, TemplatesHandler } from './handlers/template'
 import { connect as kueConnect } from '../extensions/kue'
 import { connect as redisConnect, disconnect as redisDisconnect } from '../extensions/redis'
@@ -54,6 +54,7 @@ export default class MarathonApp {
     handlers.push(TemplatesHandler)
     handlers.push(TemplateHandler)
     handlers.push(JobsHandler)
+    handlers.push(JobHandler)
 
     return handlers
   }
