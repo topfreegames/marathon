@@ -24,7 +24,7 @@ describe('API', () => {
     describe('Templates Handler', () => {
       describe('GET', () => {
         it('should return 200 and an empty list of templates', async function () {
-          await this.app.db.Template.destroy({ truncate: true })
+          await this.app.db.Template.destroy({ truncate: true, cascade: true })
           const res = await this.request.get(`/apps/${existingApp.id}/templates`)
           expect(res.status).to.equal(200)
 
