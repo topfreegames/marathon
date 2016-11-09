@@ -124,6 +124,7 @@ export async function connect(pgUrl, options, logger) {
 }
 
 export async function disconnect(db) {
+  // Got this from https://github.com/sequelize/sequelize/pull/5776/files
   const hasDisconnected = new Promise((resolve) => {
     const manager = db.client.connectionManager
     if (manager.pool) {
