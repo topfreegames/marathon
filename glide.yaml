@@ -1,0 +1,14 @@
+package: github.com/topfreegames/marathon
+import:
+- package: github.com/labstack/echo
+  version: ^3.0.2
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: github.com/uber-go/zap
+- package: github.com/uber-go/atomic
+  version: ^1.0.0
+- package: github.com/jinzhu/gorm
+  version: ^1.0.0
+- package: github.com/jinzhu/inflection
+- package: github.com/satori/go.uuid
+  version: ^1.1.0
