@@ -23,16 +23,35 @@
 package model
 
 import (
+	"github.com/asaskevich/govalidator"
+	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"time"
 )
 
 // App is the app model struct
 type App struct {
-	ID        uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()"`
-	Key       string    `gorm:"not null"`
-	BundleID  string    `gorm:"unique_index;not null"`
-	CreatedBy string    `gorm:"not null"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
+	Key       string    `gorm:"not null" json:"key"`
+	BundleID  string    `gorm:"unique_index;not null" json:"bundleId"`
+	CreatedBy string    `gorm:"not null" json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// Validate implementation of the InputValidation interface
+func (a App) Validate(c echo.Context) error {
+	valid := govalidator.StringLength(a.Key, "1", "255")
+	if !valid {
+		return InvalidField("key")
+	}
+	valid = govalidator.StringMatches(a.BundleID, "^[a-z0-9]+\\.[a-z0-9]+\\.[a-z0-9]+$")
+	if !valid {
+		return InvalidField("bundleId")
+	}
+	valid = govalidator.StringLength(a.CreatedBy, "1", "255")
+	if !valid {
+		return InvalidField("creator")
+	}
+	return nil
 }

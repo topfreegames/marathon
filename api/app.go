@@ -67,6 +67,8 @@ func (a *App) configureApplication() {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello World!")
 	})
+	e.POST("/app", a.PostApp)
+	e.GET("/app/:bundleId", a.GetApp)
 	a.API = e
 }
 

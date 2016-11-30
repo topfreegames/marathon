@@ -1,6 +1,8 @@
-hash: a3e279de5bf7f6423c8fe292c68978c61d5e0340fe75bc721369e128377bdfc1
-updated: 2016-11-29T18:37:24.386783906-02:00
+hash: 80c4a8517ccab04bbf5c35806ef39ea9f7627420fe7234c7fe45858d105afedb
+updated: 2016-11-30T18:35:20.873840618-02:00
 imports:
+- name: github.com/asaskevich/govalidator
+  version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/fsnotify/fsnotify
   version: fd9ec7deca8bf46ecd2a795baaacf2b3a9be1197
 - name: github.com/hashicorp/hcl
@@ -30,7 +32,7 @@ imports:
   - color
   - log
 - name: github.com/lib/pq
-  version: d8eeeb8bae8896dd8e1b7e514ab0d396c4f12a1b
+  version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617
   subpackages:
   - hstore
   - oid
@@ -71,7 +73,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber-go/zap
-  version: 11e8d8f6b3c9c574462f8278f3f2b7eb56b12e27
+  version: fbae0281ffd546fa6d1959fec6075ac5da7fb577
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
 - name: github.com/xenolf/lego
@@ -79,7 +81,7 @@ imports:
   subpackages:
   - acme
 - name: golang.org/x/crypto
-  version: ede567c8e044a5913dad1d1af3696d9da953104c
+  version: 21853a76e0cca35cf785c34dceee499a3d5a7168
   subpackages:
   - ocsp
 - name: golang.org/x/net
@@ -92,7 +94,7 @@ imports:
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 4ea6c073aae78d08c7e95e95aa7f55b888287d6f
+  version: 5c6cf4f9a2357d38515014cea8c488ed22bdab90
   subpackages:
   - transform
   - unicode/norm

@@ -29,19 +29,19 @@ import (
 
 // Job is the job model struct
 type Job struct {
-	ID               uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()"`
-	TotalBatches     int
-	CompletedBatches int `gorm:"not null" sql:"default:0"`
-	CompletedAt      time.Time
-	ExpiresAt        time.Time
-	Service          string
-	Filters          string `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB"`
-	CsvURL           string
-	CreatedBy        string
-	App              App
-	AppID            uuid.UUID `sql:"type:uuid" gorm:"not null"`
-	Template         Template
-	TemplateID       uuid.UUID `sql:"type:uuid" gorm:"not null"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID               uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
+	TotalBatches     int       `json:"totalBatches"`
+	CompletedBatches int       `gorm:"not null" sql:"default:0" json:"completedBatches"`
+	CompletedAt      time.Time `json:"completedAt"`
+	ExpiresAt        time.Time `json:"expiresAt"`
+	Service          string    `json:"service"`
+	Filters          string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"filters"`
+	CsvURL           string    `json:"csvUrl"`
+	CreatedBy        string    `json:"createdBy"`
+	App              App       `json:"app"`
+	AppID            uuid.UUID `sql:"type:uuid" gorm:"not null" json:"appId"`
+	Template         Template  `json:"template"`
+	TemplateID       uuid.UUID `sql:"type:uuid" gorm:"not null" json:"templateId"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }

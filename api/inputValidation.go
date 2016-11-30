@@ -20,24 +20,22 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package model
+package api
 
 import (
-	"github.com/satori/go.uuid"
-	"time"
+	"encoding/json"
+	"github.com/labstack/echo"
 )
 
-// Template is the template model struct
-type Template struct {
-	ID           uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Name         string    `gorm:"not null;unique_index:name_locale_app" json:"name"`
-	Locale       string    `gorm:"not null;unique_index:name_locale_app" json:"locale"`
-	Defaults     string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"defaults"`
-	Body         string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"body"`
-	CompiledBody string    `gorm:"not null" json:"compiledBody"`
-	CreatedBy    string    `gorm:"not null" json:"createdBy"`
-	App          App       `json:"app"`
-	AppID        uuid.UUID `sql:"type:uuid" gorm:"not null;unique_index:name_locale_app" json:"appId"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+// InputValidation is an interface for all "input submission" structs used for deserialization
+type InputValidation interface {
+	Validate(echo.Context) error
+}
+
+func decodeAndValidate(c echo.Context, v InputValidation) error {
+	if err := json.NewDecoder(c.Request().Body).Decode(v); err != nil {
+		return err
+	}
+	defer c.Request().Body.Close()
+	return v.Validate(c)
 }

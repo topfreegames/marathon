@@ -20,24 +20,23 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package model
+package api
 
 import (
-	"github.com/satori/go.uuid"
-	"time"
+	"github.com/labstack/echo"
+	"io/ioutil"
 )
 
-// Template is the template model struct
-type Template struct {
-	ID           uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Name         string    `gorm:"not null;unique_index:name_locale_app" json:"name"`
-	Locale       string    `gorm:"not null;unique_index:name_locale_app" json:"locale"`
-	Defaults     string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"defaults"`
-	Body         string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"body"`
-	CompiledBody string    `gorm:"not null" json:"compiledBody"`
-	CreatedBy    string    `gorm:"not null" json:"createdBy"`
-	App          App       `json:"app"`
-	AppID        uuid.UUID `sql:"type:uuid" gorm:"not null;unique_index:name_locale_app" json:"appId"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+//GetRequestBody from echo context
+func GetRequestBody(c echo.Context) ([]byte, error) {
+	bodyCache := c.Get("requestBody")
+	if bodyCache != nil {
+		return bodyCache.([]byte), nil
+	}
+	b, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		return nil, err
+	}
+	c.Set("requestBody", b)
+	return b, nil
 }

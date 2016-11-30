@@ -22,22 +22,9 @@
 
 package model
 
-import (
-	"github.com/satori/go.uuid"
-	"time"
-)
+import "fmt"
 
-// Template is the template model struct
-type Template struct {
-	ID           uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Name         string    `gorm:"not null;unique_index:name_locale_app" json:"name"`
-	Locale       string    `gorm:"not null;unique_index:name_locale_app" json:"locale"`
-	Defaults     string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"defaults"`
-	Body         string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"body"`
-	CompiledBody string    `gorm:"not null" json:"compiledBody"`
-	CreatedBy    string    `gorm:"not null" json:"createdBy"`
-	App          App       `json:"app"`
-	AppID        uuid.UUID `sql:"type:uuid" gorm:"not null;unique_index:name_locale_app" json:"appId"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+// InvalidField returns an error telling that field is invalid
+func InvalidField(field string) error {
+	return fmt.Errorf("invalid %s", field)
 }

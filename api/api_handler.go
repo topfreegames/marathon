@@ -20,24 +20,26 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package model
+package api
 
 import (
-	"github.com/satori/go.uuid"
-	"time"
+	"fmt"
+	"github.com/labstack/echo"
+	"github.com/topfreegames/marathon/model"
+	"net/http"
 )
 
-// Template is the template model struct
-type Template struct {
-	ID           uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Name         string    `gorm:"not null;unique_index:name_locale_app" json:"name"`
-	Locale       string    `gorm:"not null;unique_index:name_locale_app" json:"locale"`
-	Defaults     string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"defaults"`
-	Body         string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"body"`
-	CompiledBody string    `gorm:"not null" json:"compiledBody"`
-	CreatedBy    string    `gorm:"not null" json:"createdBy"`
-	App          App       `json:"app"`
-	AppID        uuid.UUID `sql:"type:uuid" gorm:"not null;unique_index:name_locale_app" json:"appId"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+// PostApp is the method called when a post to /app is called
+func (a *App) PostApp(c echo.Context) error {
+	app := &model.App{}
+	err := decodeAndValidate(c, app)
+	if err != nil {
+		return c.String(http.StatusUnprocessableEntity, fmt.Sprintf(`{"created": false, "error": "%s"}`, err.Error()))
+	}
+	return c.String(http.StatusCreated, `{"created": true}`)
+}
+
+// GetApp is the mehtod called when a get to /app is called
+func (a *App) GetApp(c echo.Context) error {
+	return nil
 }
