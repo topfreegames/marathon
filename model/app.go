@@ -27,21 +27,12 @@ import (
 	"time"
 )
 
-// Job is the job model struct
-type Job struct {
-	ID               uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()"`
-	TotalBatches     int
-	CompletedBatches int `gorm:"not null" sql:"default:0"`
-	CompletedAt      time.Time
-	ExpiresAt        time.Time
-	Service          string
-	Filters          string `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB"`
-	CsvURL           string
-	CreatedBy        string
-	App              App
-	AppID            uuid.UUID `sql:"type:uuid" gorm:"not null"`
-	Template         Template
-	TemplateID       uuid.UUID `sql:"type:uuid" gorm:"not null"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+// App is the app model struct
+type App struct {
+	ID        uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()"`
+	Key       string    `gorm:"not null"`
+	BundleID  string    `gorm:"unique_index;not null"`
+	CreatedBy string    `gorm:"not null"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

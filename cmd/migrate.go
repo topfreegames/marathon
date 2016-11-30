@@ -26,6 +26,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
 
@@ -49,12 +50,17 @@ var migrateCmd = &cobra.Command{
 
 		logger := l.With(zap.String("dbUrl", dbURL))
 		db, err := gorm.Open("postgres", dbURL)
+		db.LogMode(true)
 		if err != nil {
 			logger.Panic("cannot connect to db", zap.Error(err))
 		} else {
 			logger.Info("successfully connected to the database")
 		}
-		db.AutoMigrate()
+		logger.Info("migrating app, template and job tables...")
+		if err := db.AutoMigrate(&model.App{}, &model.Template{}, &model.Job{}).Error; err != nil {
+			logger.Panic("error migrating tables", zap.Error(err))
+		}
+		logger.Info("successfully migrated tables!")
 	},
 }
 

@@ -29,3 +29,7 @@ build:
 
 create-db:
 	@createdb marathon; true
+	@psql -h localhost -d marathon -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"';
+
+drop-db:
+	@dropdb marathon
