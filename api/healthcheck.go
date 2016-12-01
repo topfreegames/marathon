@@ -33,9 +33,13 @@ type Health struct {
 	Healthy bool `json:"healthy"`
 }
 
+func (a *App) checkPostgres() error {
+	return a.DB.Exec("SELECT 1").Error
+}
+
 // Healthcheck is the method called when a get to /healthcheck is called
 func (a *App) Healthcheck(c echo.Context) error {
-	err := a.DB.Exec("SELECT 1").Error
+	err := a.checkPostgres()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, &Health{Healthy: false})
 	}

@@ -1,12 +1,12 @@
-hash: 80c4a8517ccab04bbf5c35806ef39ea9f7627420fe7234c7fe45858d105afedb
-updated: 2016-11-30T18:35:20.873840618-02:00
+hash: 7dd6f952d02a0c1282d26b953224a2270167a20809d2f2017ec03a4b4a8ee80b
+updated: 2016-12-01T13:02:50.054220697-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/fsnotify/fsnotify
   version: fd9ec7deca8bf46ecd2a795baaacf2b3a9be1197
 - name: github.com/hashicorp/hcl
-  version: 5550aaba7896ad2a161888b40954bc0f0787bb81
+  version: 37ab263305aaeb501a60eb16863e808d426e37f2
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -46,6 +46,12 @@ imports:
   version: 271c58e0c14f552178ea321a545ff9af38930f39
 - name: github.com/mitchellh/mapstructure
   version: f3009df150dadf309fdee4a54ed65c124afad715
+- name: github.com/onsi/ginkgo
+  version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
+  subpackages:
+  - ginkgo
+- name: github.com/onsi/gomega
+  version: a78ae492d53aad5a7a232d0d0462c14c400e3ee7
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
@@ -77,7 +83,7 @@ imports:
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
 - name: github.com/xenolf/lego
-  version: 0abbd738a45af51595a214c52b02b18d16974f19
+  version: cc94601612b43c3cf862a5ae5e2ec66fa5e64c89
   subpackages:
   - acme
 - name: golang.org/x/crypto

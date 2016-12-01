@@ -33,3 +33,6 @@ create-db:
 
 drop-db:
 	@dropdb marathon
+
+test:
+	ginkgo -r --cover .
