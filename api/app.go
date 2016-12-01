@@ -68,7 +68,9 @@ func (a *App) configureApplication() {
 		return c.String(http.StatusOK, "Hello World!")
 	})
 	e.POST("/app", a.PostApp)
-	e.GET("/app/:bundleId", a.GetApp)
+	e.GET("/app/:id", a.GetApp)
+	e.PUT("/app/:bundleId", a.PutApp)
+	e.DELETE("/app/:bundleId", a.DeleteApp)
 	a.API = e
 }
 

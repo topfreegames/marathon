@@ -27,6 +27,12 @@ import (
 	"io/ioutil"
 )
 
+//Error is a struct to help return errors
+type Error struct {
+	Reason string          `json:"reason"`
+	Value  InputValidation `json:"value"`
+}
+
 //GetRequestBody from echo context
 func GetRequestBody(c echo.Context) ([]byte, error) {
 	bodyCache := c.Get("requestBody")

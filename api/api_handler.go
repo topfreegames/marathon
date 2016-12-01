@@ -23,10 +23,11 @@
 package api
 
 import (
-	"fmt"
 	"github.com/labstack/echo"
+	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
 	"net/http"
+	"strings"
 )
 
 // PostApp is the method called when a post to /app is called
@@ -34,12 +35,73 @@ func (a *App) PostApp(c echo.Context) error {
 	app := &model.App{}
 	err := decodeAndValidate(c, app)
 	if err != nil {
-		return c.String(http.StatusUnprocessableEntity, fmt.Sprintf(`{"created": false, "error": "%s"}`, err.Error()))
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
 	}
-	return c.String(http.StatusCreated, `{"created": true}`)
+	if err = a.DB.Create(&app).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			return c.JSON(http.StatusConflict, app)
+		}
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+	return c.JSON(http.StatusCreated, app)
 }
 
-// GetApp is the mehtod called when a get to /app is called
+// GetApp is the mehtod called when a get to /app/:bundleId is called
 func (a *App) GetApp(c echo.Context) error {
-	return nil
+	id, err := uuid.FromString(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	app := &model.App{ID: id}
+	if err := a.DB.Where(app).First(&app).Error; err != nil {
+		if err.Error() == "record not found" {
+			return c.JSON(http.StatusNotFound, app)
+		}
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+	return c.JSON(http.StatusOK, app)
+}
+
+// PutApp is the method called when a put to /app/:bundleId is called
+func (a *App) PutApp(c echo.Context) error {
+	app := &model.App{}
+	err := decodeAndValidate(c, app)
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
+	}
+	id, err := uuid.FromString(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	queryApp := &model.App{ID: id}
+	if err = a.DB.Where(queryApp).First(&queryApp).Error; err != nil {
+		if err.Error() == "record not found" {
+			return c.JSON(http.StatusNotFound, &Error{Reason: err.Error(), Value: app})
+		}
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+	app.ID = queryApp.ID
+	if err = a.DB.Save(&app).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+	return c.JSON(http.StatusOK, app)
+}
+
+// DeleteApp is the method called when a delete to /app/:bundleId is called
+func (a *App) DeleteApp(c echo.Context) error {
+	id, err := uuid.FromString(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	app := &model.App{ID: id}
+	if err := a.DB.Where(app).First(&app).Error; err != nil {
+		if err.Error() == "record not found" {
+			return c.JSON(http.StatusNotFound, app)
+		}
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+	if err := a.DB.Delete(&app).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+	return c.JSON(http.StatusOK, app)
 }
