@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/labstack/echo"
 	"github.com/uber-go/zap"
-	"net/http"
 
 	"github.com/jinzhu/gorm"
 	// for gorm
@@ -63,14 +62,11 @@ func (a *App) configure() {
 
 func (a *App) configureApplication() {
 	e := echo.New()
-
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello World!")
-	})
 	e.POST("/app", a.PostApp)
 	e.GET("/app/:id", a.GetApp)
 	e.PUT("/app/:bundleId", a.PutApp)
 	e.DELETE("/app/:bundleId", a.DeleteApp)
+	e.GET("/healthcheck", a.Healthcheck)
 	a.API = e
 }
 
