@@ -1,5 +1,5 @@
 hash: e59cf9ab742cbd17117a804217787d25aa862665aa1d5b9ae2ed1994a36e428d
-updated: 2016-12-02T15:36:07.262512483-02:00
+updated: 2016-12-02T17:05:50.123826796-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -38,13 +38,13 @@ imports:
 - name: github.com/jinzhu/inflection
   version: 74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff
 - name: github.com/jrallison/go-workers
-  version: 6231dc0a316df0512364743bbffa4a12aada7631
+  version: d60d79dbbfbb83f849d2430013a59152845fa598
 - name: github.com/labstack/echo
   version: 8d504c1b699c757b267255c53b3e5219f9974abc
   subpackages:
   - middleware
 - name: github.com/labstack/gommon
-  version: 9a43ff0d261e0e65594422e9eee08cf301aabbe7
+  version: 447fe7433567c785af957e549aadae2bf2000071
   subpackages:
   - bytes
   - color
@@ -105,7 +105,7 @@ imports:
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
-  version: 7cb988051d5045890cb91402a0b5fddc76c627bc
+  version: d464759235b8fd59f8ab4c44807d7c36e1678add
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/afero
@@ -127,21 +127,21 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber-go/zap
-  version: fbae0281ffd546fa6d1959fec6075ac5da7fb577
+  version: 2a8f287b5620c77c427ac78d29bda4af737f2f00
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
 - name: golang.org/x/crypto
-  version: 7efbae5d109cb7a2dbc362886213f73c4c55dede
+  version: 8a549a1948fc5271eb24f36dcb0d3b47dec75a16
   subpackages:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 4971afdc2f162e82d185353533d3cf16188a9f4e
+  version: 97edce0b2e423f6a8debb459af47f4a3cb4ff954
   subpackages:
   - context
   - context/ctxhttp
 - name: golang.org/x/sys
-  version: d5645953809d8b4752afb2c3224b1f1ad73dfa70
+  version: ca83bd2cb9abb47839b50eb4da612f00158f5870
   subpackages:
   - unix
 - name: golang.org/x/text
