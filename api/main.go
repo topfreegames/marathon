@@ -137,11 +137,22 @@ func (a *Application) configureApplication() {
 	e.Use(NewSentryMiddleware(a).Serve)
 	e.Use(NewNewRelicMiddleware(a, a.Logger).Serve)
 
+	// Base Routes
 	e.GET("/healthcheck", a.HealthcheckHandler)
-	e.POST("/app", a.PostAppHandler)
-	e.GET("/app/:id", a.GetAppHandler)
-	e.PUT("/app/:bundleId", a.PutAppHandler)
-	e.DELETE("/app/:bundleId", a.DeleteAppHandler)
+
+	// Apps Routes
+	e.POST("/apps", a.PostAppHandler)
+	e.GET("/apps", a.ListAppsHandler)
+	e.GET("/apps/:id", a.GetAppHandler)
+	e.PUT("/apps/:id", a.PutAppHandler)
+	e.DELETE("/apps/:id", a.DeleteAppHandler)
+
+	// Templates Routes
+	e.POST("/apps/:id/templates", a.PostTemplateHandler)
+	e.GET("/apps/:id/templates", a.ListTemplatesHandler)
+	e.GET("/apps/:id/templates/:tid", a.GetTemplateHandler)
+	e.PUT("/apps/:id/templates/:tid", a.PutTemplateHandler)
+	e.DELETE("/apps/:id/templates/:tid", a.DeleteTemplateHandler)
 	a.API = e
 }
 

@@ -31,9 +31,20 @@ import (
 	"github.com/topfreegames/marathon/model"
 )
 
-// PostAppHandler is the method called when a post to /app is called
+// ListAppsHandler is the method called when a get to /apps is called
+func (a *Application) ListAppsHandler(c echo.Context) error {
+	apps := []model.App{}
+	if err := a.DB.Find(&apps).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
+	}
+	return c.JSON(http.StatusOK, apps)
+}
+
+// PostAppHandler is the method called when a post to /apps is called
 func (a *Application) PostAppHandler(c echo.Context) error {
 	app := &model.App{}
+	email := c.Get("user-email").(string)
+	app.CreatedBy = email
 	err := decodeAndValidate(c, app)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
@@ -47,7 +58,7 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, app)
 }
 
-// GetAppHandler is the mehtod called when a get to /app/:bundleId is called
+// GetAppHandler is the method called when a get to /apps/:id is called
 func (a *Application) GetAppHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
@@ -63,9 +74,11 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, app)
 }
 
-// PutAppHandler is the method called when a put to /app/:bundleId is called
+// PutAppHandler is the method called when a put to /apps/:id is called
 func (a *Application) PutAppHandler(c echo.Context) error {
 	app := &model.App{}
+	email := c.Get("user-email").(string)
+	app.CreatedBy = email
 	err := decodeAndValidate(c, app)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
@@ -82,13 +95,14 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
 	app.ID = queryApp.ID
+	app.CreatedBy = queryApp.CreatedBy
 	if err = a.DB.Save(&app).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
 	return c.JSON(http.StatusOK, app)
 }
 
-// DeleteAppHandler is the method called when a delete to /app/:bundleId is called
+// DeleteAppHandler is the method called when a delete to /apps/:id is called
 func (a *Application) DeleteAppHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
