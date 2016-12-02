@@ -20,6 +20,18 @@
 
 .PHONY: all
 
+setup-hooks:
+	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
+
+clear-hooks:
+	@cd .git/hooks && rm pre-commit
+
+setup: setup-hooks
+	@go get -u github.com/Masterminds/glide/...
+	@go get -u github.com/onsi/ginkgo/ginkgo
+	@go get github.com/gordonklaus/ineffassign
+	@glide install
+
 run:
 	@go run main.go start
 
