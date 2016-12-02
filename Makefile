@@ -35,6 +35,9 @@ setup: setup-hooks
 run:
 	@go run main.go start-api
 
+migrate:
+	@go run main.go migrate
+
 build:
 	@mkdir -p ./bin
 	@go build -o ./bin/marathon

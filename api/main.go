@@ -147,6 +147,7 @@ func (a *Application) configureApplication() {
 	e.PUT("/apps/:id", a.PutAppHandler)
 	e.DELETE("/apps/:id", a.DeleteAppHandler)
 
+	//TODO tudo que for appId nas rotas de template e jobs deveriam user :appId
 	// Templates Routes
 	e.POST("/apps/:id/templates", a.PostTemplateHandler)
 	e.GET("/apps/:id/templates", a.ListTemplatesHandler)

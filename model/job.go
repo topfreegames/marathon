@@ -45,9 +45,9 @@ type Job struct {
 	CompletedBatches int       `gorm:"not null" sql:"default:0" json:"completedBatches"`
 	CompletedAt      time.Time `json:"completedAt"`
 	ExpiresAt        time.Time `json:"expiresAt"`
-	Context          string    `json:"context"`
+	Context          string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"context"`
 	Service          string    `json:"service"`
-	Filters          *Filters  `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"filters"`
+	Filters          string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"filters"`
 	CsvURL           string    `json:"csvUrl"`
 	CreatedBy        string    `json:"createdBy"`
 	App              App       `json:"app"`
@@ -64,7 +64,7 @@ func (j *Job) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("context")
 	}
-	valid = govalidator.StringMatches(j.Service, "apns", "gcm")
+	valid = govalidator.StringMatches(j.Service, "^(apns|gcm)$")
 	if !valid {
 		return InvalidField("service")
 	}
@@ -86,13 +86,12 @@ func (j *Job) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("createdBy")
 	}
-
-	valid = govalidator.IsNull(j.Filters) && govalidator.IsNull(j.CsvURL)
+	valid = !(govalidator.IsNull(j.Filters) && govalidator.IsNull(j.CsvURL))
 	if !valid {
 		return InvalidField("filters or csvUrl must exist")
 	}
 
-	valid = !govalidator.IsNull(j.Filters) && !govalidator.IsNull(j.CsvURL)
+	valid = !(!govalidator.IsNull(j.Filters) && !govalidator.IsNull(j.CsvURL))
 	if !valid {
 		return InvalidField("filters or csvUrl must exist, not both")
 	}

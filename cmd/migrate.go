@@ -30,14 +30,18 @@ import (
 	"github.com/uber-go/zap"
 )
 
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 // migrateCmd represents the migrate command
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "use this command to run marathon migrations",
 	Long:  "use this command to run marathon migrations",
 	Run: func(cmd *cobra.Command, args []string) {
-
-		dbURL := viper.GetString("database.url")
 		ll := zap.InfoLevel
 		if debug {
 			ll = zap.DebugLevel
@@ -48,6 +52,12 @@ var migrateCmd = &cobra.Command{
 			ll,
 		)
 
+		viper.SetConfigFile(cfgFile)
+		if err := viper.ReadInConfig(); err != nil {
+			l.Panic("error loading config file", zap.Error(err))
+		}
+		dbURL := viper.GetString("database.url")
+
 		logger := l.With(zap.String("dbUrl", dbURL))
 		db, err := gorm.Open("postgres", dbURL)
 		db.LogMode(true)
@@ -57,11 +67,31 @@ var migrateCmd = &cobra.Command{
 			logger.Info("successfully connected to the database")
 		}
 		logger.Info("migrating app, template and job tables...")
-		if err := db.AutoMigrate(&model.App{}, &model.Template{}, &model.Job{}).Error; err != nil {
-			logger.Panic("error migrating tables", zap.Error(err))
-		}
+		err = createAppsTableMigration(db)
+		checkErr(err)
+		err = createTemplatesTableMigration(db)
+		checkErr(err)
+		err = createJobsTableMigration(db)
+		checkErr(err)
 		logger.Info("successfully migrated tables!")
 	},
+}
+
+func createAppsTableMigration(db *gorm.DB) error {
+	return db.CreateTable(&model.App{}).Error
+}
+
+func createTemplatesTableMigration(db *gorm.DB) error {
+	err := db.CreateTable(&model.Template{}).Error
+	err = db.Model(&model.Template{}).AddForeignKey("app_id", "apps(id)", "CASCADE", "CASCADE").Error
+	return err
+}
+
+func createJobsTableMigration(db *gorm.DB) error {
+	err := db.CreateTable(&model.Job{}).Error
+	err = db.Model(&model.Job{}).AddForeignKey("app_id", "apps(id)", "CASCADE", "CASCADE").Error
+	err = db.Model(&model.Job{}).AddForeignKey("template_id", "templates(id)", "CASCADE", "CASCADE").Error
+	return err
 }
 
 func init() {
