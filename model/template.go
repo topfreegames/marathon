@@ -23,8 +23,11 @@
 package model
 
 import (
-	"github.com/satori/go.uuid"
 	"time"
+
+	"github.com/asaskevich/govalidator"
+	"github.com/labstack/echo"
+	"github.com/satori/go.uuid"
 )
 
 // Template is the template model struct
@@ -40,4 +43,29 @@ type Template struct {
 	AppID        uuid.UUID `sql:"type:uuid" gorm:"not null;unique_index:name_locale_app" json:"appId"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// Validate implementation of the InputValidation interface
+func (t *Template) Validate(c echo.Context) error {
+	valid := govalidator.StringLength(t.Name, "1", "255")
+	if !valid {
+		return InvalidField("name")
+	}
+	valid = govalidator.StringLength(t.Locale, "1", "10")
+	if !valid {
+		return InvalidField("locale")
+	}
+	valid = govalidator.IsJSON(t.Defaults)
+	if !valid {
+		return InvalidField("defaults")
+	}
+	valid = govalidator.IsJSON(t.Body)
+	if !valid {
+		return InvalidField("body")
+	}
+	valid = govalidator.IsEmail(t.CreatedBy)
+	if !valid {
+		return InvalidField("createdBy")
+	}
+	return nil
 }

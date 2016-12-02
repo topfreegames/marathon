@@ -41,7 +41,7 @@ type App struct {
 }
 
 // Validate implementation of the InputValidation interface
-func (a App) Validate(c echo.Context) error {
+func (a *App) Validate(c echo.Context) error {
 	valid := govalidator.StringLength(a.Key, "1", "255")
 	if !valid {
 		return InvalidField("key")
@@ -50,7 +50,7 @@ func (a App) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("bundleId")
 	}
-	valid = govalidator.StringLength(a.CreatedBy, "1", "255")
+	valid = govalidator.IsEmail(a.CreatedBy)
 	if !valid {
 		return InvalidField("createdBy")
 	}
