@@ -56,8 +56,13 @@ func GetApp(host string, port int, debug bool, l zap.Logger) *App {
 }
 
 func (a *App) configure() {
+	a.loadConfigurationDefaults()
 	a.configureDatabase()
 	a.configureApplication()
+}
+
+func (a *App) loadConfigurationDefaults() {
+	viper.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
 }
 
 func (a *App) configureApplication() {

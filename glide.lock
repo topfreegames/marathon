@@ -1,10 +1,17 @@
-hash: 7dd6f952d02a0c1282d26b953224a2270167a20809d2f2017ec03a4b4a8ee80b
-updated: 2016-12-01T13:02:50.054220697-02:00
+hash: a56abcc103b277990b56d220cd8ada99bbdd12bc6df755a937beccad3e583a38
+updated: 2016-12-01T19:23:40.902747473-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
+- name: github.com/bitly/go-simplejson
+  version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/fsnotify/fsnotify
   version: fd9ec7deca8bf46ecd2a795baaacf2b3a9be1197
+- name: github.com/garyburd/redigo
+  version: d7de57ceb51b029d5c5a61e26587f672e2834178
+  subpackages:
+  - internal
+  - redis
 - name: github.com/hashicorp/hcl
   version: 37ab263305aaeb501a60eb16863e808d426e37f2
   subpackages:
@@ -24,6 +31,8 @@ imports:
   - dialects/postgres
 - name: github.com/jinzhu/inflection
   version: 74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff
+- name: github.com/jrallison/go-workers
+  version: 6231dc0a316df0512364743bbffa4a12aada7631
 - name: github.com/labstack/echo
   version: cd2530ea098106338b888f4fb66e966efa2fd75e
 - name: github.com/labstack/gommon
@@ -49,9 +58,34 @@ imports:
 - name: github.com/onsi/ginkgo
   version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
   subpackages:
+  - config
   - ginkgo
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - types
 - name: github.com/onsi/gomega
   version: a78ae492d53aad5a7a232d0d0462c14c400e3ee7
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
@@ -87,7 +121,7 @@ imports:
   subpackages:
   - acme
 - name: golang.org/x/crypto
-  version: 21853a76e0cca35cf785c34dceee499a3d5a7168
+  version: 7efbae5d109cb7a2dbc362886213f73c4c55dede
   subpackages:
   - ocsp
 - name: golang.org/x/net

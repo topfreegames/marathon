@@ -31,11 +31,11 @@ import (
 var port int
 var host string
 
-// startCmd represents the start command
-var startCmd = &cobra.Command{
-	Use:   "start",
-	Short: "starts marathon api and worker",
-	Long:  "starts marathon api and worker",
+// startAPICmd represents the start api command
+var startAPICmd = &cobra.Command{
+	Use:   "start-api",
+	Short: "starts marathon api",
+	Long:  "starts marathon api",
 	Run: func(cmd *cobra.Command, args []string) {
 		ll := zap.InfoLevel
 		if debug {
@@ -62,7 +62,7 @@ var startCmd = &cobra.Command{
 }
 
 func init() {
-	startCmd.Flags().StringVarP(&host, "bind", "b", "localhost", "the address that the api will bind to")
-	startCmd.Flags().IntVarP(&port, "port", "p", 8080, "the port on which the api will listen")
-	RootCmd.AddCommand(startCmd)
+	startAPICmd.Flags().StringVarP(&host, "bind", "b", "localhost", "the address that the api will bind to")
+	startAPICmd.Flags().IntVarP(&port, "port", "p", 8080, "the port on which the api will listen")
+	RootCmd.AddCommand(startAPICmd)
 }

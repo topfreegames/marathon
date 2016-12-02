@@ -20,54 +20,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package cmd
+package worker
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/jrallison/go-workers"
 )
 
-var cfgFile string
-
-var debug bool
-
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "marathon",
-	Short: "A TFG Co API used to send pushes requests to Aguia",
-	Long:  "A TFG Co API used to send pushes requests to Aguia",
-}
-
-// Execute is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
-
-func init() {
-	cobra.OnInitialize(initConfig)
-
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/default.yaml", "the config file path")
-	RootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	}
-
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("marathon")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("using config file:", viper.ConfigFileUsed())
-	}
+// ProcessBatchWorker processes the messages sent to batch worker queue
+func ProcessBatchWorker(message *workers.Msg) {
+	fmt.Printf("hello all")
 }

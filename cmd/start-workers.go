@@ -23,51 +23,41 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/worker"
+	"github.com/uber-go/zap"
 )
 
-var cfgFile string
+// workerCmd represents the worker command
+var workerCmd = &cobra.Command{
+	Use:   "start-workers",
+	Short: "starts marathon workers",
+	Long:  "starts marathon workers",
+	Run: func(cmd *cobra.Command, args []string) {
+		ll := zap.InfoLevel
+		if debug {
+			ll = zap.DebugLevel
+		}
 
-var debug bool
+		l := zap.New(
+			zap.NewJSONEncoder(),
+			ll,
+		)
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "marathon",
-	Short: "A TFG Co API used to send pushes requests to Aguia",
-	Long:  "A TFG Co API used to send pushes requests to Aguia",
-}
+		logger := l.With(
+			zap.Bool("debug", debug),
+			zap.Int("port", port),
+			zap.String("bind", host),
+		)
 
-// Execute is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
+		logger.Debug("configuring api...")
+		w := worker.GetWorker(debug, logger)
+
+		logger.Debug("starting worker...")
+		w.Start()
+	},
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/default.yaml", "the config file path")
-	RootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	}
-
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("marathon")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("using config file:", viper.ConfigFileUsed())
-	}
+	RootCmd.AddCommand(workerCmd)
 }
