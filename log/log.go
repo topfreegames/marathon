@@ -20,35 +20,51 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package cmd
+package log
 
-import (
-	"fmt"
-	"os"
+import "github.com/uber-go/zap"
 
-	"github.com/spf13/cobra"
-)
-
-var cfgFile string
-
-var debug bool
-
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "marathon",
-	Short: "A TFG Co API used to send pushes requests to Aguia",
-	Long:  "A TFG Co API used to send pushes requests to Aguia",
+//CM is a Checked Message like
+type CM interface {
+	Write(fields ...zap.Field)
+	OK() bool
 }
 
-// Execute is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+//D is a debug logger
+func D(logger zap.Logger, message string, callback ...func(l CM)) {
+	log(logger, zap.DebugLevel, message, callback...)
+}
+
+//I is a info logger
+func I(logger zap.Logger, message string, callback ...func(l CM)) {
+	log(logger, zap.InfoLevel, message, callback...)
+}
+
+//W is a warn logger
+func W(logger zap.Logger, message string, callback ...func(l CM)) {
+	log(logger, zap.WarnLevel, message, callback...)
+}
+
+//E is a error logger
+func E(logger zap.Logger, message string, callback ...func(l CM)) {
+	log(logger, zap.ErrorLevel, message, callback...)
+}
+
+//P is a panic logger
+func P(logger zap.Logger, message string, callback ...func(l CM)) {
+	log(logger, zap.PanicLevel, message, callback...)
+}
+
+func defaultWrite(l CM) {
+	l.Write()
+}
+
+func log(logger zap.Logger, logLevel zap.Level, message string, callback ...func(l CM)) {
+	cb := defaultWrite
+	if len(callback) == 1 {
+		cb = callback[0]
 	}
-}
-
-func init() {
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/default.yaml", "the config file path")
-	RootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
+	if cm := logger.Check(logLevel, message); cm.OK() {
+		cb(cm)
+	}
 }

@@ -1,10 +1,14 @@
-hash: a56abcc103b277990b56d220cd8ada99bbdd12bc6df755a937beccad3e583a38
-updated: 2016-12-01T19:23:40.902747473-02:00
+hash: e59cf9ab742cbd17117a804217787d25aa862665aa1d5b9ae2ed1994a36e428d
+updated: 2016-12-02T15:36:07.262512483-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/bitly/go-simplejson
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
+- name: github.com/certifi/gocertifi
+  version: a61bf5eafa3aee233ec8043e9da052447e5463dd
+- name: github.com/dgrijalva/jwt-go
+  version: 9ed569b5d1ac936e6494082958d63a6aa4fff99a
 - name: github.com/fsnotify/fsnotify
   version: fd9ec7deca8bf46ecd2a795baaacf2b3a9be1197
 - name: github.com/garyburd/redigo
@@ -12,6 +16,8 @@ imports:
   subpackages:
   - internal
   - redis
+- name: github.com/getsentry/raven-go
+  version: 3f7439d3e74d88e21d196ba20eb61a5a958bc118
 - name: github.com/hashicorp/hcl
   version: 37ab263305aaeb501a60eb16863e808d426e37f2
   subpackages:
@@ -34,12 +40,16 @@ imports:
 - name: github.com/jrallison/go-workers
   version: 6231dc0a316df0512364743bbffa4a12aada7631
 - name: github.com/labstack/echo
-  version: cd2530ea098106338b888f4fb66e966efa2fd75e
+  version: 8d504c1b699c757b267255c53b3e5219f9974abc
+  subpackages:
+  - middleware
 - name: github.com/labstack/gommon
   version: 9a43ff0d261e0e65594422e9eee08cf301aabbe7
   subpackages:
+  - bytes
   - color
   - log
+  - random
 - name: github.com/lib/pq
   version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617
   subpackages:
@@ -51,10 +61,16 @@ imports:
   version: d228849504861217f796da67fae4f6e347643f15
 - name: github.com/mattn/go-isatty
   version: 30a891c33c7cde7b02a981314b4228ec99380cca
-- name: github.com/miekg/dns
-  version: 271c58e0c14f552178ea321a545ff9af38930f39
 - name: github.com/mitchellh/mapstructure
   version: f3009df150dadf309fdee4a54ed65c124afad715
+- name: github.com/newrelic/go-agent
+  version: 7d12ae2201fc160e486197614a6f65afcf3f8170
+  subpackages:
+  - internal
+  - internal/jsonx
+  - internal/logger
+  - internal/sysinfo
+  - internal/utilization
 - name: github.com/onsi/ginkgo
   version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
   subpackages:
@@ -90,8 +106,6 @@ imports:
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
   version: 7cb988051d5045890cb91402a0b5fddc76c627bc
-- name: github.com/rsc/letsencrypt
-  version: 76104d26167d38b6a0010f42bfc8ec5487742e8b
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/afero
@@ -116,19 +130,16 @@ imports:
   version: fbae0281ffd546fa6d1959fec6075ac5da7fb577
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
-- name: github.com/xenolf/lego
-  version: cc94601612b43c3cf862a5ae5e2ec66fa5e64c89
-  subpackages:
-  - acme
 - name: golang.org/x/crypto
   version: 7efbae5d109cb7a2dbc362886213f73c4c55dede
   subpackages:
-  - ocsp
+  - acme
+  - acme/autocert
 - name: golang.org/x/net
   version: 4971afdc2f162e82d185353533d3cf16188a9f4e
   subpackages:
   - context
-  - publicsuffix
+  - context/ctxhttp
 - name: golang.org/x/sys
   version: d5645953809d8b4752afb2c3224b1f1ad73dfa70
   subpackages:
@@ -138,15 +149,6 @@ imports:
   subpackages:
   - transform
   - unicode/norm
-- name: golang.org/x/time
-  version: f51c12702a4d776e4c1fa9b0fabab841babae631
-  subpackages:
-  - rate
-- name: gopkg.in/square/go-jose.v1
-  version: aa2e30fdd1fe9dd3394119af66451ae790d50e0d
-  subpackages:
-  - cipher
-  - json
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []

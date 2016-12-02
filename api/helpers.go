@@ -23,9 +23,13 @@
 package api
 
 import (
-	"github.com/labstack/echo"
 	"io/ioutil"
+
+	"github.com/labstack/echo"
 )
+
+// RecordNotFoundString is the string returned when a record is not found
+var RecordNotFoundString = "record not found"
 
 //Error is a struct to help return errors
 type Error struct {

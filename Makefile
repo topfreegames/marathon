@@ -33,7 +33,7 @@ setup: setup-hooks
 	@glide install
 
 run:
-	@go run main.go start
+	@go run main.go start-api
 
 build:
 	@mkdir -p ./bin

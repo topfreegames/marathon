@@ -1,0 +1,3 @@
+---
+database:
+  url: postgres://localhost:5432/marathon_test?sslmode=disable

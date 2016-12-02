@@ -28,8 +28,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var port int
 var host string
+var port int
 
 // startAPICmd represents the start api command
 var startAPICmd = &cobra.Command{
@@ -54,7 +54,7 @@ var startAPICmd = &cobra.Command{
 		)
 
 		logger.Debug("configuring api...")
-		api := api.GetApp(host, port, debug, l)
+		api := api.GetApplication(host, port, debug, l, cfgFile)
 
 		logger.Debug("starting api...")
 		api.Start()

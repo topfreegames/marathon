@@ -20,35 +20,4 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package cmd
-
-import (
-	"fmt"
-	"os"
-
-	"github.com/spf13/cobra"
-)
-
-var cfgFile string
-
-var debug bool
-
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "marathon",
-	Short: "A TFG Co API used to send pushes requests to Aguia",
-	Long:  "A TFG Co API used to send pushes requests to Aguia",
-}
-
-// Execute is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
-
-func init() {
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/default.yaml", "the config file path")
-	RootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
-}
+package api

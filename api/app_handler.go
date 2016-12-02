@@ -23,15 +23,16 @@
 package api
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
-	"net/http"
-	"strings"
 )
 
-// PostApp is the method called when a post to /app is called
-func (a *App) PostApp(c echo.Context) error {
+// PostAppHandler is the method called when a post to /app is called
+func (a *Application) PostAppHandler(c echo.Context) error {
 	app := &model.App{}
 	err := decodeAndValidate(c, app)
 	if err != nil {
@@ -46,15 +47,15 @@ func (a *App) PostApp(c echo.Context) error {
 	return c.JSON(http.StatusCreated, app)
 }
 
-// GetApp is the mehtod called when a get to /app/:bundleId is called
-func (a *App) GetApp(c echo.Context) error {
+// GetAppHandler is the mehtod called when a get to /app/:bundleId is called
+func (a *Application) GetAppHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
 	if err := a.DB.Where(app).First(&app).Error; err != nil {
-		if err.Error() == "record not found" {
+		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, app)
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
@@ -62,8 +63,8 @@ func (a *App) GetApp(c echo.Context) error {
 	return c.JSON(http.StatusOK, app)
 }
 
-// PutApp is the method called when a put to /app/:bundleId is called
-func (a *App) PutApp(c echo.Context) error {
+// PutAppHandler is the method called when a put to /app/:bundleId is called
+func (a *Application) PutAppHandler(c echo.Context) error {
 	app := &model.App{}
 	err := decodeAndValidate(c, app)
 	if err != nil {
@@ -75,7 +76,7 @@ func (a *App) PutApp(c echo.Context) error {
 	}
 	queryApp := &model.App{ID: id}
 	if err = a.DB.Where(queryApp).First(&queryApp).Error; err != nil {
-		if err.Error() == "record not found" {
+		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, &Error{Reason: err.Error(), Value: app})
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
@@ -87,15 +88,15 @@ func (a *App) PutApp(c echo.Context) error {
 	return c.JSON(http.StatusOK, app)
 }
 
-// DeleteApp is the method called when a delete to /app/:bundleId is called
-func (a *App) DeleteApp(c echo.Context) error {
+// DeleteAppHandler is the method called when a delete to /app/:bundleId is called
+func (a *Application) DeleteAppHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
 	if err := a.DB.Where(app).First(&app).Error; err != nil {
-		if err.Error() == "record not found" {
+		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, app)
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})

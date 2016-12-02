@@ -20,35 +20,18 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package cmd
+package testing
 
-import (
-	"fmt"
-	"os"
+import "github.com/onsi/ginkgo"
 
-	"github.com/spf13/cobra"
-)
+//BeforeOnce runs the before each block only once
+func BeforeOnce(beforeBlock func()) {
+	hasRun := false
 
-var cfgFile string
-
-var debug bool
-
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "marathon",
-	Short: "A TFG Co API used to send pushes requests to Aguia",
-	Long:  "A TFG Co API used to send pushes requests to Aguia",
-}
-
-// Execute is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
-
-func init() {
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/default.yaml", "the config file path")
-	RootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
+	ginkgo.BeforeEach(func() {
+		if !hasRun {
+			beforeBlock()
+			hasRun = true
+		}
+	})
 }
