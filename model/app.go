@@ -33,7 +33,7 @@ import (
 // App is the app model struct
 type App struct {
 	ID        uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Key       string    `gorm:"not null" json:"key"`
+	Name      string    `gorm:"not null" json:"name"`
 	BundleID  string    `gorm:"unique_index;not null" json:"bundleId"`
 	CreatedBy string    `gorm:"not null" json:"createdBy"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -42,9 +42,9 @@ type App struct {
 
 // Validate implementation of the InputValidation interface
 func (a *App) Validate(c echo.Context) error {
-	valid := govalidator.StringLength(a.Key, "1", "255")
+	valid := govalidator.StringLength(a.Name, "1", "255")
 	if !valid {
-		return InvalidField("key")
+		return InvalidField("name")
 	}
 	valid = govalidator.StringMatches(a.BundleID, "^[a-z0-9]+\\.[a-z0-9]+\\.[a-z0-9]+$")
 	if !valid {
