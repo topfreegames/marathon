@@ -23,10 +23,11 @@
 package model
 
 import (
+	"time"
+
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
-	"time"
 )
 
 // App is the app model struct
@@ -51,7 +52,7 @@ func (a App) Validate(c echo.Context) error {
 	}
 	valid = govalidator.StringLength(a.CreatedBy, "1", "255")
 	if !valid {
-		return InvalidField("creator")
+		return InvalidField("createdBy")
 	}
 	return nil
 }
