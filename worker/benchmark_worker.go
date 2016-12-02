@@ -23,21 +23,60 @@
 package worker
 
 import (
+	"fmt"
+	"github.com/garyburd/redigo/redis"
 	"github.com/jrallison/go-workers"
 )
 
-// CreateBatchesWorker is the CreateBatchesWorker struct
-type CreateBatchesWorker struct {
-	DatabaseURL string
+// BenchmarkWorker is a worker to benchmark go-workers performance
+type BenchmarkWorker struct {
+	RedisServer string
+	Database    string
+	PoolSize    string
+	ProcessID   string
+	RedisPool   *redis.Pool
 }
 
-// GetCreateBatchesWorker gets a new CreateBatchesWorker
-func GetCreateBatchesWorker(pgURL string) *CreateBatchesWorker {
-	return &CreateBatchesWorker{
-		DatabaseURL: pgURL,
+// GetBenchmarkWorker is used to instantiate a new BenchmarkWorker
+func GetBenchmarkWorker(redisServer, database string) *BenchmarkWorker {
+	b := &BenchmarkWorker{
+		RedisServer: redisServer,
+		Database:    database,
 	}
+	b.configureRedis()
+	return b
 }
 
-// Process processes the messages sent to batch worker queue
-func (b *CreateBatchesWorker) Process(message *workers.Msg) {
+func (b *BenchmarkWorker) configureRedis() {
+	r := &redis.Pool{
+		MaxIdle: 10,
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.Dial("tcp", b.RedisServer)
+
+			if err != nil {
+				return nil, err
+			}
+
+			return c, err
+		},
+	}
+	b.RedisPool = r
+}
+
+// Process is a worker for benchmarking go-workers
+func (b *BenchmarkWorker) Process(message *workers.Msg) {
+	args, err := message.Args().Array()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("hello %s\n", args[0].(string))
+
+	c := b.RedisPool.Get()
+	defer c.Close()
+
+	_, err = c.Do("incrby", "workers:bench:key", 1)
+
+	if err != nil {
+		panic(err)
+	}
 }

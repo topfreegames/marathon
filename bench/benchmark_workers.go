@@ -20,24 +20,42 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package worker
+package main
 
 import (
 	"github.com/jrallison/go-workers"
+	"sync"
 )
 
-// CreateBatchesWorker is the CreateBatchesWorker struct
-type CreateBatchesWorker struct {
-	DatabaseURL string
+func configureWorkers() {
+	workers.Configure(map[string]string{
+		"server":   "localhost:6379",
+		"database": "0",
+		"pool":     "30",
+		"process":  "1",
+	})
 }
 
-// GetCreateBatchesWorker gets a new CreateBatchesWorker
-func GetCreateBatchesWorker(pgURL string) *CreateBatchesWorker {
-	return &CreateBatchesWorker{
-		DatabaseURL: pgURL,
+func main() {
+	configureWorkers()
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var j int
+	for j = 0; j < 100; j++ {
+		go func() {
+			for _ = range jobs {
+				workers.Enqueue("benchmark_worker", "Add", []string{"hello", "hello2"})
+				wg.Done()
+			}
+		}()
 	}
-}
 
-// Process processes the messages sent to batch worker queue
-func (b *CreateBatchesWorker) Process(message *workers.Msg) {
+	for i := 0; i < 2; i++ {
+		jobs <- 1
+	}
+
+	wg.Wait()
+
 }

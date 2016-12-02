@@ -30,6 +30,14 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Filters is a struct that helps make Job struct
+type Filters struct {
+	Locale string `json:"locale"`
+	Region string `json:"region"`
+	Tz     string `json:"tz"`
+	BuildN string `json:"buildN"`
+}
+
 // Job is the job model struct
 type Job struct {
 	ID               uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
@@ -39,7 +47,7 @@ type Job struct {
 	ExpiresAt        time.Time `json:"expiresAt"`
 	Context          string    `json:"context"`
 	Service          string    `json:"service"`
-	Filters          string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"filters"`
+	Filters          *Filters  `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"filters"`
 	CsvURL           string    `json:"csvUrl"`
 	CreatedBy        string    `json:"createdBy"`
 	App              App       `json:"app"`

@@ -49,7 +49,7 @@ func GetWorker(debug bool, l zap.Logger) *Worker {
 func (w *Worker) configure() {
 	w.loadConfigurationDefaults()
 	w.configureRedis()
-	w.configureWorker()
+	w.configureWorkers()
 }
 
 func (w *Worker) loadConfigurationDefaults() {
@@ -57,6 +57,8 @@ func (w *Worker) loadConfigurationDefaults() {
 	viper.SetDefault("workers.redis.database", "0")
 	viper.SetDefault("workers.redis.poolSize", "10")
 	viper.SetDefault("workers.statsPort", 8081)
+	viper.SetDefault("workers.concurrency", 10)
+	viper.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
 }
 
 func (w *Worker) configureRedis() {
@@ -74,10 +76,13 @@ func (w *Worker) configureRedis() {
 	})
 }
 
-func (w *Worker) configureWorker() {
+func (w *Worker) configureWorkers() {
 	jobsConcurrency := viper.GetInt("workers.concurrency")
+	b := GetBenchmarkWorker(viper.GetString("workers.redis.server"), viper.GetString("workers.redis.database"))
+	c := GetCreateBatchesWorker(viper.GetString("database.url"))
 	//workers.Middleware.Append(&) TODO
-	workers.Process("create_batches_worker", ProcessBatchWorker, jobsConcurrency)
+	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
+	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
 }
 
 // Start starts the worker

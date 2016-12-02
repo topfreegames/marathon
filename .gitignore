@@ -2,6 +2,7 @@ bin
 *.o
 *.a
 *.so
+bench/benchmark_workers
 
 # Folders
 _obj
