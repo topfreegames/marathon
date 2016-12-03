@@ -1,5 +1,5 @@
-hash: e59cf9ab742cbd17117a804217787d25aa862665aa1d5b9ae2ed1994a36e428d
-updated: 2016-12-02T17:05:50.123826796-02:00
+hash: 9f2ca194b3bc01dc031dde12ff44a91b7bef8d16a95e4845afb76acfaadd9a69
+updated: 2016-12-03T19:43:31.151952316-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -105,7 +105,9 @@ imports:
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
-  version: d464759235b8fd59f8ab4c44807d7c36e1678add
+  version: ce7be745f09fe4ff89af8e3ea744e1deabf20ee3
+- name: github.com/pressly/goose
+  version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/afero
@@ -136,7 +138,7 @@ imports:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 97edce0b2e423f6a8debb459af47f4a3cb4ff954
+  version: 6cdc0daab091c43fc46193327e0047b4f883c613
   subpackages:
   - context
   - context/ctxhttp

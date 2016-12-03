@@ -28,3 +28,4 @@ import:
   version: ^1.5.0
 - package: github.com/certifi/gocertifi
   version: ^2016.9.26
+- package: github.com/pressly/goose
