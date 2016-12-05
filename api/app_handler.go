@@ -118,5 +118,5 @@ func (a *Application) DeleteAppHandler(c echo.Context) error {
 	if err := a.DB.Delete(&app).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
-	return c.JSON(http.StatusOK, app)
+	return c.JSON(http.StatusNoContent, "")
 }

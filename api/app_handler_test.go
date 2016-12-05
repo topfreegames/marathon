@@ -142,8 +142,6 @@ var _ = Describe("App Handler", func() {
 			It("should return 409 if app with same bundleId already exists", func() {
 				existingApp := CreateTestApp(app.DB)
 				payload := GetAppPayload(map[string]interface{}{"bundleId": existingApp.BundleID})
-				fmt.Println(existingApp.BundleID)
-				fmt.Println(payload["bundleId"])
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, "/apps", string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusConflict))
@@ -357,6 +355,39 @@ var _ = Describe("App Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid bundleId"))
+			})
+		})
+	})
+
+	Describe("Delete /apps/:id", func() {
+		Describe("Sucesfully", func() {
+			It("should return 204 ", func() {
+				existingApp := CreateTestApp(app.DB)
+				status, _ := Delete(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
+				Expect(status).To(Equal(http.StatusNoContent))
+
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				status, _ := Delete(app, "/apps/1234", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingApp := CreateTestApp(app.DB)
+				app.DB = faultyDb
+				status, _ := Delete(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 404 if the app does not exist", func() {
+				status, _ := Delete(app, fmt.Sprintf("/apps/%s", uuid.NewV4().String()), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusNotFound))
 			})
 		})
 	})

@@ -85,8 +85,8 @@ func Put(app *api.Application, url, body string, auth string) (int, string) {
 }
 
 //Delete from server
-func Delete(app *api.Application, url, body string, auth string) (int, string) {
-	return doRequest(app, "DELETE", url, body, auth)
+func Delete(app *api.Application, url, auth string) (int, string) {
+	return doRequest(app, "DELETE", url, "", auth)
 }
 
 func doRequest(app *api.Application, method, url, body, auth string) (int, string) {
