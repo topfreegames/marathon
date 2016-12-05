@@ -1,3 +1,6 @@
 ---
 database:
   url: postgres://localhost:5432/marathon?sslmode=disable
+push:
+  database:
+    url: postgres://localhost:5432/push?sslmode=disable

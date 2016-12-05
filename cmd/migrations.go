@@ -97,7 +97,6 @@ var downCmd = &cobra.Command{
 		executeMigrationCmd("down")
 	},
 }
-
 var redoCmd = &cobra.Command{
 	Use:   "redo",
 	Short: "use this command to rollback the most recently applied migration, then run it again",
