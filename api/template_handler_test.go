@@ -385,4 +385,91 @@ var _ = Describe("App Handler", func() {
 			})
 		})
 	})
+
+	Describe("Get /apps/:id/templates/:tid", func() {
+		Describe("Sucesfully", func() {
+			It("should return 200 and the requested template", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				status, body := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "success@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var template model.Template
+				err := json.Unmarshal([]byte(body), &template)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(template.ID).ToNot(BeNil())
+				Expect(template.AppID).To(Equal(existingApp.ID))
+				Expect(template.Name).To(Equal(existingTemplate.Name))
+				Expect(template.Locale).To(Equal(existingTemplate.Locale))
+				// TODO: will this exist? when will it be created?
+				// Expect(template.CompiledBody).To(Equal(Equal(existingTemplate.CompiledBody))
+				Expect(template.CreatedBy).To(Equal(existingTemplate.CreatedBy))
+				Expect(template.CreatedAt).ToNot(BeNil())
+				Expect(template.UpdatedAt).ToNot(BeNil())
+
+				var tempBody map[string]interface{}
+				err = json.Unmarshal([]byte(template.Body), &tempBody)
+				Expect(err).NotTo(HaveOccurred())
+				var existBody map[string]interface{}
+				err = json.Unmarshal([]byte(existingTemplate.Body), &tempBody)
+				Expect(err).NotTo(HaveOccurred())
+				for key, _ := range existBody {
+					Expect(tempBody[key]).To(Equal(existBody[key]))
+				}
+
+				var tempDefaults map[string]interface{}
+				err = json.Unmarshal([]byte(template.Defaults), &tempDefaults)
+				Expect(err).NotTo(HaveOccurred())
+				var existDefaults map[string]interface{}
+				err = json.Unmarshal([]byte(existingTemplate.Defaults), &tempDefaults)
+				Expect(err).NotTo(HaveOccurred())
+				for key, _ := range existDefaults {
+					Expect(tempDefaults[key]).To(Equal(existDefaults[key]))
+				}
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				app.DB = faultyDb
+				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 404 if the template does not exist", func() {
+				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, uuid.NewV4().String()), "test@test.com")
+				Expect(status).To(Equal(http.StatusNotFound))
+			})
+
+			It("should return 422 if app id is not UUID", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s", existingTemplate.ID), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+			})
+
+			It("should return 422 if template id is not UUID", func() {
+				status, body := Get(app, fmt.Sprintf("%s/not-uuid", baseRoute), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+			})
+		})
+	})
 })
