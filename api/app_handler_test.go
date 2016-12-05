@@ -268,6 +268,16 @@ var _ = Describe("App Handler", func() {
 
 				Expect(status).To(Equal(http.StatusNotFound))
 			})
+
+			It("should return 422 if app id is not UUID", func() {
+				status, body := Get(app, "/apps/not-uuid", "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+			})
 		})
 	})
 
@@ -316,6 +326,19 @@ var _ = Describe("App Handler", func() {
 				status, _ := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 422 if app id is not UUID", func() {
+				payload := GetAppPayload()
+				pl, _ := json.Marshal(payload)
+
+				status, body := Put(app, "/apps/not-uuid", string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
 			})
 
 			It("should return 409 if app with same bundleId already exists", func() {
@@ -423,6 +446,16 @@ var _ = Describe("App Handler", func() {
 				status, _ := Delete(app, fmt.Sprintf("/apps/%s", uuid.NewV4().String()), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusNotFound))
+			})
+
+			It("should return 422 if app id is not UUID", func() {
+				status, body := Delete(app, "/apps/not-uuid", "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
 			})
 		})
 	})
