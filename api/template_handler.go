@@ -156,5 +156,5 @@ func (a *Application) DeleteTemplateHandler(c echo.Context) error {
 	if err := a.DB.Delete(&template).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
 	}
-	return c.JSON(http.StatusOK, template)
+	return c.JSON(http.StatusNoContent, "")
 }

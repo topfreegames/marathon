@@ -736,4 +736,69 @@ var _ = Describe("App Handler", func() {
 			})
 		})
 	})
+
+	Describe("Delete /apps/:id/templates/:tid", func() {
+		Describe("Sucesfully", func() {
+			It("should return 204 ", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				status, _ := Delete(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "test@test.com")
+				Expect(status).To(Equal(http.StatusNoContent))
+
+				var dbTemplate model.Template
+				err := app.DB.Where(&model.Template{ID: existingTemplate.ID}).First(&dbTemplate).Error
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				status, _ := Delete(app, "/apps/1234/templates/5678", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				app.DB = faultyDb
+				status, _ := Delete(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 404 if the app does not exist", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				status, _ := Delete(app, fmt.Sprintf("/apps/%s/templates/%s", uuid.NewV4().String(), existingTemplate.ID), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusNotFound))
+			})
+
+			It("should return 404 if the template does not exist", func() {
+				status, _ := Delete(app, fmt.Sprintf("%s/%s", baseRoute, uuid.NewV4().String()), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusNotFound))
+			})
+
+			It("should return 422 if app id is not UUID", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				status, body := Delete(app, fmt.Sprintf("/apps/not-uuid/templates/%s", existingTemplate.ID), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+			})
+
+			It("should return 422 if template id is not UUID", func() {
+				status, body := Delete(app, fmt.Sprintf("%s/not-uuid", baseRoute), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+			})
+		})
+	})
 })
