@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	"github.com/onsi/gomega"
@@ -145,4 +146,68 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 		"body":     body,
 	}
 	return template
+}
+
+//CreateTestJob with specified optional values
+func CreateTestJob(db *gorm.DB, appID uuid.UUID, templateID uuid.UUID, options ...map[string]interface{}) *model.Job {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+
+	pl, _ := json.Marshal(getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string))
+	filters := string(pl)
+	pl, _ = json.Marshal(getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string))
+	context := string(pl)
+
+	job := &model.Job{}
+	job.AppID = appID
+	job.TemplateID = templateID
+	job.Filters = filters
+	job.Context = context
+	job.Service = getOpt(opts, "service", "apns").(string)
+	job.CsvURL = getOpt(opts, "csvUrl", "").(string)
+	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour)).(time.Time)
+	job.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
+
+	err := db.Create(&job).Error
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	return job
+}
+
+//CreateTestJobs for n apps
+func CreateTestJobs(db *gorm.DB, appID uuid.UUID, templateID uuid.UUID, n int, options ...map[string]interface{}) []*model.Job {
+	jobs := make([]*model.Job, n)
+	for i := 0; i < n; i++ {
+		job := CreateTestJob(db, appID, templateID, options...)
+		jobs[i] = job
+	}
+
+	return jobs
+}
+
+//GetJobPayload with specified optional values
+func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+
+	pl, _ := json.Marshal(getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string))
+	filters := string(pl)
+	pl, _ = json.Marshal(getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string))
+	context := string(pl)
+
+	service := getOpt(opts, "service", "apns").(string)
+	csvURL := getOpt(opts, "csvUrl", "").(string)
+	expiresAt := getOpt(opts, "expiresAt", time.Now().Add(time.Hour)).(time.Time)
+
+	job := map[string]interface{}{
+		"filters":   filters,
+		"context":   context,
+		"service":   service,
+		"csvUrl":    csvURL,
+		"expiresAt": expiresAt,
+	}
+	return job
 }

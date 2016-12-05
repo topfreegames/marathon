@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jinzhu/gorm"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
@@ -39,19 +38,15 @@ import (
 )
 
 var _ = Describe("App Handler", func() {
-	var logger zap.Logger
-	var faultyDb *gorm.DB
-	var app *api.Application
+	logger := zap.New(
+		zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
+		zap.FatalLevel,
+	)
+	app := GetDefaultTestApp(logger)
+	faultyDb := GetFaultyTestDB(app)
 	var existingApp *model.App
 	var baseRoute string
 	BeforeEach(func() {
-		logger = zap.New(
-			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
-			zap.FatalLevel,
-		)
-		app = GetDefaultTestApp(logger)
-		faultyDb = GetFaultyTestDB(app)
-
 		var dbApp model.App
 		app.DB.Delete(&dbApp)
 		var dbTemplate model.Template
@@ -125,10 +120,12 @@ var _ = Describe("App Handler", func() {
 			})
 
 			It("should return 500 if some error occured", func() {
+				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Get(app, baseRoute, "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 422 if app id is not UUID", func() {
@@ -220,12 +217,14 @@ var _ = Describe("App Handler", func() {
 			})
 
 			It("should return 500 if some error occured", func() {
+				goodDB := app.DB
 				app.DB = faultyDb
 				payload := GetTemplatePayload()
 				pl, _ := json.Marshal(payload)
 				status, _ := Post(app, baseRoute, string(pl), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 422 if app id is not UUID", func() {
@@ -439,10 +438,12 @@ var _ = Describe("App Handler", func() {
 
 			It("should return 500 if some error occured", func() {
 				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 404 if the template does not exist", func() {
@@ -553,12 +554,14 @@ var _ = Describe("App Handler", func() {
 
 			It("should return 500 if some error occured", func() {
 				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				goodDB := app.DB
 				app.DB = faultyDb
 				payload := GetTemplatePayload()
 				pl, _ := json.Marshal(payload)
 				status, _ := Put(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), string(pl), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 422 if app id is not UUID", func() {
@@ -760,10 +763,12 @@ var _ = Describe("App Handler", func() {
 
 			It("should return 500 if some error occured", func() {
 				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Delete(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 404 if the app does not exist", func() {

@@ -43,8 +43,8 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 	}
 	jobs := []model.Job{}
 	where := map[string]interface{}{
-		"AppID":      id,
-		"TemplateID": tid,
+		"app_id":      id,
+		"template_id": tid,
 	}
 	if err := a.DB.Where(where).Find(&jobs).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
@@ -72,9 +72,17 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
+
+	if job.Filters == "" {
+		job.Filters = "{}"
+	}
+
 	if err = a.DB.Create(&job).Error; err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, job)
+		}
+		if strings.Contains(err.Error(), "violates foreign key constraint") {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}

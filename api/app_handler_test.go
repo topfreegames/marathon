@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jinzhu/gorm"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
@@ -39,18 +38,15 @@ import (
 )
 
 var _ = Describe("App Handler", func() {
-	var logger zap.Logger
-	var faultyDb *gorm.DB
-	var app *api.Application
+	logger := zap.New(
+		zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
+		zap.FatalLevel,
+	)
+	app := GetDefaultTestApp(logger)
+	faultyDb := GetFaultyTestDB(app)
 	BeforeEach(func() {
-		logger = zap.New(
-			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
-			zap.FatalLevel,
-		)
-		app = GetDefaultTestApp(logger)
 		var dbApp model.App
 		app.DB.Delete(&dbApp)
-		faultyDb = GetFaultyTestDB(app)
 	})
 
 	Describe("Get /apps", func() {
@@ -96,10 +92,12 @@ var _ = Describe("App Handler", func() {
 			})
 
 			It("should return 500 if some error occured", func() {
+				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Get(app, "/apps", "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 		})
 	})
@@ -141,12 +139,14 @@ var _ = Describe("App Handler", func() {
 			})
 
 			It("should return 500 if some error occured", func() {
+				goodDB := app.DB
 				app.DB = faultyDb
 				payload := GetAppPayload()
 				pl, _ := json.Marshal(payload)
 				status, _ := Post(app, "/apps", string(pl), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 409 if app with same bundleId already exists", func() {
@@ -256,11 +256,13 @@ var _ = Describe("App Handler", func() {
 			})
 
 			It("should return 500 if some error occured", func() {
+				goodDB := app.DB
 				existingApp := CreateTestApp(app.DB)
 				app.DB = faultyDb
 				status, _ := Get(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 404 if the app does not exist", func() {
@@ -322,10 +324,12 @@ var _ = Describe("App Handler", func() {
 				existingApp := CreateTestApp(app.DB)
 				payload := GetAppPayload()
 				pl, _ := json.Marshal(payload)
+				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 422 if app id is not UUID", func() {
@@ -436,10 +440,12 @@ var _ = Describe("App Handler", func() {
 
 			It("should return 500 if some error occured", func() {
 				existingApp := CreateTestApp(app.DB)
+				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Delete(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
 			})
 
 			It("should return 404 if the app does not exist", func() {
