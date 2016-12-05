@@ -31,6 +31,7 @@ import (
 	"github.com/jinzhu/gorm"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/api"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
@@ -139,9 +140,9 @@ var _ = Describe("App Handler", func() {
 			})
 
 			It("should return 409 if app with same bundleId already exists", func() {
-				extistingApp := CreateTestApp(app.DB)
-				payload := GetAppPayload(map[string]interface{}{"bundleId": extistingApp.BundleID})
-				fmt.Println(extistingApp.BundleID)
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload(map[string]interface{}{"bundleId": existingApp.BundleID})
+				fmt.Println(existingApp.BundleID)
 				fmt.Println(payload["bundleId"])
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, "/apps", string(pl), "test@test.com")
@@ -215,6 +216,49 @@ var _ = Describe("App Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid bundleId"))
+			})
+		})
+	})
+
+	Describe("Get /apps/:id", func() {
+		Describe("Sucesfully", func() {
+			It("should return 200 and the requested app", func() {
+				existingApp := CreateTestApp(app.DB)
+				status, body := Get(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var response model.App
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(response.ID).To(Equal(existingApp.ID))
+				Expect(response.Name).To(Equal(existingApp.Name))
+				Expect(response.BundleID).To(Equal(existingApp.BundleID))
+				Expect(response.CreatedBy).To(Equal(existingApp.CreatedBy))
+				Expect(response.CreatedAt).ToNot(BeNil())
+				Expect(response.UpdatedAt).ToNot(BeNil())
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				status, _ := Get(app, "/apps/1234", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingApp := CreateTestApp(app.DB)
+				app.DB = faultyDb
+				status, _ := Get(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 404 if the app does not exist", func() {
+				status, _ := Get(app, fmt.Sprintf("/apps/%s", uuid.NewV4().String()), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusNotFound))
 			})
 		})
 	})
