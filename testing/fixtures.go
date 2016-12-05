@@ -23,6 +23,7 @@
 package testing
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -83,4 +84,61 @@ func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
 		"bundleId": bundleID,
 	}
 	return app
+}
+
+//CreateTestTemplate with specified optional values
+func CreateTestTemplate(db *gorm.DB, appID uuid.UUID, options ...map[string]interface{}) *model.Template {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+
+	pl, _ := json.Marshal(getOpt(opts, "defaults", map[string]string{"value": "default"}).(map[string]string))
+	defaults := string(pl)
+	pl, _ = json.Marshal(getOpt(opts, "body", map[string]string{"value": "custom"}).(map[string]string))
+	body := string(pl)
+
+	template := &model.Template{}
+	template.AppID = appID
+	template.Defaults = defaults
+	template.Body = body
+	template.Name = getOpt(opts, "name", uuid.NewV4().String()).(string)
+	template.Locale = getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
+	template.CompiledBody = getOpt(opts, "compiledBody", "compiled-body").(string)
+	template.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
+
+	err := db.Create(&template).Error
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	return template
+}
+
+//CreateTestTemplates for n apps
+func CreateTestTemplates(db *gorm.DB, appID uuid.UUID, n int, options ...map[string]interface{}) []*model.Template {
+	templates := make([]*model.Template, n)
+	for i := 0; i < n; i++ {
+		template := CreateTestTemplate(db, appID, options...)
+		templates[i] = template
+	}
+
+	return templates
+}
+
+//GetTemplatePayload with specified optional values
+func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{} {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+	name := getOpt(opts, "name", uuid.NewV4().String()).(string)
+	locale := getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
+	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": "default"}).(map[string]interface{})
+	body := getOpt(opts, "body", map[string]interface{}{"value": "custom"}).(map[string]interface{})
+
+	template := map[string]interface{}{
+		"name":     name,
+		"locale":   locale,
+		"defaults": defaults,
+		"body":     body,
+	}
+	return template
 }

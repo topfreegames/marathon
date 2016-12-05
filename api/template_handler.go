@@ -39,7 +39,7 @@ func (a *Application) ListTemplatesHandler(c echo.Context) error {
 	}
 	templates := []model.Template{}
 	where := map[string]interface{}{
-		"AppID": id,
+		"app_id": id,
 	}
 	if err := a.DB.Where(where).Find(&templates).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
