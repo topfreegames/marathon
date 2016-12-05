@@ -51,7 +51,7 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 	}
 	if err = a.DB.Create(&app).Error; err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
-			return c.JSON(http.StatusConflict, app)
+			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}

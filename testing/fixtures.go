@@ -41,8 +41,8 @@ func getOpt(options map[string]interface{}, key string, defaultValue interface{}
 	return val
 }
 
-//GetNewApp with specified optional values
-func GetNewApp(db *gorm.DB, options ...map[string]interface{}) *model.App {
+//CreateTestApp with specified optional values
+func CreateTestApp(db *gorm.DB, options ...map[string]interface{}) *model.App {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -62,9 +62,25 @@ func GetNewApp(db *gorm.DB, options ...map[string]interface{}) *model.App {
 func CreateTestApps(db *gorm.DB, n int, options ...map[string]interface{}) []*model.App {
 	apps := make([]*model.App, n)
 	for i := 0; i < n; i++ {
-		app := GetNewApp(db, options...)
+		app := CreateTestApp(db, options...)
 		apps[i] = app
 	}
 
 	return apps
+}
+
+//GetAppPayload with specified optional values
+func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+	name := getOpt(opts, "name", uuid.NewV4().String()).(string)
+	bundleID := getOpt(opts, "bundleId", fmt.Sprintf("com.app.%s", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
+
+	app := map[string]interface{}{
+		"name":     name,
+		"bundleId": bundleID,
+	}
+	return app
 }

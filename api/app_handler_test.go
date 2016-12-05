@@ -24,7 +24,9 @@ package api_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 	. "github.com/onsi/ginkgo"
@@ -92,9 +94,127 @@ var _ = Describe("App Handler", func() {
 
 			It("should return 500 if some error occured", func() {
 				app.DB = faultyDb
-				status, _ := Get(app, "/healthcheck", "test@test.com")
+				status, _ := Get(app, "/apps", "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+		})
+	})
+
+	Describe("Post /apps", func() {
+		Describe("Sucesfully", func() {
+			It("should return 201 and the created app", func() {
+				payload := GetAppPayload()
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var response model.App
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(response.ID).ToNot(BeNil())
+				Expect(response.Name).To(Equal(payload["name"]))
+				Expect(response.BundleID).To(Equal(payload["bundleId"]))
+				Expect(response.CreatedBy).To(Equal("success@test.com"))
+				Expect(response.CreatedAt).ToNot(BeNil())
+				Expect(response.UpdatedAt).ToNot(BeNil())
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				status, _ := Post(app, "/apps", "", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				app.DB = faultyDb
+				payload := GetAppPayload()
+				pl, _ := json.Marshal(payload)
+				status, _ := Post(app, "/apps", string(pl), "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 409 if app with same bundleId already exists", func() {
+				extistingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload(map[string]interface{}{"bundleId": extistingApp.BundleID})
+				fmt.Println(extistingApp.BundleID)
+				fmt.Println(payload["bundleId"])
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusConflict))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("pq: duplicate key value violates unique constraint \"uix_apps_bundle_id\""))
+			})
+
+			It("should return 422 if missing name", func() {
+				payload := GetAppPayload()
+				delete(payload, "name")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid name"))
+			})
+
+			It("should return 422 if missing bundleId", func() {
+				payload := GetAppPayload()
+				delete(payload, "bundleId")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid bundleId"))
+			})
+
+			It("should return 422 if invalid auth header", func() {
+				payload := GetAppPayload()
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "not-a-valid-email")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid createdBy"))
+			})
+
+			It("should return 422 if invalid name", func() {
+				payload := GetAppPayload()
+				payload["name"] = strings.Repeat("a", 256)
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid name"))
+			})
+
+			It("should return 422 if invalid bundleId", func() {
+				payload := GetAppPayload()
+				payload["bundleId"] = "invalidformat"
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, "/apps", string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid bundleId"))
 			})
 		})
 	})
