@@ -5,7 +5,10 @@ go:
 
 services:
   - postgres
+  - docker
 
 sudo: false
+
+before-script: make setup-ci
 
 script: make test
