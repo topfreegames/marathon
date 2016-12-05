@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
+	"os"
 )
 
 func checkErr(err error) {
@@ -41,9 +42,6 @@ var migrationsCmd = &cobra.Command{
 	Use:   "migrations",
 	Short: "use this command to work with migrations",
 	Long:  "use this command to work with migrations",
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Usage()
-	},
 }
 
 func executeMigrationCmd(cmd string) {
@@ -84,8 +82,8 @@ func executeMigrationCmd(cmd string) {
 
 var upCmd = &cobra.Command{
 	Use:   "up",
-	Short: "use this command to execute migrations",
-	Long:  "use this command to execute migrations",
+	Short: "use this command to run all migrations",
+	Long:  "use this command to run all migrations",
 	Run: func(cmd *cobra.Command, args []string) {
 		executeMigrationCmd("up")
 	},
@@ -109,7 +107,23 @@ var redoCmd = &cobra.Command{
 	},
 }
 
+var createCmd = &cobra.Command{
+	Use:   "create <name>",
+	Short: "use this command to create a migration",
+	Long:  "use this command to create a migration",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 {
+			cmd.Usage()
+			os.Exit(1)
+		}
+		if err := goose.Create(nil, "./migrations", args[0], "sql"); err != nil {
+			panic(err)
+		}
+	},
+}
+
 func init() {
+	migrationsCmd.AddCommand(createCmd)
 	migrationsCmd.AddCommand(upCmd)
 	migrationsCmd.AddCommand(downCmd)
 	migrationsCmd.AddCommand(redoCmd)
