@@ -262,4 +262,102 @@ var _ = Describe("App Handler", func() {
 			})
 		})
 	})
+
+	Describe("Put /apps/:id", func() {
+		Describe("Sucesfully", func() {
+			It("should return 200 and the updated app without updating createdBy", func() {
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload()
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var response model.App
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(response.ID).ToNot(BeNil())
+				Expect(response.Name).To(Equal(payload["name"]))
+				Expect(response.BundleID).To(Equal(payload["bundleId"]))
+				Expect(response.CreatedBy).To(Equal(existingApp.CreatedBy))
+				Expect(response.CreatedAt).ToNot(BeNil())
+				Expect(response.UpdatedAt).ToNot(BeNil())
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				existingApp := CreateTestApp(app.DB)
+				status, _ := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), "", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload()
+				pl, _ := json.Marshal(payload)
+				app.DB = faultyDb
+				status, _ := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+			})
+
+			It("should return 422 if missing name", func() {
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload()
+				delete(payload, "name")
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid name"))
+			})
+
+			It("should return 422 if missing bundleId", func() {
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload()
+				delete(payload, "bundleId")
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid bundleId"))
+			})
+
+			It("should return 422 if invalid name", func() {
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload()
+				payload["name"] = strings.Repeat("a", 256)
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid name"))
+			})
+
+			It("should return 422 if invalid bundleId", func() {
+				existingApp := CreateTestApp(app.DB)
+				payload := GetAppPayload()
+				payload["bundleId"] = "invalidformat"
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid bundleId"))
+			})
+		})
+	})
 })
