@@ -1,0 +1,11 @@
+language: go
+
+go:
+  - 1.7
+
+services:
+  - postgres
+
+sudo: false
+
+script: make test
