@@ -49,8 +49,8 @@ func GetTestDB() *gorm.DB {
 }
 
 // GetFaultyTestDB returns an ill-configured database for usage in tests
-func GetFaultyTestDB() *gorm.DB {
-	faultyDbURL := viper.GetString("database.faulty")
+func GetFaultyTestDB(a *api.Application) *gorm.DB {
+	faultyDbURL := a.Config.GetString("database.faulty")
 	faultyDb, _ := gorm.Open("postgres", faultyDbURL)
 	return faultyDb
 }

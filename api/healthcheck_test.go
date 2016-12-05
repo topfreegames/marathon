@@ -44,7 +44,7 @@ var _ = Describe("Healthcheck Handler", func() {
 			zap.FatalLevel,
 		)
 		app = GetDefaultTestApp(logger)
-		faultyDb = GetFaultyTestDB()
+		faultyDb = GetFaultyTestDB(app)
 	})
 
 	Describe("Get /healthcheck", func() {

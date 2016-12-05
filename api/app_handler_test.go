@@ -48,7 +48,7 @@ var _ = Describe("App Handler", func() {
 			zap.FatalLevel,
 		)
 		app = GetDefaultTestApp(logger)
-		faultyDb = GetFaultyTestDB()
+		faultyDb = GetFaultyTestDB(app)
 	})
 
 	Describe("Get /apps", func() {
