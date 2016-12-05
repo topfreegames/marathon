@@ -129,10 +129,14 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 	if len(options) == 1 {
 		opts = options[0]
 	}
+
 	name := getOpt(opts, "name", uuid.NewV4().String()).(string)
 	locale := getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
-	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": "default"}).(map[string]interface{})
-	body := getOpt(opts, "body", map[string]interface{}{"value": "custom"}).(map[string]interface{})
+
+	pl, _ := json.Marshal(getOpt(opts, "defaults", map[string]string{"value": "default"}).(map[string]string))
+	defaults := string(pl)
+	pl, _ = json.Marshal(getOpt(opts, "body", map[string]string{"value": "custom"}).(map[string]string))
+	body := string(pl)
 
 	template := map[string]interface{}{
 		"name":     name,

@@ -64,7 +64,10 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 	}
 	if err = a.DB.Create(&template).Error; err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
-			return c.JSON(http.StatusConflict, template)
+			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: template})
+		}
+		if strings.Contains(err.Error(), "violates foreign key constraint") {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: template})
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
 	}
