@@ -120,6 +120,14 @@ var _ = Describe("App Handler", func() {
 				Expect(response.CreatedBy).To(Equal("success@test.com"))
 				Expect(response.CreatedAt).ToNot(BeNil())
 				Expect(response.UpdatedAt).ToNot(BeNil())
+
+				var dbApp model.App
+				err = app.DB.Where(&model.App{ID: response.ID}).First(&dbApp).Error
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbApp).NotTo(BeNil())
+				Expect(dbApp.Name).To(Equal(payload["name"]))
+				Expect(dbApp.BundleID).To(Equal(payload["bundleId"]))
+				Expect(dbApp.CreatedBy).To(Equal("success@test.com"))
 			})
 		})
 
@@ -273,13 +281,20 @@ var _ = Describe("App Handler", func() {
 				var response model.App
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-
 				Expect(response.ID).ToNot(BeNil())
 				Expect(response.Name).To(Equal(payload["name"]))
 				Expect(response.BundleID).To(Equal(payload["bundleId"]))
 				Expect(response.CreatedBy).To(Equal(existingApp.CreatedBy))
 				Expect(response.CreatedAt).ToNot(BeNil())
 				Expect(response.UpdatedAt).ToNot(BeNil())
+
+				var dbApp model.App
+				err = app.DB.Where(&model.App{ID: response.ID}).First(&dbApp).Error
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbApp).NotTo(BeNil())
+				Expect(dbApp.Name).To(Equal(payload["name"]))
+				Expect(dbApp.BundleID).To(Equal(payload["bundleId"]))
+				Expect(dbApp.CreatedBy).To(Equal(existingApp.CreatedBy))
 			})
 		})
 
@@ -366,6 +381,10 @@ var _ = Describe("App Handler", func() {
 				status, _ := Delete(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusNoContent))
 
+				var dbApp model.App
+				err := app.DB.Where(&model.App{ID: existingApp.ID}).First(&dbApp).Error
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
 			})
 		})
 
