@@ -316,6 +316,20 @@ var _ = Describe("App Handler", func() {
 				Expect(status).To(Equal(http.StatusInternalServerError))
 			})
 
+			It("should return 409 if app with same bundleId already exists", func() {
+				existingApp1 := CreateTestApp(app.DB)
+				existingApp2 := CreateTestApp(app.DB)
+				payload := GetAppPayload(map[string]interface{}{"bundleId": existingApp1.BundleID})
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp2.ID), string(pl), "update@test.com")
+				Expect(status).To(Equal(http.StatusConflict))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("pq: duplicate key value violates unique constraint \"uix_apps_bundle_id\""))
+			})
+
 			It("should return 422 if missing name", func() {
 				existingApp := CreateTestApp(app.DB)
 				payload := GetAppPayload()

@@ -97,6 +97,9 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	app.ID = queryApp.ID
 	app.CreatedBy = queryApp.CreatedBy
 	if err = a.DB.Save(&app).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
+		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
 	return c.JSON(http.StatusOK, app)
