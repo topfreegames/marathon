@@ -3,6 +3,9 @@ language: go
 go:
   - 1.7
 
+addons:
+  postgresql: "9.5"
+
 services:
   - postgres
   - docker
