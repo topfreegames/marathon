@@ -18,8 +18,23 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-include ./make/assets.mk
-include ./make/build.mk
-include ./make/run.mk
-include ./make/setup.mk
-include ./make/test.mk
+PACKAGES = $(shell glide novendor)
+BIN_PATH = "./bin"
+BIN_NAME = "marathon"
+
+build:
+	@mkdir -p ${BIN_PATH}
+	@go build $(PACKAGES)
+	@go build -o ${BIN_PATH}/${BIN_NAME} main.go
+
+cross: assets
+	@mkdir -p ${BIN_PATH}
+	@echo "Building for linux-i386..."
+	@env GOOS=linux GOARCH=386 go build -o ${BIN_PATH}/${BIN_NAME}-linux-i386
+	@echo "Building for linux-x86_64..."
+	@env GOOS=linux GOARCH=amd64 go build -o ${BIN_PATH}/${BIN_NAME}-linux-x86_64
+	@echo "Building for darwin-i386..."
+	@env GOOS=darwin GOARCH=386 go build -o ${BIN_PATH}/${BIN_NAME}-darwin-i386
+	@echo "Building for darwin-x86_64..."
+	@env GOOS=darwin GOARCH=amd64 go build -o ${BIN_PATH}/${BIN_NAME}-darwin-x86_64
+	@chmod +x bin/*

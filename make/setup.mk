@@ -18,8 +18,14 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-include ./make/assets.mk
-include ./make/build.mk
-include ./make/run.mk
-include ./make/setup.mk
-include ./make/test.mk
+setup-hooks:
+	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
+
+clear-hooks:
+	@cd .git/hooks && rm pre-commit
+
+setup: setup-hooks
+	@go get -u github.com/Masterminds/glide/...
+	@go get -u github.com/onsi/ginkgo/ginkgo
+	@go get github.com/gordonklaus/ineffassign
+	@glide install

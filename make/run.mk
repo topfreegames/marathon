@@ -18,8 +18,15 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-include ./make/assets.mk
-include ./make/build.mk
-include ./make/run.mk
-include ./make/setup.mk
-include ./make/test.mk
+run:
+	@go run main.go start-api -d -c ./config/default.yaml
+
+migrate:
+	@go run main.go migrations up
+
+create-db:
+	@createdb marathon; true
+	@psql -h localhost -d marathon -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"';
+
+drop-db:
+	@dropdb marathon
