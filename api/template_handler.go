@@ -125,6 +125,9 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	template.AppID = queryTemplate.AppID
 	template.CreatedBy = queryTemplate.CreatedBy
 	if err = a.DB.Save(&template).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: template})
+		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
 	}
 	return c.JSON(http.StatusOK, template)
