@@ -52,6 +52,10 @@ var _ = Describe("App Handler", func() {
 		app = GetDefaultTestApp(logger)
 		faultyDb = GetFaultyTestDB(app)
 
+		var dbApp model.App
+		app.DB.Delete(&dbApp)
+		var dbTemplate model.Template
+		app.DB.Delete(&dbTemplate)
 		existingApp = CreateTestApp(app.DB)
 		baseRoute = fmt.Sprintf("/apps/%s/templates", existingApp.ID)
 	})

@@ -21,7 +21,7 @@
 test: test-services test-run
 
 test-run:
-	@ginkgo -r --cover .
+	@ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
 	@$(MAKE) test-coverage-func
 
 test-coverage-func:

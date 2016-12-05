@@ -48,6 +48,8 @@ var _ = Describe("App Handler", func() {
 			zap.FatalLevel,
 		)
 		app = GetDefaultTestApp(logger)
+		var dbApp model.App
+		app.DB.Delete(&dbApp)
 		faultyDb = GetFaultyTestDB(app)
 	})
 
