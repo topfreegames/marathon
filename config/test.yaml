@@ -1,4 +1,4 @@
 ---
 database:
   url: postgres://localhost:5432/marathon_test?sslmode=disable
-  faulty: postgres://localhost:5432/marathon_tet?sslmode=disable
+  faulty: postgres://localhost:5433/marathon_tet?sslmode=disable
