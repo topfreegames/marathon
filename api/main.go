@@ -37,6 +37,7 @@ import (
 	// for gorm
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/worker"
 )
 
 // Application is the api main struct
@@ -50,6 +51,7 @@ type Application struct {
 	ConfigPath string
 	Config     *viper.Viper
 	NewRelic   newrelic.Application
+	Worker     *worker.Worker
 }
 
 // GetApplication returns a configured api
@@ -97,6 +99,7 @@ func (a *Application) configure() error {
 	}
 
 	a.configureApplication()
+	a.configureWorker()
 	a.configureSentry()
 
 	err = a.configureNewRelic()
@@ -120,6 +123,10 @@ func (a *Application) OnErrorHandler(err error, stack []byte) {
 		"type":   "panic",
 	}
 	raven.CaptureError(err, tags)
+}
+
+func (a *Application) configureWorker() {
+	a.Worker = worker.GetWorker(a.Debug, a.Logger)
 }
 
 func (a *Application) configureApplication() {

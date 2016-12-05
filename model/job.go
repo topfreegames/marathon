@@ -91,9 +91,10 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("filters or csvUrl must exist")
 	}
 
-	valid = !(!govalidator.IsNull(j.Filters) && !govalidator.IsNull(j.CsvURL))
-	if !valid {
-		return InvalidField("filters or csvUrl must exist, not both")
-	}
+	//TODO this is stucking the development
+	// valid = !(!govalidator.IsNull(j.Filters) && !govalidator.IsNull(j.CsvURL))
+	// if !valid {
+	// 	return InvalidField("filters or csvUrl must exist, not both")
+	// }
 	return nil
 }

@@ -21,6 +21,12 @@
 run:
 	@go run main.go start-api -d -c ./config/default.yaml
 
+run-api:
+	@go run main.go start-api -d -c ./config/default.yaml
+
+run-workers:
+	@go run main.go start-workers -d -c ./config/default.yaml
+
 migrate:
 	@go run main.go migrations up
 

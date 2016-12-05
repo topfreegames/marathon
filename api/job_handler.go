@@ -29,6 +29,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
+	"github.com/uber-go/zap"
 )
 
 // ListJobsHandler is the method called when a get to /apps/:id/templates/:tid/jobs is called
@@ -46,7 +47,7 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 		"app_id":      id,
 		"template_id": tid,
 	}
-	if err := a.DB.Where(where).Find(&jobs).Error; err != nil {
+	if err := a.DB.Preload("App").Preload("Template.App").Where(where).Find(&jobs).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	return c.JSON(http.StatusOK, jobs)
@@ -86,6 +87,13 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
+	a.Logger.Debug("job successfully created! creating job in create_batches_worker")
+	jid, err := a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
+	if err != nil {
+		a.DB.Delete(&job)
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+	}
+	a.Logger.Info("job successfully sent to create_batches_worker!", zap.String("jid", jid))
 	return c.JSON(http.StatusCreated, job)
 }
 
@@ -108,7 +116,7 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		AppID:      id,
 		TemplateID: tid,
 	}
-	if err := a.DB.Where(job).First(&job).Error; err != nil {
+	if err := a.DB.Preload("Template.App").Preload("App").Where(job).First(&job).Error; err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, job)
 		}

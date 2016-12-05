@@ -41,7 +41,7 @@ func (a *Application) ListTemplatesHandler(c echo.Context) error {
 	where := map[string]interface{}{
 		"app_id": id,
 	}
-	if err := a.DB.Where(where).Find(&templates).Error; err != nil {
+	if err := a.DB.Preload("App").Where(where).Find(&templates).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	return c.JSON(http.StatusOK, templates)
@@ -85,7 +85,7 @@ func (a *Application) GetTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	template := &model.Template{ID: tid, AppID: id}
-	if err := a.DB.Where(template).First(&template).Error; err != nil {
+	if err := a.DB.Preload("App").Where(template).First(&template).Error; err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, template)
 		}

@@ -50,7 +50,7 @@ var workerCmd = &cobra.Command{
 			zap.String("bind", host),
 		)
 
-		logger.Debug("configuring api...")
+		logger.Debug("configuring workers...")
 		w := worker.GetWorker(debug, logger)
 
 		logger.Debug("starting worker...")

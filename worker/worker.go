@@ -79,10 +79,15 @@ func (w *Worker) configureRedis() {
 func (w *Worker) configureWorkers() {
 	jobsConcurrency := viper.GetInt("workers.concurrency")
 	b := GetBenchmarkWorker(viper.GetString("workers.redis.server"), viper.GetString("workers.redis.database"))
-	c := GetCreateBatchesWorker(viper.GetString("database.url"))
+	c := GetCreateBatchesWorker(viper.GetString("database.url"), viper.GetString("push.database.url"))
 	//workers.Middleware.Append(&) TODO
 	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
 	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
+}
+
+// CreateBatchesJob creates a new CreateBatchesWorker job
+func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
+	return workers.Enqueue("create_batches_worker", "Add", jobID)
 }
 
 // Start starts the worker
