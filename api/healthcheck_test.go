@@ -20,4 +20,55 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package api
+package api_test
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/jinzhu/gorm"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/topfreegames/marathon/api"
+	. "github.com/topfreegames/marathon/testing"
+	"github.com/uber-go/zap"
+)
+
+var _ = Describe("Healthcheck Handler", func() {
+	var logger zap.Logger
+	var faultyDb *gorm.DB
+	var app *api.Application
+	BeforeEach(func() {
+		logger = zap.New(
+			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
+			zap.FatalLevel,
+		)
+		app = GetDefaultTestApp(logger)
+		faultyDb = GetFaultyTestDB()
+	})
+
+	Describe("Get /healthcheck", func() {
+		It("should return 200 if all services are up", func() {
+			status, body := Get(app, "/healthcheck", "")
+
+			Expect(status).To(Equal(http.StatusOK))
+
+			var response map[string]interface{}
+			err := json.Unmarshal([]byte(body), &response)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(response["healthy"]).To(BeTrue())
+		})
+
+		It("should fail if connection to postgres is not up", func() {
+			app.DB = faultyDb
+			status, body := Get(app, "/healthcheck", "")
+
+			Expect(status).To(Equal(http.StatusInternalServerError))
+
+			var response map[string]interface{}
+			err := json.Unmarshal([]byte(body), &response)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(response["healthy"]).To(BeFalse())
+		})
+	})
+})

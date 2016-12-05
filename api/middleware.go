@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/getsentry/raven-go"
@@ -261,6 +262,12 @@ type AuthMiddleware struct {
 // Serve Validate that a user exists
 func (a AuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		path := c.Path()
+		// healthcheck should not need authenticated user
+		if strings.HasPrefix(path, "/healthcheck") {
+			c.Set("user-email", "")
+			return next(c)
+		}
 		userEmail := c.Request().Header.Get("x-forwarded-email")
 		if userEmail == "" {
 			return c.String(401, "Authentication failed.")

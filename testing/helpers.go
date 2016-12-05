@@ -48,6 +48,13 @@ func GetTestDB() *gorm.DB {
 	return db
 }
 
+// GetFaultyTestDB returns an ill-configured database for usage in tests
+func GetFaultyTestDB() *gorm.DB {
+	faultyDbURL := viper.GetString("database.faulty")
+	faultyDb, _ := gorm.Open("postgres", faultyDbURL)
+	return faultyDb
+}
+
 //GetConfPath for the environment we're in
 func GetConfPath() string {
 	conf := "../config/test.yaml"
