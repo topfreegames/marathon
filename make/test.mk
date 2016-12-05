@@ -53,7 +53,7 @@ test-services: test-db-drop test-db-create test-db-migrate
 	@echo "Required test services are up."
 
 test-db-drop:
-	@dropdb marathon_test
+	@dropdb marathon_test; true
 
 test-db-create:
 	@createdb marathon_test; true
