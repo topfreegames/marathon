@@ -1,5 +1,5 @@
 hash: 0e84ececb7fdb578431dd0a62bb3ebbe0c5367ca0aaf87347c305fc54361928e
-updated: 2016-12-06T17:24:26.512325998-02:00
+updated: 2016-12-06T19:50:53.489247843-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -58,6 +58,9 @@ imports:
   version: 30a891c33c7cde7b02a981314b4228ec99380cca
 - name: github.com/minio/minio-go
   version: c040578255dbb1a1f41cbdc5bd944de4140b4149
+  subpackages:
+  - pkg/policy
+  - pkg/set
 - name: github.com/mitchellh/mapstructure
   version: 5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
 - name: github.com/newrelic/go-agent
@@ -126,16 +129,16 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber-go/zap
-  version: 2a8f287b5620c77c427ac78d29bda4af737f2f00
+  version: 26c75604fce9f820e6ef1658e0f4bc4f4a6b11a4
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
 - name: golang.org/x/crypto
-  version: 8a549a1948fc5271eb24f36dcb0d3b47dec75a16
+  version: 3f77d695175f990a2967385c493939f380ee40a3
   subpackages:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 4a1c855a052c2bad0e019ccfe8193a33d77adf5e
+  version: 8dab9293431a241c65a8e8d46bbaa0492ec94849
   subpackages:
   - context
   - context/ctxhttp
