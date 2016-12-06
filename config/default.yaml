@@ -16,3 +16,9 @@ push:
     poolSize: 20
     maxRetries: 3
     database: push
+s3:
+  bucket: "tfg-push-notifications"
+  folder: "test/files"
+  daysExpiry: 1
+  accessKey: "ACCESS-KEY"
+  secretAccessKey: "SECRET-ACCESS-KEY"

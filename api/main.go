@@ -146,6 +146,9 @@ func (a *Application) configureApplication() {
 	// Base Routes
 	e.GET("/healthcheck", a.HealthcheckHandler)
 
+	// Upload Routes
+	e.GET("/uploadurl", a.UploadHandler)
+
 	// Apps Routes
 	e.POST("/apps", a.PostAppHandler)
 	e.GET("/apps", a.ListAppsHandler)

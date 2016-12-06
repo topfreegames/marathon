@@ -1,5 +1,5 @@
-hash: ddbfdf14d0353f094003b5f0ac10847b8ab2286b648d02551f5ab2a10fd7f4b6
-updated: 2016-12-06T17:02:54.495866579-02:00
+hash: 0e84ececb7fdb578431dd0a62bb3ebbe0c5367ca0aaf87347c305fc54361928e
+updated: 2016-12-06T17:24:26.512325998-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -56,6 +56,8 @@ imports:
   version: d228849504861217f796da67fae4f6e347643f15
 - name: github.com/mattn/go-isatty
   version: 30a891c33c7cde7b02a981314b4228ec99380cca
+- name: github.com/minio/minio-go
+  version: c040578255dbb1a1f41cbdc5bd944de4140b4149
 - name: github.com/mitchellh/mapstructure
   version: 5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
 - name: github.com/newrelic/go-agent
@@ -133,7 +135,7 @@ imports:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 8dab9293431a241c65a8e8d46bbaa0492ec94849
+  version: 4a1c855a052c2bad0e019ccfe8193a33d77adf5e
   subpackages:
   - context
   - context/ctxhttp
