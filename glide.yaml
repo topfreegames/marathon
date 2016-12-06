@@ -29,3 +29,4 @@ import:
 - package: github.com/pressly/goose
 - package: gopkg.in/pg.v5
   version: ^5.1.5
+- package: github.com/lib/pq

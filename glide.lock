@@ -1,5 +1,5 @@
-hash: 6e37cf4a2e49f4ea8c26aaee2fc4d00011cf9fba7c05ea576e1d69cfce1c3e81
-updated: 2016-12-05T23:28:17.364574558-02:00
+hash: ddbfdf14d0353f094003b5f0ac10847b8ab2286b648d02551f5ab2a10fd7f4b6
+updated: 2016-12-06T17:02:54.495866579-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -31,8 +31,6 @@ imports:
   - json/token
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
-- name: github.com/jinzhu/gorm
-  version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
 - name: github.com/jinzhu/inflection
   version: 74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff
 - name: github.com/jrallison/go-workers
@@ -48,6 +46,10 @@ imports:
   - color
   - log
   - random
+- name: github.com/lib/pq
+  version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617
+  subpackages:
+  - oid
 - name: github.com/magiconair/properties
   version: 9c47895dc1ce54302908ab8a43385d1f5df2c11c
 - name: github.com/mattn/go-colorable
@@ -131,7 +133,7 @@ imports:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 4a1c855a052c2bad0e019ccfe8193a33d77adf5e
+  version: 8dab9293431a241c65a8e8d46bbaa0492ec94849
   subpackages:
   - context
   - context/ctxhttp
