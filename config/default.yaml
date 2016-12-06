@@ -22,3 +22,10 @@ s3:
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
+workers:
+  statsPort: 8081
+  concurrency: 10
+  redis:
+    server: localhost:6333
+    database: 0
+    poolSize: 10

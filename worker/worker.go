@@ -23,6 +23,8 @@
 package worker
 
 import (
+	"strings"
+
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
@@ -31,15 +33,18 @@ import (
 
 // Worker is the struct that will configure workers
 type Worker struct {
-	Debug  bool
-	Logger zap.Logger
+	Debug      bool
+	Logger     zap.Logger
+	ConfigPath string
+	Config     *viper.Viper
 }
 
 // GetWorker returns a configured worker
-func GetWorker(debug bool, l zap.Logger) *Worker {
+func GetWorker(debug bool, l zap.Logger, configPath string) *Worker {
 	worker := &Worker{
-		Debug:  debug,
-		Logger: l,
+		Debug:      debug,
+		Logger:     l,
+		ConfigPath: configPath,
 	}
 
 	worker.configure()
@@ -47,24 +52,44 @@ func GetWorker(debug bool, l zap.Logger) *Worker {
 }
 
 func (w *Worker) configure() {
+	w.Config = viper.New()
+
+	w.Config.SetConfigFile(w.ConfigPath)
+	w.Config.SetEnvPrefix("marathon")
+	w.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	w.Config.AutomaticEnv()
+
+	if err := w.Config.ReadInConfig(); err == nil {
+		w.Logger.Info("Loaded config file.", zap.String("configFile", w.Config.ConfigFileUsed()))
+	} else {
+		panic(err)
+	}
 	w.loadConfigurationDefaults()
 	w.configureRedis()
 	w.configureWorkers()
 }
 
 func (w *Worker) loadConfigurationDefaults() {
-	viper.SetDefault("workers.redis.server", "localhost:6379")
-	viper.SetDefault("workers.redis.database", "0")
-	viper.SetDefault("workers.redis.poolSize", "10")
-	viper.SetDefault("workers.statsPort", 8081)
-	viper.SetDefault("workers.concurrency", 10)
-	viper.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
+	w.Config.SetDefault("workers.redis.server", "localhost:6379")
+	w.Config.SetDefault("workers.redis.database", "0")
+	w.Config.SetDefault("workers.redis.poolSize", "10")
+	w.Config.SetDefault("workers.statsPort", 8081)
+	w.Config.SetDefault("workers.concurrency", 10)
+	w.Config.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
 }
 
 func (w *Worker) configureRedis() {
-	redisServer := viper.GetString("workers.redis.server")
-	redisDatabase := viper.GetString("workers.redis.database")
-	redisPoolsize := viper.GetString("workers.redis.poolSize")
+	redisServer := w.Config.GetString("workers.redis.server")
+	redisDatabase := w.Config.GetString("workers.redis.database")
+	redisPoolsize := w.Config.GetString("workers.redis.poolSize")
+
+	logger := w.Logger.With(
+		zap.String("redisServer", redisServer),
+		zap.String("redisDB", redisDatabase),
+		zap.String("redisPoolsize", redisPoolsize),
+	)
+
+	logger.Info("connecting to workers redis")
 	// unique process id for this instance of workers (for recovery of inprogress jobs on crash)
 	redisProcessID := uuid.NewV4()
 

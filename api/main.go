@@ -125,7 +125,7 @@ func (a *Application) OnErrorHandler(err error, stack []byte) {
 }
 
 func (a *Application) configureWorker() {
-	a.Worker = worker.GetWorker(a.Debug, a.Logger)
+	a.Worker = worker.GetWorker(a.Debug, a.Logger, a.ConfigPath)
 }
 
 func (a *Application) configureApplication() {
