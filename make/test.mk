@@ -54,11 +54,10 @@ test-services: test-db-drop test-db-create test-db-migrate
 	@echo "Required test services are up."
 
 test-db-drop:
-	@dropdb marathon_test; true
+	@psql -f db/drop-test.sql > /dev/null
 
 test-db-create:
-	@createdb marathon_test; true
-	@psql -h localhost -d marathon_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"';
+	@psql -f db/create-test.sql > /dev/null
 
 test-db-migrate:
 	@go run main.go migrations up -c ./config/test.yaml

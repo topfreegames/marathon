@@ -2,13 +2,15 @@
 -- +goose Up
 -- SQL in section 'Up' is executed when this migration is applied
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE "apps" (
   "id" uuid DEFAULT uuid_generate_v4(),
   "name" text NOT NULL,
   "bundle_id" text NOT NULL,
   "created_by" text NOT NULL,
   "created_at" bigint,
-  "updated_at" bigint , 
+  "updated_at" bigint ,
   PRIMARY KEY ("id")
 );
 
@@ -23,17 +25,17 @@ CREATE TABLE "templates" (
   "created_by" text NOT NULL,
   "app_id" uuid NOT NULL,
   "created_at" bigint,
-  "updated_at" bigint , 
+  "updated_at" bigint ,
   PRIMARY KEY ("id")
 );
 
 CREATE UNIQUE INDEX name_locale_app ON "templates"("name", "locale", app_id);
 
-ALTER TABLE "templates" 
-ADD CONSTRAINT templates_app_id_apps_id_foreign 
-FOREIGN KEY (app_id) 
-REFERENCES apps(id) 
-ON DELETE CASCADE 
+ALTER TABLE "templates"
+ADD CONSTRAINT templates_app_id_apps_id_foreign
+FOREIGN KEY (app_id)
+REFERENCES apps(id)
+ON DELETE CASCADE
 ON UPDATE CASCADE;
 
 CREATE TABLE "jobs" (
@@ -50,22 +52,22 @@ CREATE TABLE "jobs" (
   "app_id" uuid NOT NULL,
   "template_id" uuid NOT NULL,
   "created_at" bigint,
-  "updated_at" bigint, 
+  "updated_at" bigint,
   PRIMARY KEY ("id")
 );
 
-ALTER TABLE "jobs" 
-ADD CONSTRAINT jobs_app_id_apps_id_foreign 
-FOREIGN KEY (app_id) 
-REFERENCES apps(id) 
-ON DELETE CASCADE 
+ALTER TABLE "jobs"
+ADD CONSTRAINT jobs_app_id_apps_id_foreign
+FOREIGN KEY (app_id)
+REFERENCES apps(id)
+ON DELETE CASCADE
 ON UPDATE CASCADE;
 
-ALTER TABLE "jobs" 
-ADD CONSTRAINT jobs_template_id_templates_id_foreign 
-FOREIGN KEY (template_id) 
-REFERENCES templates(id) 
-ON DELETE CASCADE 
+ALTER TABLE "jobs"
+ADD CONSTRAINT jobs_template_id_templates_id_foreign
+FOREIGN KEY (template_id)
+REFERENCES templates(id)
+ON DELETE CASCADE
 ON UPDATE CASCADE;
 
 -- +goose Down

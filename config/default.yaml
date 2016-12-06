@@ -2,8 +2,8 @@
 db:
   host: localhost
   port: 5432
-  user: felipecavalcanti
-  password: postgres
+  user: marathon_user
+  password: ""
   poolSize: 20
   maxRetries: 3
   database: marathon
@@ -11,8 +11,8 @@ push:
   db:
     host: localhost
     port: 5432
-    user: felipecavalcanti
-    password: postgres
+    user: marathon_user
+    password: ""
     poolSize: 20
     maxRetries: 3
     database: push

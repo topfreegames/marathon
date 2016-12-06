@@ -2,16 +2,16 @@
 db:
   host: localhost
   port: 5432
-  user: felipecavalcanti
-  password: postgres
+  user: marathon_test_user
+  password: ""
   poolSize: 20
   maxRetries: 3
   database: marathon_test
 faultyDb:
   host: localhost
   port: 5432
-  user: felipecavalcanti
-  password: postgres
+  user: marathon_test_user
+  password: ""
   poolSize: 20
   maxRetries: 3
   database: marathon_tet

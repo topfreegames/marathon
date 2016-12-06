@@ -30,9 +30,8 @@ run-workers:
 migrate:
 	@go run main.go migrations up
 
-create-db:
-	@createdb marathon; true
-	@psql -h localhost -d marathon -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"';
-
 drop-db:
-	@dropdb marathon
+	@psql -f db/drop.sql > /dev/null
+
+create-db:
+	@psql -f db/create.sql > /dev/null
