@@ -48,10 +48,10 @@ var _ = Describe("Job Handler", func() {
 		app.DB.Exec("DELETE FROM templates;")
 		existingApp = CreateTestApp(app.DB)
 		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID)
-		baseRoute = fmt.Sprintf("/apps/%s/templates/%s/jobs", existingApp.ID, existingTemplate.ID)
+		baseRoute = fmt.Sprintf("/apps/%s/templates/%s/jobs", existingApp.ID, existingTemplate.Name)
 	})
 
-	Describe("Get /apps/:id/templates/:tid/jobs", func() {
+	Describe("Get /apps/:id/templates/:templateName/jobs", func() {
 		Describe("Sucesfully", func() {
 			It("should return 200 and an empty list if there are no jobs", func() {
 				status, body := Get(app, baseRoute, "test@test.com")
@@ -64,7 +64,7 @@ var _ = Describe("Job Handler", func() {
 			})
 
 			It("should return 200 and a list of jobs", func() {
-				testJobs := CreateTestJobs(app.DB, existingApp.ID, existingTemplate.ID, 10)
+				testJobs := CreateTestJobs(app.DB, existingApp.ID, existingTemplate.Name, 10)
 				status, body := Get(app, baseRoute, "test@test.com")
 
 				Expect(status).To(Equal(http.StatusOK))
@@ -77,7 +77,7 @@ var _ = Describe("Job Handler", func() {
 				for idx, job := range response {
 					Expect(job["id"]).ToNot(BeNil())
 					Expect(job["appId"]).To(Equal(existingApp.ID.String()))
-					Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
+					Expect(job["templateName"]).To(Equal(existingTemplate.Name))
 					Expect(job["totalBatches"]).To(Equal(float64(testJobs[idx].TotalBatches)))
 					Expect(job["completedBatches"]).To(Equal(float64(testJobs[idx].CompletedBatches)))
 					Expect(job["expiresAt"]).To(Equal(float64(testJobs[idx].ExpiresAt)))
@@ -119,17 +119,7 @@ var _ = Describe("Job Handler", func() {
 			})
 
 			It("should return 422 if app id is not UUID", func() {
-				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s", existingTemplate.ID), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
-			})
-
-			It("should return 422 if template id is not UUID", func() {
-				status, body := Get(app, fmt.Sprintf("/apps/%s/templates/not-uuid", existingApp.ID), "test@test.com")
+				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s", existingTemplate.Name), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -140,7 +130,7 @@ var _ = Describe("Job Handler", func() {
 		})
 	})
 
-	Describe("Post /apps/:id/templates/:tid/jobs", func() {
+	Describe("Post /apps/:id/templates/:templateName/jobs", func() {
 		Describe("Sucesfully", func() {
 			It("should return 201 and the created job with filters", func() {
 				payload := GetJobPayload()
@@ -155,7 +145,7 @@ var _ = Describe("Job Handler", func() {
 
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
-				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
 				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
 				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
@@ -186,7 +176,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
-				Expect(dbJob.TemplateID).To(Equal(existingTemplate.ID))
+				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(BeEquivalentTo(payload["expiresAt"]))
@@ -220,7 +210,7 @@ var _ = Describe("Job Handler", func() {
 
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
-				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
 				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
 				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
@@ -246,7 +236,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
-				Expect(dbJob.TemplateID).To(Equal(existingTemplate.ID))
+				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(Equal(payload["expiresAt"]))
@@ -276,7 +266,7 @@ var _ = Describe("Job Handler", func() {
 
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
-				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
 				Expect(job["expiresAt"]).To(BeEquivalentTo(0))
 
 				id, err := uuid.FromString(job["id"].(string))
@@ -288,7 +278,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
-				Expect(dbJob.TemplateID).To(Equal(existingTemplate.ID))
+				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(int(dbJob.ExpiresAt)).To(BeEquivalentTo(0))
 			})
 		})
@@ -314,19 +304,7 @@ var _ = Describe("Job Handler", func() {
 			It("should return 422 if app id is not UUID", func() {
 				payload := GetJobPayload()
 				pl, _ := json.Marshal(payload)
-				status, body := Post(app, fmt.Sprintf("/apps/not-uuid/templates/%s/jobs", existingTemplate.ID), string(pl), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
-			})
-
-			It("should return 422 if template id is not UUID", func() {
-				payload := GetJobPayload()
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, fmt.Sprintf("/apps/%s/templates/not-uuid/jobs", existingApp.ID), string(pl), "test@test.com")
+				status, body := Post(app, fmt.Sprintf("/apps/not-uuid/templates/%s/jobs", existingTemplate.Name), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -338,16 +316,16 @@ var _ = Describe("Job Handler", func() {
 			It("should return 422 if app with given id does not exist", func() {
 				payload := GetJobPayload()
 				pl, _ := json.Marshal(payload)
-				status, body := Post(app, fmt.Sprintf("/apps/%s/templates/%s/jobs", uuid.NewV4().String(), existingTemplate.ID), string(pl), "test@test.com")
+				status, body := Post(app, fmt.Sprintf("/apps/%s/templates/%s/jobs", uuid.NewV4().String(), existingTemplate.Name), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("jobs_app_id_apps_id_foreign"))
+				Expect(response["reason"]).To(ContainSubstring("no rows in result set"))
 			})
 
-			It("should return 422 if template with given id does not exist", func() {
+			It("should return 422 if template with given name does not exist", func() {
 				payload := GetJobPayload()
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, fmt.Sprintf("/apps/%s/templates/%s/jobs", existingApp.ID, uuid.NewV4().String()), string(pl), "test@test.com")
@@ -356,7 +334,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("jobs_template_id_templates_id_foreign"))
+				Expect(response["reason"]).To(ContainSubstring("no rows in result set"))
 			})
 
 			It("should return 422 if both csvUrl and filters are provided", func() {
@@ -477,10 +455,10 @@ var _ = Describe("Job Handler", func() {
 		})
 	})
 
-	Describe("Get /apps/:id/templates/:tid/jobs/:jid", func() {
+	Describe("Get /apps/:id/templates/:templateName/jobs/:jid", func() {
 		Describe("Sucesfully", func() {
 			It("should return 200 and the requested job", func() {
-				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.ID)
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
 				status, body := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "success@test.com")
 				Expect(status).To(Equal(http.StatusOK))
 
@@ -489,7 +467,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
-				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
 				Expect(job["totalBatches"]).To(Equal(float64(existingJob.TotalBatches)))
 				Expect(job["completedBatches"]).To(Equal(float64(existingJob.CompletedBatches)))
 				Expect(job["expiresAt"]).To(Equal(float64(existingJob.ExpiresAt)))
@@ -515,14 +493,14 @@ var _ = Describe("Job Handler", func() {
 
 		Describe("Unsucesfully", func() {
 			It("should return 401 if no authenticated user", func() {
-				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.ID)
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
 				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "")
 
 				Expect(status).To(Equal(http.StatusUnauthorized))
 			})
 
 			It("should return 500 if some error occured", func() {
-				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.ID)
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
 				goodDB := app.DB
 				app.DB = faultyDb
 				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "test@test.com")
@@ -537,19 +515,8 @@ var _ = Describe("Job Handler", func() {
 			})
 
 			It("should return 422 if app id is not UUID", func() {
-				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.ID)
-				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s/jobs/%s", existingTemplate.ID, existingJob.ID), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
-			})
-
-			It("should return 422 if template id is not UUID", func() {
-				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.ID)
-				status, body := Get(app, fmt.Sprintf("/apps/%s/templates/not-uuid/jobs/%s", existingApp.ID, existingJob.ID), "test@test.com")
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s/jobs/%s", existingTemplate.Name, existingJob.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}

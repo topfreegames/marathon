@@ -32,43 +32,51 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// ListJobsHandler is the method called when a get to /apps/:id/templates/:tid/jobs is called
+// ListJobsHandler is the method called when a get to /apps/:id/templates/:templateName/jobs is called
 func (a *Application) ListJobsHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	tid, err := uuid.FromString(c.Param("tid"))
-	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	templateName := c.Param("templateName")
+	if templateName == "" {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
 	jobs := []model.Job{}
-	if err := a.DB.Model(&jobs).Column("job.*", "Template", "App").Where("job.template_id = ?", tid).Where("job.app_id = ?", id).Select(); err != nil {
+	if err := a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", id).Select(); err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	return c.JSON(http.StatusOK, jobs)
 }
 
-// PostJobHandler is the method called when a post to /apps/:id/templates/:tid/jobs is called
+// PostJobHandler is the method called when a post to /apps/:id/templates/:templateName/jobs is called
 func (a *Application) PostJobHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	tid, err := uuid.FromString(c.Param("tid"))
-	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	templateName := c.Param("templateName")
+	if templateName == "" {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
 	email := c.Get("user-email").(string)
 	job := &model.Job{
-		ID:         uuid.NewV4(),
-		AppID:      id,
-		TemplateID: tid,
-		CreatedBy:  email,
+		ID:           uuid.NewV4(),
+		AppID:        id,
+		TemplateName: templateName,
+		CreatedBy:    email,
 	}
 	err = decodeAndValidate(c, job)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+	}
+
+	template := &model.Template{}
+	if err := a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", id).Where("template.name = ?", templateName).First(); err != nil {
+		if err.Error() == RecordNotFoundString {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+		}
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 
 	if err = a.DB.Insert(&job); err != nil {
@@ -90,26 +98,26 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, job)
 }
 
-// GetJobHandler is the method called when a get to /apps/:id/templates/:tid/jobs/:jid is called
+// GetJobHandler is the method called when a get to /apps/:id/templates/:templateName/jobs/:jid is called
 func (a *Application) GetJobHandler(c echo.Context) error {
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	tid, err := uuid.FromString(c.Param("tid"))
-	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	templateName := c.Param("templateName")
+	if templateName == "" {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
 	jid, err := uuid.FromString(c.Param("jid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	job := &model.Job{
-		ID:         jid,
-		AppID:      id,
-		TemplateID: tid,
+		ID:           jid,
+		AppID:        id,
+		TemplateName: templateName,
 	}
-	if err := a.DB.Model(&job).Column("job.*", "Template", "App").Where("job.id = ?", job.ID).Select(); err != nil {
+	if err := a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select(); err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, job)
 		}

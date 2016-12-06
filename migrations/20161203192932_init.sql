@@ -50,7 +50,7 @@ CREATE TABLE "jobs" (
   "csv_url" text,
   "created_by" text,
   "app_id" uuid NOT NULL,
-  "template_id" uuid NOT NULL,
+  "template_name" text NOT NULL,
   "created_at" bigint,
   "updated_at" bigint,
   PRIMARY KEY ("id")
@@ -60,13 +60,6 @@ ALTER TABLE "jobs"
 ADD CONSTRAINT jobs_app_id_apps_id_foreign
 FOREIGN KEY (app_id)
 REFERENCES apps(id)
-ON DELETE CASCADE
-ON UPDATE CASCADE;
-
-ALTER TABLE "jobs"
-ADD CONSTRAINT jobs_template_id_templates_id_foreign
-FOREIGN KEY (template_id)
-REFERENCES templates(id)
 ON DELETE CASCADE
 ON UPDATE CASCADE;
 

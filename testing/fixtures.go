@@ -150,7 +150,7 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 }
 
 //CreateTestJob with specified optional values
-func CreateTestJob(db *pg.DB, appID uuid.UUID, templateID uuid.UUID, options ...map[string]interface{}) *model.Job {
+func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -161,7 +161,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateID uuid.UUID, options ...
 
 	job := &model.Job{}
 	job.AppID = appID
-	job.TemplateID = templateID
+	job.TemplateName = templateName
 	job.Filters = filters
 	job.Context = context
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
@@ -176,10 +176,10 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateID uuid.UUID, options ...
 }
 
 //CreateTestJobs for n apps
-func CreateTestJobs(db *pg.DB, appID uuid.UUID, templateID uuid.UUID, n int, options ...map[string]interface{}) []*model.Job {
+func CreateTestJobs(db *pg.DB, appID uuid.UUID, templateName string, n int, options ...map[string]interface{}) []*model.Job {
 	jobs := make([]*model.Job, n)
 	for i := 0; i < n; i++ {
-		job := CreateTestJob(db, appID, templateID, options...)
+		job := CreateTestJob(db, appID, templateName, options...)
 		jobs[i] = job
 	}
 

@@ -165,9 +165,9 @@ func (a *Application) configureApplication() {
 	e.DELETE("/apps/:id/templates/:tid", a.DeleteTemplateHandler)
 
 	// Jobs Routes
-	e.POST("/apps/:id/templates/:tid/jobs", a.PostJobHandler)
-	e.GET("/apps/:id/templates/:tid/jobs", a.ListJobsHandler)
-	e.GET("/apps/:id/templates/:tid/jobs/:jid", a.GetJobHandler)
+	e.POST("/apps/:id/templates/:templateName/jobs", a.PostJobHandler)
+	e.GET("/apps/:id/templates/:templateName/jobs", a.ListJobsHandler)
+	e.GET("/apps/:id/templates/:templateName/jobs/:jid", a.GetJobHandler)
 	// TODO: implement these routes
 	// e.PUT("/apps/:id/templates/:tid/jobs/:jid/stop", a.StopJobHandler)
 	// e.DELETE("/apps/:id/templates/:tid/:jid/resume", a.ResumeJobHandler)

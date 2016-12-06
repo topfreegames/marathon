@@ -52,8 +52,7 @@ type Job struct {
 	CreatedBy        string            `json:"createdBy"`
 	App              App               `json:"app"`
 	AppID            uuid.UUID         `json:"appId"`
-	Template         Template          `json:"template"`
-	TemplateID       uuid.UUID         `json:"templateId"`
+	TemplateName     string            `json:"templateName"`
 	CreatedAt        int64             `json:"createdAt"`
 	UpdatedAt        int64             `json:"updatedAt"`
 }
