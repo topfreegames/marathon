@@ -43,8 +43,8 @@ type Job struct {
 	ID               uuid.UUID         `sql:",pk" json:"id"`
 	TotalBatches     int               `json:"totalBatches"`
 	CompletedBatches int               `json:"completedBatches"`
-	CompletedAt      time.Time         `json:"completedAt"`
-	ExpiresAt        time.Time         `json:"expiresAt"`
+	CompletedAt      int64             `json:"completedAt"`
+	ExpiresAt        int64             `json:"expiresAt"`
 	Context          map[string]string `json:"context"`
 	Service          string            `json:"service"`
 	Filters          map[string]string `json:"filters"`
@@ -54,47 +54,40 @@ type Job struct {
 	AppID            uuid.UUID         `json:"appId"`
 	Template         Template          `json:"template"`
 	TemplateID       uuid.UUID         `json:"templateId"`
-	CreatedAt        time.Time         `json:"createdAt"`
-	UpdatedAt        time.Time         `json:"updatedAt"`
+	CreatedAt        int64             `json:"createdAt"`
+	UpdatedAt        int64             `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface
 func (j *Job) Validate(c echo.Context) error {
-	//valid := govalidator.IsJSON(j.Context)
-	//if !valid {
-	//	return InvalidField("context")
-	//}
-	//valid = govalidator.StringMatches(j.Service, "^(apns|gcm)$")
-	//if !valid {
-	//	return InvalidField("service")
-	//}
-	//valid = govalidator.IsNull(j.Filters) || govalidator.IsJSON(j.Filters)
-	//if !valid {
-	//	return InvalidField("filters")
-	//}
-	valid := govalidator.IsNull(j.CsvURL) || govalidator.IsURL(j.CsvURL)
+	valid := len(j.Context) != 0
+	if !valid {
+		return InvalidField("context")
+	}
+
+	valid = govalidator.StringMatches(j.Service, "^(apns|gcm)$")
+	if !valid {
+		return InvalidField("service")
+	}
+
+	valid = govalidator.IsNull(j.CsvURL) || govalidator.IsURL(j.CsvURL)
 	if !valid {
 		return InvalidField("csvUrl")
 	}
-	// TODO: validate expireAt properly
-	// Should be a time and should be future.
-	// valid = govalidator.IsNull(j.ExpiresAt)
-	// if !valid {
-	// 	return InvalidField("expiresAt")
-	// }
+
+	valid = j.ExpiresAt == 0 || time.Now().UnixNano() < j.ExpiresAt
+	if !valid {
+		return InvalidField("expiresAt")
+	}
+
 	valid = govalidator.IsEmail(j.CreatedBy)
 	if !valid {
 		return InvalidField("createdBy")
 	}
-	//valid = !(govalidator.IsNull(j.Filters) && govalidator.IsNull(j.CsvURL))
-	//if !valid {
-	//	return InvalidField("filters or csvUrl must exist")
-	//}
 
-	//TODO this is stucking the development
-	// valid = !(!govalidator.IsNull(j.Filters) && !govalidator.IsNull(j.CsvURL))
-	// if !valid {
-	// 	return InvalidField("filters or csvUrl must exist, not both")
-	// }
+	valid = !(len(j.Filters) != 0 && !govalidator.IsNull(j.CsvURL))
+	if !valid {
+		return InvalidField("filters or csvUrl must exist, not both")
+	}
 	return nil
 }

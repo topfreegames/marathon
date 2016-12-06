@@ -45,8 +45,7 @@ var _ = Describe("App Handler", func() {
 	app := GetDefaultTestApp(logger)
 	faultyDb := GetFaultyTestDB(app)
 	BeforeEach(func() {
-		var dbApp model.App
-		app.DB.Delete(&dbApp)
+		app.DB.Exec("DELETE FROM apps;")
 	})
 
 	Describe("Get /apps", func() {
@@ -163,7 +162,7 @@ var _ = Describe("App Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: duplicate key value violates unique constraint \"uix_apps_bundle_id\""))
+				Expect(response["reason"]).To(ContainSubstring("uix_apps_bundle_id"))
 			})
 
 			It("should return 422 if missing name", func() {
@@ -364,7 +363,7 @@ var _ = Describe("App Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: duplicate key value violates unique constraint \"uix_apps_bundle_id\""))
+				Expect(response["reason"]).To(ContainSubstring("uix_apps_bundle_id"))
 			})
 
 			It("should return 422 if missing name", func() {

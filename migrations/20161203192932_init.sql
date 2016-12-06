@@ -7,8 +7,8 @@ CREATE TABLE "apps" (
   "name" text NOT NULL,
   "bundle_id" text NOT NULL,
   "created_by" text NOT NULL,
-  "created_at" timestamp with time zone,
-  "updated_at" timestamp with time zone , 
+  "created_at" bigint,
+  "updated_at" bigint , 
   PRIMARY KEY ("id")
 );
 
@@ -20,11 +20,10 @@ CREATE TABLE "templates" (
   "locale" text NOT NULL,
   "defaults" JSONB NOT NULL DEFAULT '{}'::JSONB,
   "body" JSONB NOT NULL DEFAULT '{}'::JSONB,
-  "compiled_body" text NOT NULL,
   "created_by" text NOT NULL,
   "app_id" uuid NOT NULL,
-  "created_at" timestamp with time zone,
-  "updated_at" timestamp with time zone , 
+  "created_at" bigint,
+  "updated_at" bigint , 
   PRIMARY KEY ("id")
 );
 
@@ -41,8 +40,8 @@ CREATE TABLE "jobs" (
   "id" uuid DEFAULT uuid_generate_v4(),
   "total_batches" integer,
   "completed_batches" integer NOT NULL DEFAULT 0,
-  "completed_at" timestamp with time zone,
-  "expires_at" timestamp with time zone,
+  "completed_at" bigint,
+  "expires_at" bigint,
   "context" JSONB NOT NULL DEFAULT '{}'::JSONB,
   "service" text,
   "filters" JSONB NOT NULL DEFAULT '{}'::JSONB,
@@ -50,8 +49,8 @@ CREATE TABLE "jobs" (
   "created_by" text,
   "app_id" uuid NOT NULL,
   "template_id" uuid NOT NULL,
-  "created_at" timestamp with time zone,
-  "updated_at" timestamp with time zone, 
+  "created_at" bigint,
+  "updated_at" bigint, 
   PRIMARY KEY ("id")
 );
 

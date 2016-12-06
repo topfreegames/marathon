@@ -23,7 +23,6 @@
 package testing
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -108,7 +107,6 @@ func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interf
 	template.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	template.Name = getOpt(opts, "name", uuid.NewV4().String()).(string)
 	template.Locale = getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
-	template.CompiledBody = getOpt(opts, "compiledBody", "compiled-body").(string)
 	template.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
 
 	err := db.Insert(&template)
@@ -138,10 +136,8 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	locale := getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
 
-	pl, _ := json.Marshal(getOpt(opts, "defaults", map[string]string{"value": "default"}).(map[string]string))
-	defaults := string(pl)
-	pl, _ = json.Marshal(getOpt(opts, "body", map[string]string{"value": "custom"}).(map[string]string))
-	body := string(pl)
+	defaults := getOpt(opts, "defaults", map[string]string{"value": "default"})
+	body := getOpt(opts, "body", map[string]string{"value": "custom"})
 
 	template := map[string]interface{}{
 		"name":     name,
@@ -171,7 +167,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateID uuid.UUID, options ...
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	job.Service = getOpt(opts, "service", "apns").(string)
 	job.CsvURL = getOpt(opts, "csvUrl", "").(string)
-	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour)).(time.Time)
+	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	job.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
 
 	err := db.Insert(&job)
@@ -197,14 +193,12 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 		opts = options[0]
 	}
 
-	pl, _ := json.Marshal(getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string))
-	filters := string(pl)
-	pl, _ = json.Marshal(getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string))
-	context := string(pl)
+	filters := getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string)
+	context := getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string)
 
 	service := getOpt(opts, "service", "apns").(string)
 	csvURL := getOpt(opts, "csvUrl", "").(string)
-	expiresAt := getOpt(opts, "expiresAt", time.Now().Add(time.Hour)).(time.Time)
+	expiresAt := getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 
 	job := map[string]interface{}{

@@ -8,9 +8,7 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
@@ -26,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -36,7 +33,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var _ = FDescribe("Job Handler", func() {
+var _ = Describe("Job Handler", func() {
 	logger := zap.New(
 		zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
 		zap.FatalLevel,
@@ -47,10 +44,8 @@ var _ = FDescribe("Job Handler", func() {
 	var existingTemplate *model.Template
 	var baseRoute string
 	BeforeEach(func() {
-		var dbApp model.App
-		app.DB.Delete(&dbApp)
-		var dbTemplate model.Template
-		app.DB.Delete(&dbTemplate)
+		app.DB.Exec("DELETE FROM apps;")
+		app.DB.Exec("DELETE FROM templates;")
 		existingApp = CreateTestApp(app.DB)
 		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID)
 		baseRoute = fmt.Sprintf("/apps/%s/templates/%s/jobs", existingApp.ID, existingTemplate.ID)
@@ -68,7 +63,7 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(response).To(HaveLen(0))
 			})
 
-			FIt("should return 200 and a list of jobs", func() {
+			It("should return 200 and a list of jobs", func() {
 				testJobs := CreateTestJobs(app.DB, existingApp.ID, existingTemplate.ID, 10)
 				status, body := Get(app, baseRoute, "test@test.com")
 
@@ -84,21 +79,21 @@ var _ = FDescribe("Job Handler", func() {
 					Expect(job["appId"]).To(Equal(existingApp.ID.String()))
 					Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
 					Expect(job["totalBatches"]).To(Equal(float64(testJobs[idx].TotalBatches)))
-					Expect(job["completedBatches"]).To(Equal(testJobs[idx].CompletedBatches))
-					Expect(job["expiresAt"]).To(Equal(testJobs[idx].ExpiresAt.Unix()))
+					Expect(job["completedBatches"]).To(Equal(float64(testJobs[idx].CompletedBatches)))
+					Expect(job["expiresAt"]).To(Equal(float64(testJobs[idx].ExpiresAt)))
 					Expect(job["csvUrl"]).To(Equal(testJobs[idx].CsvURL))
 					Expect(job["service"]).To(Equal(testJobs[idx].Service))
 					Expect(job["createdBy"]).To(Equal(testJobs[idx].CreatedBy))
 					Expect(job["createdAt"]).ToNot(BeNil())
 					Expect(job["updatedAt"]).ToNot(BeNil())
 
-					tempFilters := job["filters"]
+					tempFilters := job["filters"].(map[string]interface{})
 					existFilters := testJobs[idx].Filters
 					for key := range existFilters {
 						Expect(tempFilters[key]).To(Equal(existFilters[key]))
 					}
 
-					tempContext := job["context"]
+					tempContext := job["context"].(map[string]interface{})
 					existContext := testJobs[idx].Context
 					for key := range existContext {
 						Expect(tempContext[key]).To(Equal(existContext[key]))
@@ -161,31 +156,23 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
 				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
-				Expect(job["totalBatches"]).To(Equal(0))
-				Expect(job["completedBatches"]).To(Equal(0))
-				Expect(job["expiresAt"]).To(Equal(payload["expiresAt"]))
+				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
+				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
+				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
 				Expect(job["csvUrl"]).To(Equal(""))
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
 				Expect(job["createdAt"]).ToNot(BeNil())
 				Expect(job["updatedAt"]).ToNot(BeNil())
 
-				var tempFilters map[string]interface{}
-				err = json.Unmarshal([]byte(job["filters"].(string)), &tempFilters)
-				Expect(err).NotTo(HaveOccurred())
-				var plFilters map[string]interface{}
-				err = json.Unmarshal([]byte(payload["filters"].(string)), &plFilters)
-				Expect(err).NotTo(HaveOccurred())
+				tempFilters := job["filters"].(map[string]interface{})
+				plFilters := payload["filters"].(map[string]string)
 				for key := range plFilters {
 					Expect(tempFilters[key]).To(Equal(plFilters[key]))
 				}
 
-				var tempContext map[string]interface{}
-				err = json.Unmarshal([]byte(job["context"].(string)), &tempContext)
-				Expect(err).NotTo(HaveOccurred())
-				var plContext map[string]interface{}
-				err = json.Unmarshal([]byte(payload["context"].(string)), &plContext)
-				Expect(err).NotTo(HaveOccurred())
+				tempContext := job["context"].(map[string]interface{})
+				plContext := payload["context"].(map[string]string)
 				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
@@ -202,23 +189,19 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(dbJob.TemplateID).To(Equal(existingTemplate.ID))
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
-				Expect(dbJob.ExpiresAt.Unix()).To(Equal(payload["expiresAt"].(time.Time).Unix()))
+				Expect(dbJob.ExpiresAt).To(BeEquivalentTo(payload["expiresAt"]))
 				Expect(dbJob.CsvURL).To(Equal(""))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
 				Expect(dbJob.CreatedAt).ToNot(BeNil())
 				Expect(dbJob.UpdatedAt).ToNot(BeNil())
 
-				err = json.Unmarshal([]byte(dbJob.Filters), &tempFilters)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plFilters {
-					Expect(tempFilters[key]).To(Equal(plFilters[key]))
+					Expect(dbJob.Filters[key]).To(Equal(plFilters[key]))
 				}
 
-				err = json.Unmarshal([]byte(dbJob.Context), &tempContext)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plContext {
-					Expect(tempContext[key]).To(Equal(plContext[key]))
+					Expect(dbJob.Context[key]).To(Equal(plContext[key]))
 				}
 			})
 
@@ -238,22 +221,18 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
 				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
-				Expect(job["totalBatches"]).To(Equal(0))
-				Expect(job["completedBatches"]).To(Equal(0))
-				Expect(job["expiresAt"]).To(Equal(payload["expiresAt"]))
+				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
+				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
+				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
 				Expect(job["csvUrl"]).To(Equal(payload["csvUrl"]))
-				Expect(job["filters"]).To(Equal("{}"))
+				Expect(job["filters"]).To(Equal(map[string]interface{}{}))
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
 				Expect(job["createdAt"]).ToNot(BeNil())
 				Expect(job["updatedAt"]).ToNot(BeNil())
 
-				var tempContext map[string]interface{}
-				err = json.Unmarshal([]byte(job["context"].(string)), &tempContext)
-				Expect(err).NotTo(HaveOccurred())
-				var plContext map[string]interface{}
-				err = json.Unmarshal([]byte(payload["context"].(string)), &plContext)
-				Expect(err).NotTo(HaveOccurred())
+				tempContext := job["context"].(map[string]interface{})
+				plContext := payload["context"].(map[string]string)
 				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
@@ -270,19 +249,18 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(dbJob.TemplateID).To(Equal(existingTemplate.ID))
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
-				Expect(dbJob.ExpiresAt.Unix()).To(Equal(payload["expiresAt"].(time.Time).Unix()))
+				Expect(dbJob.ExpiresAt).To(Equal(payload["expiresAt"]))
 				Expect(dbJob.CsvURL).To(Equal(payload["csvUrl"]))
-				Expect(dbJob.Filters).To(Equal("{}"))
+				Expect(dbJob.Filters).To(Equal(map[string]string{}))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
 				Expect(dbJob.CreatedAt).ToNot(BeNil())
 				Expect(dbJob.UpdatedAt).ToNot(BeNil())
 
-				err = json.Unmarshal([]byte(dbJob.Context), &tempContext)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plContext {
-					Expect(tempContext[key]).To(Equal(plContext[key]))
+					Expect(dbJob.Context[key]).To(Equal(plContext[key]))
 				}
+
 			})
 
 			It("should return 201 and the created template without expiresAt", func() {
@@ -299,7 +277,7 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(job["id"]).ToNot(BeNil())
 				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
 				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
-				Expect(job["expiresAt"]).To(Equal(-62135596800))
+				Expect(job["expiresAt"]).To(BeEquivalentTo(0))
 
 				id, err := uuid.FromString(job["id"].(string))
 				Expect(err).NotTo(HaveOccurred())
@@ -311,7 +289,7 @@ var _ = FDescribe("Job Handler", func() {
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateID).To(Equal(existingTemplate.ID))
-				Expect(int(dbJob.ExpiresAt.Unix())).To(Equal(-62135596800))
+				Expect(int(dbJob.ExpiresAt)).To(BeEquivalentTo(0))
 			})
 		})
 
@@ -366,7 +344,7 @@ var _ = FDescribe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: insert or update on table \"jobs\" violates foreign key constraint \"jobs_app_id_apps_id_foreign\""))
+				Expect(response["reason"]).To(ContainSubstring("jobs_app_id_apps_id_foreign"))
 			})
 
 			It("should return 422 if template with given id does not exist", func() {
@@ -378,21 +356,7 @@ var _ = FDescribe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: insert or update on table \"jobs\" violates foreign key constraint \"jobs_template_id_templates_id_foreign\""))
-			})
-
-			It("should return 422 if missing csvUrl and filters", func() {
-				payload := GetJobPayload()
-				delete(payload, "csvUrl")
-				delete(payload, "filters")
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, baseRoute, string(pl), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid filters or csvUrl must exist"))
+				Expect(response["reason"]).To(ContainSubstring("jobs_template_id_templates_id_foreign"))
 			})
 
 			It("should return 422 if both csvUrl and filters are provided", func() {
@@ -456,7 +420,7 @@ var _ = FDescribe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid context"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 
 			It("should return 422 if invalid service", func() {
@@ -482,7 +446,7 @@ var _ = FDescribe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid filters"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 
 			It("should return 422 if invalid csvUrl", func() {
@@ -508,7 +472,7 @@ var _ = FDescribe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("parsing time"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 		})
 	})
@@ -524,33 +488,25 @@ var _ = FDescribe("Job Handler", func() {
 				err := json.Unmarshal([]byte(body), &job)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(job["id"]).ToNot(BeNil())
-				Expect(job["appId"]).To(Equal(existingApp.ID))
-				Expect(job["templateId"]).To(Equal(existingTemplate.ID))
-				Expect(job["totalBatches"]).To(Equal(existingJob.TotalBatches))
-				Expect(job["completedBatches"]).To(Equal(existingJob.CompletedBatches))
-				Expect(job["expiresAt"]).To(Equal(existingJob.ExpiresAt.Unix()))
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateId"]).To(Equal(existingTemplate.ID.String()))
+				Expect(job["totalBatches"]).To(Equal(float64(existingJob.TotalBatches)))
+				Expect(job["completedBatches"]).To(Equal(float64(existingJob.CompletedBatches)))
+				Expect(job["expiresAt"]).To(Equal(float64(existingJob.ExpiresAt)))
 				Expect(job["csvUrl"]).To(Equal(existingJob.CsvURL))
 				Expect(job["service"]).To(Equal(existingJob.Service))
 				Expect(job["createdBy"]).To(Equal(existingJob.CreatedBy))
-				Expect(job["createdAt"]).To(Equal(existingJob.CreatedAt.Unix()))
-				Expect(job["updatedAt"]).To(Equal(existingJob.UpdatedAt.Unix()))
+				Expect(job["createdAt"]).To(Equal(float64(existingJob.CreatedAt)))
+				Expect(job["updatedAt"]).To(Equal(float64(existingJob.UpdatedAt)))
 
-				var tempFilters map[string]interface{}
-				err = json.Unmarshal([]byte(job["filters"].(string)), &tempFilters)
-				Expect(err).NotTo(HaveOccurred())
-				var plFilters map[string]interface{}
-				err = json.Unmarshal([]byte(existingJob.Filters), &plFilters)
-				Expect(err).NotTo(HaveOccurred())
+				tempFilters := job["filters"].(map[string]interface{})
+				plFilters := existingJob.Filters
 				for key := range plFilters {
 					Expect(tempFilters[key]).To(Equal(plFilters[key]))
 				}
 
-				var tempContext map[string]interface{}
-				err = json.Unmarshal([]byte(job["context"].(string)), &tempContext)
-				Expect(err).NotTo(HaveOccurred())
-				var plContext map[string]interface{}
-				err = json.Unmarshal([]byte(existingJob.Context), &plContext)
-				Expect(err).NotTo(HaveOccurred())
+				tempContext := job["context"].(map[string]interface{})
+				plContext := existingJob.Context
 				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}

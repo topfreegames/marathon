@@ -69,7 +69,7 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 	app := &model.App{ID: id}
 	if err := a.DB.Select(&app); err != nil {
 		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusNotFound, app)
+			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
@@ -90,7 +90,8 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app.ID = id
-	if err = a.DB.Update(&app); err != nil {
+	_, err = a.DB.Model(&app).Column("name").Column("bundle_id").Returning("*").Update()
+	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
@@ -107,6 +108,9 @@ func (a *Application) DeleteAppHandler(c echo.Context) error {
 	}
 	app := &model.App{ID: id}
 	if err := a.DB.Delete(&app); err != nil {
+		if err.Error() == RecordNotFoundString {
+			return c.JSON(http.StatusNotFound, map[string]string{})
+		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
 	return c.JSON(http.StatusNoContent, "")

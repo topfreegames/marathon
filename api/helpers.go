@@ -29,7 +29,7 @@ import (
 )
 
 // RecordNotFoundString is the string returned when a record is not found
-var RecordNotFoundString = "record not found"
+var RecordNotFoundString = "pg: no rows in result set"
 
 //Error is a struct to help return errors
 type Error struct {

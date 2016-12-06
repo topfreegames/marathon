@@ -23,8 +23,6 @@
 package model
 
 import (
-	"time"
-
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
@@ -36,8 +34,8 @@ type App struct {
 	Name      string    `json:"name"`
 	BundleID  string    `json:"bundleId"`
 	CreatedBy string    `json:"createdBy"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt int64     `json:"createdAt"`
+	UpdatedAt int64     `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface

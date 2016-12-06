@@ -47,10 +47,8 @@ var _ = Describe("Template Handler", func() {
 	var existingApp *model.App
 	var baseRoute string
 	BeforeEach(func() {
-		var dbApp model.App
-		app.DB.Delete(&dbApp)
-		var dbTemplate model.Template
-		app.DB.Delete(&dbTemplate)
+		app.DB.Exec("DELETE FROM apps;")
+		app.DB.Delete("DELETE FROM templates;")
 		existingApp = CreateTestApp(app.DB)
 		baseRoute = fmt.Sprintf("/apps/%s/templates", existingApp.ID)
 	})
@@ -84,27 +82,18 @@ var _ = Describe("Template Handler", func() {
 					Expect(template["appId"]).To(Equal(existingApp.ID.String()))
 					Expect(template["name"]).To(Equal(testTemplates[idx].Name))
 					Expect(template["locale"]).To(Equal(testTemplates[idx].Locale))
-					Expect(template["compiledBody"]).To(Equal(testTemplates[idx].CompiledBody))
 					Expect(template["createdBy"]).To(Equal(testTemplates[idx].CreatedBy))
 					Expect(template["createdAt"]).ToNot(BeNil())
 					Expect(template["updatedAt"]).ToNot(BeNil())
 
-					var tempBody map[string]interface{}
-					err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
-					Expect(err).NotTo(HaveOccurred())
-					var existBody map[string]interface{}
-					err = json.Unmarshal([]byte(testTemplates[idx].Body), &existBody)
-					Expect(err).NotTo(HaveOccurred())
+					tempBody := template["body"].(map[string]interface{})
+					existBody := testTemplates[idx].Body
 					for key := range existBody {
 						Expect(tempBody[key]).To(Equal(existBody[key]))
 					}
 
-					var tempDefaults map[string]interface{}
-					err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
-					Expect(err).NotTo(HaveOccurred())
-					var existDefaults map[string]interface{}
-					err = json.Unmarshal([]byte(testTemplates[idx].Defaults), &existDefaults)
-					Expect(err).NotTo(HaveOccurred())
+					tempDefaults := template["defaults"].(map[string]interface{})
+					existDefaults := testTemplates[idx].Defaults
 					for key := range existDefaults {
 						Expect(tempDefaults[key]).To(Equal(existDefaults[key]))
 					}
@@ -156,28 +145,18 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["appId"]).To(Equal(existingApp.ID.String()))
 				Expect(template["name"]).To(Equal(payload["name"]))
 				Expect(template["locale"]).To(Equal(payload["locale"]))
-				// TODO: will this exist? when will it be created?
-				// Expect(template["compiledBody"]).To(Equal(Equal(payload["compiledBody"])))
 				Expect(template["createdBy"]).To(Equal("success@test.com"))
 				Expect(template["createdAt"]).ToNot(BeNil())
 				Expect(template["updatedAt"]).ToNot(BeNil())
 
-				var tempBody map[string]interface{}
-				err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
-				var plBody map[string]interface{}
-				err = json.Unmarshal([]byte(payload["body"].(string)), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
+				tempBody := template["body"].(map[string]interface{})
+				plBody := payload["body"].(map[string]string)
 				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
-				var tempDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
-				var plDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(payload["defaults"].(string)), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
+				tempDefaults := template["defaults"].(map[string]interface{})
+				plDefaults := payload["defaults"].(map[string]string)
 				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
@@ -193,23 +172,18 @@ var _ = Describe("Template Handler", func() {
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
 				Expect(dbTemplate.Name).To(Equal(payload["name"]))
 				Expect(dbTemplate.Locale).To(Equal(payload["locale"]))
-				// TODO: will this exist? when will it be created?
-				// Expect(dbTemplate.CompiledBody).To(Equal(Equal(payload["compiledBody"])))
 				Expect(dbTemplate.CreatedBy).To(Equal("success@test.com"))
 				Expect(dbTemplate.CreatedAt).ToNot(BeNil())
 				Expect(dbTemplate.UpdatedAt).ToNot(BeNil())
 
-				err = json.Unmarshal([]byte(dbTemplate.Body), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plBody {
-					Expect(tempBody[key]).To(Equal(plBody[key]))
+					Expect(dbTemplate.Body[key]).To(Equal(plBody[key]))
 				}
 
-				err = json.Unmarshal([]byte(dbTemplate.Defaults), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plDefaults {
-					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
+					Expect(dbTemplate.Defaults[key]).To(Equal(plDefaults[key]))
 				}
+
 			})
 		})
 
@@ -256,7 +230,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: duplicate key value violates unique constraint \"name_locale_app\""))
+				Expect(response["reason"]).To(ContainSubstring("violates unique constraint \"name_locale_app\""))
 			})
 
 			It("should return 422 if app with given id does not exist", func() {
@@ -268,7 +242,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: insert or update on table \"templates\" violates foreign key constraint \"templates_app_id_apps_id_foreign\""))
+				Expect(response["reason"]).To(ContainSubstring("violates foreign key constraint \"templates_app_id_apps_id_foreign\""))
 			})
 
 			It("should return 422 if missing name", func() {
@@ -371,7 +345,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid defaults"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 
 			It("should return 422 if invalid body", func() {
@@ -384,7 +358,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid body"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 		})
 	})
@@ -404,30 +378,18 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["appId"]).To(Equal(existingApp.ID.String()))
 				Expect(template["name"]).To(Equal(existingTemplate.Name))
 				Expect(template["locale"]).To(Equal(existingTemplate.Locale))
-				// TODO: will this exist? when will it be created?
-				// Expect(template["compiledBody"]).To(Equal(Equal(existingTemplate.CompiledBody))
 				Expect(template["createdBy"]).To(Equal(existingTemplate.CreatedBy))
 				Expect(template["createdAt"]).ToNot(BeNil())
 				Expect(template["updatedAt"]).ToNot(BeNil())
 
-				var tempBody map[string]interface{}
-				err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
-				var existBody map[string]interface{}
-				err = json.Unmarshal([]byte(existingTemplate.Body), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
-				for key := range existBody {
-					Expect(tempBody[key]).To(Equal(existBody[key]))
+				tempBody := template["body"].(map[string]interface{})
+				for key := range existingTemplate.Body {
+					Expect(tempBody[key]).To(Equal(existingTemplate.Body[key]))
 				}
 
-				var tempDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
-				var existDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(existingTemplate.Defaults), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
-				for key := range existDefaults {
-					Expect(tempDefaults[key]).To(Equal(existDefaults[key]))
+				tempDefaults := template["defaults"].(map[string]interface{})
+				for key := range existingTemplate.Defaults {
+					Expect(tempDefaults[key]).To(Equal(existingTemplate.Defaults[key]))
 				}
 			})
 		})
@@ -495,28 +457,18 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["appId"]).To(Equal(existingApp.ID.String()))
 				Expect(template["name"]).To(Equal(payload["name"]))
 				Expect(template["locale"]).To(Equal(payload["locale"]))
-				// TODO: will this exist? when will it be created?
-				// Expect(template["compiledBody"]).To(Equal(Equal(payload["compiledBody"])))
 				Expect(template["createdBy"]).To(Equal(existingTemplate.CreatedBy))
 				Expect(template["createdAt"]).ToNot(BeNil())
 				Expect(template["updatedAt"]).ToNot(BeNil())
 
-				var tempBody map[string]interface{}
-				err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
-				var plBody map[string]interface{}
-				err = json.Unmarshal([]byte(payload["body"].(string)), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
+				tempBody := template["body"].(map[string]interface{})
+				plBody := payload["body"].(map[string]string)
 				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
-				var tempDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
-				var plDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(payload["defaults"].(string)), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
+				tempDefaults := template["defaults"].(map[string]interface{})
+				plDefaults := payload["defaults"].(map[string]string)
 				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
@@ -532,23 +484,18 @@ var _ = Describe("Template Handler", func() {
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
 				Expect(dbTemplate.Name).To(Equal(payload["name"]))
 				Expect(dbTemplate.Locale).To(Equal(payload["locale"]))
-				// TODO: will this exist? when will it be created?
-				// Expect(dbTemplate.CompiledBody).To(Equal(Equal(payload["compiledBody"])))
 				Expect(dbTemplate.CreatedBy).To(Equal(existingTemplate.CreatedBy))
 				Expect(dbTemplate.CreatedAt).ToNot(BeNil())
 				Expect(dbTemplate.UpdatedAt).ToNot(BeNil())
 
-				err = json.Unmarshal([]byte(dbTemplate.Body), &tempBody)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plBody {
-					Expect(tempBody[key]).To(Equal(plBody[key]))
+					Expect(dbTemplate.Body[key]).To(Equal(plBody[key]))
 				}
 
-				err = json.Unmarshal([]byte(dbTemplate.Defaults), &tempDefaults)
-				Expect(err).NotTo(HaveOccurred())
 				for key := range plDefaults {
-					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
+					Expect(dbTemplate.Defaults[key]).To(Equal(plDefaults[key]))
 				}
+
 			})
 		})
 
@@ -611,10 +558,10 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("pq: duplicate key value violates unique constraint \"name_locale_app\""))
+				Expect(response["reason"]).To(ContainSubstring("violates unique constraint \"name_locale_app\""))
 			})
 
-			It("should return 422 if template with given id does not exist", func() {
+			It("should return 404 if template with given id does not exist", func() {
 				payload := GetTemplatePayload()
 				pl, _ := json.Marshal(payload)
 				status, _ := Put(app, fmt.Sprintf("%s/%s", baseRoute, uuid.NewV4().String()), string(pl), "test@test.com")
@@ -729,7 +676,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid defaults"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 
 			It("should return 422 if invalid body", func() {
@@ -743,7 +690,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid body"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 		})
 	})

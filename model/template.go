@@ -23,8 +23,6 @@
 package model
 
 import (
-	"time"
-
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
@@ -32,17 +30,16 @@ import (
 
 // Template is the template model struct
 type Template struct {
-	ID           uuid.UUID         `sql:",pk" json:"id"`
-	Name         string            `json:"name"`
-	Locale       string            `json:"locale"`
-	Defaults     map[string]string `json:"defaults"`
-	Body         map[string]string `json:"body"`
-	CompiledBody string            `json:"compiledBody"`
-	CreatedBy    string            `json:"createdBy"`
-	App          App               `json:"app"`
-	AppID        uuid.UUID         `json:"appId"`
-	CreatedAt    time.Time         `json:"createdAt"`
-	UpdatedAt    time.Time         `json:"updatedAt"`
+	ID        uuid.UUID         `sql:",pk" json:"id"`
+	Name      string            `json:"name"`
+	Locale    string            `json:"locale"`
+	Defaults  map[string]string `json:"defaults"`
+	Body      map[string]string `json:"body"`
+	CreatedBy string            `json:"createdBy"`
+	App       App               `json:"app"`
+	AppID     uuid.UUID         `json:"appId"`
+	CreatedAt int64             `json:"createdAt"`
+	UpdatedAt int64             `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface
@@ -55,14 +52,14 @@ func (t *Template) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("locale")
 	}
-	//valid = govalidator.IsJSON(t.Defaults)
-	//if !valid {
-	//	return InvalidField("defaults")
-	//}
-	//valid = govalidator.IsJSON(t.Body)
-	//if !valid {
-	//	return InvalidField("body")
-	//}
+	valid = len(t.Defaults) > 0
+	if !valid {
+		return InvalidField("defaults")
+	}
+	valid = len(t.Body) > 0
+	if !valid {
+		return InvalidField("body")
+	}
 	valid = govalidator.IsEmail(t.CreatedBy)
 	if !valid {
 		return InvalidField("createdBy")
