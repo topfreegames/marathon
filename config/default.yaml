@@ -1,7 +1,7 @@
 ---
 db:
   host: localhost
-  port: 5432
+  port: 8585
   user: marathon_user
   password: ""
   poolSize: 20
@@ -10,7 +10,7 @@ db:
 push:
   db:
     host: localhost
-    port: 5432
+    port: 8558
     user: marathon_user
     password: ""
     poolSize: 20

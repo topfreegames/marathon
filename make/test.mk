@@ -50,14 +50,14 @@ test-coverage-html: test-coverage
 test-coverage-write-html:
 	@go tool cover -html=_build/test-coverage-all.out -o _build/test-coverage.html
 
-test-services: test-db-drop test-db-create test-db-migrate
+test-services: deps test-db-drop test-db-create test-db-migrate
 	@echo "Required test services are up."
 
 test-db-drop:
-	@psql -f db/drop-test.sql > /dev/null
+	@psql -U postgres -h localhost -p 8585 -f db/drop-test.sql > /dev/null
 
 test-db-create:
-	@psql -f db/create-test.sql > /dev/null
+	@psql -U postgres -h localhost -p 8585 -f db/create-test.sql > /dev/null
 
 test-db-migrate:
 	@go run main.go migrations up -c ./config/test.yaml

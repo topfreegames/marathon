@@ -67,8 +67,9 @@ func executeMigrationCmd(cmd string) {
 	host := viper.GetString("db.host")
 	port := viper.GetInt("db.port")
 	database := viper.GetString("db.database")
+	user := viper.GetString("db.user")
 
-	dbURL := fmt.Sprintf("postgres://%s:%d/%s?sslmode=disable", host, port, database)
+	dbURL := fmt.Sprintf("postgres://%s@%s:%d/%s?sslmode=disable", user, host, port, database)
 
 	logger := l.With(zap.String("dbUrl", dbURL))
 

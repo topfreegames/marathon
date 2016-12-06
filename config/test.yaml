@@ -1,7 +1,7 @@
 ---
 db:
   host: localhost
-  port: 5432
+  port: 8585
   user: marathon_test_user
   password: ""
   poolSize: 20
@@ -9,7 +9,7 @@ db:
   database: marathon_test
 faultyDb:
   host: localhost
-  port: 5432
+  port: 8585
   user: marathon_test_user
   password: ""
   poolSize: 20

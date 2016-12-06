@@ -31,7 +31,7 @@ migrate:
 	@go run main.go migrations up
 
 drop-db:
-	@psql -f db/drop.sql > /dev/null
+	@psql -U postgres -h localhost -p 8585 -f db/drop.sql > /dev/null
 
 create-db:
-	@psql -f db/create.sql > /dev/null
+	@psql -U postgres -h localhost -p 8585 -f db/create.sql > /dev/null
