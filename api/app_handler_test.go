@@ -56,7 +56,7 @@ var _ = Describe("App Handler", func() {
 
 				Expect(status).To(Equal(http.StatusOK))
 
-				response := []model.App{}
+				var response []map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response).To(HaveLen(0))
@@ -68,18 +68,18 @@ var _ = Describe("App Handler", func() {
 
 				Expect(status).To(Equal(http.StatusOK))
 
-				response := []model.App{}
+				var response []map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response).To(HaveLen(10))
 
 				for idx, app := range response {
-					Expect(app.ID).ToNot(BeNil())
-					Expect(app.Name).To(Equal(testApps[idx].Name))
-					Expect(app.BundleID).To(Equal(testApps[idx].BundleID))
-					Expect(app.CreatedBy).To(Equal(testApps[idx].CreatedBy))
-					Expect(app.CreatedAt).ToNot(BeNil())
-					Expect(app.UpdatedAt).ToNot(BeNil())
+					Expect(app["id"]).ToNot(BeNil())
+					Expect(app["name"]).To(Equal(testApps[idx].Name))
+					Expect(app["bundleId"]).To(Equal(testApps[idx].BundleID))
+					Expect(app["createdBy"]).To(Equal(testApps[idx].CreatedBy))
+					Expect(app["createdAt"]).ToNot(BeNil())
+					Expect(app["updatedAt"]).ToNot(BeNil())
 				}
 			})
 		})
@@ -110,19 +110,21 @@ var _ = Describe("App Handler", func() {
 				status, body := Post(app, "/apps", string(pl), "success@test.com")
 				Expect(status).To(Equal(http.StatusCreated))
 
-				var response model.App
+				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(response.ID).ToNot(BeNil())
-				Expect(response.Name).To(Equal(payload["name"]))
-				Expect(response.BundleID).To(Equal(payload["bundleId"]))
-				Expect(response.CreatedBy).To(Equal("success@test.com"))
-				Expect(response.CreatedAt).ToNot(BeNil())
-				Expect(response.UpdatedAt).ToNot(BeNil())
+				Expect(response["id"]).ToNot(BeNil())
+				Expect(response["name"]).To(Equal(payload["name"]))
+				Expect(response["bundleId"]).To(Equal(payload["bundleId"]))
+				Expect(response["createdBy"]).To(Equal("success@test.com"))
+				Expect(response["createdAt"]).ToNot(BeNil())
+				Expect(response["updatedAt"]).ToNot(BeNil())
 
+				id, err := uuid.FromString(response["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
 				dbApp := &model.App{
-					ID: response.ID,
+					ID: id,
 				}
 				err = app.DB.Select(dbApp)
 				Expect(err).NotTo(HaveOccurred())
@@ -237,16 +239,16 @@ var _ = Describe("App Handler", func() {
 				status, body := Get(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusOK))
 
-				var response model.App
+				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(response.ID).To(Equal(existingApp.ID))
-				Expect(response.Name).To(Equal(existingApp.Name))
-				Expect(response.BundleID).To(Equal(existingApp.BundleID))
-				Expect(response.CreatedBy).To(Equal(existingApp.CreatedBy))
-				Expect(response.CreatedAt).ToNot(BeNil())
-				Expect(response.UpdatedAt).ToNot(BeNil())
+				Expect(response["id"]).To(Equal(existingApp.ID.String()))
+				Expect(response["name"]).To(Equal(existingApp.Name))
+				Expect(response["bundleId"]).To(Equal(existingApp.BundleID))
+				Expect(response["createdBy"]).To(Equal(existingApp.CreatedBy))
+				Expect(response["createdAt"]).ToNot(BeNil())
+				Expect(response["updatedAt"]).ToNot(BeNil())
 			})
 		})
 
@@ -294,18 +296,20 @@ var _ = Describe("App Handler", func() {
 				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
 				Expect(status).To(Equal(http.StatusOK))
 
-				var response model.App
+				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response.ID).ToNot(BeNil())
-				Expect(response.Name).To(Equal(payload["name"]))
-				Expect(response.BundleID).To(Equal(payload["bundleId"]))
-				Expect(response.CreatedBy).To(Equal(existingApp.CreatedBy))
-				Expect(response.CreatedAt).ToNot(BeNil())
-				Expect(response.UpdatedAt).ToNot(BeNil())
+				Expect(response["id"]).ToNot(BeNil())
+				Expect(response["name"]).To(Equal(payload["name"]))
+				Expect(response["bundleId"]).To(Equal(payload["bundleId"]))
+				Expect(response["createdBy"]).To(Equal(existingApp.CreatedBy))
+				Expect(response["createdAt"]).ToNot(BeNil())
+				Expect(response["updatedAt"]).ToNot(BeNil())
 
+				id, err := uuid.FromString(response["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
 				dbApp := &model.App{
-					ID: response.ID,
+					ID: id,
 				}
 				err = app.DB.Select(dbApp)
 				Expect(err).NotTo(HaveOccurred())

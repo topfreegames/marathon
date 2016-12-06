@@ -37,7 +37,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var _ = Describe("App Handler", func() {
+var _ = Describe("Template Handler", func() {
 	logger := zap.New(
 		zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
 		zap.FatalLevel,
@@ -62,7 +62,7 @@ var _ = Describe("App Handler", func() {
 
 				Expect(status).To(Equal(http.StatusOK))
 
-				response := []model.Template{}
+				var response []map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response).To(HaveLen(0))
@@ -74,23 +74,23 @@ var _ = Describe("App Handler", func() {
 
 				Expect(status).To(Equal(http.StatusOK))
 
-				response := []model.Template{}
+				var response []map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response).To(HaveLen(10))
 
 				for idx, template := range response {
-					Expect(template.ID).ToNot(BeNil())
-					Expect(template.AppID).To(Equal(existingApp.ID))
-					Expect(template.Name).To(Equal(testTemplates[idx].Name))
-					Expect(template.Locale).To(Equal(testTemplates[idx].Locale))
-					Expect(template.CompiledBody).To(Equal(testTemplates[idx].CompiledBody))
-					Expect(template.CreatedBy).To(Equal(testTemplates[idx].CreatedBy))
-					Expect(template.CreatedAt).ToNot(BeNil())
-					Expect(template.UpdatedAt).ToNot(BeNil())
+					Expect(template["id"]).ToNot(BeNil())
+					Expect(template["appId"]).To(Equal(existingApp.ID.String()))
+					Expect(template["name"]).To(Equal(testTemplates[idx].Name))
+					Expect(template["locale"]).To(Equal(testTemplates[idx].Locale))
+					Expect(template["compiledBody"]).To(Equal(testTemplates[idx].CompiledBody))
+					Expect(template["createdBy"]).To(Equal(testTemplates[idx].CreatedBy))
+					Expect(template["createdAt"]).ToNot(BeNil())
+					Expect(template["updatedAt"]).ToNot(BeNil())
 
 					var tempBody map[string]interface{}
-					err = json.Unmarshal([]byte(template.Body), &tempBody)
+					err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
 					Expect(err).NotTo(HaveOccurred())
 					var existBody map[string]interface{}
 					err = json.Unmarshal([]byte(testTemplates[idx].Body), &existBody)
@@ -100,7 +100,7 @@ var _ = Describe("App Handler", func() {
 					}
 
 					var tempDefaults map[string]interface{}
-					err = json.Unmarshal([]byte(template.Defaults), &tempDefaults)
+					err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
 					Expect(err).NotTo(HaveOccurred())
 					var existDefaults map[string]interface{}
 					err = json.Unmarshal([]byte(testTemplates[idx].Defaults), &existDefaults)
@@ -148,22 +148,22 @@ var _ = Describe("App Handler", func() {
 				status, body := Post(app, baseRoute, string(pl), "success@test.com")
 				Expect(status).To(Equal(http.StatusCreated))
 
-				var template model.Template
+				var template map[string]interface{}
 				err := json.Unmarshal([]byte(body), &template)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(template.ID).ToNot(BeNil())
-				Expect(template.AppID).To(Equal(existingApp.ID))
-				Expect(template.Name).To(Equal(payload["name"]))
-				Expect(template.Locale).To(Equal(payload["locale"]))
+				Expect(template["id"]).ToNot(BeNil())
+				Expect(template["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(template["name"]).To(Equal(payload["name"]))
+				Expect(template["locale"]).To(Equal(payload["locale"]))
 				// TODO: will this exist? when will it be created?
-				// Expect(template.CompiledBody).To(Equal(Equal(payload["compiledBody"])))
-				Expect(template.CreatedBy).To(Equal("success@test.com"))
-				Expect(template.CreatedAt).ToNot(BeNil())
-				Expect(template.UpdatedAt).ToNot(BeNil())
+				// Expect(template["compiledBody"]).To(Equal(Equal(payload["compiledBody"])))
+				Expect(template["createdBy"]).To(Equal("success@test.com"))
+				Expect(template["createdAt"]).ToNot(BeNil())
+				Expect(template["updatedAt"]).ToNot(BeNil())
 
 				var tempBody map[string]interface{}
-				err = json.Unmarshal([]byte(template.Body), &tempBody)
+				err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
 				var plBody map[string]interface{}
 				err = json.Unmarshal([]byte(payload["body"].(string)), &tempBody)
@@ -173,7 +173,7 @@ var _ = Describe("App Handler", func() {
 				}
 
 				var tempDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(template.Defaults), &tempDefaults)
+				err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
 				var plDefaults map[string]interface{}
 				err = json.Unmarshal([]byte(payload["defaults"].(string)), &tempDefaults)
@@ -182,8 +182,10 @@ var _ = Describe("App Handler", func() {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
 
+				id, err := uuid.FromString(template["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
 				dbTemplate := &model.Template{
-					ID: template.ID,
+					ID: id,
 				}
 				err = app.DB.Select(&dbTemplate)
 				Expect(err).NotTo(HaveOccurred())
@@ -394,22 +396,22 @@ var _ = Describe("App Handler", func() {
 				status, body := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "success@test.com")
 				Expect(status).To(Equal(http.StatusOK))
 
-				var template model.Template
+				var template map[string]interface{}
 				err := json.Unmarshal([]byte(body), &template)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(template.ID).ToNot(BeNil())
-				Expect(template.AppID).To(Equal(existingApp.ID))
-				Expect(template.Name).To(Equal(existingTemplate.Name))
-				Expect(template.Locale).To(Equal(existingTemplate.Locale))
+				Expect(template["id"]).ToNot(BeNil())
+				Expect(template["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(template["name"]).To(Equal(existingTemplate.Name))
+				Expect(template["locale"]).To(Equal(existingTemplate.Locale))
 				// TODO: will this exist? when will it be created?
-				// Expect(template.CompiledBody).To(Equal(Equal(existingTemplate.CompiledBody))
-				Expect(template.CreatedBy).To(Equal(existingTemplate.CreatedBy))
-				Expect(template.CreatedAt).ToNot(BeNil())
-				Expect(template.UpdatedAt).ToNot(BeNil())
+				// Expect(template["compiledBody"]).To(Equal(Equal(existingTemplate.CompiledBody))
+				Expect(template["createdBy"]).To(Equal(existingTemplate.CreatedBy))
+				Expect(template["createdAt"]).ToNot(BeNil())
+				Expect(template["updatedAt"]).ToNot(BeNil())
 
 				var tempBody map[string]interface{}
-				err = json.Unmarshal([]byte(template.Body), &tempBody)
+				err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
 				var existBody map[string]interface{}
 				err = json.Unmarshal([]byte(existingTemplate.Body), &tempBody)
@@ -419,7 +421,7 @@ var _ = Describe("App Handler", func() {
 				}
 
 				var tempDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(template.Defaults), &tempDefaults)
+				err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
 				var existDefaults map[string]interface{}
 				err = json.Unmarshal([]byte(existingTemplate.Defaults), &tempDefaults)
@@ -485,22 +487,22 @@ var _ = Describe("App Handler", func() {
 				status, body := Put(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), string(pl), "success@test.com")
 				Expect(status).To(Equal(http.StatusOK))
 
-				var template model.Template
+				var template map[string]interface{}
 				err := json.Unmarshal([]byte(body), &template)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(template.ID).ToNot(BeNil())
-				Expect(template.AppID).To(Equal(existingApp.ID))
-				Expect(template.Name).To(Equal(payload["name"]))
-				Expect(template.Locale).To(Equal(payload["locale"]))
+				Expect(template["id"]).ToNot(BeNil())
+				Expect(template["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(template["name"]).To(Equal(payload["name"]))
+				Expect(template["locale"]).To(Equal(payload["locale"]))
 				// TODO: will this exist? when will it be created?
-				// Expect(template.CompiledBody).To(Equal(Equal(payload["compiledBody"])))
-				Expect(template.CreatedBy).To(Equal(existingTemplate.CreatedBy))
-				Expect(template.CreatedAt).ToNot(BeNil())
-				Expect(template.UpdatedAt).ToNot(BeNil())
+				// Expect(template["compiledBody"]).To(Equal(Equal(payload["compiledBody"])))
+				Expect(template["createdBy"]).To(Equal(existingTemplate.CreatedBy))
+				Expect(template["createdAt"]).ToNot(BeNil())
+				Expect(template["updatedAt"]).ToNot(BeNil())
 
 				var tempBody map[string]interface{}
-				err = json.Unmarshal([]byte(template.Body), &tempBody)
+				err = json.Unmarshal([]byte(template["body"].(string)), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
 				var plBody map[string]interface{}
 				err = json.Unmarshal([]byte(payload["body"].(string)), &tempBody)
@@ -510,7 +512,7 @@ var _ = Describe("App Handler", func() {
 				}
 
 				var tempDefaults map[string]interface{}
-				err = json.Unmarshal([]byte(template.Defaults), &tempDefaults)
+				err = json.Unmarshal([]byte(template["defaults"].(string)), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
 				var plDefaults map[string]interface{}
 				err = json.Unmarshal([]byte(payload["defaults"].(string)), &tempDefaults)
@@ -519,8 +521,10 @@ var _ = Describe("App Handler", func() {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
 
+				id, err := uuid.FromString(template["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
 				dbTemplate := &model.Template{
-					ID: template.ID,
+					ID: id,
 				}
 				err = app.DB.Select(&dbTemplate)
 				Expect(err).NotTo(HaveOccurred())
