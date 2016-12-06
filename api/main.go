@@ -27,15 +27,14 @@ import (
 	"os"
 	"strings"
 
+	"gopkg.in/pg.v5"
+
 	raven "github.com/getsentry/raven-go"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	newrelic "github.com/newrelic/go-agent"
 	"github.com/uber-go/zap"
 
-	"github.com/jinzhu/gorm"
-	// for gorm
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/worker"
 )
@@ -47,7 +46,7 @@ type Application struct {
 	Logger     zap.Logger
 	Port       int
 	Host       string
-	DB         *gorm.DB
+	DB         *pg.DB
 	ConfigPath string
 	Config     *viper.Viper
 	NewRelic   newrelic.Application
@@ -173,15 +172,25 @@ func (a *Application) configureApplication() {
 }
 
 func (a *Application) configureDatabase() error {
-	dbURL := a.Config.GetString("database.url")
+	host := a.Config.GetString("db.host")
+	user := a.Config.GetString("db.user")
+	pass := a.Config.GetString("db.pass")
+	database := a.Config.GetString("db.database")
+	port := a.Config.GetInt("db.port")
+	poolSize := a.Config.GetInt("db.poolSize")
+	maxRetries := a.Config.GetInt("db.maxRetries")
 	logger := a.Logger.With(
 		zap.String("source", "main"),
 		zap.String("operation", "configureDatabase"),
 	)
-	db, err := gorm.Open("postgres", dbURL)
-	if err != nil {
-		return err
-	}
+	db := pg.Connect(&pg.Options{
+		Addr:       fmt.Sprintf("%s:%d", host, port),
+		User:       user,
+		Password:   pass,
+		Database:   database,
+		PoolSize:   poolSize,
+		MaxRetries: maxRetries,
+	})
 	logger.Info("successfully connected to the database")
 	a.DB = db
 	return nil

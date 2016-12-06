@@ -95,7 +95,7 @@ var _ = Describe("App Handler", func() {
 					var existBody map[string]interface{}
 					err = json.Unmarshal([]byte(testTemplates[idx].Body), &existBody)
 					Expect(err).NotTo(HaveOccurred())
-					for key, _ := range existBody {
+					for key := range existBody {
 						Expect(tempBody[key]).To(Equal(existBody[key]))
 					}
 
@@ -105,7 +105,7 @@ var _ = Describe("App Handler", func() {
 					var existDefaults map[string]interface{}
 					err = json.Unmarshal([]byte(testTemplates[idx].Defaults), &existDefaults)
 					Expect(err).NotTo(HaveOccurred())
-					for key, _ := range existDefaults {
+					for key := range existDefaults {
 						Expect(tempDefaults[key]).To(Equal(existDefaults[key]))
 					}
 				}
@@ -168,7 +168,7 @@ var _ = Describe("App Handler", func() {
 				var plBody map[string]interface{}
 				err = json.Unmarshal([]byte(payload["body"].(string)), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plBody {
+				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
@@ -178,12 +178,14 @@ var _ = Describe("App Handler", func() {
 				var plDefaults map[string]interface{}
 				err = json.Unmarshal([]byte(payload["defaults"].(string)), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plDefaults {
+				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
 
-				var dbTemplate model.Template
-				err = app.DB.Where(&model.Template{ID: template.ID}).First(&dbTemplate).Error
+				dbTemplate := &model.Template{
+					ID: template.ID,
+				}
+				err = app.DB.Select(&dbTemplate)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbTemplate.ID).ToNot(BeNil())
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
@@ -197,13 +199,13 @@ var _ = Describe("App Handler", func() {
 
 				err = json.Unmarshal([]byte(dbTemplate.Body), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plBody {
+				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
 				err = json.Unmarshal([]byte(dbTemplate.Defaults), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plDefaults {
+				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
 			})
@@ -412,7 +414,7 @@ var _ = Describe("App Handler", func() {
 				var existBody map[string]interface{}
 				err = json.Unmarshal([]byte(existingTemplate.Body), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range existBody {
+				for key := range existBody {
 					Expect(tempBody[key]).To(Equal(existBody[key]))
 				}
 
@@ -422,7 +424,7 @@ var _ = Describe("App Handler", func() {
 				var existDefaults map[string]interface{}
 				err = json.Unmarshal([]byte(existingTemplate.Defaults), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range existDefaults {
+				for key := range existDefaults {
 					Expect(tempDefaults[key]).To(Equal(existDefaults[key]))
 				}
 			})
@@ -503,7 +505,7 @@ var _ = Describe("App Handler", func() {
 				var plBody map[string]interface{}
 				err = json.Unmarshal([]byte(payload["body"].(string)), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plBody {
+				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
@@ -513,12 +515,14 @@ var _ = Describe("App Handler", func() {
 				var plDefaults map[string]interface{}
 				err = json.Unmarshal([]byte(payload["defaults"].(string)), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plDefaults {
+				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
 
-				var dbTemplate model.Template
-				err = app.DB.Where(&model.Template{ID: template.ID}).First(&dbTemplate).Error
+				dbTemplate := &model.Template{
+					ID: template.ID,
+				}
+				err = app.DB.Select(&dbTemplate)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbTemplate.ID).ToNot(BeNil())
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
@@ -532,13 +536,13 @@ var _ = Describe("App Handler", func() {
 
 				err = json.Unmarshal([]byte(dbTemplate.Body), &tempBody)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plBody {
+				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
 				err = json.Unmarshal([]byte(dbTemplate.Defaults), &tempDefaults)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plDefaults {
+				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
 			})
@@ -747,8 +751,10 @@ var _ = Describe("App Handler", func() {
 				status, _ := Delete(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusNoContent))
 
-				var dbTemplate model.Template
-				err := app.DB.Where(&model.Template{ID: existingTemplate.ID}).First(&dbTemplate).Error
+				dbTemplate := &model.Template{
+					ID: existingTemplate.ID,
+				}
+				err := app.DB.Select(&dbTemplate)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
 			})

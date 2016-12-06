@@ -32,10 +32,10 @@ import (
 
 // App is the app model struct
 type App struct {
-	ID        uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Name      string    `gorm:"not null" json:"name"`
-	BundleID  string    `gorm:"unique_index;not null" json:"bundleId"`
-	CreatedBy string    `gorm:"not null" json:"createdBy"`
+	ID        uuid.UUID `sql:",pk" json:"id"`
+	Name      string    `json:"name"`
+	BundleID  string    `json:"bundleId"`
+	CreatedBy string    `json:"createdBy"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

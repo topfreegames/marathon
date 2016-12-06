@@ -38,10 +38,7 @@ func (a *Application) ListTemplatesHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	templates := []model.Template{}
-	where := map[string]interface{}{
-		"app_id": id,
-	}
-	if err := a.DB.Preload("App").Where(where).Find(&templates).Error; err != nil {
+	if err := a.DB.Model(&templates).Column("template.*", "App").Where("template.app_id = ?", id).Select(); err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	return c.JSON(http.StatusOK, templates)
@@ -55,6 +52,7 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 	}
 	email := c.Get("user-email").(string)
 	template := &model.Template{
+		ID:        uuid.NewV4(),
 		AppID:     id,
 		CreatedBy: email,
 	}
@@ -62,7 +60,7 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: template})
 	}
-	if err = a.DB.Create(&template).Error; err != nil {
+	if err = a.DB.Insert(&template); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: template})
 		}
@@ -85,7 +83,7 @@ func (a *Application) GetTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	template := &model.Template{ID: tid, AppID: id}
-	if err := a.DB.Preload("App").Where(template).First(&template).Error; err != nil {
+	if err := a.DB.Model(&template).Column("template.*", "App").Where("template.id = ?", template.ID).Select(); err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, template)
 		}
@@ -114,17 +112,9 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: template})
 	}
-	queryTemplate := &model.Template{ID: tid, AppID: id}
-	if err = a.DB.Where(queryTemplate).First(&queryTemplate).Error; err != nil {
-		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusNotFound, &Error{Reason: err.Error(), Value: template})
-		}
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
-	}
-	template.ID = queryTemplate.ID
-	template.AppID = queryTemplate.AppID
-	template.CreatedBy = queryTemplate.CreatedBy
-	if err = a.DB.Save(&template).Error; err != nil {
+	template.ID = tid
+	template.AppID = id
+	if err = a.DB.Update(&template); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: template})
 		}
@@ -147,13 +137,7 @@ func (a *Application) DeleteTemplateHandler(c echo.Context) error {
 		ID:    tid,
 		AppID: id,
 	}
-	if err := a.DB.Where(template).First(&template).Error; err != nil {
-		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusNotFound, template)
-		}
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
-	}
-	if err := a.DB.Delete(&template).Error; err != nil {
+	if err := a.DB.Delete(&template); err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
 	}
 	return c.JSON(http.StatusNoContent, "")

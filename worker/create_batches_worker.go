@@ -24,27 +24,28 @@ package worker
 
 import (
 	"encoding/csv"
+	"fmt"
 	"net/http"
 
-	"github.com/jinzhu/gorm"
+	"gopkg.in/pg.v5"
+
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
+	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/model"
 )
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
-	MarathonDBURL string
-	PushDBURL     string
-	MarathonDB    *gorm.DB
-	PushDB        *gorm.DB
+	MarathonDB *pg.DB
+	PushDB     *pg.DB
+	Config     *viper.Viper
 }
 
 // GetCreateBatchesWorker gets a new CreateBatchesWorker
-func GetCreateBatchesWorker(marathonDBURL, pushDBURL string) *CreateBatchesWorker {
+func GetCreateBatchesWorker(config *viper.Viper) *CreateBatchesWorker {
 	b := &CreateBatchesWorker{
-		MarathonDBURL: marathonDBURL,
-		PushDBURL:     pushDBURL,
+		Config: config,
 	}
 	b.configure()
 	return b
@@ -55,10 +56,21 @@ func (b *CreateBatchesWorker) configure() {
 }
 
 func (b *CreateBatchesWorker) configureDatabases() {
-	db, err := gorm.Open("postgres", b.MarathonDBURL)
-	if err != nil {
-		panic(err)
-	}
+	host := b.Config.GetString("db.host")
+	user := b.Config.GetString("db.user")
+	pass := b.Config.GetString("db.pass")
+	database := b.Config.GetString("db.database")
+	port := b.Config.GetInt("db.port")
+	poolSize := b.Config.GetInt("db.poolSize")
+	maxRetries := b.Config.GetInt("db.maxRetries")
+	db := pg.Connect(&pg.Options{
+		Addr:       fmt.Sprintf("%s:%d", host, port),
+		User:       user,
+		Password:   pass,
+		Database:   database,
+		PoolSize:   poolSize,
+		MaxRetries: maxRetries,
+	})
 	b.MarathonDB = db
 }
 
@@ -108,7 +120,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	err = b.MarathonDB.Preload("Template.App").Preload("App").Where(job).First(&job).Error
+	err = b.MarathonDB.Model(job).Column("job.*", "Template", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
 	var pushIds []string
 	if len(job.CsvURL) > 0 {

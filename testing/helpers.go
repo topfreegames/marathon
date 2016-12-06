@@ -32,26 +32,51 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jinzhu/gorm"
+	"gopkg.in/pg.v5"
+
 	"github.com/onsi/gomega"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/api"
 	"github.com/uber-go/zap"
 )
 
 //GetTestDB for usage in tests
-func GetTestDB() *gorm.DB {
-	dbURL := viper.GetString("database.url")
-	db, err := gorm.Open("postgres", dbURL)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
+func GetTestDB(a *api.Application) *pg.DB {
+	host := a.Config.GetString("db.host")
+	user := a.Config.GetString("db.user")
+	pass := a.Config.GetString("db.pass")
+	database := a.Config.GetString("db.database")
+	port := a.Config.GetInt("db.port")
+	poolSize := a.Config.GetInt("db.poolSize")
+	maxRetries := a.Config.GetInt("db.maxRetries")
+	db := pg.Connect(&pg.Options{
+		Addr:       fmt.Sprintf("%s:%d", host, port),
+		User:       user,
+		Password:   pass,
+		Database:   database,
+		PoolSize:   poolSize,
+		MaxRetries: maxRetries,
+	})
 	return db
 }
 
 // GetFaultyTestDB returns an ill-configured database for usage in tests
-func GetFaultyTestDB(a *api.Application) *gorm.DB {
-	faultyDbURL := a.Config.GetString("database.faulty")
-	faultyDb, _ := gorm.Open("postgres", faultyDbURL)
+func GetFaultyTestDB(a *api.Application) *pg.DB {
+	host := a.Config.GetString("faultyDb.host")
+	user := a.Config.GetString("faultyDb.user")
+	pass := a.Config.GetString("faultyDb.pass")
+	database := a.Config.GetString("faultyDb.database")
+	port := a.Config.GetInt("faultyDb.port")
+	poolSize := a.Config.GetInt("faultyDb.poolSize")
+	maxRetries := a.Config.GetInt("faultyDb.maxRetries")
+	faultyDb := pg.Connect(&pg.Options{
+		Addr:       fmt.Sprintf("%s:%d", host, port),
+		User:       user,
+		Password:   pass,
+		Database:   database,
+		PoolSize:   poolSize,
+		MaxRetries: maxRetries,
+	})
+
 	return faultyDb
 }
 

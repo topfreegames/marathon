@@ -121,8 +121,10 @@ var _ = Describe("App Handler", func() {
 				Expect(response.CreatedAt).ToNot(BeNil())
 				Expect(response.UpdatedAt).ToNot(BeNil())
 
-				var dbApp model.App
-				err = app.DB.Where(&model.App{ID: response.ID}).First(&dbApp).Error
+				dbApp := &model.App{
+					ID: response.ID,
+				}
+				err = app.DB.Select(dbApp)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbApp).NotTo(BeNil())
 				Expect(dbApp.Name).To(Equal(payload["name"]))
@@ -302,8 +304,10 @@ var _ = Describe("App Handler", func() {
 				Expect(response.CreatedAt).ToNot(BeNil())
 				Expect(response.UpdatedAt).ToNot(BeNil())
 
-				var dbApp model.App
-				err = app.DB.Where(&model.App{ID: response.ID}).First(&dbApp).Error
+				dbApp := &model.App{
+					ID: response.ID,
+				}
+				err = app.DB.Select(dbApp)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbApp).NotTo(BeNil())
 				Expect(dbApp.Name).To(Equal(payload["name"]))
@@ -424,8 +428,10 @@ var _ = Describe("App Handler", func() {
 				status, _ := Delete(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusNoContent))
 
-				var dbApp model.App
-				err := app.DB.Where(&model.App{ID: existingApp.ID}).First(&dbApp).Error
+				dbApp := &model.App{
+					ID: existingApp.ID,
+				}
+				err := app.DB.Select(dbApp)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
 			})

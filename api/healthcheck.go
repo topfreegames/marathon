@@ -34,7 +34,8 @@ type Health struct {
 }
 
 func (a *Application) checkPostgres() error {
-	return a.DB.Exec("SELECT 1").Error
+	_, err := a.DB.Exec("SELECT 1")
+	return err
 }
 
 // HealthcheckHandler is the method called when a get to /healthcheck is called

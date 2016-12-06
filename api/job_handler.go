@@ -43,11 +43,7 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	jobs := []model.Job{}
-	where := map[string]interface{}{
-		"app_id":      id,
-		"template_id": tid,
-	}
-	if err := a.DB.Preload("App").Preload("Template.App").Where(where).Find(&jobs).Error; err != nil {
+	if err := a.DB.Model(&jobs).Column("job.*", "Template", "App").Where("job.template_id = ?", tid).Where("job.app_id = ?", id).Select(); err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	return c.JSON(http.StatusOK, jobs)
@@ -65,6 +61,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	}
 	email := c.Get("user-email").(string)
 	job := &model.Job{
+		ID:         uuid.NewV4(),
 		AppID:      id,
 		TemplateID: tid,
 		CreatedBy:  email,
@@ -78,7 +75,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		job.Filters = "{}"
 	}
 
-	if err = a.DB.Create(&job).Error; err != nil {
+	if err = a.DB.Insert(&job); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, job)
 		}
@@ -116,7 +113,7 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		AppID:      id,
 		TemplateID: tid,
 	}
-	if err := a.DB.Preload("Template.App").Preload("App").Where(job).First(&job).Error; err != nil {
+	if err := a.DB.Model(&job).Column("job.*", "Template", "App").Where("job.id = ?", job.ID).Select(); err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, job)
 		}

@@ -34,7 +34,7 @@ import (
 // ListAppsHandler is the method called when a get to /apps is called
 func (a *Application) ListAppsHandler(c echo.Context) error {
 	apps := []model.App{}
-	if err := a.DB.Find(&apps).Error; err != nil {
+	if err := a.DB.Model(&apps).Select(); err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	return c.JSON(http.StatusOK, apps)
@@ -42,14 +42,16 @@ func (a *Application) ListAppsHandler(c echo.Context) error {
 
 // PostAppHandler is the method called when a post to /apps is called
 func (a *Application) PostAppHandler(c echo.Context) error {
-	app := &model.App{}
+	app := &model.App{
+		ID: uuid.NewV4(),
+	}
 	email := c.Get("user-email").(string)
 	app.CreatedBy = email
 	err := decodeAndValidate(c, app)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
 	}
-	if err = a.DB.Create(&app).Error; err != nil {
+	if err = a.DB.Insert(&app); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
@@ -65,7 +67,7 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
-	if err := a.DB.Where(app).First(&app).Error; err != nil {
+	if err := a.DB.Select(&app); err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, app)
 		}
@@ -87,16 +89,8 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	queryApp := &model.App{ID: id}
-	if err = a.DB.Where(queryApp).First(&queryApp).Error; err != nil {
-		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusNotFound, &Error{Reason: err.Error(), Value: app})
-		}
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
-	}
-	app.ID = queryApp.ID
-	app.CreatedBy = queryApp.CreatedBy
-	if err = a.DB.Save(&app).Error; err != nil {
+	app.ID = id
+	if err = a.DB.Update(&app); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
@@ -112,13 +106,7 @@ func (a *Application) DeleteAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
-	if err := a.DB.Where(app).First(&app).Error; err != nil {
-		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusNotFound, app)
-		}
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
-	}
-	if err := a.DB.Delete(&app).Error; err != nil {
+	if err := a.DB.Delete(&app); err != nil {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
 	return c.JSON(http.StatusNoContent, "")

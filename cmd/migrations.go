@@ -24,11 +24,15 @@ package cmd
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
+
+	// pg driver
+	_ "github.com/lib/pq"
 	"github.com/pressly/goose"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
-	"os"
 )
 
 func checkErr(err error) {
@@ -59,7 +63,12 @@ func executeMigrationCmd(cmd string) {
 	if err := viper.ReadInConfig(); err != nil {
 		l.Panic("error loading config file", zap.Error(err))
 	}
-	dbURL := viper.GetString("database.url")
+
+	host := viper.GetString("db.host")
+	port := viper.GetInt("db.port")
+	database := viper.GetString("db.database")
+
+	dbURL := fmt.Sprintf("postgres://%s:%d/%s?sslmode=disable", host, port, database)
 
 	logger := l.With(zap.String("dbUrl", dbURL))
 

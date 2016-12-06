@@ -32,15 +32,15 @@ import (
 
 // Template is the template model struct
 type Template struct {
-	ID           uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	Name         string    `gorm:"not null;unique_index:name_locale_app" json:"name"`
-	Locale       string    `gorm:"not null;unique_index:name_locale_app" json:"locale"`
-	Defaults     string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"defaults"`
-	Body         string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"body"`
-	CompiledBody string    `gorm:"not null" json:"compiledBody"`
-	CreatedBy    string    `gorm:"not null" json:"createdBy"`
+	ID           uuid.UUID `sql:",pk" json:"id"`
+	Name         string    `json:"name"`
+	Locale       string    `json:"locale"`
+	Defaults     string    `json:"defaults"`
+	Body         string    `json:"body"`
+	CompiledBody string    `json:"compiledBody"`
+	CreatedBy    string    `json:"createdBy"`
 	App          App       `json:"app"`
-	AppID        uuid.UUID `sql:"type:uuid" gorm:"not null;unique_index:name_locale_app" json:"appId"`
+	AppID        uuid.UUID `json:"appId"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }

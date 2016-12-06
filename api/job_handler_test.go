@@ -98,7 +98,7 @@ var _ = Describe("App Handler", func() {
 					var existFilters map[string]interface{}
 					err = json.Unmarshal([]byte(testJobs[idx].Filters), &existFilters)
 					Expect(err).NotTo(HaveOccurred())
-					for key, _ := range existFilters {
+					for key := range existFilters {
 						Expect(tempFilters[key]).To(Equal(existFilters[key]))
 					}
 
@@ -108,7 +108,7 @@ var _ = Describe("App Handler", func() {
 					var existContext map[string]interface{}
 					err = json.Unmarshal([]byte(testJobs[idx].Context), &existContext)
 					Expect(err).NotTo(HaveOccurred())
-					for key, _ := range existContext {
+					for key := range existContext {
 						Expect(tempContext[key]).To(Equal(existContext[key]))
 					}
 				}
@@ -184,7 +184,7 @@ var _ = Describe("App Handler", func() {
 				var plFilters map[string]interface{}
 				err = json.Unmarshal([]byte(payload["filters"].(string)), &plFilters)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plFilters {
+				for key := range plFilters {
 					Expect(tempFilters[key]).To(Equal(plFilters[key]))
 				}
 
@@ -194,12 +194,14 @@ var _ = Describe("App Handler", func() {
 				var plContext map[string]interface{}
 				err = json.Unmarshal([]byte(payload["context"].(string)), &plContext)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plContext {
+				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 
-				var dbJob model.Job
-				err = app.DB.Where(&model.Job{ID: job.ID}).First(&dbJob).Error
+				dbJob := &model.Job{
+					ID: job.ID,
+				}
+				err = app.DB.Select(&dbJob)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -215,13 +217,13 @@ var _ = Describe("App Handler", func() {
 
 				err = json.Unmarshal([]byte(dbJob.Filters), &tempFilters)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plFilters {
+				for key := range plFilters {
 					Expect(tempFilters[key]).To(Equal(plFilters[key]))
 				}
 
 				err = json.Unmarshal([]byte(dbJob.Context), &tempContext)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plContext {
+				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 			})
@@ -257,12 +259,14 @@ var _ = Describe("App Handler", func() {
 				var plContext map[string]interface{}
 				err = json.Unmarshal([]byte(payload["context"].(string)), &plContext)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plContext {
+				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 
-				var dbJob model.Job
-				err = app.DB.Where(&model.Job{ID: job.ID}).First(&dbJob).Error
+				dbJob := &model.Job{
+					ID: job.ID,
+				}
+				err = app.DB.Select(&dbJob)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -279,7 +283,7 @@ var _ = Describe("App Handler", func() {
 
 				err = json.Unmarshal([]byte(dbJob.Context), &tempContext)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plContext {
+				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 			})
@@ -300,8 +304,10 @@ var _ = Describe("App Handler", func() {
 				Expect(job.TemplateID).To(Equal(existingTemplate.ID))
 				Expect(int(job.ExpiresAt.Unix())).To(Equal(-62135596800))
 
-				var dbJob model.Job
-				err = app.DB.Where(&model.Job{ID: job.ID}).First(&dbJob).Error
+				dbJob := &model.Job{
+					ID: job.ID,
+				}
+				err = app.DB.Select(&dbJob)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -536,7 +542,7 @@ var _ = Describe("App Handler", func() {
 				var plFilters map[string]interface{}
 				err = json.Unmarshal([]byte(existingJob.Filters), &plFilters)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plFilters {
+				for key := range plFilters {
 					Expect(tempFilters[key]).To(Equal(plFilters[key]))
 				}
 
@@ -546,7 +552,7 @@ var _ = Describe("App Handler", func() {
 				var plContext map[string]interface{}
 				err = json.Unmarshal([]byte(existingJob.Context), &plContext)
 				Expect(err).NotTo(HaveOccurred())
-				for key, _ := range plContext {
+				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 			})

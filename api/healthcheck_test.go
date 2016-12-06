@@ -26,7 +26,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/jinzhu/gorm"
+	"gopkg.in/pg.v5"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/topfreegames/marathon/api"
@@ -36,7 +37,7 @@ import (
 
 var _ = Describe("Healthcheck Handler", func() {
 	var logger zap.Logger
-	var faultyDb *gorm.DB
+	var faultyDb *pg.DB
 	var app *api.Application
 	BeforeEach(func() {
 		logger = zap.New(

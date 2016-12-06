@@ -40,20 +40,20 @@ type Filters struct {
 
 // Job is the job model struct
 type Job struct {
-	ID               uuid.UUID `sql:"type:uuid;default:uuid_generate_v4()" json:"id"`
+	ID               uuid.UUID `sql:",pk" json:"id"`
 	TotalBatches     int       `json:"totalBatches"`
-	CompletedBatches int       `gorm:"not null" sql:"default:0" json:"completedBatches"`
+	CompletedBatches int       `json:"completedBatches"`
 	CompletedAt      time.Time `json:"completedAt"`
 	ExpiresAt        time.Time `json:"expiresAt"`
-	Context          string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"context"`
+	Context          string    `json:"context"`
 	Service          string    `json:"service"`
-	Filters          string    `sql:"type:JSONB NOT NULL DEFAULT '{}'::JSONB" json:"filters"`
+	Filters          string    `json:"filters"`
 	CsvURL           string    `json:"csvUrl"`
 	CreatedBy        string    `json:"createdBy"`
 	App              App       `json:"app"`
-	AppID            uuid.UUID `sql:"type:uuid" gorm:"not null" json:"appId"`
+	AppID            uuid.UUID `json:"appId"`
 	Template         Template  `json:"template"`
-	TemplateID       uuid.UUID `sql:"type:uuid" gorm:"not null" json:"templateId"`
+	TemplateID       uuid.UUID `json:"templateId"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
 }

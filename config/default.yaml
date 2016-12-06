@@ -1,6 +1,18 @@
 ---
-database:
-  url: postgres://localhost:5432/marathon?sslmode=disable
+db:
+  host: localhost
+  port: 5432
+  user: felipecavalcanti
+  password: postgres
+  poolSize: 20
+  maxRetries: 3
+  database: marathon
 push:
-  database:
-    url: postgres://localhost:5432/push?sslmode=disable
+  db:
+    host: localhost
+    port: 5432
+    user: felipecavalcanti
+    password: postgres
+    poolSize: 20
+    maxRetries: 3
+    database: push

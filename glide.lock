@@ -1,5 +1,5 @@
-hash: 9f2ca194b3bc01dc031dde12ff44a91b7bef8d16a95e4845afb76acfaadd9a69
-updated: 2016-12-03T19:43:31.151952316-02:00
+hash: 6e37cf4a2e49f4ea8c26aaee2fc4d00011cf9fba7c05ea576e1d69cfce1c3e81
+updated: 2016-12-05T23:28:17.364574558-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -33,8 +33,6 @@ imports:
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jinzhu/gorm
   version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
-  subpackages:
-  - dialects/postgres
 - name: github.com/jinzhu/inflection
   version: 74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff
 - name: github.com/jrallison/go-workers
@@ -50,11 +48,6 @@ imports:
   - color
   - log
   - random
-- name: github.com/lib/pq
-  version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617
-  subpackages:
-  - hstore
-  - oid
 - name: github.com/magiconair/properties
   version: 9c47895dc1ce54302908ab8a43385d1f5df2c11c
 - name: github.com/mattn/go-colorable
@@ -62,7 +55,7 @@ imports:
 - name: github.com/mattn/go-isatty
   version: 30a891c33c7cde7b02a981314b4228ec99380cca
 - name: github.com/mitchellh/mapstructure
-  version: f3009df150dadf309fdee4a54ed65c124afad715
+  version: 5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
 - name: github.com/newrelic/go-agent
   version: 7d12ae2201fc160e486197614a6f65afcf3f8170
   subpackages:
@@ -138,12 +131,12 @@ imports:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 6cdc0daab091c43fc46193327e0047b4f883c613
+  version: 4a1c855a052c2bad0e019ccfe8193a33d77adf5e
   subpackages:
   - context
   - context/ctxhttp
 - name: golang.org/x/sys
-  version: ca83bd2cb9abb47839b50eb4da612f00158f5870
+  version: 478fcf54317e52ab69f40bb4c7a1520288d7f7ea
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -151,6 +144,14 @@ imports:
   subpackages:
   - transform
   - unicode/norm
+- name: gopkg.in/pg.v5
+  version: 9cfde8bcff926439c623e6fee04595ae609b84df
+  subpackages:
+  - internal
+  - internal/parser
+  - internal/pool
+  - orm
+  - types
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []
