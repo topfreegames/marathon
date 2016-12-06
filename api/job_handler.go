@@ -71,10 +71,6 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
 
-	if job.Filters == "" {
-		job.Filters = "{}"
-	}
-
 	if err = a.DB.Insert(&job); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, job)

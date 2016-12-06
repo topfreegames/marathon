@@ -40,39 +40,39 @@ type Filters struct {
 
 // Job is the job model struct
 type Job struct {
-	ID               uuid.UUID `sql:",pk" json:"id"`
-	TotalBatches     int       `json:"totalBatches"`
-	CompletedBatches int       `json:"completedBatches"`
-	CompletedAt      time.Time `json:"completedAt"`
-	ExpiresAt        time.Time `json:"expiresAt"`
-	Context          string    `json:"context"`
-	Service          string    `json:"service"`
-	Filters          string    `json:"filters"`
-	CsvURL           string    `json:"csvUrl"`
-	CreatedBy        string    `json:"createdBy"`
-	App              App       `json:"app"`
-	AppID            uuid.UUID `json:"appId"`
-	Template         Template  `json:"template"`
-	TemplateID       uuid.UUID `json:"templateId"`
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	ID               uuid.UUID         `sql:",pk" json:"id"`
+	TotalBatches     int               `json:"totalBatches"`
+	CompletedBatches int               `json:"completedBatches"`
+	CompletedAt      time.Time         `json:"completedAt"`
+	ExpiresAt        time.Time         `json:"expiresAt"`
+	Context          map[string]string `json:"context"`
+	Service          string            `json:"service"`
+	Filters          map[string]string `json:"filters"`
+	CsvURL           string            `json:"csvUrl"`
+	CreatedBy        string            `json:"createdBy"`
+	App              App               `json:"app"`
+	AppID            uuid.UUID         `json:"appId"`
+	Template         Template          `json:"template"`
+	TemplateID       uuid.UUID         `json:"templateId"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	UpdatedAt        time.Time         `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface
 func (j *Job) Validate(c echo.Context) error {
-	valid := govalidator.IsJSON(j.Context)
-	if !valid {
-		return InvalidField("context")
-	}
-	valid = govalidator.StringMatches(j.Service, "^(apns|gcm)$")
-	if !valid {
-		return InvalidField("service")
-	}
-	valid = govalidator.IsNull(j.Filters) || govalidator.IsJSON(j.Filters)
-	if !valid {
-		return InvalidField("filters")
-	}
-	valid = govalidator.IsNull(j.CsvURL) || govalidator.IsURL(j.CsvURL)
+	//valid := govalidator.IsJSON(j.Context)
+	//if !valid {
+	//	return InvalidField("context")
+	//}
+	//valid = govalidator.StringMatches(j.Service, "^(apns|gcm)$")
+	//if !valid {
+	//	return InvalidField("service")
+	//}
+	//valid = govalidator.IsNull(j.Filters) || govalidator.IsJSON(j.Filters)
+	//if !valid {
+	//	return InvalidField("filters")
+	//}
+	valid := govalidator.IsNull(j.CsvURL) || govalidator.IsURL(j.CsvURL)
 	if !valid {
 		return InvalidField("csvUrl")
 	}
@@ -86,10 +86,10 @@ func (j *Job) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("createdBy")
 	}
-	valid = !(govalidator.IsNull(j.Filters) && govalidator.IsNull(j.CsvURL))
-	if !valid {
-		return InvalidField("filters or csvUrl must exist")
-	}
+	//valid = !(govalidator.IsNull(j.Filters) && govalidator.IsNull(j.CsvURL))
+	//if !valid {
+	//	return InvalidField("filters or csvUrl must exist")
+	//}
 
 	//TODO this is stucking the development
 	// valid = !(!govalidator.IsNull(j.Filters) && !govalidator.IsNull(j.CsvURL))

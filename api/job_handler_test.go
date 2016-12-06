@@ -92,22 +92,14 @@ var _ = FDescribe("Job Handler", func() {
 					Expect(job["createdAt"]).ToNot(BeNil())
 					Expect(job["updatedAt"]).ToNot(BeNil())
 
-					var tempFilters map[string]interface{}
-					err = json.Unmarshal([]byte(job["filters"].(string)), &tempFilters)
-					Expect(err).NotTo(HaveOccurred())
-					var existFilters map[string]interface{}
-					err = json.Unmarshal([]byte(testJobs[idx].Filters), &existFilters)
-					Expect(err).NotTo(HaveOccurred())
+					tempFilters := job["filters"]
+					existFilters := testJobs[idx].Filters
 					for key := range existFilters {
 						Expect(tempFilters[key]).To(Equal(existFilters[key]))
 					}
 
-					var tempContext map[string]interface{}
-					err = json.Unmarshal([]byte(job["context"].(string)), &tempContext)
-					Expect(err).NotTo(HaveOccurred())
-					var existContext map[string]interface{}
-					err = json.Unmarshal([]byte(testJobs[idx].Context), &existContext)
-					Expect(err).NotTo(HaveOccurred())
+					tempContext := job["context"]
+					existContext := testJobs[idx].Context
 					for key := range existContext {
 						Expect(tempContext[key]).To(Equal(existContext[key]))
 					}

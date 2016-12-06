@@ -98,10 +98,8 @@ func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interf
 		opts = options[0]
 	}
 
-	pl, _ := json.Marshal(getOpt(opts, "defaults", map[string]string{"value": "default"}).(map[string]string))
-	defaults := string(pl)
-	pl, _ = json.Marshal(getOpt(opts, "body", map[string]string{"value": "custom"}).(map[string]string))
-	body := string(pl)
+	defaults := getOpt(opts, "defaults", map[string]string{"value": "default"}).(map[string]string)
+	body := getOpt(opts, "body", map[string]string{"value": "custom"}).(map[string]string)
 
 	template := &model.Template{}
 	template.AppID = appID
@@ -162,10 +160,8 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateID uuid.UUID, options ...
 		opts = options[0]
 	}
 
-	pl, _ := json.Marshal(getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string))
-	filters := string(pl)
-	pl, _ = json.Marshal(getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string))
-	context := string(pl)
+	filters := getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string)
+	context := getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string)
 
 	job := &model.Job{}
 	job.AppID = appID
