@@ -142,7 +142,7 @@ var _ = Describe("Job Handler", func() {
 
 	Describe("Post /apps/:id/templates/:tid/jobs", func() {
 		Describe("Sucesfully", func() {
-			It("should return 201 and the created template with filters", func() {
+			It("should return 201 and the created job with filters", func() {
 				payload := GetJobPayload()
 				delete(payload, "csvUrl")
 				pl, _ := json.Marshal(payload)
@@ -205,7 +205,7 @@ var _ = Describe("Job Handler", func() {
 				}
 			})
 
-			It("should return 201 and the created template with csvUrl", func() {
+			It("should return 201 and the created job with csvUrl", func() {
 				payload := GetJobPayload()
 				delete(payload, "filters")
 				payload["csvUrl"] = "s3.aws.com/my-link"
@@ -263,7 +263,7 @@ var _ = Describe("Job Handler", func() {
 
 			})
 
-			It("should return 201 and the created template without expiresAt", func() {
+			It("should return 201 and the created job without expiresAt", func() {
 				payload := GetJobPayload()
 				delete(payload, "expiresAt")
 				pl, _ := json.Marshal(payload)
@@ -479,7 +479,7 @@ var _ = Describe("Job Handler", func() {
 
 	Describe("Get /apps/:id/templates/:tid/jobs/:jid", func() {
 		Describe("Sucesfully", func() {
-			It("should return 200 and the requested template", func() {
+			It("should return 200 and the requested job", func() {
 				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.ID)
 				status, body := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "success@test.com")
 				Expect(status).To(Equal(http.StatusOK))
