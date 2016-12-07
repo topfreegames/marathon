@@ -138,81 +138,81 @@ var _ = Describe("Worker Util", func() {
 	Describe("Parse ProcessBatchWorker message array", func() {
 		It("should succeed if all params are correct", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, metadataStr, usersStr}
-			pJobID, pAppName, pService, pTemplate, pContext, pMetadata, pUsers, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			messageObj, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(pJobID.String()).To(Equal(jobID))
-			Expect(pAppName).To(Equal(appName))
-			Expect(pService).To(Equal(service))
-			Expect(pTemplate.Body).To(Equal(template.Body))
-			Expect(pTemplate.Defaults).To(Equal(template.Defaults))
-			Expect(pContext).To(Equal(context))
-			Expect(pMetadata).To(Equal(metadata))
-			Expect(len(pUsers)).To(Equal(len(users)))
+			Expect(messageObj.JobID.String()).To(Equal(jobID))
+			Expect(messageObj.AppName).To(Equal(appName))
+			Expect(messageObj.Service).To(Equal(service))
+			Expect(messageObj.Template.Body).To(Equal(template.Body))
+			Expect(messageObj.Template.Defaults).To(Equal(template.Defaults))
+			Expect(messageObj.Context).To(Equal(context))
+			Expect(messageObj.Metadata).To(Equal(metadata))
+			Expect(len(messageObj.Users)).To(Equal(len(users)))
 
 			for idx, user := range users {
-				Expect(pUsers[idx]).To(Equal(user))
+				Expect(messageObj.Users[idx]).To(Equal(user))
 			}
 		})
 
 		It("should fail if array has less than 5 elements", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, metadataStr}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(worker.InvalidMessageArray))
 		})
 
 		It("should fail if array has more than 5 elements", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, metadataStr, usersStr, usersStr}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(worker.InvalidMessageArray))
 		})
 
 		It("should fail if jobID is not uuid", func() {
 			arr := []interface{}{"some-string", appName, service, templateStr, contextStr, metadataStr, usersStr}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
 		})
 
 		It("should fail if template is not json", func() {
 			arr := []interface{}{jobID, appName, service, "some-string", contextStr, metadataStr, usersStr}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
 		})
 
 		It("should fail if context is not json", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, "some-string", metadataStr, usersStr}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
 		})
 
 		It("should fail if metadata is not json", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, "some-string", usersStr}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
 		})
 
 		It("should fail if users is not array", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, metadataStr, "some-string"}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
 		})
 
 		It("should fail if users is an empty array", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, metadataStr, "[]"}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("there must be at least one user"))
 		})
 
 		It("should fail if user has bad ID", func() {
 			arr := []interface{}{jobID, appName, service, templateStr, contextStr, metadataStr, "[{\"id\": \"whatever\", \"token\": \"whatever\"}]"}
-			_, _, _, _, _, _, _, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
 		})

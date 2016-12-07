@@ -45,7 +45,7 @@ func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka(appName, service, topic string, msg, metadata map[string]interface{}, deviceToken string) error {
+func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string) error {
 	switch service {
 	case "apns":
 		_, _, err := batchWorker.KafkaClient.SendAPNSPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
@@ -69,18 +69,18 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	arr, err := message.Args().Array()
 	checkErr(err)
 
-	_, appName, service, template, context, metadata, users, err := ParseProcessBatchWorkerMessageArray(arr)
+	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(err)
 
-	msgStr := BuildMessageFromTemplate(template, context)
+	msgStr := BuildMessageFromTemplate(parsed.Template, parsed.Context)
 	var msg map[string]interface{}
 	err = json.Unmarshal([]byte(msgStr), &msg)
 	checkErr(err)
 
 	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
-	topic := BuildTopicName(appName, service, topicTemplate)
-	for _, user := range users {
-		err = batchWorker.sendToKafka(appName, service, topic, msg, metadata, user.Token)
+	topic := BuildTopicName(parsed.AppName, parsed.Service, topicTemplate)
+	for _, user := range parsed.Users {
+		err = batchWorker.sendToKafka(parsed.Service, topic, msg, parsed.Metadata, user.Token)
 		checkErr(err)
 	}
 

@@ -45,21 +45,32 @@ func BuildTopicName(appName, service, topicTemplate string) string {
 	return fmt.Sprintf(topicTemplate, appName, service)
 }
 
+// BatchWorkerMessage is the batch worker message struct
+type BatchWorkerMessage struct {
+	JobID    uuid.UUID
+	AppName  string
+	Service  string
+	Template *model.Template
+	Context  map[string]interface{}
+	Metadata map[string]interface{}
+	Users    []model.User
+}
+
 // ParseProcessBatchWorkerMessageArray parses the message array of the process batch worker
-func ParseProcessBatchWorkerMessageArray(arr []interface{}) (uuid.UUID, string, string, *model.Template, map[string]interface{}, map[string]interface{}, []model.User, error) {
+func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage, error) {
 	// arr is of the following format
 	// [jobId, appName, service, template, context, metadata, users]
 	// template is a json: { body: json, defaults: json }
 	// users is an array of jsons { id: uuid, token: string }
 
 	if len(arr) != 7 {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, fmt.Errorf(InvalidMessageArray)
+		return nil, fmt.Errorf(InvalidMessageArray)
 	}
 
 	jobIDStr := arr[0].(string)
 	jobID, err := uuid.FromString(jobIDStr)
 	if err != nil {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	appName := arr[1].(string)
@@ -69,35 +80,45 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (uuid.UUID, string, 
 	var template *model.Template
 	err = json.Unmarshal([]byte(templateStr), &template)
 	if err != nil {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	contextStr := arr[4].(string)
 	var context map[string]interface{}
 	err = json.Unmarshal([]byte(contextStr), &context)
 	if err != nil {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	metadataStr := arr[5].(string)
 	var metadata map[string]interface{}
 	err = json.Unmarshal([]byte(metadataStr), &metadata)
 	if err != nil {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	usersStr := arr[6].(string)
 	users := []model.User{}
 	err = json.Unmarshal([]byte(usersStr), &users)
 	if err != nil {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	if len(users) == 0 {
-		return uuid.UUID{}, "", "", nil, nil, nil, nil, fmt.Errorf("there must be at least one user")
+		return nil, fmt.Errorf("there must be at least one user")
 	}
 
-	return jobID, appName, service, template, context, metadata, users, nil
+	message := &BatchWorkerMessage{
+		JobID:    jobID,
+		AppName:  appName,
+		Service:  service,
+		Template: template,
+		Context:  context,
+		Metadata: metadata,
+		Users:    users,
+	}
+
+	return message, nil
 }
 
 // BuildMessageFromTemplate build a message using a template and the context
