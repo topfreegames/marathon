@@ -43,12 +43,11 @@ type ProcessBatchWorker struct {
 // NewProcessBatchWorker gets a new ProcessBatchWorker
 func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatchWorker {
 	zookeeper, err := extensions.NewZookeeperClient(config, logger)
-	if err != nil {
-		panic("Could not connect to zookeeper...")
-	}
+	checkErr(err)
 	//Wait 10s at max for a connection
 	zookeeper.WaitForConnection(10)
 	kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
+	checkErr(err)
 	batchWorker := &ProcessBatchWorker{
 		Config:    config,
 		Logger:    logger,
@@ -58,15 +57,16 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string) error {
+func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string, expiresAt int64) error {
+	pushExpiry := expiresAt / 1000000000 // convert from nanoseconds to seconds
 	switch service {
 	case "apns":
-		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
+		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, metadata, pushExpiry)
 		if err != nil {
 			return err
 		}
 	case "gcm":
-		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
+		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, metadata, pushExpiry)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
 	topic := BuildTopicName(parsed.AppName, parsed.Service, topicTemplate)
 	for _, user := range parsed.Users {
-		err = batchWorker.sendToKafka(parsed.Service, topic, msg, parsed.Metadata, user.Token)
+		err = batchWorker.sendToKafka(parsed.Service, topic, msg, parsed.Metadata, user.Token, parsed.ExpiresAt)
 		checkErr(err)
 	}
 
