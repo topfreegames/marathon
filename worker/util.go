@@ -61,14 +61,6 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (uuid.UUID, *model.T
 		return uuid.UUID{}, nil, nil, nil, err
 	}
 
-	if len(template.Defaults) == 0 {
-		return uuid.UUID{}, nil, nil, nil, fmt.Errorf("template must have defaults")
-	}
-
-	if len(template.Body) == 0 {
-		return uuid.UUID{}, nil, nil, nil, fmt.Errorf("template must have body")
-	}
-
 	contextStr := arr[2].(string)
 	var context map[string]interface{}
 	err = json.Unmarshal([]byte(contextStr), &context)
