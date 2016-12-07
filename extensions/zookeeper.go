@@ -145,6 +145,18 @@ func (c *ZookeeperClient) ConfigureConn() error {
 	return nil
 }
 
+//IsConnected returns if the connection has been established successfully
+func (c *ZookeeperClient) IsConnected() bool {
+	connState := c.Conn.State()
+	return connState == zk.StateConnected || connState == zk.StateConnectedReadOnly
+}
+
+//Close the connections to zookeeper
+func (c *ZookeeperClient) Close() error {
+	c.Conn.Close()
+	return nil
+}
+
 //GetKafkaBrokers gets a slice with the hostname of the kafka brokers
 func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
 	ids, _, err := c.Conn.Children("/brokers/ids")

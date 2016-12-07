@@ -23,29 +23,31 @@
 package extensions_test
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/Shopify/sarama"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
 
-func getConnectedZookeeper() *extensions.ZookeeperClient {
-	client, err := extensions.NewZookeeperClient("../config/test.yaml", false)
+func getNextMessageFrom(kafkaBrokers []string, topic string, partition int32, offset int64) (*sarama.ConsumerMessage, error) {
+	consumer, err := sarama.NewConsumer(kafkaBrokers, nil)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(client).NotTo(BeNil())
+	defer consumer.Close()
 
-	time.Sleep(10 * time.Millisecond)
-	Expect(client.Conn).NotTo(BeNil())
-	Expect(client.Conn.State()).To(Equal(zk.StateConnected))
-	Expect(client.IsConnected()).To(BeTrue())
+	partitionConsumer, err := consumer.ConsumePartition(topic, partition, offset)
+	Expect(err).NotTo(HaveOccurred())
+	defer partitionConsumer.Close()
 
-	return client
+	msg := <-partitionConsumer.Messages()
+	return msg, nil
 }
 
-var _ = Describe("Zookeeper Extension", func() {
+var _ = Describe("Kafka Extension", func() {
 	var logger zap.Logger
 	BeforeEach(func() {
 		logger = zap.New(
@@ -56,26 +58,40 @@ var _ = Describe("Zookeeper Extension", func() {
 
 	Describe("Creating new client", func() {
 		It("should return connected client", func() {
-			client, err := extensions.NewZookeeperClient("../config/test.yaml", false)
+			client := getConnectedZookeeper()
+			kafka, err := extensions.NewKafkaClient(client, client.Config, logger)
 			Expect(err).NotTo(HaveOccurred())
-			defer client.Close()
-			Expect(client).NotTo(BeNil())
+			defer kafka.Close()
 
-			time.Sleep(10 * time.Millisecond)
-			Expect(client.Conn).NotTo(BeNil())
-			Expect(client.Conn.State()).To(Equal(zk.StateConnected))
+			Expect(kafka.KafkaBrokers).To(HaveLen(1))
+			Expect(kafka.Producer).NotTo(BeNil())
 		})
 	})
 
-	Describe("Getting Kafka Brokers", func() {
-		It("should return kafka brokers", func() {
+	Describe("Send GCM Message", func() {
+		It("should send GCM message", func() {
 			client := getConnectedZookeeper()
-			defer client.Close()
-
-			brokerInfo, err := client.GetKafkaBrokers()
+			kafka, err := extensions.NewKafkaClient(client, client.Config, logger)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(brokerInfo).To(HaveLen(1))
-			Expect(brokerInfo[0]).To(ContainSubstring(":9940"))
+			defer kafka.Close()
+
+			payload := map[string]interface{}{"x": 1}
+			meta := map[string]interface{}{"a": 1}
+			expiry := time.Now().Unix()
+			partition, offset, err := kafka.SendGCMPush("consumergcm", "device-token", payload, meta, expiry)
+			Expect(err).NotTo(HaveOccurred())
+
+			msg, err := getNextMessageFrom(kafka.KafkaBrokers, "consumergcm", partition, offset)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(msg).NotTo(BeNil())
+
+			var gcmMessage messages.GCMMessage
+			err = json.Unmarshal(msg.Value, &gcmMessage)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gcmMessage.To).To(Equal("device-token"))
+			Expect(gcmMessage.PushExpiry).To(BeEquivalentTo(expiry))
+			Expect(gcmMessage.Data["x"]).To(BeEquivalentTo(1))
+			Expect(gcmMessage.Data["m"].(map[string]interface{})["a"]).To(BeEquivalentTo(1))
 		})
 	})
 })

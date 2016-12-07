@@ -22,6 +22,8 @@
 
 package messages
 
+import "encoding/json"
+
 // GCMMessage is the struct to store a gcm message
 type GCMMessage struct {
 	To         string                 `json:"to"`
@@ -30,14 +32,28 @@ type GCMMessage struct {
 }
 
 // NewGCMMessage builds a new GCM Message
-func NewGCMMessage(to string, data map[string]interface{}, pushExpiry int64) *GCMMessage {
+func NewGCMMessage(to string, data, metadata map[string]interface{}, pushExpiry int64) *GCMMessage {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
+
+	if metadata != nil && len(metadata) > 0 {
+		data["m"] = metadata
+	}
+
 	msg := &GCMMessage{
 		To:         to,
 		Data:       data,
 		PushExpiry: pushExpiry,
 	}
 	return msg
+}
+
+//ToJSON returns the serialized message
+func (m *GCMMessage) ToJSON() (string, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }

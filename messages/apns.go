@@ -22,6 +22,8 @@
 
 package messages
 
+import "encoding/json"
+
 // APNSMessage might need to update the json encoding if we change to snake case
 type APNSMessage struct {
 	DeviceToken string             `json:"DeviceToken"`
@@ -52,4 +54,13 @@ func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, m map[string]inte
 		M:   m,
 	}
 	return msg
+}
+
+//ToJSON returns the serialized message
+func (m *APNSMessage) ToJSON() (string, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }

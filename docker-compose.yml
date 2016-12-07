@@ -20,5 +20,5 @@ services:
     environment:
       KAFKA_ADVERTISED_HOST_NAME: ${MY_IP}
       KAFKA_ADVERTISED_PORT: 9940
-      KAFKA_CREATE_TOPICS: "consumerApp1-gcm-c:1:1"
+      KAFKA_CREATE_TOPICS: "consumergcm:1:1,consumerapns:1:1"
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
