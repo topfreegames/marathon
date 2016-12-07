@@ -1,5 +1,5 @@
-hash: 0e84ececb7fdb578431dd0a62bb3ebbe0c5367ca0aaf87347c305fc54361928e
-updated: 2016-12-06T19:50:53.489247843-02:00
+hash: 4130464035b05c71792e380725efc8e2ee0863a4d0b72a833abdb46f425f4fb4
+updated: 2016-12-07T11:11:44.33265602-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877

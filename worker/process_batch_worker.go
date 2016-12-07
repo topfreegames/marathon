@@ -23,9 +23,13 @@
 package worker
 
 import (
+	"encoding/json"
+
 	"github.com/jrallison/go-workers"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/model"
+	"github.com/valyala/fasttemplate"
 )
 
 // ProcessBatchWorker is the ProcessBatchWorker struct
@@ -41,25 +45,69 @@ func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) parseTemplate(template string) string {
-	// t := fasttemplate.New(string(template[:]), "{{", "}}")
-	// s := t.ExecuteString(defaults)
-	parsedTemplate := ""
-	return parsedTemplate
+func (batchWorker *ProcessBatchWorker) parseMessageArray(arr []interface{}) (uuid.UUID, *model.Template, map[string]interface{}, []model.User) {
+	// arr is of the following format
+	// [jobId, template, context, users]
+	// template is a json: { body: json, defaults: json }
+	// users is an array of jsons { id: uuid, token: string }
+
+	jobIDStr := arr[0].(string)
+	jobID, err := uuid.FromString(jobIDStr)
+	checkErr(err)
+
+	templateStr := arr[1].(string)
+	var template *model.Template
+	err = json.Unmarshal([]byte(templateStr), &template)
+	checkErr(err)
+
+	contextStr := arr[2].(string)
+	var context map[string]interface{}
+	err = json.Unmarshal([]byte(contextStr), &context)
+	checkErr(err)
+
+	usersStr := arr[3].(string)
+	users := []model.User{}
+	err = json.Unmarshal([]byte(usersStr), &users)
+	checkErr(err)
+
+	return jobID, template, context, users
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka() error {
+func (batchWorker *ProcessBatchWorker) buildMessage(template *model.Template, context map[string]interface{}) string {
+	body, _ := json.Marshal(template.Body)
+	bodyString := string(body)
+	t := fasttemplate.New(bodyString, "{{", "}}")
+
+	var substitutions map[string]interface{}
+
+	for k, v := range template.Defaults {
+		substitutions[k] = v
+	}
+
+	for k, v := range context {
+		substitutions[k] = v
+	}
+
+	message := t.ExecuteString(substitutions)
+	return message
+}
+
+func (batchWorker *ProcessBatchWorker) sendToKafka(uuid.UUID, string, string) error {
 	return nil
 }
 
-// Process processes the messages sent to batch worker queue
+// Process processes the messages sent to batch worker queue and send them to kafka
 func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	// l := workers.Logger
 	arr, err := message.Args().Array()
-	jobID := arr[0]
-	_, err = uuid.FromString(jobID.(string))
 	checkErr(err)
 
+	jobID, template, context, users := batchWorker.parseMessageArray(arr)
+
+	message := batchWorker.buildMessage(template, context)
+
 	// TODO: send to kafka
-	batchWorker.sendToKafka()
+	for _, user := range users {
+		batchWorker.sendToKafka(jobID, message, user.Token)
+	}
 }
