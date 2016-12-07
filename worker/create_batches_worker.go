@@ -74,12 +74,6 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	b.MarathonDB = db
 }
 
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
 	res := []string{}
 	resp, err := http.Get(csvURL)

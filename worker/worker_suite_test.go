@@ -20,44 +20,16 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package worker
+package worker_test
 
 import (
-	workers "github.com/jrallison/go-workers"
-	uuid "github.com/satori/go.uuid"
-	"github.com/spf13/viper"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	"testing"
 )
 
-// ProcessBatchWorker is the ProcessBatchWorker struct
-type ProcessBatchWorker struct {
-	Config *viper.Viper
-}
-
-// GetProcessBatchWorker gets a new ProcessBatchWorker
-func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
-	batchWorker := &ProcessBatchWorker{
-		Config: config,
-	}
-	return batchWorker
-}
-
-func (batchWorker *ProcessBatchWorker) sendToKafka(uuid.UUID, string, string) error {
-	return nil
-}
-
-// Process processes the messages sent to batch worker queue and send them to kafka
-func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
-	// l := workers.Logger
-	arr, err := message.Args().Array()
-	checkErr(err)
-
-	jobID, template, context, users, err := ParseProcessBatchWorkerMessageArray(arr)
-	checkErr(err)
-
-	msg := BuildMessageFromTemplate(template, context)
-
-	// TODO: send to kafka
-	for _, user := range users {
-		batchWorker.sendToKafka(jobID, msg, user.Token)
-	}
+func TestWorker(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Worker Suite")
 }
