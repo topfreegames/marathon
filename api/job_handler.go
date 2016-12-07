@@ -38,7 +38,7 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	templateName := c.Param("templateName")
+	templateName := c.QueryParam("template")
 	if templateName == "" {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
@@ -55,7 +55,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	templateName := c.Param("templateName")
+	templateName := c.QueryParam("template")
 	if templateName == "" {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
@@ -104,18 +104,13 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	templateName := c.Param("templateName")
-	if templateName == "" {
-		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
-	}
 	jid, err := uuid.FromString(c.Param("jid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	job := &model.Job{
-		ID:           jid,
-		AppID:        id,
-		TemplateName: templateName,
+		ID:    jid,
+		AppID: id,
 	}
 	if err := a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select(); err != nil {
 		if err.Error() == RecordNotFoundString {

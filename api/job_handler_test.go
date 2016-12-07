@@ -43,15 +43,17 @@ var _ = Describe("Job Handler", func() {
 	var existingApp *model.App
 	var existingTemplate *model.Template
 	var baseRoute string
+	var getBaseRoute string
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
 		app.DB.Exec("DELETE FROM templates;")
 		existingApp = CreateTestApp(app.DB)
 		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID)
-		baseRoute = fmt.Sprintf("/apps/%s/templates/%s/jobs", existingApp.ID, existingTemplate.Name)
+		baseRoute = fmt.Sprintf("/apps/%s/jobs?template=%s", existingApp.ID, existingTemplate.Name)
+		getBaseRoute = fmt.Sprintf("/apps/%s/jobs", existingApp.ID)
 	})
 
-	Describe("Get /apps/:id/templates/:templateName/jobs", func() {
+	Describe("Get /apps/:id/jobs?template=:templateName", func() {
 		Describe("Sucesfully", func() {
 			It("should return 200 and an empty list if there are no jobs", func() {
 				status, body := Get(app, baseRoute, "test@test.com")
@@ -119,7 +121,7 @@ var _ = Describe("Job Handler", func() {
 			})
 
 			It("should return 422 if app id is not UUID", func() {
-				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s", existingTemplate.Name), "test@test.com")
+				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/jobs?template=%s", existingTemplate.Name), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -127,10 +129,20 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
 			})
+
+			It("should return 422 if template name is not specified", func() {
+				status, body := Get(app, fmt.Sprintf("/apps/%s/jobs", existingApp.ID), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("template name must be specified"))
+			})
 		})
 	})
 
-	Describe("Post /apps/:id/templates/:templateName/jobs", func() {
+	Describe("Post /apps/:id/jobs?template=:templateName", func() {
 		Describe("Sucesfully", func() {
 			It("should return 201 and the created job with filters", func() {
 				payload := GetJobPayload()
@@ -304,7 +316,7 @@ var _ = Describe("Job Handler", func() {
 			It("should return 422 if app id is not UUID", func() {
 				payload := GetJobPayload()
 				pl, _ := json.Marshal(payload)
-				status, body := Post(app, fmt.Sprintf("/apps/not-uuid/templates/%s/jobs", existingTemplate.Name), string(pl), "test@test.com")
+				status, body := Post(app, fmt.Sprintf("/apps/not-uuid/jobs?template=%s", existingTemplate.Name), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -316,7 +328,7 @@ var _ = Describe("Job Handler", func() {
 			It("should return 422 if app with given id does not exist", func() {
 				payload := GetJobPayload()
 				pl, _ := json.Marshal(payload)
-				status, body := Post(app, fmt.Sprintf("/apps/%s/templates/%s/jobs", uuid.NewV4().String(), existingTemplate.Name), string(pl), "test@test.com")
+				status, body := Post(app, fmt.Sprintf("/apps/%s/jobs?template=%s", uuid.NewV4().String(), existingTemplate.Name), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -328,13 +340,25 @@ var _ = Describe("Job Handler", func() {
 			It("should return 422 if template with given name does not exist", func() {
 				payload := GetJobPayload()
 				pl, _ := json.Marshal(payload)
-				status, body := Post(app, fmt.Sprintf("/apps/%s/templates/%s/jobs", existingApp.ID, uuid.NewV4().String()), string(pl), "test@test.com")
+				status, body := Post(app, fmt.Sprintf("/apps/%s/jobs?template=%s", existingApp.ID, uuid.NewV4().String()), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(ContainSubstring("no rows in result set"))
+			})
+
+			It("should return 422 if template is not specified", func() {
+				payload := GetJobPayload()
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, fmt.Sprintf("/apps/%s/jobs", existingApp.ID), string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("template name must be specified"))
 			})
 
 			It("should return 422 if both csvUrl and filters are provided", func() {
@@ -455,11 +479,11 @@ var _ = Describe("Job Handler", func() {
 		})
 	})
 
-	Describe("Get /apps/:id/templates/:templateName/jobs/:jid", func() {
+	Describe("Get /apps/:id/jobs/:jid", func() {
 		Describe("Sucesfully", func() {
 			It("should return 200 and the requested job", func() {
 				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
-				status, body := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "success@test.com")
+				status, body := Get(app, fmt.Sprintf("%s/%s", getBaseRoute, existingJob.ID), "success@test.com")
 				Expect(status).To(Equal(http.StatusOK))
 
 				var job map[string]interface{}
@@ -494,7 +518,7 @@ var _ = Describe("Job Handler", func() {
 		Describe("Unsucesfully", func() {
 			It("should return 401 if no authenticated user", func() {
 				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
-				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "")
+				status, _ := Get(app, fmt.Sprintf("%s/%s", getBaseRoute, existingJob.ID), "")
 
 				Expect(status).To(Equal(http.StatusUnauthorized))
 			})
@@ -503,20 +527,20 @@ var _ = Describe("Job Handler", func() {
 				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
 				goodDB := app.DB
 				app.DB = faultyDb
-				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, existingJob.ID), "test@test.com")
+				status, _ := Get(app, fmt.Sprintf("%s/%s", getBaseRoute, existingJob.ID), "test@test.com")
 
 				Expect(status).To(Equal(http.StatusInternalServerError))
 				app.DB = goodDB
 			})
 
 			It("should return 404 if the job does not exist", func() {
-				status, _ := Get(app, fmt.Sprintf("%s/%s", baseRoute, uuid.NewV4().String()), "test@test.com")
+				status, _ := Get(app, fmt.Sprintf("%s/%s", getBaseRoute, uuid.NewV4().String()), "test@test.com")
 				Expect(status).To(Equal(http.StatusNotFound))
 			})
 
 			It("should return 422 if app id is not UUID", func() {
 				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
-				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/templates/%s/jobs/%s", existingTemplate.Name, existingJob.ID), "test@test.com")
+				status, body := Get(app, fmt.Sprintf("/apps/not-uuid/jobs/%s", existingJob.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -526,7 +550,7 @@ var _ = Describe("Job Handler", func() {
 			})
 
 			It("should return 422 if job id is not UUID", func() {
-				status, body := Get(app, fmt.Sprintf("%s/not-uuid", baseRoute), "test@test.com")
+				status, body := Get(app, fmt.Sprintf("%s/not-uuid", getBaseRoute), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
