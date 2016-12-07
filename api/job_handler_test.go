@@ -505,19 +505,6 @@ var _ = Describe("Job Handler", func() {
 				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 
-			It("should return 422 if invalid csvPath", func() {
-				payload := GetJobPayload()
-				payload["csvPath"] = "not-json"
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, baseRoute, string(pl), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid csvPath"))
-			})
-
 			It("should return 422 if invalid expiresAt", func() {
 				payload := GetJobPayload()
 				payload["expiresAt"] = "not-json"
