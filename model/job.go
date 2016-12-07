@@ -30,14 +30,6 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// Filters is a struct that helps make Job struct
-type Filters struct {
-	Locale string `json:"locale"`
-	Region string `json:"region"`
-	Tz     string `json:"tz"`
-	BuildN string `json:"buildN"`
-}
-
 // Job is the job model struct
 type Job struct {
 	ID               uuid.UUID         `sql:",pk" json:"id"`

@@ -40,6 +40,16 @@ type CreateBatchesWorker struct {
 	MarathonDB *pg.DB
 	PushDB     *pg.DB
 	Config     *viper.Viper
+	BatchSize  int
+	DBPageSize int
+}
+
+// User is the struct that will keep users before sending them to send batches worker
+type User struct {
+	UserID    string `json:"user_id"`
+	PushToken string `json:"token"`
+	Locale    string `json:"locale"`
+	Tz        string `json:"tz"`
 }
 
 // GetCreateBatchesWorker gets a new CreateBatchesWorker
@@ -52,7 +62,19 @@ func GetCreateBatchesWorker(config *viper.Viper) *CreateBatchesWorker {
 }
 
 func (b *CreateBatchesWorker) configure() {
+	b.loadConfigurationDefaults()
+	b.loadConfiguration()
 	b.configureDatabases()
+}
+
+func (b *CreateBatchesWorker) loadConfigurationDefaults() {
+	b.Config.SetDefault("workers.createBatches.batchSize", 1000)
+	b.Config.SetDefault("workers.createBatches.dbPageSize", 1000)
+}
+
+func (b *CreateBatchesWorker) loadConfiguration() {
+	b.BatchSize = b.Config.GetInt("workers.createBatches.batchSize")
+	b.DBPageSize = b.Config.GetInt("workers.createBatches.batchSize")
 }
 
 func (b *CreateBatchesWorker) configureDatabases() {
@@ -92,18 +114,49 @@ func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
 	return res
 }
 
-func (b *CreateBatchesWorker) getTokensUsingCSV(csvURL string) []string {
-	tokens := []string{}
-	userIds := b.readRemoteCSV(csvURL)
-	for _, id := range userIds {
-		workers.Logger.Printf("id readen %s", id)
+func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
+	var users []User
+	_, err := b.PushDB.Query(&users, `SELECT user_id, token, locale, tz FROM ? WHERE user_id IN (?)`,
+		fmt.Sprintf("%s_%s", appName, service), pg.In(userIds))
+	if err != nil {
+		panic(err)
 	}
-	return tokens
+	return users
+}
+
+func (b *CreateBatchesWorker) createBatchesUsingCSV(csvURL, appName, service string) error {
+	l := workers.Logger
+	userIds := b.readRemoteCSV(csvURL)
+	numPushes := len(userIds)
+	pages := numPushes / (b.DBPageSize * 1.0)
+	l.Printf("%d batches to complete", pages)
+	for i := 0; ; i++ {
+		userBatch := b.getPage(i, &userIds)
+		if userBatch == nil {
+			break
+		}
+		usersFromBatch := b.getCSVUserBatchFromPG(&userBatch, appName, service)
+		l.Printf("got some users from db %s", usersFromBatch)
+	}
+	return nil
+}
+
+func (b *CreateBatchesWorker) getPage(page int, users *[]string) []string {
+	start := page * b.DBPageSize
+	end := (page + 1) * b.DBPageSize
+	if start > len(*users) {
+		return nil
+	}
+	if end > len(*users) {
+		end = len(*users)
+	}
+	return (*users)[start:end]
 }
 
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	l := workers.Logger
+	l.Printf("starting create_batches_worker with batchSize %d and dbBatchSize %d", b.BatchSize, b.DBPageSize)
 	arr, err := message.Args().Array()
 	if err != nil {
 		checkErr(err)
@@ -116,9 +169,11 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	}
 	err = b.MarathonDB.Model(job).Column("job.*", "Template", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
-	var pushIds []string
 	if len(job.CsvURL) > 0 {
-		pushIds = b.getTokensUsingCSV(job.CsvURL)
+		err := b.createBatchesUsingCSV(job.CsvURL, job.App.Name, job.Service)
+		if err != nil {
+			panic(err)
+		}
 		// Load userIds from csv
 		// Download the csv from s3
 		// reads user_ids
@@ -126,5 +181,4 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	} else {
 		// Find the ids based on filters
 	}
-	l.Printf("successfully got job from db %s", pushIds)
 }

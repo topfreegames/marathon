@@ -2,7 +2,7 @@
 db:
   host: localhost
   port: 8585
-  user: marathon_user
+  user: postgres
   password: ""
   poolSize: 20
   maxRetries: 3
@@ -24,6 +24,9 @@ s3:
   secretAccessKey: "SECRET-ACCESS-KEY"
 workers:
   statsPort: 8081
+  createBatches:
+    batchSize: 1000
+    dbPageSize: 1000
   concurrency: 10
   redis:
     server: localhost:6333
