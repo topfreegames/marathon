@@ -21,8 +21,7 @@
 test: test-services test-run
 
 test-run:
-	@ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
-	# @ginkgo -r --failFast --cover .
+	@env MY_IP=${MY_IP} ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
 	@$(MAKE) test-coverage-func
 
 test-coverage-func:
@@ -50,7 +49,7 @@ test-coverage-html: test-coverage
 test-coverage-write-html:
 	@go tool cover -html=_build/test-coverage-all.out -o _build/test-coverage.html
 
-test-services: deps test-db-drop test-db-create test-db-migrate
+test-services: stop-deps deps test-db-drop test-db-create test-db-migrate
 	@echo "Required test services are up."
 
 test-db-drop:

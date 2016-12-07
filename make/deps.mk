@@ -7,6 +7,7 @@ deps: start-deps wait-for-pg
 start-deps:
 	@echo "Starting dependencies using HOST IP of ${MY_IP}..."
 	@env MY_IP=${MY_IP} docker-compose --project-name marathon up -d
+	@sleep 10
 	@echo "Dependencies started successfully."
 
 stop-deps:
