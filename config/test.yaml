@@ -31,3 +31,4 @@ workers:
   zookeeper:
     hosts:
       - localhost:9930
+  topicTemplate: "%s-%s-c"

@@ -29,3 +29,4 @@ workers:
     server: localhost:6333
     database: 0
     poolSize: 10
+  topicTemplate: "%s-%s-c"

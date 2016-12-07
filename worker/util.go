@@ -40,6 +40,11 @@ func checkErr(err error) {
 // InvalidMessageArray is the string returned when the message array of the process batch worker is not valid
 var InvalidMessageArray = "array must be of the form [jobId, appName, service, template, context, metadata, users]"
 
+// BuildTopicName builds a topic name based in appName, service and a template
+func BuildTopicName(appName, service, topicTemplate string) string {
+	return fmt.Sprintf(topicTemplate, appName, service)
+}
+
 // ParseProcessBatchWorkerMessageArray parses the message array of the process batch worker
 func ParseProcessBatchWorkerMessageArray(arr []interface{}) (uuid.UUID, string, string, *model.Template, map[string]interface{}, map[string]interface{}, []model.User, error) {
 	// arr is of the following format

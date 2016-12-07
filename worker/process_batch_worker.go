@@ -23,13 +23,18 @@
 package worker
 
 import (
+	"encoding/json"
+	"fmt"
+
 	workers "github.com/jrallison/go-workers"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/extensions"
 )
 
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
-	Config *viper.Viper
+	Config      *viper.Viper
+	KafkaClient *extensions.KafkaClient
 }
 
 // GetProcessBatchWorker gets a new ProcessBatchWorker
@@ -40,7 +45,21 @@ func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka(appName, service, msg string, metadata map[string]interface{}, deviceToken string) error {
+func (batchWorker *ProcessBatchWorker) sendToKafka(appName, service, topic string, msg, metadata map[string]interface{}, deviceToken string) error {
+	switch service {
+	case "apns":
+		_, _, err := batchWorker.KafkaClient.SendAPNSPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
+		if err != nil {
+			return err
+		}
+	case "gcm":
+		_, _, err := batchWorker.KafkaClient.SendGCMPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("service should be in ['apns', 'gcm']")
+	}
 	return nil
 }
 
@@ -53,12 +72,20 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	_, appName, service, template, context, metadata, users, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(err)
 
-	msg := BuildMessageFromTemplate(template, context)
+	msgStr := BuildMessageFromTemplate(template, context)
+	var msg map[string]interface{}
+	err = json.Unmarshal([]byte(msgStr), &msg)
+	checkErr(err)
 
-	// TODO: send to kafka
+	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
+	topic := BuildTopicName(appName, service, topicTemplate)
 	for _, user := range users {
-		batchWorker.sendToKafka(appName, service, msg, metadata, user.Token)
+		err = batchWorker.sendToKafka(appName, service, topic, msg, metadata, user.Token)
+		checkErr(err)
 	}
 
-	// TODO: increment job completed batches
+	// TODO: this worker should have a db connection to do this
+	// err = db.Model(&model.Job{}).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Update()
+	// checkErr(err)
+	// TODO: set completedAt when finished all batches
 }
