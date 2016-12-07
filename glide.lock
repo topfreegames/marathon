@@ -1,5 +1,5 @@
-hash: 4130464035b05c71792e380725efc8e2ee0863a4d0b72a833abdb46f425f4fb4
-updated: 2016-12-07T11:11:44.33265602-02:00
+hash: 8ddd8c048e6458fffdf749fcbfcfcdb955279a9aa9c61e5fdd1c1de7aee2e49e
+updated: 2016-12-07T11:58:25.445376164-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -108,6 +108,10 @@ imports:
   version: ce7be745f09fe4ff89af8e3ea744e1deabf20ee3
 - name: github.com/pressly/goose
   version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
+- name: github.com/samuel/go-zookeeper
+  version: 87e1bca4477a3cc767ca71be023ced183d74e538
+  subpackages:
+  - zk
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/afero

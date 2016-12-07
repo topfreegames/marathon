@@ -33,3 +33,4 @@ import:
 - package: github.com/minio/minio-go
   version: ^2.0.2
 - package: github.com/valyala/fasttemplate
+- package: github.com/samuel/go-zookeeper

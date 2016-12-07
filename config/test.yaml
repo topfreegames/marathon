@@ -28,3 +28,6 @@ workers:
     server: localhost:6333
     database: 0
     poolSize: 10
+  zookeeper:
+    hosts:
+      - localhost:9930
