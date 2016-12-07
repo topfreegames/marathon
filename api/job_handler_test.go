@@ -100,6 +100,12 @@ var _ = Describe("Job Handler", func() {
 					for key := range existContext {
 						Expect(tempContext[key]).To(Equal(existContext[key]))
 					}
+
+					tempMetadata := job["metadata"].(map[string]interface{})
+					existMetadata := testJobs[idx].Metadata
+					for key := range existMetadata {
+						Expect(tempMetadata[key]).To(Equal(existMetadata[key]))
+					}
 				}
 			})
 		})
@@ -179,6 +185,12 @@ var _ = Describe("Job Handler", func() {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 
+				tempMetadata := job["metadata"].(map[string]interface{})
+				plMetadata := payload["metadata"].(map[string]string)
+				for key := range plMetadata {
+					Expect(tempMetadata[key]).To(Equal(plMetadata[key]))
+				}
+
 				id, err := uuid.FromString(job["id"].(string))
 				Expect(err).NotTo(HaveOccurred())
 				dbJob := &model.Job{
@@ -204,6 +216,10 @@ var _ = Describe("Job Handler", func() {
 
 				for key := range plContext {
 					Expect(dbJob.Context[key]).To(Equal(plContext[key]))
+				}
+
+				for key := range plMetadata {
+					Expect(dbJob.Metadata[key]).To(Equal(plMetadata[key]))
 				}
 			})
 
@@ -239,6 +255,12 @@ var _ = Describe("Job Handler", func() {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 
+				tempMetadata := job["metadata"].(map[string]interface{})
+				plMetadata := payload["metadata"].(map[string]string)
+				for key := range plMetadata {
+					Expect(tempMetadata[key]).To(Equal(plMetadata[key]))
+				}
+
 				id, err := uuid.FromString(job["id"].(string))
 				Expect(err).NotTo(HaveOccurred())
 				dbJob := &model.Job{
@@ -263,6 +285,9 @@ var _ = Describe("Job Handler", func() {
 					Expect(dbJob.Context[key]).To(Equal(plContext[key]))
 				}
 
+				for key := range plMetadata {
+					Expect(dbJob.Metadata[key]).To(Equal(plMetadata[key]))
+				}
 			})
 
 			It("should return 201 and the created job without expiresAt", func() {
@@ -292,6 +317,35 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(int(dbJob.ExpiresAt)).To(BeEquivalentTo(0))
+			})
+
+			It("should return 201 and the created job without metadata", func() {
+				payload := GetJobPayload()
+				delete(payload, "metadata")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
+				Expect(job["metadata"]).To(Equal(map[string]interface{}{}))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).ToNot(BeNil())
+				Expect(dbJob.AppID).To(Equal(existingApp.ID))
+				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
+				Expect(dbJob.Metadata).To(Equal(map[string]string{}))
 			})
 		})
 
@@ -511,6 +565,12 @@ var _ = Describe("Job Handler", func() {
 				plContext := existingJob.Context
 				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
+				}
+
+				tempMetadata := job["metadata"].(map[string]interface{})
+				plMetadata := existingJob.Metadata
+				for key := range plMetadata {
+					Expect(tempMetadata[key]).To(Equal(plMetadata[key]))
 				}
 			})
 		})

@@ -48,6 +48,7 @@ type Job struct {
 	Context          map[string]string `json:"context"`
 	Service          string            `json:"service"`
 	Filters          map[string]string `json:"filters"`
+	Metadata         map[string]string `json:"metadata"`
 	CsvURL           string            `json:"csvUrl"`
 	CreatedBy        string            `json:"createdBy"`
 	App              App               `json:"app"`

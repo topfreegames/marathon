@@ -47,6 +47,7 @@ CREATE TABLE "jobs" (
   "context" JSONB NOT NULL DEFAULT '{}'::JSONB,
   "service" text,
   "filters" JSONB NOT NULL DEFAULT '{}'::JSONB,
+  "metadata" JSONB NOT NULL DEFAULT '{}'::JSONB,
   "csv_url" text,
   "created_by" text,
   "app_id" uuid NOT NULL,

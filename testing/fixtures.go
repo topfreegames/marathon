@@ -158,11 +158,13 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 
 	filters := getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string)
 	context := getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string)
+	metadata := getOpt(opts, "filters", map[string]string{"meta": "data"}).(map[string]string)
 
 	job := &model.Job{}
 	job.AppID = appID
 	job.TemplateName = templateName
 	job.Filters = filters
+	job.Metadata = metadata
 	job.Context = context
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	job.Service = getOpt(opts, "service", "apns").(string)
@@ -195,6 +197,7 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 
 	filters := getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string)
 	context := getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string)
+	metadata := getOpt(opts, "filters", map[string]string{"meta": "data"}).(map[string]string)
 
 	service := getOpt(opts, "service", "apns").(string)
 	csvURL := getOpt(opts, "csvUrl", "").(string)
@@ -204,6 +207,7 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 	job := map[string]interface{}{
 		"filters":   filters,
 		"context":   context,
+		"metadata":  metadata,
 		"service":   service,
 		"csvUrl":    csvURL,
 		"expiresAt": expiresAt,
