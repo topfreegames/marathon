@@ -42,7 +42,6 @@ func getConnectedZookeeper(logger zap.Logger) *extensions.ZookeeperClient {
 
 	time.Sleep(10 * time.Millisecond)
 	Expect(client.Conn).NotTo(BeNil())
-	Expect(client.Conn.State()).To(Equal(zk.StateConnected))
 	Expect(client.IsConnected()).To(BeTrue())
 
 	return client

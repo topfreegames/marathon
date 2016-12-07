@@ -110,7 +110,7 @@ func (c *ZookeeperClient) ConfigureConn() error {
 //IsConnected returns if the connection has been established successfully
 func (c *ZookeeperClient) IsConnected() bool {
 	connState := c.Conn.State()
-	return connState == zk.StateConnected || connState == zk.StateConnectedReadOnly
+	return connState == zk.StateConnected || connState == zk.StateConnectedReadOnly || connState == zk.StateHasSession
 }
 
 //Close the connections to zookeeper
