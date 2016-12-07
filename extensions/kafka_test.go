@@ -29,6 +29,7 @@ import (
 	"github.com/Shopify/sarama"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
@@ -49,17 +50,20 @@ func getNextMessageFrom(kafkaBrokers []string, topic string, partition int32, of
 
 var _ = Describe("Kafka Extension", func() {
 	var logger zap.Logger
+	var config *viper.Viper
+
 	BeforeEach(func() {
 		logger = zap.New(
 			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
 			zap.FatalLevel,
 		)
+		config = viper.New()
 	})
 
 	Describe("Creating new client", func() {
 		It("should return connected client", func() {
-			client := getConnectedZookeeper()
-			kafka, err := extensions.NewKafkaClient(client, client.Config, logger)
+			client := getConnectedZookeeper(logger)
+			kafka, err := extensions.NewKafkaClient(client, config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
@@ -70,7 +74,7 @@ var _ = Describe("Kafka Extension", func() {
 
 	Describe("Send GCM Message", func() {
 		It("should send GCM message", func() {
-			client := getConnectedZookeeper()
+			client := getConnectedZookeeper(logger)
 			kafka, err := extensions.NewKafkaClient(client, client.Config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
@@ -92,6 +96,33 @@ var _ = Describe("Kafka Extension", func() {
 			Expect(gcmMessage.PushExpiry).To(BeEquivalentTo(expiry))
 			Expect(gcmMessage.Data["x"]).To(BeEquivalentTo(1))
 			Expect(gcmMessage.Data["m"].(map[string]interface{})["a"]).To(BeEquivalentTo(1))
+		})
+	})
+
+	Describe("Send APNS Message", func() {
+		It("should send APNS message", func() {
+			client := getConnectedZookeeper(logger)
+			kafka, err := extensions.NewKafkaClient(client, client.Config, logger)
+			Expect(err).NotTo(HaveOccurred())
+			defer kafka.Close()
+
+			payload := map[string]interface{}{"x": 1}
+			meta := map[string]interface{}{"a": 1}
+			expiry := time.Now().Unix()
+			partition, offset, err := kafka.SendAPNSPush("consumerapns", "device-token", payload, meta, expiry)
+			Expect(err).NotTo(HaveOccurred())
+
+			msg, err := getNextMessageFrom(kafka.KafkaBrokers, "consumerapns", partition, offset)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(msg).NotTo(BeNil())
+
+			var apnsMessage messages.APNSMessage
+			err = json.Unmarshal(msg.Value, &apnsMessage)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(apnsMessage.DeviceToken).To(Equal("device-token"))
+			Expect(apnsMessage.PushExpiry).To(BeEquivalentTo(expiry))
+			Expect(apnsMessage.Payload.Aps["x"]).To(BeEquivalentTo(1))
+			Expect(apnsMessage.Payload.M["a"]).To(BeEquivalentTo(1))
 		})
 	})
 })

@@ -24,9 +24,7 @@ package extensions
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
@@ -58,29 +56,21 @@ type KafkaInfo struct {
 
 // ZookeeperClient is the struct that connects to Zookeeper
 type ZookeeperClient struct {
-	Config     *viper.Viper
-	ConfigPath string
-	Conn       *zk.Conn
-	Logger     zap.Logger
+	Config *viper.Viper
+	Conn   *zk.Conn
+	Logger zap.Logger
 }
 
 var config *viper.Viper
 
 // NewZookeeperClient creates a new client
-func NewZookeeperClient(configPath string, debug bool) (*ZookeeperClient, error) {
-	if configPath == "" {
-		return nil, errors.New("No configPath passed to configure ZookeeperClient")
-	}
+func NewZookeeperClient(config *viper.Viper, logger zap.Logger) (*ZookeeperClient, error) {
 	client := &ZookeeperClient{
-		ConfigPath: configPath,
-	}
-	client.ConfigureLogger(debug)
-	err := client.LoadConfiguration(configPath)
-	if err != nil {
-		return nil, err
+		Config: config,
+		Logger: logger,
 	}
 	client.LoadDefaults()
-	err = client.ConfigureConn()
+	err := client.ConfigureConn()
 	if err != nil {
 		return nil, err
 	}
@@ -91,34 +81,6 @@ func NewZookeeperClient(configPath string, debug bool) (*ZookeeperClient, error)
 // LoadDefaults sets default values for keys needed by this module
 func (c *ZookeeperClient) LoadDefaults() {
 	c.Config.SetDefault("workers.zookeeper.hosts", []string{"localhost:9930"})
-}
-
-//ConfigureLogger with specific level.
-func (c *ZookeeperClient) ConfigureLogger(debug bool) {
-	ll := zap.InfoLevel
-	if debug {
-		ll = zap.DebugLevel
-	}
-	c.Logger = zap.New(
-		zap.NewJSONEncoder(),
-		ll,
-		zap.AddCaller(),
-	)
-}
-
-//LoadConfiguration from configPath
-func (c *ZookeeperClient) LoadConfiguration(configPath string) error {
-	c.Config = viper.New()
-	c.Config.SetConfigFile(c.ConfigPath)
-	c.Config.SetConfigType("yaml")
-	c.Config.SetEnvPrefix("marathon")
-	c.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	c.Config.AutomaticEnv()
-	err := c.Config.ReadInConfig()
-	if err != nil {
-		return fmt.Errorf("Fatal error config file: %s \n", err)
-	}
-	return nil
 }
 
 //ConfigureConn to zookeeper

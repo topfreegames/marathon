@@ -28,12 +28,15 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/uber-go/zap"
 )
 
-func getConnectedZookeeper() *extensions.ZookeeperClient {
-	client, err := extensions.NewZookeeperClient("../config/test.yaml", false)
+func getConnectedZookeeper(logger zap.Logger) *extensions.ZookeeperClient {
+	config := viper.New()
+	config.Set("workers.zookeeper.hosts", []string{"localhost:9930"})
+	client, err := extensions.NewZookeeperClient(config, logger)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(client).NotTo(BeNil())
 
@@ -47,16 +50,19 @@ func getConnectedZookeeper() *extensions.ZookeeperClient {
 
 var _ = Describe("Zookeeper Extension", func() {
 	var logger zap.Logger
+	var config *viper.Viper
+
 	BeforeEach(func() {
 		logger = zap.New(
 			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
 			zap.FatalLevel,
 		)
+		config = viper.New()
 	})
 
 	Describe("Creating new client", func() {
 		It("should return connected client", func() {
-			client, err := extensions.NewZookeeperClient("../config/test.yaml", false)
+			client, err := extensions.NewZookeeperClient(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer client.Close()
 			Expect(client).NotTo(BeNil())
@@ -69,7 +75,7 @@ var _ = Describe("Zookeeper Extension", func() {
 
 	Describe("Getting Kafka Brokers", func() {
 		It("should return kafka brokers", func() {
-			client := getConnectedZookeeper()
+			client := getConnectedZookeeper(logger)
 			defer client.Close()
 
 			brokerInfo, err := client.GetKafkaBrokers()
