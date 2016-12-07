@@ -29,18 +29,31 @@ import (
 	workers "github.com/jrallison/go-workers"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/uber-go/zap"
 )
 
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
-	Config      *viper.Viper
-	KafkaClient *extensions.KafkaClient
+	Config    *viper.Viper
+	Logger    zap.Logger
+	Kafka     *extensions.KafkaClient
+	Zookeeper *extensions.ZookeeperClient
 }
 
-// GetProcessBatchWorker gets a new ProcessBatchWorker
-func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
+// NewProcessBatchWorker gets a new ProcessBatchWorker
+func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatchWorker {
+	zookeeper, err := extensions.NewZookeeperClient(config, logger)
+	if err != nil {
+		panic("Could not connect to zookeeper...")
+	}
+	//Wait 10s at max for a connection
+	zookeeper.WaitForConnection(10)
+	kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
 	batchWorker := &ProcessBatchWorker{
-		Config: config,
+		Config:    config,
+		Logger:    logger,
+		Kafka:     kafka,
+		Zookeeper: zookeeper,
 	}
 	return batchWorker
 }
@@ -48,12 +61,12 @@ func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
 func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string) error {
 	switch service {
 	case "apns":
-		_, _, err := batchWorker.KafkaClient.SendAPNSPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
+		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
 		if err != nil {
 			return err
 		}
 	case "gcm":
-		_, _, err := batchWorker.KafkaClient.SendGCMPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
+		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, metadata, 0) // TODO: use job expireAt instead of 0
 		if err != nil {
 			return err
 		}

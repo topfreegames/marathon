@@ -51,7 +51,7 @@ var workerCmd = &cobra.Command{
 		)
 
 		logger.Debug("configuring workers...")
-		w := worker.GetWorker(debug, logger, cfgFile)
+		w := worker.NewWorker(debug, logger, cfgFile)
 
 		logger.Debug("starting worker...")
 		w.Start()

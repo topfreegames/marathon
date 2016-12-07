@@ -119,6 +119,19 @@ func (c *ZookeeperClient) Close() error {
 	return nil
 }
 
+//WaitForConnection loops until kafka is connected
+func (c *ZookeeperClient) WaitForConnection(timeout int) error {
+	start := time.Now().Unix()
+	for !c.IsConnected() || time.Now().Unix()-start > int64(timeout) {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if time.Now().Unix()-start > int64(timeout) {
+		return fmt.Errorf("Timed out waiting for Zookeeper to connect.")
+	}
+	return nil
+}
+
 //GetKafkaBrokers gets a slice with the hostname of the kafka brokers
 func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
 	ids, _, err := c.Conn.Children("/brokers/ids")

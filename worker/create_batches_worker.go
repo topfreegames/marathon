@@ -53,8 +53,8 @@ type User struct {
 	Tz     string `json:"tz" sql:"tz"`
 }
 
-// GetCreateBatchesWorker gets a new CreateBatchesWorker
-func GetCreateBatchesWorker(config *viper.Viper) *CreateBatchesWorker {
+// NewCreateBatchesWorker gets a new CreateBatchesWorker
+func NewCreateBatchesWorker(config *viper.Viper) *CreateBatchesWorker {
 	b := &CreateBatchesWorker{
 		Config: config,
 	}
