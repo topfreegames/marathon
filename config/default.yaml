@@ -3,7 +3,7 @@ db:
   host: localhost
   port: 8585
   user: postgres
-  password: ""
+  pass: ""
   poolSize: 20
   maxRetries: 3
   database: marathon
@@ -12,7 +12,7 @@ push:
     host: localhost
     port: 8558
     user: marathon_user
-    password: ""
+    pass: ""
     poolSize: 20
     maxRetries: 3
     database: push

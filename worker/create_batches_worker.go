@@ -46,10 +46,10 @@ type CreateBatchesWorker struct {
 
 // User is the struct that will keep users before sending them to send batches worker
 type User struct {
-	UserID    string `json:"user_id"`
-	PushToken string `json:"token"`
-	Locale    string `json:"locale"`
-	Tz        string `json:"tz"`
+	UserID string `json:"user_id" sql:"user_id"`
+	Token  string `json:"token" sql:"token"`
+	Locale string `json:"locale" sql:"locale"`
+	Tz     string `json:"tz" sql:"tz"`
 }
 
 // GetCreateBatchesWorker gets a new CreateBatchesWorker
@@ -74,10 +74,29 @@ func (b *CreateBatchesWorker) loadConfigurationDefaults() {
 
 func (b *CreateBatchesWorker) loadConfiguration() {
 	b.BatchSize = b.Config.GetInt("workers.createBatches.batchSize")
-	b.DBPageSize = b.Config.GetInt("workers.createBatches.batchSize")
+	b.DBPageSize = b.Config.GetInt("workers.createBatches.dbPageSize")
 }
 
-func (b *CreateBatchesWorker) configureDatabases() {
+func (b *CreateBatchesWorker) configurePushDatabase() {
+	pushDBUser := b.Config.GetString("push.db.user")
+	pushDBPass := b.Config.GetString("push.db.pass")
+	pushDBHost := b.Config.GetString("push.db.host")
+	pushDBDatabase := b.Config.GetString("push.db.database")
+	pushDBPort := b.Config.GetInt("push.db.port")
+	pushDBPoolSize := b.Config.GetInt("push.db.poolSize")
+	pushDBMaxRetries := b.Config.GetInt("push.db.maxRetries")
+	pushDB := pg.Connect(&pg.Options{
+		Addr:       fmt.Sprintf("%s:%d", pushDBHost, pushDBPort),
+		User:       pushDBUser,
+		Password:   pushDBPass,
+		Database:   pushDBDatabase,
+		PoolSize:   pushDBPoolSize,
+		MaxRetries: pushDBMaxRetries,
+	})
+	b.PushDB = pushDB
+}
+
+func (b *CreateBatchesWorker) configureMarathonDatabase() {
 	host := b.Config.GetString("db.host")
 	user := b.Config.GetString("db.user")
 	pass := b.Config.GetString("db.pass")
@@ -85,7 +104,7 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	port := b.Config.GetInt("db.port")
 	poolSize := b.Config.GetInt("db.poolSize")
 	maxRetries := b.Config.GetInt("db.maxRetries")
-	db := pg.Connect(&pg.Options{
+	marathonDB := pg.Connect(&pg.Options{
 		Addr:       fmt.Sprintf("%s:%d", host, port),
 		User:       user,
 		Password:   pass,
@@ -93,7 +112,17 @@ func (b *CreateBatchesWorker) configureDatabases() {
 		PoolSize:   poolSize,
 		MaxRetries: maxRetries,
 	})
-	b.MarathonDB = db
+	b.MarathonDB = marathonDB
+}
+
+func (b *CreateBatchesWorker) configureDatabases() {
+	b.configureMarathonDatabase()
+	b.configurePushDatabase()
+}
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
@@ -106,7 +135,6 @@ func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
 	checkErr(err)
 	for i, line := range lines {
 		if i == 0 {
-			// skip header line
 			continue
 		}
 		res = append(res, line[0])
@@ -116,8 +144,8 @@ func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
 
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
 	var users []User
-	_, err := b.PushDB.Query(&users, `SELECT user_id, token, locale, tz FROM ? WHERE user_id IN (?)`,
-		fmt.Sprintf("%s_%s", appName, service), pg.In(userIds))
+	fmt.Printf("Getting users from push %s", *userIds)
+	_, err := b.PushDB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
 	if err != nil {
 		panic(err)
 	}
@@ -130,7 +158,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(csvURL, appName, service str
 	numPushes := len(userIds)
 	pages := numPushes / (b.DBPageSize * 1.0)
 	l.Printf("%d batches to complete", pages)
-	for i := 0; ; i++ {
+	for i := 0; true; i++ {
 		userBatch := b.getPage(i, &userIds)
 		if userBatch == nil {
 			break
@@ -144,7 +172,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(csvURL, appName, service str
 func (b *CreateBatchesWorker) getPage(page int, users *[]string) []string {
 	start := page * b.DBPageSize
 	end := (page + 1) * b.DBPageSize
-	if start > len(*users) {
+	if start >= len(*users) {
 		return nil
 	}
 	if end > len(*users) {
@@ -167,17 +195,13 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	err = b.MarathonDB.Model(job).Column("job.*", "Template", "App").Where("job.id = ?", job.ID).Select()
+	err = b.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
 	if len(job.CsvURL) > 0 {
 		err := b.createBatchesUsingCSV(job.CsvURL, job.App.Name, job.Service)
 		if err != nil {
 			panic(err)
 		}
-		// Load userIds from csv
-		// Download the csv from s3
-		// reads user_ids
-		// get in batches from pn
 	} else {
 		// Find the ids based on filters
 	}

@@ -125,7 +125,7 @@ imports:
 - name: github.com/pressly/goose
   version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
 - name: github.com/samuel/go-zookeeper
-  version: 87e1bca4477a3cc767ca71be023ced183d74e538
+  version: 1d7be4effb13d2d908342d349d71a284a7542693
   subpackages:
   - zk
 - name: github.com/satori/go.uuid
@@ -151,7 +151,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber-go/zap
-  version: 26c75604fce9f820e6ef1658e0f4bc4f4a6b11a4
+  version: 35cd7966cc81adc0449c91b3f6b1939812be73aa
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
 - name: golang.org/x/crypto
@@ -160,7 +160,7 @@ imports:
   - acme
   - acme/autocert
 - name: golang.org/x/net
-  version: 8dab9293431a241c65a8e8d46bbaa0492ec94849
+  version: 9773060888fba93b172cedcd70127db1ab739bd1
   subpackages:
   - context
   - context/ctxhttp
