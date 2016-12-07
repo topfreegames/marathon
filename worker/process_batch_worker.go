@@ -104,10 +104,10 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 
 	jobID, template, context, users := batchWorker.parseMessageArray(arr)
 
-	message := batchWorker.buildMessage(template, context)
+	msg := batchWorker.buildMessage(template, context)
 
 	// TODO: send to kafka
 	for _, user := range users {
-		batchWorker.sendToKafka(jobID, message, user.Token)
+		batchWorker.sendToKafka(jobID, msg, user.Token)
 	}
 }
