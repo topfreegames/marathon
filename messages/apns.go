@@ -25,6 +25,8 @@ package messages
 import "encoding/json"
 
 // APNSMessage might need to update the json encoding if we change to snake case
+// For more info on APNS payload building, refer to this document:
+// https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CreatingtheNotificationPayload.html#//apple_ref/doc/uid/TP40008194-CH10-SW1
 type APNSMessage struct {
 	DeviceToken string             `json:"DeviceToken"`
 	Payload     APNSPayloadContent `json:"Payload"`

@@ -25,6 +25,8 @@ package messages
 import "encoding/json"
 
 // GCMMessage is the struct to store a gcm message
+// For more info on the GCM Message Data attribute refer to:
+// https://developers.google.com/cloud-messaging/concept-options
 type GCMMessage struct {
 	To         string                 `json:"to"`
 	Data       map[string]interface{} `json:"data"`
