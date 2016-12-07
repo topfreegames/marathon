@@ -68,7 +68,7 @@ var _ = Describe("Zookeeper Extension", func() {
 
 			time.Sleep(10 * time.Millisecond)
 			Expect(client.Conn).NotTo(BeNil())
-			Expect(client.Conn.State()).To(Equal(zk.StateConnected))
+			Expect(client.Conn.State()).To(BeNumerically(">=", zk.StateConnected))
 		})
 	})
 
