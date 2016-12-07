@@ -37,51 +37,62 @@ func checkErr(err error) {
 	}
 }
 
+// InvalidMessageArray is the string returned when the message array of the process batch worker is not valid
+var InvalidMessageArray = "array must be of the form [jobId, appName, service, template, context, metadata, users]"
+
 // ParseProcessBatchWorkerMessageArray parses the message array of the process batch worker
-func ParseProcessBatchWorkerMessageArray(arr []interface{}) (uuid.UUID, string, *model.Template, map[string]interface{}, []model.User, error) {
+func ParseProcessBatchWorkerMessageArray(arr []interface{}) (uuid.UUID, string, string, *model.Template, map[string]interface{}, map[string]interface{}, []model.User, error) {
 	// arr is of the following format
-	// [jobId, service, template, context, users]
+	// [jobId, appName, service, template, context, metadata, users]
 	// template is a json: { body: json, defaults: json }
 	// users is an array of jsons { id: uuid, token: string }
 
-	if len(arr) != 5 {
-		return uuid.UUID{}, "", nil, nil, nil, fmt.Errorf("array must be of the form [jobId, service, template, context, users]")
+	if len(arr) != 7 {
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, fmt.Errorf(InvalidMessageArray)
 	}
 
 	jobIDStr := arr[0].(string)
 	jobID, err := uuid.FromString(jobIDStr)
 	if err != nil {
-		return uuid.UUID{}, "", nil, nil, nil, err
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
 	}
 
-	service := arr[1].(string)
+	appName := arr[1].(string)
+	service := arr[2].(string)
 
-	templateStr := arr[2].(string)
+	templateStr := arr[3].(string)
 	var template *model.Template
 	err = json.Unmarshal([]byte(templateStr), &template)
 	if err != nil {
-		return uuid.UUID{}, "", nil, nil, nil, err
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
 	}
 
-	contextStr := arr[3].(string)
+	contextStr := arr[4].(string)
 	var context map[string]interface{}
 	err = json.Unmarshal([]byte(contextStr), &context)
 	if err != nil {
-		return uuid.UUID{}, "", nil, nil, nil, err
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
 	}
 
-	usersStr := arr[4].(string)
+	metadataStr := arr[5].(string)
+	var metadata map[string]interface{}
+	err = json.Unmarshal([]byte(metadataStr), &metadata)
+	if err != nil {
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
+	}
+
+	usersStr := arr[6].(string)
 	users := []model.User{}
 	err = json.Unmarshal([]byte(usersStr), &users)
 	if err != nil {
-		return uuid.UUID{}, "", nil, nil, nil, err
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, err
 	}
 
 	if len(users) == 0 {
-		return uuid.UUID{}, "", nil, nil, nil, fmt.Errorf("there must be at least one user")
+		return uuid.UUID{}, "", "", nil, nil, nil, nil, fmt.Errorf("there must be at least one user")
 	}
 
-	return jobID, service, template, context, users, nil
+	return jobID, appName, service, template, context, metadata, users, nil
 }
 
 // BuildMessageFromTemplate build a message using a template and the context

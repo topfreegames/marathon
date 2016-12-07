@@ -24,7 +24,6 @@ package worker
 
 import (
 	workers "github.com/jrallison/go-workers"
-	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 )
 
@@ -41,7 +40,7 @@ func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka(uuid.UUID, string, string, string) error {
+func (batchWorker *ProcessBatchWorker) sendToKafka(appName, service, msg string, metadata map[string]interface{}, deviceToken string) error {
 	return nil
 }
 
@@ -51,13 +50,15 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	arr, err := message.Args().Array()
 	checkErr(err)
 
-	jobID, service, template, context, users, err := ParseProcessBatchWorkerMessageArray(arr)
+	_, appName, service, template, context, metadata, users, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(err)
 
 	msg := BuildMessageFromTemplate(template, context)
 
 	// TODO: send to kafka
 	for _, user := range users {
-		batchWorker.sendToKafka(jobID, service, msg, user.Token)
+		batchWorker.sendToKafka(appName, service, msg, metadata, user.Token)
 	}
+
+	// TODO: increment job completed batches
 }
