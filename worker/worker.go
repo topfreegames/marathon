@@ -104,7 +104,7 @@ func (w *Worker) configureRedis() {
 func (w *Worker) configureWorkers() {
 	jobsConcurrency := w.Config.GetInt("workers.concurrency")
 	b := GetBenchmarkWorker(w.Config.GetString("workers.redis.server"), w.Config.GetString("workers.redis.database"))
-	c := NewCreateBatchesWorker(w.Config)
+	c := NewCreateBatchesWorker(w.Config, w.Logger)
 	//workers.Middleware.Append(&) TODO
 	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
 	workers.Process("create_batches_worker", c.Process, jobsConcurrency)

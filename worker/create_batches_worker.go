@@ -32,13 +32,16 @@ import (
 	"github.com/minio/minio-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/model"
+	"github.com/uber-go/zap"
 )
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
-	MarathonDB *pg.DB
-	PushDB     *pg.DB
+	Logger     zap.Logger
+	MarathonDB *extensions.PGClient
+	PushDB     *extensions.PGClient
 	Config     *viper.Viper
 	BatchSize  int
 	DBPageSize int
@@ -54,9 +57,10 @@ type User struct {
 }
 
 // NewCreateBatchesWorker gets a new CreateBatchesWorker
-func NewCreateBatchesWorker(config *viper.Viper) *CreateBatchesWorker {
+func NewCreateBatchesWorker(config *viper.Viper, logger zap.Logger) *CreateBatchesWorker {
 	b := &CreateBatchesWorker{
 		Config: config,
+		Logger: logger,
 	}
 	b.configure()
 	return b
@@ -89,41 +93,15 @@ func (b *CreateBatchesWorker) loadConfiguration() {
 }
 
 func (b *CreateBatchesWorker) configurePushDatabase() {
-	pushDBUser := b.Config.GetString("push.db.user")
-	pushDBPass := b.Config.GetString("push.db.pass")
-	pushDBHost := b.Config.GetString("push.db.host")
-	pushDBDatabase := b.Config.GetString("push.db.database")
-	pushDBPort := b.Config.GetInt("push.db.port")
-	pushDBPoolSize := b.Config.GetInt("push.db.poolSize")
-	pushDBMaxRetries := b.Config.GetInt("push.db.maxRetries")
-	pushDB := pg.Connect(&pg.Options{
-		Addr:       fmt.Sprintf("%s:%d", pushDBHost, pushDBPort),
-		User:       pushDBUser,
-		Password:   pushDBPass,
-		Database:   pushDBDatabase,
-		PoolSize:   pushDBPoolSize,
-		MaxRetries: pushDBMaxRetries,
-	})
-	b.PushDB = pushDB
+	var err error
+	b.PushDB, err = extensions.NewPGClient("push.db", b.Config, b.Logger)
+	checkErr(err)
 }
 
 func (b *CreateBatchesWorker) configureMarathonDatabase() {
-	host := b.Config.GetString("db.host")
-	user := b.Config.GetString("db.user")
-	pass := b.Config.GetString("db.pass")
-	database := b.Config.GetString("db.database")
-	port := b.Config.GetInt("db.port")
-	poolSize := b.Config.GetInt("db.poolSize")
-	maxRetries := b.Config.GetInt("db.maxRetries")
-	marathonDB := pg.Connect(&pg.Options{
-		Addr:       fmt.Sprintf("%s:%d", host, port),
-		User:       user,
-		Password:   pass,
-		Database:   database,
-		PoolSize:   poolSize,
-		MaxRetries: maxRetries,
-	})
-	b.MarathonDB = marathonDB
+	var err error
+	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
+	checkErr(err)
 }
 
 func (b *CreateBatchesWorker) configureDatabases() {
@@ -152,7 +130,7 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
 	var users []User
 	fmt.Printf("Getting users from push %s", *userIds)
-	_, err := b.PushDB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
+	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
 	checkErr(err)
 	return users
 }
@@ -198,7 +176,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	err = b.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job.CSVPath, job.App.Name, job.Service)

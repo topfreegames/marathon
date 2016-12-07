@@ -61,8 +61,6 @@ type ZookeeperClient struct {
 	Logger zap.Logger
 }
 
-var config *viper.Viper
-
 // NewZookeeperClient creates a new client
 func NewZookeeperClient(config *viper.Viper, logger zap.Logger) (*ZookeeperClient, error) {
 	client := &ZookeeperClient{
