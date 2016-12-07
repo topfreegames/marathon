@@ -168,7 +168,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 	job.Context = context
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	job.Service = getOpt(opts, "service", "apns").(string)
-	job.CsvURL = getOpt(opts, "csvUrl", "").(string)
+	job.CSVPath = getOpt(opts, "csvPath", "").(string)
 	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	job.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
 
@@ -200,7 +200,7 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 	metadata := getOpt(opts, "filters", map[string]string{"meta": "data"}).(map[string]string)
 
 	service := getOpt(opts, "service", "apns").(string)
-	csvURL := getOpt(opts, "csvUrl", "").(string)
+	csvURL := getOpt(opts, "csvPath", "").(string)
 	expiresAt := getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 
@@ -209,7 +209,7 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 		"context":   context,
 		"metadata":  metadata,
 		"service":   service,
-		"csvUrl":    csvURL,
+		"csvPath":   csvURL,
 		"expiresAt": expiresAt,
 		"id":        id,
 	}

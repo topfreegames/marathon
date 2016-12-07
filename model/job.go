@@ -41,7 +41,7 @@ type Job struct {
 	Service          string            `json:"service"`
 	Filters          map[string]string `json:"filters"`
 	Metadata         map[string]string `json:"metadata"`
-	CsvURL           string            `json:"csvUrl"`
+	CSVPath          string            `json:"csvPath"`
 	CreatedBy        string            `json:"createdBy"`
 	App              App               `json:"app"`
 	AppID            uuid.UUID         `json:"appId"`
@@ -62,11 +62,6 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("service")
 	}
 
-	valid = govalidator.IsNull(j.CsvURL) || govalidator.IsURL(j.CsvURL)
-	if !valid {
-		return InvalidField("csvUrl")
-	}
-
 	valid = j.ExpiresAt == 0 || time.Now().UnixNano() < j.ExpiresAt
 	if !valid {
 		return InvalidField("expiresAt")
@@ -77,9 +72,9 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("createdBy")
 	}
 
-	valid = !(len(j.Filters) != 0 && !govalidator.IsNull(j.CsvURL))
+	valid = !(len(j.Filters) != 0 && !govalidator.IsNull(j.CSVPath))
 	if !valid {
-		return InvalidField("filters or csvUrl must exist, not both")
+		return InvalidField("filters or csvPath must exist, not both")
 	}
 	return nil
 }

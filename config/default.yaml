@@ -18,7 +18,7 @@ push:
     database: push
 s3:
   bucket: "tfg-push-notifications"
-  folder: "test/files"
+  folder: "jobs"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"

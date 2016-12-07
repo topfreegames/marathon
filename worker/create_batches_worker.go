@@ -25,11 +25,11 @@ package worker
 import (
 	"encoding/csv"
 	"fmt"
-	"net/http"
 
 	"gopkg.in/pg.v5"
 
 	"github.com/jrallison/go-workers"
+	"github.com/minio/minio-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/model"
@@ -42,6 +42,7 @@ type CreateBatchesWorker struct {
 	Config     *viper.Viper
 	BatchSize  int
 	DBPageSize int
+	S3Client   *minio.Client
 }
 
 // User is the struct that will keep users before sending them to send batches worker
@@ -65,6 +66,16 @@ func (b *CreateBatchesWorker) configure() {
 	b.loadConfigurationDefaults()
 	b.loadConfiguration()
 	b.configureDatabases()
+	b.configureS3Client()
+}
+
+func (b *CreateBatchesWorker) configureS3Client() {
+	s3AccessKeyID := b.Config.GetString("s3.accessKey")
+	s3SecretAccessKey := b.Config.GetString("s3.secretAccessKey")
+	ssl := true
+	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, ssl)
+	checkErr(err)
+	b.S3Client = s3Client
 }
 
 func (b *CreateBatchesWorker) loadConfigurationDefaults() {
@@ -120,14 +131,15 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	b.configurePushDatabase()
 }
 
-func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
-	res := []string{}
-	resp, err := http.Get(csvURL)
+func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
+	bucket := b.Config.GetString("s3.bucket")
+	folder := b.Config.GetString("s3.folder")
+	csvFile, err := b.S3Client.GetObject(bucket, fmt.Sprintf("/%s/%s", folder, csvPath))
 	checkErr(err)
-	defer resp.Body.Close()
-	r := csv.NewReader(resp.Body)
+	r := csv.NewReader(csvFile)
 	lines, err := r.ReadAll()
 	checkErr(err)
+	res := []string{}
 	for i, line := range lines {
 		if i == 0 {
 			continue
@@ -141,15 +153,13 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	var users []User
 	fmt.Printf("Getting users from push %s", *userIds)
 	_, err := b.PushDB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
-	if err != nil {
-		panic(err)
-	}
+	checkErr(err)
 	return users
 }
 
-func (b *CreateBatchesWorker) createBatchesUsingCSV(csvURL, appName, service string) error {
+func (b *CreateBatchesWorker) createBatchesUsingCSV(csvPath, appName, service string) error {
 	l := workers.Logger
-	userIds := b.readRemoteCSV(csvURL)
+	userIds := b.readCSVFromS3(csvPath)
 	numPushes := len(userIds)
 	pages := numPushes / (b.DBPageSize * 1.0)
 	l.Printf("%d batches to complete", pages)
@@ -181,9 +191,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	l := workers.Logger
 	l.Printf("starting create_batches_worker with batchSize %d and dbBatchSize %d", b.BatchSize, b.DBPageSize)
 	arr, err := message.Args().Array()
-	if err != nil {
-		checkErr(err)
-	}
+	checkErr(err)
 	jobID := arr[0]
 	id, err := uuid.FromString(jobID.(string))
 	checkErr(err)
@@ -192,11 +200,9 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	}
 	err = b.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
-	if len(job.CsvURL) > 0 {
-		err := b.createBatchesUsingCSV(job.CsvURL, job.App.Name, job.Service)
-		if err != nil {
-			panic(err)
-		}
+	if len(job.CSVPath) > 0 {
+		err := b.createBatchesUsingCSV(job.CSVPath, job.App.Name, job.Service)
+		checkErr(err)
 	} else {
 		// Find the ids based on filters
 	}

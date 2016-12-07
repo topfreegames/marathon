@@ -83,7 +83,7 @@ var _ = Describe("Job Handler", func() {
 					Expect(job["totalBatches"]).To(Equal(float64(testJobs[idx].TotalBatches)))
 					Expect(job["completedBatches"]).To(Equal(float64(testJobs[idx].CompletedBatches)))
 					Expect(job["expiresAt"]).To(Equal(float64(testJobs[idx].ExpiresAt)))
-					Expect(job["csvUrl"]).To(Equal(testJobs[idx].CsvURL))
+					Expect(job["csvPath"]).To(Equal(testJobs[idx].CSVPath))
 					Expect(job["service"]).To(Equal(testJobs[idx].Service))
 					Expect(job["createdBy"]).To(Equal(testJobs[idx].CreatedBy))
 					Expect(job["createdAt"]).ToNot(BeNil())
@@ -152,7 +152,7 @@ var _ = Describe("Job Handler", func() {
 		Describe("Sucesfully", func() {
 			It("should return 201 and the created job with filters", func() {
 				payload := GetJobPayload()
-				delete(payload, "csvUrl")
+				delete(payload, "csvPath")
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "success@test.com")
 				Expect(status).To(Equal(http.StatusCreated))
@@ -167,7 +167,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
 				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
-				Expect(job["csvUrl"]).To(Equal(""))
+				Expect(job["csvPath"]).To(Equal(""))
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
 				Expect(job["createdAt"]).ToNot(BeNil())
@@ -204,7 +204,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(BeEquivalentTo(payload["expiresAt"]))
-				Expect(dbJob.CsvURL).To(Equal(""))
+				Expect(dbJob.CSVPath).To(Equal(""))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
 				Expect(dbJob.CreatedAt).ToNot(BeNil())
@@ -223,10 +223,10 @@ var _ = Describe("Job Handler", func() {
 				}
 			})
 
-			It("should return 201 and the created job with csvUrl", func() {
+			It("should return 201 and the created job with csvPath", func() {
 				payload := GetJobPayload()
 				delete(payload, "filters")
-				payload["csvUrl"] = "s3.aws.com/my-link"
+				payload["csvPath"] = "s3.aws.com/my-link"
 				payload["service"] = "gcm"
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "success@test.com")
@@ -242,7 +242,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
 				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
-				Expect(job["csvUrl"]).To(Equal(payload["csvUrl"]))
+				Expect(job["csvPath"]).To(Equal(payload["csvPath"]))
 				Expect(job["filters"]).To(Equal(map[string]interface{}{}))
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
@@ -274,7 +274,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(Equal(payload["expiresAt"]))
-				Expect(dbJob.CsvURL).To(Equal(payload["csvUrl"]))
+				Expect(dbJob.CSVPath).To(Equal(payload["csvPath"]))
 				Expect(dbJob.Filters).To(Equal(map[string]string{}))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
@@ -415,9 +415,9 @@ var _ = Describe("Job Handler", func() {
 				Expect(response["reason"]).To(ContainSubstring("template name must be specified"))
 			})
 
-			It("should return 422 if both csvUrl and filters are provided", func() {
+			It("should return 422 if both csvPath and filters are provided", func() {
 				payload := GetJobPayload()
-				payload["csvUrl"] = "s3.aws.com/my-link"
+				payload["csvPath"] = "s3.aws.com/my-link"
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
@@ -425,7 +425,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid filters or csvUrl must exist, not both"))
+				Expect(response["reason"]).To(Equal("invalid filters or csvPath must exist, not both"))
 			})
 
 			It("should return 422 if missing context", func() {
@@ -505,9 +505,9 @@ var _ = Describe("Job Handler", func() {
 				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
 
-			It("should return 422 if invalid csvUrl", func() {
+			It("should return 422 if invalid csvPath", func() {
 				payload := GetJobPayload()
-				payload["csvUrl"] = "not-json"
+				payload["csvPath"] = "not-json"
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
@@ -515,7 +515,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid csvUrl"))
+				Expect(response["reason"]).To(Equal("invalid csvPath"))
 			})
 
 			It("should return 422 if invalid expiresAt", func() {
@@ -549,7 +549,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["totalBatches"]).To(Equal(float64(existingJob.TotalBatches)))
 				Expect(job["completedBatches"]).To(Equal(float64(existingJob.CompletedBatches)))
 				Expect(job["expiresAt"]).To(Equal(float64(existingJob.ExpiresAt)))
-				Expect(job["csvUrl"]).To(Equal(existingJob.CsvURL))
+				Expect(job["csvPath"]).To(Equal(existingJob.CSVPath))
 				Expect(job["service"]).To(Equal(existingJob.Service))
 				Expect(job["createdBy"]).To(Equal(existingJob.CreatedBy))
 				Expect(job["createdAt"]).To(Equal(float64(existingJob.CreatedAt)))
