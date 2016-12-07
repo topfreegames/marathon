@@ -119,11 +119,6 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	b.configureMarathonDatabase()
 	b.configurePushDatabase()
 }
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
 
 func (b *CreateBatchesWorker) readRemoteCSV(csvURL string) []string {
 	res := []string{}
