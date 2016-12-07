@@ -41,7 +41,7 @@ func GetProcessBatchWorker(config *viper.Viper) *ProcessBatchWorker {
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka(uuid.UUID, string, string) error {
+func (batchWorker *ProcessBatchWorker) sendToKafka(uuid.UUID, string, string, string) error {
 	return nil
 }
 
@@ -51,13 +51,13 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	arr, err := message.Args().Array()
 	checkErr(err)
 
-	jobID, template, context, users, err := ParseProcessBatchWorkerMessageArray(arr)
+	jobID, service, template, context, users, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(err)
 
 	msg := BuildMessageFromTemplate(template, context)
 
 	// TODO: send to kafka
 	for _, user := range users {
-		batchWorker.sendToKafka(jobID, msg, user.Token)
+		batchWorker.sendToKafka(jobID, service, msg, user.Token)
 	}
 }
