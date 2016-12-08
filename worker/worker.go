@@ -23,10 +23,10 @@
 package worker
 
 import (
+	"os"
 	"strings"
 
 	"github.com/jrallison/go-workers"
-	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
@@ -90,22 +90,26 @@ func (w *Worker) configureRedis() {
 	)
 
 	logger.Info("connecting to workers redis")
+
 	// unique process id for this instance of workers (for recovery of inprogress jobs on crash)
-	redisProcessID := uuid.NewV4()
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
 
 	workers.Configure(map[string]string{
 		"server":   redisServer,
 		"database": redisDatabase,
 		"pool":     redisPoolsize,
-		"process":  redisProcessID.String(),
+		"process":  hostname,
 	})
 }
 
 func (w *Worker) configureWorkers() {
 	jobsConcurrency := w.Config.GetInt("workers.concurrency")
 	b := GetBenchmarkWorker(w.Config.GetString("workers.redis.server"), w.Config.GetString("workers.redis.database"))
-	c := NewCreateBatchesWorker(w.Config, w.Logger)
 	p := NewProcessBatchWorker(w.Config, w.Logger)
+	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
 	//workers.Middleware.Append(&) TODO
 	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
 	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
@@ -114,7 +118,13 @@ func (w *Worker) configureWorkers() {
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
 func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
-	return workers.Enqueue("create_batches_worker", "Add", jobID)
+	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{Retry: true})
+}
+
+// ProcessBatchesJob creates a new ProcessBatchesWorker job
+func (w *Worker) ProcessBatchesJob(jobID *[]string) (string, error) {
+	//TODO fix
+	return workers.Enqueue("process_batches_worker", "Add", jobID)
 }
 
 // CreateProcessBatchJob creates a new ProcessBatchWorker job

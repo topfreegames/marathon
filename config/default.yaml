@@ -26,7 +26,7 @@ workers:
   statsPort: 8081
   createBatches:
     batchSize: 10000
-    dbPageSize: 10000
+    dbPageSize: 10
     pageProcessingConcurrency: 10
   concurrency: 10
   redis:

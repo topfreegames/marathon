@@ -44,6 +44,7 @@ type CreateBatchesWorker struct {
 	Logger                    zap.Logger
 	MarathonDB                *extensions.PGClient
 	PushDB                    *extensions.PGClient
+	Workers                   *Worker
 	Config                    *viper.Viper
 	BatchSize                 int
 	DBPageSize                int
@@ -60,10 +61,11 @@ type User struct {
 }
 
 // NewCreateBatchesWorker gets a new CreateBatchesWorker
-func NewCreateBatchesWorker(config *viper.Viper, logger zap.Logger) *CreateBatchesWorker {
+func NewCreateBatchesWorker(config *viper.Viper, logger zap.Logger, workers *Worker) *CreateBatchesWorker {
 	b := &CreateBatchesWorker{
-		Config: config,
-		Logger: logger,
+		Config:  config,
+		Logger:  logger,
+		Workers: workers,
 	}
 	b.configure()
 	return b
@@ -139,36 +141,58 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	return users
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan *[]string, appName string, service string, wg *sync.WaitGroup) {
-	l := workers.Logger
+func (b *CreateBatchesWorker) sendBatch(batches *map[string][]User) {
+	l := b.Logger
+	for tz, users := range *batches {
+		l.Info("sending batch of users to process batches worker", zap.Int("numUsers", len(users)), zap.String("tz", tz))
+
+	}
+}
+
+func (b *CreateBatchesWorker) processBatch(c <-chan *[]string, job *model.Job, wg *sync.WaitGroup) {
+	l := b.Logger
+	bucketsByTZ := map[string][]User{}
 	for userIds := range c {
-		usersFromBatch := b.getCSVUserBatchFromPG(userIds, appName, service)
-		l.Printf("got %d users from db", len(usersFromBatch))
+		usersFromBatch := b.getCSVUserBatchFromPG(userIds, job.App.Name, job.Service)
+		l.Info("got users from db", zap.Int("usersInBatch", len(usersFromBatch)))
+		for _, user := range usersFromBatch {
+			userTz := user.Tz
+			if len(userTz) == 0 {
+				userTz = "-0500"
+			}
+			if res, ok := bucketsByTZ[userTz]; ok {
+				bucketsByTZ[userTz] = append(res, user)
+			} else {
+				bucketsByTZ[userTz] = []User{user}
+			}
+		}
+		for tz, users := range bucketsByTZ {
+			l.Debug("batch of users for tz", zap.Int("numUsers", len(users)), zap.String("tz", tz))
+		}
+		//TODO for now I'll just ignore timezones and send all pushes
+		b.sendBatch(&bucketsByTZ)
 		wg.Done()
 	}
 }
 
-func (b *CreateBatchesWorker) createBatchesUsingCSV(csvPath, appName, service string) error {
-	l := workers.Logger
-	userIds := b.readCSVFromS3(csvPath)
+func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job) error {
+	l := b.Logger
+	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(userIds)
 	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
+	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
-	ch := make(chan *[]string)
+	pgCH := make(chan *[]string, pages)
 	wg.Add(pages)
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processBatch(ch, appName, service, &wg)
+		go b.processBatch(pgCH, job, &wg)
 	}
-	l.Printf("%d batches to complete", pages)
-	for i := 0; true; i++ {
+	for i := 0; i < pages; i++ {
 		userBatch := b.getPage(i, &userIds)
-		if userBatch == nil {
-			break
-		}
-		ch <- &userBatch
+		pgCH <- &userBatch
 	}
 	wg.Wait()
-	close(ch)
+	close(pgCH)
 	return nil
 }
 
@@ -199,7 +223,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
 	if len(job.CSVPath) > 0 {
-		err := b.createBatchesUsingCSV(job.CSVPath, job.App.Name, job.Service)
+		err := b.createBatchesUsingCSV(job)
 		checkErr(err)
 	} else {
 		// Find the ids based on filters
