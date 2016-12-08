@@ -157,7 +157,7 @@ func (c *KafkaClient) SendPush(msg *messages.KafkaMessage) (int32, int64, error)
 		})
 		return 0, 0, err
 	}
-	log.I(c.Logger, "Sent message", func(cm log.CM) {
+	log.D(c.Logger, "Sent message", func(cm log.CM) {
 		cm.Write(
 			zap.Object("KafkaMessage", saramaMessage),
 			zap.String("topic", msg.Topic),

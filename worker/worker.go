@@ -117,7 +117,7 @@ func (w *Worker) configureWorkers() {
 	//workers.Middleware.Append(&) TODO
 	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
 	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
-	workers.Process("process_batche_worker", p.Process, jobsConcurrency)
+	workers.Process("process_batch_worker", p.Process, jobsConcurrency)
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
@@ -133,7 +133,7 @@ func (w *Worker) ProcessBatchesJob(jobID *[]string) (string, error) {
 
 // CreateProcessBatchJob creates a new ProcessBatchWorker job
 func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users []User) (string, error) {
-	return workers.Enqueue("process_batche_worker", "Add", []interface{}{jobID, appName, users})
+	return workers.Enqueue("process_batch_worker", "Add", []interface{}{jobID, appName, users})
 }
 
 // Start starts the worker

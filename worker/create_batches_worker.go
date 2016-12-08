@@ -83,6 +83,7 @@ func (b *CreateBatchesWorker) configure() {
 	b.loadConfiguration()
 	b.configureDatabases()
 	b.configureS3Client()
+	b.configureRedisClient()
 }
 
 func (b *CreateBatchesWorker) configureS3Client() {
@@ -214,6 +215,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	}
 	for i := 0; i < pages; i++ {
 		if isReexecution && b.isPageProcessed(i, job.ID) {
+			l.Info("job is reexecution and page is already processed", zap.String("jobID", job.ID.String()), zap.Int("page", i))
 			continue
 		}
 		userBatch := b.getPage(i, &userIds)
@@ -247,19 +249,24 @@ func (b *CreateBatchesWorker) checkIsReexecution(jobID uuid.UUID) bool {
 
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
-	l := workers.Logger
-	l.Printf("starting create_batches_worker with batchSize %d and dbBatchSize %d", b.BatchSize, b.DBPageSize)
 	arr, err := message.Args().Array()
 	checkErr(err)
 	jobID := arr[0]
 	id, err := uuid.FromString(jobID.(string))
 	checkErr(err)
+	isReexecution := b.checkIsReexecution(id)
+	l := b.Logger.With(
+		zap.Int("batchSize", b.BatchSize),
+		zap.Int("dbPageSize", b.DBPageSize),
+		zap.String("jobID", id.String()),
+		zap.Bool("isReexecution", isReexecution),
+	)
+	l.Info("starting create_batches_worker")
 	job := &model.Job{
 		ID: id,
 	}
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
-	isReexecution := b.checkIsReexecution(job.ID)
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(err)
