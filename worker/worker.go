@@ -105,14 +105,21 @@ func (w *Worker) configureWorkers() {
 	jobsConcurrency := w.Config.GetInt("workers.concurrency")
 	b := GetBenchmarkWorker(w.Config.GetString("workers.redis.server"), w.Config.GetString("workers.redis.database"))
 	c := NewCreateBatchesWorker(w.Config, w.Logger)
+	p := NewProcessBatchWorker(w.Config, w.Logger)
 	//workers.Middleware.Append(&) TODO
 	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
 	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
+	workers.Process("process_batche_worker", p.Process, jobsConcurrency)
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
 func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
 	return workers.Enqueue("create_batches_worker", "Add", jobID)
+}
+
+// CreateProcessBatchJob creates a new ProcessBatchWorker job
+func (w *Worker) CreateProcessBatchJob(jobID *[]string) (string, error) {
+	return workers.Enqueue("process_batche_worker", "Add", jobID)
 }
 
 // Start starts the worker
