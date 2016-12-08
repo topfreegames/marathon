@@ -18,15 +18,16 @@ push:
     database: push
 s3:
   bucket: "tfg-push-notifications"
-  folder: "jobs"
+  folder: "development/jobs"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
 workers:
   statsPort: 8081
   createBatches:
-    batchSize: 1000
-    dbPageSize: 1000
+    batchSize: 10000
+    dbPageSize: 10000
+    pageProcessingConcurrency: 10
   concurrency: 10
   redis:
     server: localhost:6333

@@ -25,6 +25,8 @@ package worker
 import (
 	"encoding/csv"
 	"fmt"
+	"math"
+	"sync"
 
 	"gopkg.in/pg.v5"
 
@@ -39,13 +41,14 @@ import (
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
-	Logger     zap.Logger
-	MarathonDB *extensions.PGClient
-	PushDB     *extensions.PGClient
-	Config     *viper.Viper
-	BatchSize  int
-	DBPageSize int
-	S3Client   *minio.Client
+	Logger                    zap.Logger
+	MarathonDB                *extensions.PGClient
+	PushDB                    *extensions.PGClient
+	Config                    *viper.Viper
+	BatchSize                 int
+	DBPageSize                int
+	S3Client                  *minio.Client
+	PageProcessingConcurrency int
 }
 
 // User is the struct that will keep users before sending them to send batches worker
@@ -85,11 +88,13 @@ func (b *CreateBatchesWorker) configureS3Client() {
 func (b *CreateBatchesWorker) loadConfigurationDefaults() {
 	b.Config.SetDefault("workers.createBatches.batchSize", 1000)
 	b.Config.SetDefault("workers.createBatches.dbPageSize", 1000)
+	b.Config.SetDefault("workers.createBatches.pageProcessingConcurrency", 1)
 }
 
 func (b *CreateBatchesWorker) loadConfiguration() {
 	b.BatchSize = b.Config.GetInt("workers.createBatches.batchSize")
 	b.DBPageSize = b.Config.GetInt("workers.createBatches.dbPageSize")
+	b.PageProcessingConcurrency = b.Config.GetInt("workers.createBatches.pageProcessingConcurrency")
 }
 
 func (b *CreateBatchesWorker) configurePushDatabase() {
@@ -129,26 +134,41 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
 
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
 	var users []User
-	fmt.Printf("Getting users from push %s", *userIds)
 	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
 	checkErr(err)
 	return users
+}
+
+func (b *CreateBatchesWorker) processBatch(c <-chan *[]string, appName string, service string, wg *sync.WaitGroup) {
+	l := workers.Logger
+	for userIds := range c {
+		usersFromBatch := b.getCSVUserBatchFromPG(userIds, appName, service)
+		l.Printf("got %d users from db", len(usersFromBatch))
+		wg.Done()
+	}
 }
 
 func (b *CreateBatchesWorker) createBatchesUsingCSV(csvPath, appName, service string) error {
 	l := workers.Logger
 	userIds := b.readCSVFromS3(csvPath)
 	numPushes := len(userIds)
-	pages := numPushes / (b.DBPageSize * 1.0)
+	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
+	var wg sync.WaitGroup
+	ch := make(chan *[]string)
+	wg.Add(pages)
+	for i := 0; i < b.PageProcessingConcurrency; i++ {
+		go b.processBatch(ch, appName, service, &wg)
+	}
 	l.Printf("%d batches to complete", pages)
 	for i := 0; true; i++ {
 		userBatch := b.getPage(i, &userIds)
 		if userBatch == nil {
 			break
 		}
-		usersFromBatch := b.getCSVUserBatchFromPG(&userBatch, appName, service)
-		l.Printf("got some users from db %s", usersFromBatch)
+		ch <- &userBatch
 	}
+	wg.Wait()
+	close(ch)
 	return nil
 }
 
