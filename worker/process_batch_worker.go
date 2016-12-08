@@ -25,19 +25,23 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	workers "github.com/jrallison/go-workers"
+	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
 
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
-	Config    *viper.Viper
-	Logger    zap.Logger
-	Kafka     *extensions.KafkaClient
-	Zookeeper *extensions.ZookeeperClient
+	Config     *viper.Viper
+	Kafka      *extensions.KafkaClient
+	Logger     zap.Logger
+	MarathonDB *extensions.PGClient
+	Zookeeper  *extensions.ZookeeperClient
 }
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
@@ -48,11 +52,14 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 	zookeeper.WaitForConnection(10)
 	kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
 	checkErr(err)
+	marathonDB, err := extensions.NewPGClient("db", config, logger)
+	checkErr(err)
 	batchWorker := &ProcessBatchWorker{
-		Config:    config,
-		Logger:    logger,
-		Kafka:     kafka,
-		Zookeeper: zookeeper,
+		Config:     config,
+		Logger:     logger,
+		Kafka:      kafka,
+		Zookeeper:  zookeeper,
+		MarathonDB: marathonDB,
 	}
 	return batchWorker
 }
@@ -76,6 +83,19 @@ func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, m
 	return nil
 }
 
+func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
+	job := model.Job{}
+	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Returning("*").Update()
+	if err != nil {
+		return err
+	}
+	if job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
+		job.CompletedAt = time.Now().UnixNano()
+		_, err = batchWorker.MarathonDB.DB.Model(&job).Column("completed_at").Update()
+	}
+	return err
+}
+
 // Process processes the messages sent to batch worker queue and send them to kafka
 func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	// l := workers.Logger
@@ -97,8 +117,6 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		checkErr(err)
 	}
 
-	// TODO: this worker should have a db connection to do this
-	// err = db.Model(&model.Job{}).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Update()
-	// checkErr(err)
-	// TODO: set completedAt when finished all batches
+	err = batchWorker.updateJobBatchesInfo(parsed.JobID)
+	checkErr(err)
 }
