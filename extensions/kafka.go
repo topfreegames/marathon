@@ -41,7 +41,7 @@ type KafkaClient struct {
 	Conn            *zk.Conn
 	Logger          zap.Logger
 	KafkaBrokers    []string
-	Producer        sarama.SyncProducer
+	Producer        sarama.SyncProducer // TODO: should we use asynProducer?
 }
 
 // NewKafkaClient creates a new client
@@ -150,7 +150,7 @@ func (c *KafkaClient) SendPush(msg *messages.KafkaMessage) (int32, int64, error)
 		Value: sarama.StringEncoder(msg.Message),
 	}
 
-	partition, offset, err := c.Producer.SendMessage(saramaMessage)
+	partition, offset, err := c.Producer.SendMessage(saramaMessage) // TODO: use SendMessages instead?
 	if err != nil {
 		log.E(c.Logger, "Error sending message", func(cm log.CM) {
 			cm.Write(zap.Object("KafkaMessage", saramaMessage), zap.Error(err))
