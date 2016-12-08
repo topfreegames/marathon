@@ -35,6 +35,7 @@ import (
 	"gopkg.in/pg.v5"
 
 	"github.com/onsi/gomega"
+	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/api"
 	"github.com/uber-go/zap"
 )
@@ -87,6 +88,15 @@ func GetConfPath() string {
 	// TODO: return CI conf when necessary
 	// conf = "../config/ci.yaml"
 	return conf
+}
+
+//GetConf returns a viper config for the environment we're in
+func GetConf() *viper.Viper {
+	confPath := GetConfPath()
+	config := viper.New()
+	config.SetConfigFile(confPath)
+	config.ReadInConfig()
+	return config
 }
 
 //GetDefaultTestApp returns a new marathon API Application bound to 0.0.0.0:8833 for test

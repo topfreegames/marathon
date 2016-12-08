@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
@@ -40,7 +41,7 @@ var _ = Describe("Worker Util", func() {
 	var context map[string]interface{}
 	var metadata map[string]interface{}
 	var users []worker.User
-	var usersObj []map[string]interface{}
+	var usersObj []interface{}
 	var jobID string
 	var service string
 	var appName string
@@ -66,7 +67,7 @@ var _ = Describe("Worker Util", func() {
 		}
 
 		users = make([]worker.User, 2)
-		usersObj = make([]map[string]interface{}, 2)
+		usersObj = make([]interface{}, 2)
 		for index, _ := range users {
 			id := uuid.NewV4().String()
 			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
@@ -133,19 +134,37 @@ var _ = Describe("Worker Util", func() {
 
 	Describe("Parse ProcessBatchWorker message array", func() {
 		It("should succeed if all params are correct", func() {
-			arr := []interface{}{jobID, appName, service, context, metadata, usersObj, expiresAt}
-			messageObj, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			messageObj := []interface{}{
+				jobID,
+				appName,
+				service,
+				context,
+				metadata,
+				usersObj,
+				expiresAt,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(messageObj.JobID.String()).To(Equal(jobID))
-			Expect(messageObj.AppName).To(Equal(appName))
-			Expect(messageObj.Service).To(Equal(service))
-			Expect(messageObj.Context).To(Equal(context))
-			Expect(messageObj.Metadata).To(Equal(metadata))
-			Expect(messageObj.ExpiresAt).To(Equal(expiresAt))
-			Expect(len(messageObj.Users)).To(Equal(len(users)))
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+			arr, err := message.Args().Array()
+			Expect(err).NotTo(HaveOccurred())
+
+			parsed, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(parsed.JobID.String()).To(Equal(jobID))
+			Expect(parsed.AppName).To(Equal(appName))
+			Expect(parsed.Service).To(Equal(service))
+			Expect(parsed.Context).To(Equal(context))
+			Expect(parsed.Metadata).To(Equal(metadata))
+			Expect(parsed.ExpiresAt).To(Equal(expiresAt))
+			Expect(len(parsed.Users)).To(Equal(len(users)))
 
 			for idx, user := range users {
-				Expect(messageObj.Users[idx]).To(Equal(user))
+				Expect(parsed.Users[idx]).To(Equal(user))
 			}
 		})
 
@@ -195,7 +214,7 @@ var _ = Describe("Worker Util", func() {
 		})
 
 		It("should fail if users is an empty array", func() {
-			emptyUsers := []map[string]interface{}{}
+			emptyUsers := []interface{}{}
 			arr := []interface{}{jobID, appName, service, context, metadata, emptyUsers, expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())

@@ -38,7 +38,7 @@ func checkErr(err error) {
 }
 
 // InvalidMessageArray is the string returned when the message array of the process batch worker is not valid
-var InvalidMessageArray = "array must be of the form [jobId, appName, service, template, context, metadata, users, expireAt]"
+var InvalidMessageArray = "array must be of the form [jobId, appName, service, context, metadata, users, expiresAt]"
 
 // BuildTopicName builds a topic name based in appName, service and a template
 func BuildTopicName(appName, service, topicTemplate string) string {
@@ -73,7 +73,7 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		return nil, err
 	}
 
-	usersObj := arr[5].([]map[string]interface{})
+	usersObj := arr[5].([]interface{})
 	tmp, err := json.Marshal(usersObj)
 	if err != nil {
 		return nil, err
@@ -88,6 +88,11 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		return nil, fmt.Errorf("there must be at least one user")
 	}
 
+	expiresAt, err := arr[6].(json.Number).Int64()
+	if err != nil {
+		return nil, err
+	}
+
 	message := &BatchWorkerMessage{
 		JobID:     jobID,
 		AppName:   arr[1].(string),
@@ -95,7 +100,7 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		Context:   arr[3].(map[string]interface{}),
 		Metadata:  arr[4].(map[string]interface{}),
 		Users:     users,
-		ExpiresAt: arr[6].(int64),
+		ExpiresAt: expiresAt,
 	}
 
 	return message, nil

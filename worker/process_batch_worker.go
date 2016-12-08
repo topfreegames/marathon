@@ -143,6 +143,10 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			template = templatesByLocale["en"]
 		}
 
+		if template == nil {
+			checkErr(fmt.Errorf("there is no template for the given locale or 'en'"))
+		}
+
 		msgStr := BuildMessageFromTemplate(template, parsed.Context)
 		var msg map[string]interface{}
 		err = json.Unmarshal([]byte(msgStr), &msg)
