@@ -24,10 +24,16 @@ s3:
 workers:
   statsPort: 8081
   concurrency: 10
+  createBatches:
+    batchSize: 10000
+    dbPageSize: 10000
+    pageProcessingConcurrency: 10
   redis:
-    server: localhost:6333
-    database: 0
     poolSize: 10
+    host: localhost
+    port: 6333
+    db: 0
+    pass: 
   zookeeper:
     hosts:
       - localhost:9930
