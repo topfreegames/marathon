@@ -25,7 +25,6 @@ package worker_test
 import (
 	"encoding/json"
 	"strings"
-	"time"
 
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
@@ -38,32 +37,19 @@ import (
 var _ = Describe("Worker Util", func() {
 	var err error
 	var template *model.Template
-	var context map[string]interface{}
-	var metadata map[string]interface{}
 	var users []worker.User
 	var usersObj []interface{}
 	var jobID string
-	var service string
 	var appName string
-	var expiresAt int64
 	BeforeEach(func() {
 		template = &model.Template{
-			Body: map[string]string{
+			Body: map[string]interface{}{
 				"alert": "{{user_name}} just liked your {{object_name}}!",
 			},
-			Defaults: map[string]string{
+			Defaults: map[string]interface{}{
 				"user_name":   "Someone",
 				"object_name": "village",
 			},
-		}
-
-		context = map[string]interface{}{
-			"user_name":   "Camila",
-			"object_name": "building",
-		}
-
-		metadata = map[string]interface{}{
-			"meta": "data",
 		}
 
 		users = make([]worker.User, 2)
@@ -84,9 +70,7 @@ var _ = Describe("Worker Util", func() {
 		}
 
 		appName = strings.Split(uuid.NewV4().String(), "-")[0]
-		service = strings.Split(uuid.NewV4().String(), "-")[0]
 		jobID = uuid.NewV4().String()
-		expiresAt = time.Now().UnixNano()
 	})
 
 	Describe("Build message from template", func() {
@@ -137,11 +121,7 @@ var _ = Describe("Worker Util", func() {
 			messageObj := []interface{}{
 				jobID,
 				appName,
-				service,
-				context,
-				metadata,
 				usersObj,
-				expiresAt,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -157,10 +137,6 @@ var _ = Describe("Worker Util", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(parsed.JobID.String()).To(Equal(jobID))
 			Expect(parsed.AppName).To(Equal(appName))
-			Expect(parsed.Service).To(Equal(service))
-			Expect(parsed.Context).To(Equal(context))
-			Expect(parsed.Metadata).To(Equal(metadata))
-			Expect(parsed.ExpiresAt).To(Equal(expiresAt))
 			Expect(len(parsed.Users)).To(Equal(len(users)))
 
 			for idx, user := range users {
@@ -168,46 +144,30 @@ var _ = Describe("Worker Util", func() {
 			}
 		})
 
-		It("should fail if array has less than 5 elements", func() {
-			arr := []interface{}{jobID, appName, service, context, metadata, usersObj}
+		It("should fail if array has less than 3 elements", func() {
+			arr := []interface{}{jobID, appName}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(worker.InvalidMessageArray))
 		})
 
-		It("should fail if array has more than 5 elements", func() {
-			arr := []interface{}{jobID, appName, service, context, metadata, usersObj, expiresAt, expiresAt}
+		It("should fail if array has more than 3 elements", func() {
+			arr := []interface{}{jobID, appName, usersObj, usersObj}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(worker.InvalidMessageArray))
 		})
 
 		It("should fail if jobID is not uuid", func() {
-			arr := []interface{}{"some-string", appName, service, context, metadata, usersObj, expiresAt}
+			arr := []interface{}{"some-string", appName, usersObj}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
 		})
 
 		// TODO: how to handle this panic?
-		XIt("should fail if context is not json", func() {
-			arr := []interface{}{jobID, appName, service, "some-string", metadata, usersObj, expiresAt}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid character"))
-		})
-
-		// TODO: how to handle this panic?
-		XIt("should fail if metadata is not json", func() {
-			arr := []interface{}{jobID, appName, service, context, "some-string", usersObj, expiresAt}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid character"))
-		})
-
-		// TODO: how to handle this panic?
 		XIt("should fail if users is not array", func() {
-			arr := []interface{}{jobID, appName, service, context, metadata, "some-string", expiresAt}
+			arr := []interface{}{jobID, appName, "some-string"}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
@@ -215,18 +175,10 @@ var _ = Describe("Worker Util", func() {
 
 		It("should fail if users is an empty array", func() {
 			emptyUsers := []interface{}{}
-			arr := []interface{}{jobID, appName, service, context, metadata, emptyUsers, expiresAt}
+			arr := []interface{}{jobID, appName, emptyUsers}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("there must be at least one user"))
-		})
-
-		// TODO: how to handle this panic?
-		XIt("should fail if expiresAt is not an int64", func() {
-			arr := []interface{}{jobID, appName, service, context, metadata, usersObj, "notint"}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("strconv.ParseInt: parsing"))
 		})
 	})
 })

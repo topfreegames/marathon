@@ -150,13 +150,13 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["updatedAt"]).ToNot(BeNil())
 
 				tempBody := template["body"].(map[string]interface{})
-				plBody := payload["body"].(map[string]string)
+				plBody := payload["body"].(map[string]interface{})
 				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
 				tempDefaults := template["defaults"].(map[string]interface{})
-				plDefaults := payload["defaults"].(map[string]string)
+				plDefaults := payload["defaults"].(map[string]interface{})
 				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}
@@ -462,13 +462,13 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["updatedAt"]).ToNot(BeNil())
 
 				tempBody := template["body"].(map[string]interface{})
-				plBody := payload["body"].(map[string]string)
+				plBody := payload["body"].(map[string]interface{})
 				for key := range plBody {
 					Expect(tempBody[key]).To(Equal(plBody[key]))
 				}
 
 				tempDefaults := template["defaults"].(map[string]interface{})
-				plDefaults := payload["defaults"].(map[string]string)
+				plDefaults := payload["defaults"].(map[string]interface{})
 				for key := range plDefaults {
 					Expect(tempDefaults[key]).To(Equal(plDefaults[key]))
 				}

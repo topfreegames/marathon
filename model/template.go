@@ -30,16 +30,16 @@ import (
 
 // Template is the template model struct
 type Template struct {
-	ID        uuid.UUID         `sql:",pk" json:"id"`
-	Name      string            `json:"name"`
-	Locale    string            `json:"locale"`
-	Defaults  map[string]string `json:"defaults"`
-	Body      map[string]string `json:"body"`
-	CreatedBy string            `json:"createdBy"`
-	App       App               `json:"app"`
-	AppID     uuid.UUID         `json:"appId"`
-	CreatedAt int64             `json:"createdAt"`
-	UpdatedAt int64             `json:"updatedAt"`
+	ID        uuid.UUID              `sql:",pk" json:"id"`
+	Name      string                 `json:"name"`
+	Locale    string                 `json:"locale"`
+	Defaults  map[string]interface{} `json:"defaults"`
+	Body      map[string]interface{} `json:"body"`
+	CreatedBy string                 `json:"createdBy"`
+	App       App                    `json:"app"`
+	AppID     uuid.UUID              `json:"appId"`
+	CreatedAt int64                  `json:"createdAt"`
+	UpdatedAt int64                  `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface

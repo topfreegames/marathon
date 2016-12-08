@@ -174,19 +174,19 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["updatedAt"]).ToNot(BeNil())
 
 				tempFilters := job["filters"].(map[string]interface{})
-				plFilters := payload["filters"].(map[string]string)
+				plFilters := payload["filters"].(map[string]interface{})
 				for key := range plFilters {
 					Expect(tempFilters[key]).To(Equal(plFilters[key]))
 				}
 
 				tempContext := job["context"].(map[string]interface{})
-				plContext := payload["context"].(map[string]string)
+				plContext := payload["context"].(map[string]interface{})
 				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 
 				tempMetadata := job["metadata"].(map[string]interface{})
-				plMetadata := payload["metadata"].(map[string]string)
+				plMetadata := payload["metadata"].(map[string]interface{})
 				for key := range plMetadata {
 					Expect(tempMetadata[key]).To(Equal(plMetadata[key]))
 				}
@@ -250,13 +250,13 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["updatedAt"]).ToNot(BeNil())
 
 				tempContext := job["context"].(map[string]interface{})
-				plContext := payload["context"].(map[string]string)
+				plContext := payload["context"].(map[string]interface{})
 				for key := range plContext {
 					Expect(tempContext[key]).To(Equal(plContext[key]))
 				}
 
 				tempMetadata := job["metadata"].(map[string]interface{})
-				plMetadata := payload["metadata"].(map[string]string)
+				plMetadata := payload["metadata"].(map[string]interface{})
 				for key := range plMetadata {
 					Expect(tempMetadata[key]).To(Equal(plMetadata[key]))
 				}
@@ -275,7 +275,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(Equal(payload["expiresAt"]))
 				Expect(dbJob.CSVPath).To(Equal(payload["csvPath"]))
-				Expect(dbJob.Filters).To(Equal(map[string]string{}))
+				Expect(dbJob.Filters).To(Equal(map[string]interface{}{}))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
 				Expect(dbJob.CreatedAt).ToNot(BeNil())
@@ -345,7 +345,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
-				Expect(dbJob.Metadata).To(Equal(map[string]string{}))
+				Expect(dbJob.Metadata).To(Equal(map[string]interface{}{}))
 			})
 		})
 

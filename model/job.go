@@ -32,22 +32,22 @@ import (
 
 // Job is the job model struct
 type Job struct {
-	ID               uuid.UUID         `sql:",pk" json:"id"`
-	TotalBatches     int               `json:"totalBatches"`
-	CompletedBatches int               `json:"completedBatches"`
-	CompletedAt      int64             `json:"completedAt"`
-	ExpiresAt        int64             `json:"expiresAt"`
-	Context          map[string]string `json:"context"`
-	Service          string            `json:"service"`
-	Filters          map[string]string `json:"filters"`
-	Metadata         map[string]string `json:"metadata"`
-	CSVPath          string            `json:"csvPath"`
-	CreatedBy        string            `json:"createdBy"`
-	App              App               `json:"app"`
-	AppID            uuid.UUID         `json:"appId"`
-	TemplateName     string            `json:"templateName"`
-	CreatedAt        int64             `json:"createdAt"`
-	UpdatedAt        int64             `json:"updatedAt"`
+	ID               uuid.UUID              `sql:",pk" json:"id"`
+	TotalBatches     int                    `json:"totalBatches"`
+	CompletedBatches int                    `json:"completedBatches"`
+	CompletedAt      int64                  `json:"completedAt"`
+	ExpiresAt        int64                  `json:"expiresAt"`
+	Context          map[string]interface{} `json:"context"`
+	Service          string                 `json:"service"`
+	Filters          map[string]interface{} `json:"filters"`
+	Metadata         map[string]interface{} `json:"metadata"`
+	CSVPath          string                 `json:"csvPath"`
+	CreatedBy        string                 `json:"createdBy"`
+	App              App                    `json:"app"`
+	AppID            uuid.UUID              `json:"appId"`
+	TemplateName     string                 `json:"templateName"`
+	CreatedAt        int64                  `json:"createdAt"`
+	UpdatedAt        int64                  `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface

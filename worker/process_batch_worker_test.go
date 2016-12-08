@@ -69,11 +69,11 @@ var _ = Describe("ProcessBatch Worker", func() {
 		config = GetConf()
 		processBatchWorker = worker.NewProcessBatchWorker(config, logger)
 		app = CreateTestApp(processBatchWorker.MarathonDB.DB)
-		defaults := map[string]string{
+		defaults := map[string]interface{}{
 			"user_name":   "Someone",
 			"object_name": "village",
 		}
-		body := map[string]string{
+		body := map[string]interface{}{
 			"alert": "{{user_name}} just liked your {{object_name}}!",
 		}
 		template = CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
@@ -81,7 +81,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			"body":     body,
 			"locale":   "en",
 		})
-		context := map[string]string{
+		context := map[string]interface{}{
 			"user_name": "Everyone",
 		}
 		job = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
@@ -102,6 +102,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 	Describe("Process", func() {
 		It("should process when service is gcm and increment job completed batches", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = gcm").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
 			topic := worker.BuildTopicName(appName, "gcm", topicTemplate)
@@ -109,11 +110,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				"gcm",
-				job.Context,
-				job.Metadata,
 				users,
-				job.ExpiresAt,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -150,6 +147,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should process when service is apns and increment job completed batches", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = apns").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
 			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
@@ -157,11 +155,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				"apns",
-				job.Context,
-				job.Metadata,
 				users,
-				job.ExpiresAt,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -205,11 +199,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				"apns",
-				job.Context,
-				job.Metadata,
 				users,
-				job.ExpiresAt,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -238,11 +228,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				"apns",
-				job.Context,
-				job.Metadata,
 				users,
-				job.ExpiresAt,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,

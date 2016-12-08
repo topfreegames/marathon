@@ -38,7 +38,7 @@ func checkErr(err error) {
 }
 
 // InvalidMessageArray is the string returned when the message array of the process batch worker is not valid
-var InvalidMessageArray = "array must be of the form [jobId, appName, service, context, metadata, users, expiresAt]"
+var InvalidMessageArray = "array must be of the form [jobId, appName, users]"
 
 // BuildTopicName builds a topic name based in appName, service and a template
 func BuildTopicName(appName, service, topicTemplate string) string {
@@ -47,23 +47,18 @@ func BuildTopicName(appName, service, topicTemplate string) string {
 
 // BatchWorkerMessage is the batch worker message struct
 type BatchWorkerMessage struct {
-	JobID     uuid.UUID
-	AppName   string
-	Service   string
-	Context   map[string]interface{}
-	Metadata  map[string]interface{}
-	Users     []User
-	ExpiresAt int64
+	JobID   uuid.UUID
+	AppName string
+	Users   []User
 }
 
 // ParseProcessBatchWorkerMessageArray parses the message array of the process batch worker
 func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage, error) {
 	// arr is of the following format
-	// [jobId, appName, service, context, metadata, users, expiresAt]
-	// template is a json: { body: json, defaults: json }
+	// [jobId, appName, users]
 	// users is an array of jsons { user_id: uuid, token: string, locale: string }
 
-	if len(arr) != 7 {
+	if len(arr) != 3 {
 		return nil, fmt.Errorf(InvalidMessageArray)
 	}
 
@@ -73,7 +68,7 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		return nil, err
 	}
 
-	usersObj := arr[5].([]interface{})
+	usersObj := arr[2].([]interface{})
 	tmp, err := json.Marshal(usersObj)
 	if err != nil {
 		return nil, err
@@ -88,19 +83,10 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		return nil, fmt.Errorf("there must be at least one user")
 	}
 
-	expiresAt, err := arr[6].(json.Number).Int64()
-	if err != nil {
-		return nil, err
-	}
-
 	message := &BatchWorkerMessage{
-		JobID:     jobID,
-		AppName:   arr[1].(string),
-		Service:   arr[2].(string),
-		Context:   arr[3].(map[string]interface{}),
-		Metadata:  arr[4].(map[string]interface{}),
-		Users:     users,
-		ExpiresAt: expiresAt,
+		JobID:   jobID,
+		AppName: arr[1].(string),
+		Users:   users,
 	}
 
 	return message, nil

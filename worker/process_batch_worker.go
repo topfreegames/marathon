@@ -83,21 +83,22 @@ func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, m
 	return nil
 }
 
-func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(jobID uuid.UUID) (map[string]*model.Template, error) {
-	templateByLocale := make(map[string]*model.Template)
+func (batchWorker *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, error) {
 	job := model.Job{
 		ID: jobID,
 	}
 	err := batchWorker.MarathonDB.DB.Select(&job)
-	if err != nil {
-		return nil, err
-	}
+	return &job, err
+}
+
+func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, templateName string) (map[string]*model.Template, error) {
+	templateByLocale := make(map[string]*model.Template)
 	var templates []model.Template
 	template := &model.Template{
-		Name:  job.TemplateName,
-		AppID: job.AppID,
+		Name:  templateName,
+		AppID: appID,
 	}
-	err = batchWorker.MarathonDB.DB.Model(template).Select(&templates)
+	err := batchWorker.MarathonDB.DB.Model(template).Select(&templates)
 	if err != nil {
 		return nil, err
 	}
@@ -130,11 +131,14 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(err)
 
-	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(parsed.JobID)
+	job, err := batchWorker.getJob(parsed.JobID)
+	checkErr(err)
+
+	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
 	checkErr(err)
 
 	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
-	topic := BuildTopicName(parsed.AppName, parsed.Service, topicTemplate)
+	topic := BuildTopicName(parsed.AppName, job.Service, topicTemplate)
 	for _, user := range parsed.Users {
 		var template *model.Template
 		if val, ok := templatesByLocale[user.Locale]; ok {
@@ -147,11 +151,11 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			checkErr(fmt.Errorf("there is no template for the given locale or 'en'"))
 		}
 
-		msgStr := BuildMessageFromTemplate(template, parsed.Context)
+		msgStr := BuildMessageFromTemplate(template, job.Context)
 		var msg map[string]interface{}
 		err = json.Unmarshal([]byte(msgStr), &msg)
 		checkErr(err)
-		err = batchWorker.sendToKafka(parsed.Service, topic, msg, parsed.Metadata, user.Token, parsed.ExpiresAt)
+		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, user.Token, job.ExpiresAt)
 		checkErr(err)
 	}
 

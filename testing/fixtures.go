@@ -97,8 +97,8 @@ func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interf
 		opts = options[0]
 	}
 
-	defaults := getOpt(opts, "defaults", map[string]string{"value": "default"}).(map[string]string)
-	body := getOpt(opts, "body", map[string]string{"value": "custom"}).(map[string]string)
+	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": "default"}).(map[string]interface{})
+	body := getOpt(opts, "body", map[string]interface{}{"value": "custom"}).(map[string]interface{})
 
 	template := &model.Template{}
 	template.AppID = appID
@@ -136,8 +136,8 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	locale := getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
 
-	defaults := getOpt(opts, "defaults", map[string]string{"value": "default"})
-	body := getOpt(opts, "body", map[string]string{"value": "custom"})
+	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": "default"})
+	body := getOpt(opts, "body", map[string]interface{}{"value": "custom"})
 
 	template := map[string]interface{}{
 		"name":     name,
@@ -156,9 +156,9 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 		opts = options[0]
 	}
 
-	filters := getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string)
-	context := getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string)
-	metadata := getOpt(opts, "filters", map[string]string{"meta": "data"}).(map[string]string)
+	filters := getOpt(opts, "filters", map[string]interface{}{"locale": "en"}).(map[string]interface{})
+	context := getOpt(opts, "context", map[string]interface{}{"value": "context"}).(map[string]interface{})
+	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": "data"}).(map[string]interface{})
 
 	job := &model.Job{}
 	job.AppID = appID
@@ -195,9 +195,9 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 		opts = options[0]
 	}
 
-	filters := getOpt(opts, "filters", map[string]string{"locale": "en"}).(map[string]string)
-	context := getOpt(opts, "context", map[string]string{"value": "context"}).(map[string]string)
-	metadata := getOpt(opts, "filters", map[string]string{"meta": "data"}).(map[string]string)
+	filters := getOpt(opts, "filters", map[string]interface{}{"locale": "en"}).(map[string]interface{})
+	context := getOpt(opts, "context", map[string]interface{}{"value": "context"}).(map[string]interface{})
+	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": "data"}).(map[string]interface{})
 
 	service := getOpt(opts, "service", "apns").(string)
 	csvURL := getOpt(opts, "csvPath", "").(string)
