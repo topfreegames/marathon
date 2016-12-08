@@ -50,7 +50,6 @@ type BatchWorkerMessage struct {
 	JobID     uuid.UUID
 	AppName   string
 	Service   string
-	Template  *model.Template
 	Context   map[string]interface{}
 	Metadata  map[string]interface{}
 	Users     []User
@@ -60,11 +59,11 @@ type BatchWorkerMessage struct {
 // ParseProcessBatchWorkerMessageArray parses the message array of the process batch worker
 func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage, error) {
 	// arr is of the following format
-	// [jobId, appName, service, template, context, metadata, users]
+	// [jobId, appName, service, context, metadata, users, expiresAt]
 	// template is a json: { body: json, defaults: json }
-	// users is an array of jsons { id: uuid, token: string }
+	// users is an array of jsons { user_id: uuid, token: string, locale: string }
 
-	if len(arr) != 8 {
+	if len(arr) != 7 {
 		return nil, fmt.Errorf(InvalidMessageArray)
 	}
 
@@ -74,19 +73,8 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		return nil, err
 	}
 
-	templateObj := arr[3].(map[string]interface{})
-	tmp, err := json.Marshal(templateObj)
-	if err != nil {
-		return nil, err
-	}
-	var template *model.Template
-	err = json.Unmarshal([]byte(string(tmp)), &template)
-	if err != nil {
-		return nil, err
-	}
-
-	usersObj := arr[6].([]map[string]interface{})
-	tmp, err = json.Marshal(usersObj)
+	usersObj := arr[5].([]map[string]interface{})
+	tmp, err := json.Marshal(usersObj)
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +92,10 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		JobID:     jobID,
 		AppName:   arr[1].(string),
 		Service:   arr[2].(string),
-		Template:  template,
-		Context:   arr[4].(map[string]interface{}),
-		Metadata:  arr[5].(map[string]interface{}),
+		Context:   arr[3].(map[string]interface{}),
+		Metadata:  arr[4].(map[string]interface{}),
 		Users:     users,
-		ExpiresAt: arr[7].(int64),
+		ExpiresAt: arr[6].(int64),
 	}
 
 	return message, nil

@@ -83,6 +83,31 @@ func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, m
 	return nil
 }
 
+func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(jobID uuid.UUID) (map[string]*model.Template, error) {
+	templateByLocale := make(map[string]*model.Template)
+	job := model.Job{
+		ID: jobID,
+	}
+	err := batchWorker.MarathonDB.DB.Select(&job)
+	if err != nil {
+		return nil, err
+	}
+	var templates []model.Template
+	template := &model.Template{
+		Name:  job.TemplateName,
+		AppID: job.AppID,
+	}
+	err = batchWorker.MarathonDB.DB.Model(template).Select(&templates)
+	if err != nil {
+		return nil, err
+	}
+	for _, tpl := range templates {
+		templateByLocale[tpl.Locale] = &tpl
+	}
+
+	return templateByLocale, nil
+}
+
 func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 	job := model.Job{}
 	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Returning("*").Update()
@@ -105,14 +130,23 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(err)
 
-	msgStr := BuildMessageFromTemplate(parsed.Template, parsed.Context)
-	var msg map[string]interface{}
-	err = json.Unmarshal([]byte(msgStr), &msg)
+	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(parsed.JobID)
 	checkErr(err)
 
 	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
 	topic := BuildTopicName(parsed.AppName, parsed.Service, topicTemplate)
 	for _, user := range parsed.Users {
+		var template *model.Template
+		if val, ok := templatesByLocale[user.Locale]; ok {
+			template = val
+		} else {
+			template = templatesByLocale["en"]
+		}
+
+		msgStr := BuildMessageFromTemplate(template, parsed.Context)
+		var msg map[string]interface{}
+		err = json.Unmarshal([]byte(msgStr), &msg)
+		checkErr(err)
 		err = batchWorker.sendToKafka(parsed.Service, topic, msg, parsed.Metadata, user.Token, parsed.ExpiresAt)
 		checkErr(err)
 	}

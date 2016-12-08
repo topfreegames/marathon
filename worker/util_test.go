@@ -37,7 +37,6 @@ import (
 var _ = Describe("Worker Util", func() {
 	var err error
 	var template *model.Template
-	var templateObj map[string]interface{}
 	var context map[string]interface{}
 	var metadata map[string]interface{}
 	var users []worker.User
@@ -52,16 +51,6 @@ var _ = Describe("Worker Util", func() {
 				"alert": "{{user_name}} just liked your {{object_name}}!",
 			},
 			Defaults: map[string]string{
-				"user_name":   "Someone",
-				"object_name": "village",
-			},
-		}
-
-		templateObj = map[string]interface{}{
-			"body": map[string]string{
-				"alert": "{{user_name}} just liked your {{object_name}}!",
-			},
-			"defaults": map[string]string{
 				"user_name":   "Someone",
 				"object_name": "village",
 			},
@@ -84,10 +73,12 @@ var _ = Describe("Worker Util", func() {
 			users[index] = worker.User{
 				UserID: id,
 				Token:  token,
+				Locale: "en",
 			}
 			usersObj[index] = map[string]interface{}{
 				"user_id": id,
 				"token":   token,
+				"locale":  "en",
 			}
 		}
 
@@ -142,14 +133,12 @@ var _ = Describe("Worker Util", func() {
 
 	Describe("Parse ProcessBatchWorker message array", func() {
 		It("should succeed if all params are correct", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, usersObj, expiresAt}
+			arr := []interface{}{jobID, appName, service, context, metadata, usersObj, expiresAt}
 			messageObj, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(messageObj.JobID.String()).To(Equal(jobID))
 			Expect(messageObj.AppName).To(Equal(appName))
 			Expect(messageObj.Service).To(Equal(service))
-			Expect(messageObj.Template.Body).To(Equal(template.Body))
-			Expect(messageObj.Template.Defaults).To(Equal(template.Defaults))
 			Expect(messageObj.Context).To(Equal(context))
 			Expect(messageObj.Metadata).To(Equal(metadata))
 			Expect(messageObj.ExpiresAt).To(Equal(expiresAt))
@@ -161,37 +150,29 @@ var _ = Describe("Worker Util", func() {
 		})
 
 		It("should fail if array has less than 5 elements", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, usersObj}
+			arr := []interface{}{jobID, appName, service, context, metadata, usersObj}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(worker.InvalidMessageArray))
 		})
 
 		It("should fail if array has more than 5 elements", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, usersObj, expiresAt, expiresAt}
+			arr := []interface{}{jobID, appName, service, context, metadata, usersObj, expiresAt, expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(worker.InvalidMessageArray))
 		})
 
 		It("should fail if jobID is not uuid", func() {
-			arr := []interface{}{"some-string", appName, service, templateObj, context, metadata, usersObj, expiresAt}
+			arr := []interface{}{"some-string", appName, service, context, metadata, usersObj, expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
 		})
 
 		// TODO: how to handle this panic?
-		XIt("should fail if template is not json", func() {
-			arr := []interface{}{jobID, appName, service, "some-string", context, metadata, usersObj, expiresAt}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid character"))
-		})
-
-		// TODO: how to handle this panic?
 		XIt("should fail if context is not json", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, "some-string", metadata, usersObj, expiresAt}
+			arr := []interface{}{jobID, appName, service, "some-string", metadata, usersObj, expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
@@ -199,7 +180,7 @@ var _ = Describe("Worker Util", func() {
 
 		// TODO: how to handle this panic?
 		XIt("should fail if metadata is not json", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, context, "some-string", usersObj, expiresAt}
+			arr := []interface{}{jobID, appName, service, context, "some-string", usersObj, expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
@@ -207,7 +188,7 @@ var _ = Describe("Worker Util", func() {
 
 		// TODO: how to handle this panic?
 		XIt("should fail if users is not array", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, "some-string", expiresAt}
+			arr := []interface{}{jobID, appName, service, context, metadata, "some-string", expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid character"))
@@ -215,7 +196,7 @@ var _ = Describe("Worker Util", func() {
 
 		It("should fail if users is an empty array", func() {
 			emptyUsers := []map[string]interface{}{}
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, emptyUsers, expiresAt}
+			arr := []interface{}{jobID, appName, service, context, metadata, emptyUsers, expiresAt}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("there must be at least one user"))
@@ -223,7 +204,7 @@ var _ = Describe("Worker Util", func() {
 
 		// TODO: how to handle this panic?
 		XIt("should fail if expiresAt is not an int64", func() {
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, usersObj, "notint"}
+			arr := []interface{}{jobID, appName, service, context, metadata, usersObj, "notint"}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("strconv.ParseInt: parsing"))
