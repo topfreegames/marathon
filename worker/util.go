@@ -53,7 +53,7 @@ type BatchWorkerMessage struct {
 	Template  *model.Template
 	Context   map[string]interface{}
 	Metadata  map[string]interface{}
-	Users     []model.User
+	Users     []User
 	ExpiresAt int64
 }
 
@@ -90,7 +90,7 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 	if err != nil {
 		return nil, err
 	}
-	users := []model.User{}
+	users := []User{}
 	err = json.Unmarshal([]byte(string(tmp)), &users)
 	if err != nil {
 		return nil, err

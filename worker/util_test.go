@@ -40,7 +40,7 @@ var _ = Describe("Worker Util", func() {
 	var templateObj map[string]interface{}
 	var context map[string]interface{}
 	var metadata map[string]interface{}
-	var users []model.User
+	var users []worker.User
 	var usersObj []map[string]interface{}
 	var jobID string
 	var service string
@@ -76,18 +76,18 @@ var _ = Describe("Worker Util", func() {
 			"meta": "data",
 		}
 
-		users = make([]model.User, 2)
+		users = make([]worker.User, 2)
 		usersObj = make([]map[string]interface{}, 2)
 		for index, _ := range users {
-			id := uuid.NewV4()
+			id := uuid.NewV4().String()
 			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
-			users[index] = model.User{
-				ID:    id,
-				Token: token,
+			users[index] = worker.User{
+				UserID: id,
+				Token:  token,
 			}
 			usersObj[index] = map[string]interface{}{
-				"id":    id,
-				"token": token,
+				"user_id": id,
+				"token":   token,
 			}
 		}
 
@@ -219,18 +219,6 @@ var _ = Describe("Worker Util", func() {
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("there must be at least one user"))
-		})
-
-		It("should fail if user has bad ID", func() {
-			badUsers := make([]map[string]interface{}, 1)
-			badUsers[0] = map[string]interface{}{
-				"id":    "whatever",
-				"token": "whatever",
-			}
-			arr := []interface{}{jobID, appName, service, templateObj, context, metadata, badUsers, expiresAt}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
 		})
 
 		// TODO: how to handle this panic?
