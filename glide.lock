@@ -1,5 +1,5 @@
-hash: 4b281ed03bf6f5bc714f2a43e0234e7515c205efd5ed2f8b8cf96831ec86694d
-updated: 2016-12-08T18:16:04.948340547-02:00
+hash: be11f0a75b7e74aa58d81e87b76cd9ccca66a3dc313097cb955c00bfa9133f99
+updated: 2016-12-08T19:34:58.168446319-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -173,6 +173,8 @@ imports:
   subpackages:
   - transform
   - unicode/norm
+- name: gopkg.in/bsm/ratelimit.v1
+  version: db14e161995a5177acef654cb0dd785e8ee8bc22
 - name: gopkg.in/pg.v5
   version: 9cfde8bcff926439c623e6fee04595ae609b84df
   subpackages:
@@ -183,6 +185,12 @@ imports:
   - types
 - name: gopkg.in/redis.v5
   version: 854c88a72c8bb9c09936145aef886b7697d6b995
+  subpackages:
+  - internal
+  - internal/consistenthash
+  - internal/hashtag
+  - internal/pool
+  - internal/proto
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []

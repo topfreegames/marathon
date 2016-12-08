@@ -83,6 +83,7 @@ func (w *Worker) configureRedis() {
 	redisHost := w.Config.GetString("workers.redis.host")
 	redisPort := w.Config.GetInt("workers.redis.port")
 	redisDatabase := w.Config.GetString("workers.redis.db")
+	redisPassword := w.Config.GetString("workers.redis.pass")
 	redisPoolsize := w.Config.GetString("workers.redis.poolSize")
 
 	logger := w.Logger.With(
@@ -105,6 +106,7 @@ func (w *Worker) configureRedis() {
 		"database": redisDatabase,
 		"pool":     redisPoolsize,
 		"process":  hostname,
+		"password": redisPassword,
 	})
 
 }
@@ -138,7 +140,7 @@ func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users []Use
 
 // Start starts the worker
 func (w *Worker) Start() {
-	jobsStatsPort := viper.GetInt("workers.statsPort")
+	jobsStatsPort := w.Config.GetInt("workers.statsPort")
 	go workers.StatsServer(jobsStatsPort)
 	workers.Run()
 }
