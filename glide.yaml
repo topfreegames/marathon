@@ -38,3 +38,5 @@ import:
   version: ^1.10.1
 - package: github.com/davecgh/go-spew
   version: ^1.1.0
+- package: gopkg.in/redis.v5
+  version: ^5.1.2

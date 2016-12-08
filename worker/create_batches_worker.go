@@ -12,8 +12,7 @@
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
  * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
@@ -29,6 +28,7 @@ import (
 	"sync"
 
 	"gopkg.in/pg.v5"
+	"gopkg.in/redis.v5"
 
 	"github.com/jrallison/go-workers"
 	"github.com/minio/minio-go"
@@ -50,6 +50,7 @@ type CreateBatchesWorker struct {
 	DBPageSize                int
 	S3Client                  *minio.Client
 	PageProcessingConcurrency int
+	RedisClient               *redis.Client
 }
 
 // User is the struct that will keep users before sending them to send batches worker
@@ -58,6 +59,12 @@ type User struct {
 	Token  string `json:"token" sql:"token"`
 	Locale string `json:"locale" sql:"locale"`
 	Tz     string `json:"tz" sql:"tz"`
+}
+
+// Batch is a struct that helps tracking processes pages
+type Batch struct {
+	UserIds *[]string
+	PageID  int
 }
 
 // NewCreateBatchesWorker gets a new CreateBatchesWorker
@@ -85,6 +92,12 @@ func (b *CreateBatchesWorker) configureS3Client() {
 	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, ssl)
 	checkErr(err)
 	b.S3Client = s3Client
+}
+
+func (b *CreateBatchesWorker) configureRedisClient() {
+	r, err := extensions.NewRedis("workers", b.Config, b.Logger)
+	checkErr(err)
+	b.RedisClient = r
 }
 
 func (b *CreateBatchesWorker) loadConfigurationDefaults() {
@@ -141,19 +154,30 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	return users
 }
 
-func (b *CreateBatchesWorker) sendBatch(batches *map[string][]User) {
+func (b *CreateBatchesWorker) sendBatch(batches *map[string][]User, job *model.Job) {
 	l := b.Logger
 	for tz, users := range *batches {
 		l.Info("sending batch of users to process batches worker", zap.Int("numUsers", len(users)), zap.String("tz", tz))
-
+		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
+		checkErr(err)
 	}
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan *[]string, job *model.Job, wg *sync.WaitGroup) {
+func (b *CreateBatchesWorker) markProcessedPage(page int, jobID uuid.UUID) {
+	b.RedisClient.SAdd(fmt.Sprintf("%s-processedpages", jobID.String()), page)
+}
+
+func (b *CreateBatchesWorker) isPageProcessed(page int, jobID uuid.UUID) bool {
+	res, err := b.RedisClient.SIsMember(fmt.Sprintf("%s-processedpages", jobID.String()), page).Result()
+	checkErr(err)
+	return res
+}
+
+func (b *CreateBatchesWorker) processBatch(c <-chan Batch, job *model.Job, wg *sync.WaitGroup) {
 	l := b.Logger
 	bucketsByTZ := map[string][]User{}
-	for userIds := range c {
-		usersFromBatch := b.getCSVUserBatchFromPG(userIds, job.App.Name, job.Service)
+	for batch := range c {
+		usersFromBatch := b.getCSVUserBatchFromPG(batch.UserIds, job.App.Name, job.Service)
 		l.Info("got users from db", zap.Int("usersInBatch", len(usersFromBatch)))
 		for _, user := range usersFromBatch {
 			userTz := user.Tz
@@ -169,27 +193,34 @@ func (b *CreateBatchesWorker) processBatch(c <-chan *[]string, job *model.Job, w
 		for tz, users := range bucketsByTZ {
 			l.Debug("batch of users for tz", zap.Int("numUsers", len(users)), zap.String("tz", tz))
 		}
+		b.sendBatch(&bucketsByTZ, job)
+		b.markProcessedPage(batch.PageID, job.ID)
 		//TODO for now I'll just ignore timezones and send all pushes
-		b.sendBatch(&bucketsByTZ)
 		wg.Done()
 	}
 }
 
-func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job) error {
+func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool) error {
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(userIds)
 	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
-	pgCH := make(chan *[]string, pages)
+	pgCH := make(chan Batch, pages)
 	wg.Add(pages)
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
 		go b.processBatch(pgCH, job, &wg)
 	}
 	for i := 0; i < pages; i++ {
+		if isReexecution && b.isPageProcessed(i, job.ID) {
+			continue
+		}
 		userBatch := b.getPage(i, &userIds)
-		pgCH <- &userBatch
+		pgCH <- Batch{
+			UserIds: &userBatch,
+			PageID:  i,
+		}
 	}
 	wg.Wait()
 	close(pgCH)
@@ -208,6 +239,12 @@ func (b *CreateBatchesWorker) getPage(page int, users *[]string) []string {
 	return (*users)[start:end]
 }
 
+func (b *CreateBatchesWorker) checkIsReexecution(jobID uuid.UUID) bool {
+	res, err := b.RedisClient.Exists(fmt.Sprintf("%s-processedpages", jobID.String())).Result()
+	checkErr(err)
+	return res
+}
+
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	l := workers.Logger
@@ -222,8 +259,9 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	}
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(err)
+	isReexecution := b.checkIsReexecution(job.ID)
 	if len(job.CSVPath) > 0 {
-		err := b.createBatchesUsingCSV(job)
+		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(err)
 	} else {
 		// Find the ids based on filters

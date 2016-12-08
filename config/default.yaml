@@ -30,7 +30,9 @@ workers:
     pageProcessingConcurrency: 10
   concurrency: 10
   redis:
-    server: localhost:6333
-    database: 0
     poolSize: 10
+    host: localhost
+    port: 6333
+    db: 0
+    pass: 
   topicTemplate: "%s-%s-c"

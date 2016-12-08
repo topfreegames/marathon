@@ -23,6 +23,7 @@
 package worker
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -79,12 +80,14 @@ func (w *Worker) loadConfigurationDefaults() {
 }
 
 func (w *Worker) configureRedis() {
-	redisServer := w.Config.GetString("workers.redis.server")
-	redisDatabase := w.Config.GetString("workers.redis.database")
+	redisHost := w.Config.GetString("workers.redis.host")
+	redisPort := w.Config.GetInt("workers.redis.port")
+	redisDatabase := w.Config.GetString("workers.redis.db")
 	redisPoolsize := w.Config.GetString("workers.redis.poolSize")
 
 	logger := w.Logger.With(
-		zap.String("redisServer", redisServer),
+		zap.String("redisHost", redisHost),
+		zap.Int("redisPort", redisPort),
 		zap.String("redisDB", redisDatabase),
 		zap.String("redisPoolsize", redisPoolsize),
 	)
@@ -98,11 +101,12 @@ func (w *Worker) configureRedis() {
 	}
 
 	workers.Configure(map[string]string{
-		"server":   redisServer,
+		"server":   fmt.Sprintf("%s:%d", redisHost, redisPort),
 		"database": redisDatabase,
 		"pool":     redisPoolsize,
 		"process":  hostname,
 	})
+
 }
 
 func (w *Worker) configureWorkers() {
@@ -128,8 +132,8 @@ func (w *Worker) ProcessBatchesJob(jobID *[]string) (string, error) {
 }
 
 // CreateProcessBatchJob creates a new ProcessBatchWorker job
-func (w *Worker) CreateProcessBatchJob(jobID *[]string) (string, error) {
-	return workers.Enqueue("process_batche_worker", "Add", jobID)
+func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users []User) (string, error) {
+	return workers.Enqueue("process_batche_worker", "Add", []interface{}{jobID, appName, users})
 }
 
 // Start starts the worker

@@ -1,5 +1,5 @@
-hash: c8ddb70b3ebbea8f11adc0eec423a9e51c95db392a8bc92e78bf2c2a96b66a6a
-updated: 2016-12-07T14:12:24.354087077-02:00
+hash: 4b281ed03bf6f5bc714f2a43e0234e7515c205efd5ed2f8b8cf96831ec86694d
+updated: 2016-12-08T18:16:04.948340547-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -181,6 +181,8 @@ imports:
   - internal/pool
   - orm
   - types
+- name: gopkg.in/redis.v5
+  version: 854c88a72c8bb9c09936145aef886b7697d6b995
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []
