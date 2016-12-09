@@ -35,6 +35,7 @@ import (
 	"github.com/uber-go/zap"
 
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/worker"
 )
 
@@ -65,7 +66,9 @@ func GetApplication(host string, port int, debug bool, l zap.Logger, configPath 
 
 	err := a.configure()
 	if err != nil {
-		l.Panic("cannot configure application", zap.Error(err))
+		log.P(l, "cannot configure application", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 	return a
 }
@@ -77,7 +80,9 @@ func (a *Application) loadConfiguration() error {
 	a.Config.AutomaticEnv()
 
 	if err := a.Config.ReadInConfig(); err == nil {
-		a.Logger.Info("Loaded config file.", zap.String("configFile", a.Config.ConfigFileUsed()))
+		log.I(a.Logger, "Loaded config file.", func(cm log.CM) {
+			cm.Write(zap.String("configFile", a.Config.ConfigFileUsed()))
+		})
 	} else {
 		return fmt.Errorf("Could not load configuration file from: %s", a.ConfigPath)
 	}
@@ -146,7 +151,7 @@ func (a *Application) configureApplication() {
 	e.GET("/healthcheck", a.HealthcheckHandler)
 
 	// Upload Routes
-	e.GET("/uploadurl", a.UploadHandler)
+	e.GET("/uploadurl", a.GetUploadURL)
 
 	// Apps Routes
 	e.POST("/apps", a.PostAppHandler)
@@ -193,7 +198,7 @@ func (a *Application) configureDatabase() error {
 		PoolSize:   poolSize,
 		MaxRetries: maxRetries,
 	})
-	logger.Info("successfully connected to the database")
+	log.I(logger, "successfully connected to the database")
 	a.DB = db
 	return nil
 }
@@ -205,7 +210,7 @@ func (a *Application) configureSentry() {
 	)
 	sentryURL := a.Config.GetString("sentry.url")
 	raven.SetDSN(sentryURL)
-	l.Info("Configured sentry successfully.")
+	log.I(l, "Configured sentry successfully.")
 }
 
 func (a *Application) configureNewRelic() error {
@@ -218,17 +223,19 @@ func (a *Application) configureNewRelic() error {
 
 	config := newrelic.NewConfig("Marathon", newRelicKey)
 	if newRelicKey == "" {
-		l.Info("New Relic is not enabled..")
+		log.I(l, "New Relic is not enabled..")
 		config.Enabled = false
 	}
 	nr, err := newrelic.NewApplication(config)
 	if err != nil {
-		l.Error("Failed to initialize New Relic.", zap.Error(err))
+		log.E(a.Logger, "Failed to initialize New Relic.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return err
 	}
 
 	a.NewRelic = nr
-	l.Info("Initialized New Relic successfully.")
+	log.I(l, "Initialized New Relic successfully.")
 
 	return nil
 }
@@ -237,6 +244,8 @@ func (a *Application) configureNewRelic() error {
 func (a *Application) Start() {
 	err := a.API.Start(fmt.Sprintf("%s:%d", a.Host, a.Port))
 	if err != nil {
-		a.Logger.Panic("cannot start api", zap.Error(err))
+		log.P(a.Logger, "Cannot start api.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 }

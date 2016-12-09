@@ -34,8 +34,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// UploadHandler handles a file upload
-func (a *Application) UploadHandler(c echo.Context) error {
+// GetUploadURL handles a file upload
+func (a *Application) GetUploadURL(c echo.Context) error {
 	start := time.Now()
 	l := a.Logger.With(
 		zap.String("source", "uploadHandler"),
@@ -86,5 +86,8 @@ func (a *Application) UploadHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
 	m["url"] = uURL
+	log.D(l, "Retrieved upload URL succesfully.", func(cm log.CM) {
+		cm.Write(zap.Object("URLInfo", m))
+	})
 	return c.JSON(http.StatusOK, m)
 }

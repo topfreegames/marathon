@@ -35,7 +35,6 @@ import (
 )
 
 var _ = Describe("Worker Util", func() {
-	var err error
 	var template *model.Template
 	var users []worker.User
 	var usersObj []interface{}
@@ -76,7 +75,8 @@ var _ = Describe("Worker Util", func() {
 	Describe("Build message from template", func() {
 		It("should make correct substitutions using defaults", func() {
 			context := map[string]interface{}{}
-			msgString := worker.BuildMessageFromTemplate(template, context)
+			msgString, err := worker.BuildMessageFromTemplate(template, context)
+			Expect(err).NotTo(HaveOccurred())
 			var msg map[string]interface{}
 			err = json.Unmarshal([]byte(msgString), &msg)
 			Expect(err).NotTo(HaveOccurred())
@@ -91,7 +91,8 @@ var _ = Describe("Worker Util", func() {
 				"user_name":   "Camila",
 				"object_name": "building",
 			}
-			msgString := worker.BuildMessageFromTemplate(template, context)
+			msgString, err := worker.BuildMessageFromTemplate(template, context)
+			Expect(err).NotTo(HaveOccurred())
 			var msg map[string]interface{}
 			err = json.Unmarshal([]byte(msgString), &msg)
 			Expect(err).NotTo(HaveOccurred())
@@ -105,7 +106,8 @@ var _ = Describe("Worker Util", func() {
 			context := map[string]interface{}{
 				"user_name": "Camila",
 			}
-			msgString := worker.BuildMessageFromTemplate(template, context)
+			msgString, err := worker.BuildMessageFromTemplate(template, context)
+			Expect(err).NotTo(HaveOccurred())
 			var msg map[string]interface{}
 			err = json.Unmarshal([]byte(msgString), &msg)
 			Expect(err).NotTo(HaveOccurred())

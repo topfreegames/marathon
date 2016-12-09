@@ -31,6 +31,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
@@ -46,14 +47,18 @@ type ProcessBatchWorker struct {
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
 func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatchWorker {
+	l := logger.With(
+		zap.String("source", "processBatchWorker"),
+		zap.String("operation", "NewProcessBatchWorker"),
+	)
 	zookeeper, err := extensions.NewZookeeperClient(config, logger)
-	checkErr(err)
+	checkErr(l, err)
 	//Wait 10s at max for a connection
 	zookeeper.WaitForConnection(10)
 	kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
-	checkErr(err)
+	checkErr(l, err)
 	marathonDB, err := extensions.NewPGClient("db", config, logger)
-	checkErr(err)
+	checkErr(l, err)
 	batchWorker := &ProcessBatchWorker{
 		Config:     config,
 		Logger:     logger,
@@ -124,21 +129,32 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 
 // Process processes the messages sent to batch worker queue and send them to kafka
 func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
-	// l := workers.Logger
+	l := batchWorker.Logger.With(
+		zap.String("source", "processBatchWorker"),
+		zap.String("operation", "process"),
+	)
 	arr, err := message.Args().Array()
-	checkErr(err)
+	checkErr(l, err)
 
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
-	checkErr(err)
+	checkErr(l, err)
+	log.D(l, "Parsed message info successfully.")
 
 	job, err := batchWorker.getJob(parsed.JobID)
-	checkErr(err)
+	checkErr(l, err)
+	log.D(l, "Retrieved job successfully.")
 
 	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
-	checkErr(err)
+	checkErr(l, err)
+	log.D(l, "Retrieved templatesByLocale successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("templatesByLocale", templatesByLocale))
+	})
 
 	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
 	topic := BuildTopicName(parsed.AppName, job.Service, topicTemplate)
+	log.D(l, "Built topic name successfully.", func(cm log.CM) {
+		cm.Write(zap.String("topic", topic))
+	})
 	for _, user := range parsed.Users {
 		var template *model.Template
 		if val, ok := templatesByLocale[user.Locale]; ok {
@@ -148,17 +164,20 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		}
 
 		if template == nil {
-			checkErr(fmt.Errorf("there is no template for the given locale or 'en'"))
+			checkErr(l, fmt.Errorf("there is no template for the given locale or 'en'"))
 		}
 
-		msgStr := BuildMessageFromTemplate(template, job.Context)
+		msgStr, msgErr := BuildMessageFromTemplate(template, job.Context)
+		checkErr(l, msgErr)
 		var msg map[string]interface{}
 		err = json.Unmarshal([]byte(msgStr), &msg)
-		checkErr(err)
+		checkErr(l, err)
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, user.Token, job.ExpiresAt)
-		checkErr(err)
+		checkErr(l, err)
 	}
+	log.D(l, "Sent push to aguia for all batch users.")
 
 	err = batchWorker.updateJobBatchesInfo(parsed.JobID)
-	checkErr(err)
+	log.D(l, "Updated job batches info successfully.")
+	checkErr(l, err)
 }

@@ -28,12 +28,19 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
+	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
 
 // ListJobsHandler is the method called when a get to /apps/:id/templates/:templateName/jobs is called
 func (a *Application) ListJobsHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "listJobs"),
+		zap.String("appId", c.Param("id")),
+		zap.String("template", c.QueryParam("template")),
+	)
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
@@ -44,13 +51,25 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 	}
 	jobs := []model.Job{}
 	if err := a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", id).Select(); err != nil {
+		log.E(l, "Failed to list jobs.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
+	log.D(l, "Listed jobs successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("jobs", jobs))
+	})
 	return c.JSON(http.StatusOK, jobs)
 }
 
 // PostJobHandler is the method called when a post to /apps/:id/templates/:templateName/jobs is called
 func (a *Application) PostJobHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "postJob"),
+		zap.String("appId", c.Param("id")),
+		zap.String("template", c.QueryParam("template")),
+	)
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
@@ -76,6 +95,9 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
+		log.E(l, "Failed to create job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 
@@ -86,20 +108,35 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		if strings.Contains(err.Error(), "violates foreign key constraint") {
 			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
+		log.E(l, "Failed to create job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 	a.Logger.Debug("job successfully created! creating job in create_batches_worker")
 	jid, err := a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
 	if err != nil {
 		a.DB.Delete(&job)
+		log.E(l, "Failed to send job to create_batches_worker.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
-	a.Logger.Info("job successfully sent to create_batches_worker!", zap.String("jid", jid))
+	log.I(l, "Job successfully sent to create_batches_worker", func(cm log.CM) {
+		cm.Write(zap.String("workerJobId", jid))
+	})
 	return c.JSON(http.StatusCreated, job)
 }
 
 // GetJobHandler is the method called when a get to /apps/:id/templates/:templateName/jobs/:jid is called
 func (a *Application) GetJobHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "getJob"),
+		zap.String("appId", c.Param("id")),
+		zap.String("template", c.QueryParam("template")),
+		zap.String("jobId", c.Param("jid")),
+	)
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
@@ -116,7 +153,13 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, job)
 		}
+		log.E(l, "Failed to retrieve job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
+	log.D(l, "Retrieved job successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("job", job))
+	})
 	return c.JSON(http.StatusOK, job)
 }

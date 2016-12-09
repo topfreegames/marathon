@@ -26,13 +26,17 @@ import (
 	"fmt"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
+	"github.com/uber-go/zap"
 	"github.com/valyala/fasttemplate"
 )
 
-func checkErr(err error) {
+func checkErr(l zap.Logger, err error) {
 	if err != nil {
-		panic(err)
+		log.P(l, "Worker panic.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 	}
 }
 
@@ -91,9 +95,11 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 }
 
 // BuildMessageFromTemplate build a message using a template and the context
-func BuildMessageFromTemplate(template *model.Template, context map[string]interface{}) string {
+func BuildMessageFromTemplate(template *model.Template, context map[string]interface{}) (string, error) {
 	body, err := json.Marshal(template.Body)
-	checkErr(err)
+	if err != nil {
+		return "", err
+	}
 	bodyString := string(body)
 	t := fasttemplate.New(bodyString, "{{", "}}")
 
@@ -105,5 +111,5 @@ func BuildMessageFromTemplate(template *model.Template, context map[string]inter
 		substitutions[k] = v
 	}
 	message := t.ExecuteString(substitutions)
-	return message
+	return message, nil
 }

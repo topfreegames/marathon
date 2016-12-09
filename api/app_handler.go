@@ -28,20 +28,36 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
+	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
+	"github.com/uber-go/zap"
 )
 
 // ListAppsHandler is the method called when a get to /apps is called
 func (a *Application) ListAppsHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "appHandler"),
+		zap.String("operation", "listApps"),
+	)
 	apps := []model.App{}
 	if err := a.DB.Model(&apps).Select(); err != nil {
+		log.E(l, "Failed to list apps.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
+	log.D(l, "Listed apps successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("apps", apps))
+	})
 	return c.JSON(http.StatusOK, apps)
 }
 
 // PostAppHandler is the method called when a post to /apps is called
 func (a *Application) PostAppHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "appHandler"),
+		zap.String("operation", "postApp"),
+	)
 	app := &model.App{
 		ID: uuid.NewV4(),
 	}
@@ -55,13 +71,24 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
+		log.E(l, "Failed to create app.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
+	log.D(l, "Created app successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("app", app))
+	})
 	return c.JSON(http.StatusCreated, app)
 }
 
 // GetAppHandler is the method called when a get to /apps/:id is called
 func (a *Application) GetAppHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "appHandler"),
+		zap.String("operation", "getApp"),
+		zap.String("appId", c.Param("id")),
+	)
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
@@ -71,13 +98,24 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
+		log.E(l, "Failed to retrieve app.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
+	log.D(l, "Retrieved app successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("app", app))
+	})
 	return c.JSON(http.StatusOK, app)
 }
 
 // PutAppHandler is the method called when a put to /apps/:id is called
 func (a *Application) PutAppHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "appHandler"),
+		zap.String("operation", "putApp"),
+		zap.String("appId", c.Param("id")),
+	)
 	app := &model.App{}
 	email := c.Get("user-email").(string)
 	app.CreatedBy = email
@@ -95,13 +133,24 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
+		log.E(l, "Failed to update app.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
+	log.D(l, "Updated app successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("app", app))
+	})
 	return c.JSON(http.StatusOK, app)
 }
 
 // DeleteAppHandler is the method called when a delete to /apps/:id is called
 func (a *Application) DeleteAppHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "appHandler"),
+		zap.String("operation", "deleteApp"),
+		zap.String("appId", c.Param("id")),
+	)
 	id, err := uuid.FromString(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
@@ -111,7 +160,13 @@ func (a *Application) DeleteAppHandler(c echo.Context) error {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
+		log.E(l, "Failed to delete app.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
 	}
+	log.D(l, "Deleted app successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("app", app))
+	})
 	return c.JSON(http.StatusNoContent, "")
 }

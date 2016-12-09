@@ -26,6 +26,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo"
+	"github.com/topfreegames/marathon/log"
+	"github.com/uber-go/zap"
 )
 
 // Health is a struct to help healthcheck handler
@@ -40,8 +42,15 @@ func (a *Application) checkPostgres() error {
 
 // HealthcheckHandler is the method called when a get to /healthcheck is called
 func (a *Application) HealthcheckHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "healthcheckHandler"),
+		zap.String("operation", "healthcheck"),
+	)
 	err := a.checkPostgres()
 	if err != nil {
+		log.E(l, "Failed healthcheck.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return c.JSON(http.StatusInternalServerError, &Health{Healthy: false})
 	}
 	return c.JSON(http.StatusOK, &Health{Healthy: true})

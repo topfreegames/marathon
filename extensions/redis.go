@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
 	"gopkg.in/redis.v5"
 )
@@ -52,7 +53,7 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 		zap.Int("redisPort", redisPort),
 		zap.Int("redisDB", redisDB),
 	)
-	l.Debug("Connecting to redis...")
+	log.D(l, "Connecting to redis...")
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", redisHost, redisPort),
 		Password: redisPass,
@@ -60,9 +61,11 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 	})
 	_, err := client.Ping().Result()
 	if err != nil {
-		l.Error("Connection to redis failed.", zap.Error(err))
+		log.E(l, "Connection to redis failed.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
 		return nil, &RedisConnectionError{SourceError: err}
 	}
-	l.Debug("Connected to redis successfully.")
+	log.I(l, "Connected to redis successfully.")
 	return client, nil
 }

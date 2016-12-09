@@ -98,7 +98,7 @@ func (c *ZookeeperClient) ConfigureConn() error {
 
 		return err
 	}
-	log.D(c.Logger, "Connected to Zookeeper successfully.", func(cm log.CM) {
+	log.I(c.Logger, "Connected to Zookeeper successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("zookeeperHosts", zookeeperHosts))
 	})
 	c.Conn = zk

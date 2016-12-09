@@ -35,6 +35,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
@@ -75,6 +76,7 @@ func NewCreateBatchesWorker(config *viper.Viper, logger zap.Logger, workers *Wor
 		Workers: workers,
 	}
 	b.configure()
+	log.D(logger, "Configured CreateBatchesWorker successfully.")
 	return b
 }
 
@@ -91,13 +93,13 @@ func (b *CreateBatchesWorker) configureS3Client() {
 	s3SecretAccessKey := b.Config.GetString("s3.secretAccessKey")
 	ssl := true
 	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, ssl)
-	checkErr(err)
+	checkErr(b.Logger, err)
 	b.S3Client = s3Client
 }
 
 func (b *CreateBatchesWorker) configureRedisClient() {
 	r, err := extensions.NewRedis("workers", b.Config, b.Logger)
-	checkErr(err)
+	checkErr(b.Logger, err)
 	b.RedisClient = r
 }
 
@@ -116,13 +118,13 @@ func (b *CreateBatchesWorker) loadConfiguration() {
 func (b *CreateBatchesWorker) configurePushDatabase() {
 	var err error
 	b.PushDB, err = extensions.NewPGClient("push.db", b.Config, b.Logger)
-	checkErr(err)
+	checkErr(b.Logger, err)
 }
 
 func (b *CreateBatchesWorker) configureMarathonDatabase() {
 	var err error
 	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
-	checkErr(err)
+	checkErr(b.Logger, err)
 }
 
 func (b *CreateBatchesWorker) configureDatabases() {
@@ -134,10 +136,10 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
 	bucket := b.Config.GetString("s3.bucket")
 	folder := b.Config.GetString("s3.folder")
 	csvFile, err := b.S3Client.GetObject(bucket, fmt.Sprintf("/%s/%s", folder, csvPath))
-	checkErr(err)
+	checkErr(b.Logger, err)
 	r := csv.NewReader(csvFile)
 	lines, err := r.ReadAll()
-	checkErr(err)
+	checkErr(b.Logger, err)
 	res := []string{}
 	for i, line := range lines {
 		if i == 0 {
@@ -151,16 +153,18 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
 	var users []User
 	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
-	checkErr(err)
+	checkErr(b.Logger, err)
 	return users
 }
 
 func (b *CreateBatchesWorker) sendBatch(batches *map[string][]User, job *model.Job) {
 	l := b.Logger
 	for tz, users := range *batches {
-		l.Info("sending batch of users to process batches worker", zap.Int("numUsers", len(users)), zap.String("tz", tz))
+		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
+			cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
+		})
 		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
-		checkErr(err)
+		checkErr(l, err)
 	}
 }
 
@@ -170,7 +174,7 @@ func (b *CreateBatchesWorker) markProcessedPage(page int, jobID uuid.UUID) {
 
 func (b *CreateBatchesWorker) isPageProcessed(page int, jobID uuid.UUID) bool {
 	res, err := b.RedisClient.SIsMember(fmt.Sprintf("%s-processedpages", jobID.String()), page).Result()
-	checkErr(err)
+	checkErr(b.Logger, err)
 	return res
 }
 
@@ -179,7 +183,9 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, job *model.Job, wg *s
 	bucketsByTZ := map[string][]User{}
 	for batch := range c {
 		usersFromBatch := b.getCSVUserBatchFromPG(batch.UserIds, job.App.Name, job.Service)
-		l.Info("got users from db", zap.Int("usersInBatch", len(usersFromBatch)))
+		log.I(l, "got users from db", func(cm log.CM) {
+			cm.Write(zap.Int("usersInBatch", len(usersFromBatch)))
+		})
 		for _, user := range usersFromBatch {
 			userTz := user.Tz
 			if len(userTz) == 0 {
@@ -192,7 +198,9 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, job *model.Job, wg *s
 			}
 		}
 		for tz, users := range bucketsByTZ {
-			l.Debug("batch of users for tz", zap.Int("numUsers", len(users)), zap.String("tz", tz))
+			log.D(l, "batch of users for tz", func(cm log.CM) {
+				cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
+			})
 		}
 		b.sendBatch(&bucketsByTZ, job)
 		b.markProcessedPage(batch.PageID, job.ID)
@@ -215,7 +223,9 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	}
 	for i := 0; i < pages; i++ {
 		if isReexecution && b.isPageProcessed(i, job.ID) {
-			l.Info("job is reexecution and page is already processed", zap.String("jobID", job.ID.String()), zap.Int("page", i))
+			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
+				cm.Write(zap.String("jobID", job.ID.String()), zap.Int("page", i))
+			})
 			continue
 		}
 		userBatch := b.getPage(i, &userIds)
@@ -243,17 +253,17 @@ func (b *CreateBatchesWorker) getPage(page int, users *[]string) []string {
 
 func (b *CreateBatchesWorker) checkIsReexecution(jobID uuid.UUID) bool {
 	res, err := b.RedisClient.Exists(fmt.Sprintf("%s-processedpages", jobID.String())).Result()
-	checkErr(err)
+	checkErr(b.Logger, err)
 	return res
 }
 
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	arr, err := message.Args().Array()
-	checkErr(err)
+	checkErr(b.Logger, err)
 	jobID := arr[0]
 	id, err := uuid.FromString(jobID.(string))
-	checkErr(err)
+	checkErr(b.Logger, err)
 	isReexecution := b.checkIsReexecution(id)
 	l := b.Logger.With(
 		zap.Int("batchSize", b.BatchSize),
@@ -261,15 +271,15 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		zap.String("jobID", id.String()),
 		zap.Bool("isReexecution", isReexecution),
 	)
-	l.Info("starting create_batches_worker")
+	log.I(l, "starting create_batches_worker")
 	job := &model.Job{
 		ID: id,
 	}
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	checkErr(err)
+	checkErr(l, err)
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job, isReexecution)
-		checkErr(err)
+		checkErr(l, err)
 		b.RedisClient.Del(fmt.Sprintf("%s-processedpages", job.ID.String()))
 	} else {
 		// Find the ids based on filters
