@@ -33,19 +33,19 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// ListTemplatesHandler is the method called when a get to /apps/:id/templates is called
+// ListTemplatesHandler is the method called when a get to /apps/:aid/templates is called
 func (a *Application) ListTemplatesHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "templateHandler"),
 		zap.String("operation", "listTemplates"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	templates := []model.Template{}
-	if err := a.DB.Model(&templates).Column("template.*", "App").Where("template.app_id = ?", id).Select(); err != nil {
+	if err := a.DB.Model(&templates).Column("template.*", "App").Where("template.app_id = ?", aid).Select(); err != nil {
 		log.E(l, "Failed to list templates.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
@@ -57,21 +57,21 @@ func (a *Application) ListTemplatesHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, templates)
 }
 
-// PostTemplateHandler is the method called when a post to /apps/:id/templates is called
+// PostTemplateHandler is the method called when a post to /apps/:aid/templates is called
 func (a *Application) PostTemplateHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "templateHandler"),
 		zap.String("operation", "postTemplate"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	email := c.Get("user-email").(string)
 	template := &model.Template{
 		ID:        uuid.NewV4(),
-		AppID:     id,
+		AppID:     aid,
 		CreatedBy: email,
 	}
 	err = decodeAndValidate(c, template)
@@ -96,15 +96,15 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, template)
 }
 
-// GetTemplateHandler is the method called when a get to /apps/:id/templates/:tid is called
+// GetTemplateHandler is the method called when a get to /apps/:aid/templates/:tid is called
 func (a *Application) GetTemplateHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "templateHandler"),
 		zap.String("operation", "getTemplate"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 		zap.String("templateId", c.Param("tid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -112,7 +112,7 @@ func (a *Application) GetTemplateHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	template := &model.Template{ID: tid, AppID: id}
+	template := &model.Template{ID: tid, AppID: aid}
 	if err := a.DB.Model(&template).Column("template.*", "App").Where("template.id = ?", template.ID).Select(); err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, template)
@@ -125,15 +125,15 @@ func (a *Application) GetTemplateHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, template)
 }
 
-// PutTemplateHandler is the method called when a put to /apps/:id/templates/:tid is called
+// PutTemplateHandler is the method called when a put to /apps/:aid/templates/:tid is called
 func (a *Application) PutTemplateHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "templateHandler"),
 		zap.String("operation", "putTemplate"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 		zap.String("templateId", c.Param("tid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -144,7 +144,7 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	email := c.Get("user-email").(string)
 	template := &model.Template{
 		ID:        tid,
-		AppID:     id,
+		AppID:     aid,
 		CreatedBy: email,
 	}
 	err = decodeAndValidate(c, template)
@@ -152,7 +152,7 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: template})
 	}
 	template.ID = tid
-	template.AppID = id
+	template.AppID = aid
 	values, err := a.DB.Model(&template).Column("name").Column("locale").Column("defaults").Column("body").Returning("*").Update()
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
@@ -172,15 +172,15 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, template)
 }
 
-// DeleteTemplateHandler is the method called when a delete to /apps/:id/templates/:tid is called
+// DeleteTemplateHandler is the method called when a delete to /apps/:aid/templates/:tid is called
 func (a *Application) DeleteTemplateHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "templateHandler"),
 		zap.String("operation", "deleteTemplate"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 		zap.String("templateId", c.Param("tid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -189,7 +189,7 @@ func (a *Application) DeleteTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	template := &model.Template{}
-	res, err := a.DB.Model(&template).Where("id = ? AND app_id = ?", tid, id).Delete()
+	res, err := a.DB.Model(&template).Where("id = ? AND app_id = ?", tid, aid).Delete()
 	if err != nil {
 		log.E(l, "Failed to delete template.", func(cm log.CM) {
 			cm.Write(zap.Error(err))

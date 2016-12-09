@@ -129,7 +129,6 @@ func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
 
 // ProcessBatchesJob creates a new ProcessBatchesWorker job
 func (w *Worker) ProcessBatchesJob(jobID *[]string) (string, error) {
-	//TODO fix
 	return workers.Enqueue("process_batches_worker", "Add", jobID)
 }
 

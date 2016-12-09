@@ -160,18 +160,17 @@ func (a *Application) configureApplication() {
 	e.PUT("/apps/:id", a.PutAppHandler)
 	e.DELETE("/apps/:id", a.DeleteAppHandler)
 
-	//TODO tudo que for appId nas rotas de template e jobs deveriam user :appId
 	// Templates Routes
-	e.POST("/apps/:id/templates", a.PostTemplateHandler)
-	e.GET("/apps/:id/templates", a.ListTemplatesHandler)
-	e.GET("/apps/:id/templates/:tid", a.GetTemplateHandler)
-	e.PUT("/apps/:id/templates/:tid", a.PutTemplateHandler)
-	e.DELETE("/apps/:id/templates/:tid", a.DeleteTemplateHandler)
+	e.POST("/apps/:aid/templates", a.PostTemplateHandler)
+	e.GET("/apps/:aid/templates", a.ListTemplatesHandler)
+	e.GET("/apps/:aid/templates/:tid", a.GetTemplateHandler)
+	e.PUT("/apps/:aid/templates/:tid", a.PutTemplateHandler)
+	e.DELETE("/apps/:aid/templates/:tid", a.DeleteTemplateHandler)
 
 	// Jobs Routes
-	e.POST("/apps/:id/jobs", a.PostJobHandler)
-	e.GET("/apps/:id/jobs", a.ListJobsHandler)
-	e.GET("/apps/:id/jobs/:jid", a.GetJobHandler)
+	e.POST("/apps/:aid/jobs", a.PostJobHandler)
+	e.GET("/apps/:aid/jobs", a.ListJobsHandler)
+	e.GET("/apps/:aid/jobs/:jid", a.GetJobHandler)
 	// TODO: implement these routes
 	// e.PUT("/apps/:id/jobs/:jid/stop", a.StopJobHandler)
 	// e.PUT("/apps/:id/josb/:jid/resume", a.ResumeJobHandler)

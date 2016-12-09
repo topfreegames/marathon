@@ -33,15 +33,15 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// ListJobsHandler is the method called when a get to /apps/:id/templates/:templateName/jobs is called
+// ListJobsHandler is the method called when a get to /apps/:aid/templates/:templateName/jobs is called
 func (a *Application) ListJobsHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "jobHandler"),
 		zap.String("operation", "listJobs"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 		zap.String("template", c.QueryParam("template")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -50,7 +50,7 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
 	jobs := []model.Job{}
-	if err := a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", id).Select(); err != nil {
+	if err := a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", aid).Select(); err != nil {
 		log.E(l, "Failed to list jobs.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
@@ -62,15 +62,15 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, jobs)
 }
 
-// PostJobHandler is the method called when a post to /apps/:id/templates/:templateName/jobs is called
+// PostJobHandler is the method called when a post to /apps/:aid/templates/:templateName/jobs is called
 func (a *Application) PostJobHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "jobHandler"),
 		zap.String("operation", "postJob"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 		zap.String("template", c.QueryParam("template")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -81,7 +81,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	email := c.Get("user-email").(string)
 	job := &model.Job{
 		ID:           uuid.NewV4(),
-		AppID:        id,
+		AppID:        aid,
 		TemplateName: templateName,
 		CreatedBy:    email,
 	}
@@ -91,7 +91,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	}
 
 	template := &model.Template{}
-	if err := a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", id).Where("template.name = ?", templateName).First(); err != nil {
+	if err := a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ?", templateName).First(); err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
@@ -128,16 +128,16 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, job)
 }
 
-// GetJobHandler is the method called when a get to /apps/:id/templates/:templateName/jobs/:jid is called
+// GetJobHandler is the method called when a get to /apps/:aid/templates/:templateName/jobs/:jid is called
 func (a *Application) GetJobHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "jobHandler"),
 		zap.String("operation", "getJob"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 		zap.String("template", c.QueryParam("template")),
 		zap.String("jobId", c.Param("jid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	aid, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -147,7 +147,7 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 	}
 	job := &model.Job{
 		ID:    jid,
-		AppID: id,
+		AppID: aid,
 	}
 	if err := a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select(); err != nil {
 		if err.Error() == RecordNotFoundString {
