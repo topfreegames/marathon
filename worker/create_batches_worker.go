@@ -30,8 +30,8 @@ import (
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/jrallison/go-workers"
-	"github.com/minio/minio-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
@@ -49,7 +49,7 @@ type CreateBatchesWorker struct {
 	Config                    *viper.Viper
 	BatchSize                 int
 	DBPageSize                int
-	S3Client                  *minio.Client
+	S3Client                  *s3.S3
 	PageProcessingConcurrency int
 	RedisClient               *redis.Client
 }
@@ -89,10 +89,7 @@ func (b *CreateBatchesWorker) configure() {
 }
 
 func (b *CreateBatchesWorker) configureS3Client() {
-	s3AccessKeyID := b.Config.GetString("s3.accessKey")
-	s3SecretAccessKey := b.Config.GetString("s3.secretAccessKey")
-	ssl := true
-	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, ssl)
+	s3Client, err := extensions.NewS3(b.Config, b.Logger)
 	checkErr(b.Logger, err)
 	b.S3Client = s3Client
 }
@@ -133,11 +130,9 @@ func (b *CreateBatchesWorker) configureDatabases() {
 }
 
 func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
-	bucket := b.Config.GetString("s3.bucket")
-	folder := b.Config.GetString("s3.folder")
-	csvFile, err := b.S3Client.GetObject(bucket, fmt.Sprintf("/%s/%s", folder, csvPath))
+	csvFile, err := extensions.S3GetObject(b.Config, b.S3Client, csvPath)
 	checkErr(b.Logger, err)
-	r := csv.NewReader(csvFile)
+	r := csv.NewReader(*csvFile)
 	lines, err := r.ReadAll()
 	checkErr(b.Logger, err)
 	res := []string{}

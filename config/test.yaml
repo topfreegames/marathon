@@ -18,6 +18,7 @@ faultyDb:
 s3:
   bucket: "tfg-push-notifications"
   folder: "test/files"
+  region: "us-east-1"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"

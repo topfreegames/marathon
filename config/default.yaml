@@ -18,6 +18,7 @@ push:
     database: push
 s3:
   bucket: "tfg-push-notifications"
+  region: "us-east-1"
   folder: "development/jobs"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"

@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo"
-	minio "github.com/minio/minio-go"
+	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
 )
@@ -42,30 +42,7 @@ func (a *Application) GetUploadURL(c echo.Context) error {
 		zap.String("operation", "getUploadUrl"),
 	)
 
-	s3Bucket := a.Config.GetString("s3.bucket")
-	s3Folder := a.Config.GetString("s3.folder")
-	s3DaysExpiry := time.Second * 10 * 60 * 60
-	s3AccessKeyID := a.Config.GetString("s3.accessKey")
-	s3SecretAccessKey := a.Config.GetString("s3.secretAccessKey")
-	enableSSL := true
-
-	s3Key := fmt.Sprintf("%s/upload%v.csv", s3Folder, start.Unix())
-	s3Client, err := minio.New("s3.amazonaws.com", s3AccessKeyID, s3SecretAccessKey, enableSSL)
-	if err != nil {
-		log.E(l, "Failed to create S3 client.", func(cm log.CM) {
-			cm.Write(
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
-		})
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
-	}
-
-	var u *url.URL
-	err = WithSegment("s3Client", c, func() error {
-		u, err = s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
-		return err
-	})
+	u, err := extensions.S3PutObjectRequest(a.Config, a.S3Client, fmt.Sprintf("job%v.csv", start.Unix()))
 	if err != nil {
 		log.E(l, "Failed to create presigned PUT policy.", func(cm log.CM) {
 			cm.Write(
@@ -80,7 +57,7 @@ func (a *Application) GetUploadURL(c echo.Context) error {
 	})
 	m := make(map[string]interface{})
 	// For some reason we need to unescape it
-	uURL, err := url.QueryUnescape(u.String())
+	uURL, err := url.QueryUnescape(u)
 	if err != nil {
 		log.E(l, "Failed to unescape presigned URL.", func(cm log.CM) {
 			cm.Write(

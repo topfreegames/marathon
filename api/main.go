@@ -28,6 +28,7 @@ import (
 
 	"gopkg.in/pg.v5"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	raven "github.com/getsentry/raven-go"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -35,6 +36,7 @@ import (
 	"github.com/uber-go/zap"
 
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/worker"
 )
@@ -51,6 +53,7 @@ type Application struct {
 	Config     *viper.Viper
 	NewRelic   newrelic.Application
 	Worker     *worker.Worker
+	S3Client   *s3.S3
 }
 
 // GetApplication returns a configured api
@@ -109,6 +112,24 @@ func (a *Application) configure() error {
 	if err != nil {
 		return err
 	}
+
+	err = a.configureS3Client()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Application) configureS3Client() error {
+	s3, err := extensions.NewS3(a.Config, a.Logger)
+	if err != nil {
+		log.E(a.Logger, "Failed to initialize S3.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return err
+	}
+	a.S3Client = s3
 	return nil
 }
 
