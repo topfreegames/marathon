@@ -25,9 +25,7 @@ package cmd
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	// pg driver
@@ -35,9 +33,10 @@ import (
 	"github.com/pressly/goose"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/db"
 	"github.com/uber-go/zap"
 )
+
+var migrationsPath string
 
 func checkErr(err error) {
 	if err != nil {
@@ -50,29 +49,6 @@ var migrationsCmd = &cobra.Command{
 	Use:   "migrations",
 	Short: "use this command to work with migrations",
 	Long:  "use this command to work with migrations",
-}
-
-func createTempDbDir() (string, error) {
-	dir, err := ioutil.TempDir("", "migrations")
-	if err != nil {
-		return "", err
-	}
-
-	fmt.Printf("Created temporary directory %s.\n", dir)
-	assetNames := db.AssetNames()
-	for _, assetName := range assetNames {
-		asset, err := db.Asset(assetName)
-		if err != nil {
-			return "", err
-		}
-		fileName := strings.SplitN(assetName, "/", 3)[2] // remove migrations folder from fileName
-		err = ioutil.WriteFile(filepath.Join(dir, fileName), asset, 0777)
-		if err != nil {
-			return "", err
-		}
-		fmt.Printf("Wrote migration file %s.\n", fileName)
-	}
-	return dir, nil
 }
 
 func executeMigrationCmd(cmd string) {
@@ -113,12 +89,10 @@ func executeMigrationCmd(cmd string) {
 		logger.Panic("error migrating database", zap.Error(err))
 	}
 
-	//TODO add command to support down and up
-	migrationsDir, err := createTempDbDir()
 	if err != nil {
 		panic("Could not create migration files...")
 	}
-	if err := goose.Run(cmd, db, migrationsDir); err != nil {
+	if err := goose.Run(cmd, db, migrationsPath); err != nil {
 		logger.Fatal("error migrating database", zap.Error(err))
 	}
 
@@ -160,13 +134,14 @@ var createCmd = &cobra.Command{
 			cmd.Usage()
 			os.Exit(1)
 		}
-		if err := goose.Create(nil, "./migrations", args[0], "sql"); err != nil {
+		if err := goose.Create(nil, migrationsPath, args[0], "sql"); err != nil {
 			panic(err)
 		}
 	},
 }
 
 func init() {
+	migrationsCmd.PersistentFlags().StringVarP(&migrationsPath, "migrationsPath", "m", "migrations", "the path containing the migrations")
 	migrationsCmd.AddCommand(createCmd)
 	migrationsCmd.AddCommand(upCmd)
 	migrationsCmd.AddCommand(downCmd)

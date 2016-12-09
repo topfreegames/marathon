@@ -26,14 +26,13 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/pg.v5"
-
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	raven "github.com/getsentry/raven-go"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	newrelic "github.com/newrelic/go-agent"
 	"github.com/uber-go/zap"
+	"gopkg.in/pg.v5"
 
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
@@ -53,7 +52,7 @@ type Application struct {
 	Config     *viper.Viper
 	NewRelic   newrelic.Application
 	Worker     *worker.Worker
-	S3Client   *s3.S3
+	S3Client   s3iface.S3API
 }
 
 // GetApplication returns a configured api

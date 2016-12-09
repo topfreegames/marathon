@@ -58,5 +58,6 @@ test-db-drop:
 test-db-create:
 	@psql -U postgres -h localhost -p 8585 -f db/create-test.sql > /dev/null
 
-test-db-migrate:
+test-db-migrate: 
 	@go run main.go migrations up -c ./config/test.yaml
+	@go run main.go migrations up -m test_migrations -c ./config/test.yaml

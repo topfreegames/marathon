@@ -30,6 +30,9 @@ run-workers:
 migrate:
 	@go run main.go migrations up
 
+test-migrations:
+	@go run main.go migrations up -m test_migrations
+
 drop-db:
 	@psql -U postgres -h localhost -p 8585 -f db/drop.sql > /dev/null
 

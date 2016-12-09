@@ -31,12 +31,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 )
 
 //NewS3 client with the specified configuration
-func NewS3(conf *viper.Viper, logger zap.Logger) (*s3.S3, error) {
+func NewS3(conf *viper.Viper, logger zap.Logger) (s3iface.S3API, error) {
 	region := conf.GetString("s3.region")
 	accessKey := conf.GetString("s3.accessKey")
 	secretAccessKey := conf.GetString("s3.secretAccessKey")
@@ -49,12 +50,13 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (*s3.S3, error) {
 		return nil, err
 	}
 	logger.Debug("configured s3 extensions", zap.String("region", region))
-	s3 := s3.New(sess)
+	svc := s3.New(sess)
+	s3 := s3iface.S3API(svc)
 	return s3, nil
 }
 
 //S3GetObject gets an object from s3
-func S3GetObject(conf *viper.Viper, client *s3.S3, key string) (*io.ReadCloser, error) {
+func S3GetObject(conf *viper.Viper, client s3iface.S3API, key string) (*io.ReadCloser, error) {
 	bucket := conf.GetString("s3.bucket")
 	folder := conf.GetString("s3.folder")
 	objKey := fmt.Sprintf("%s/%s", folder, key)
@@ -70,7 +72,7 @@ func S3GetObject(conf *viper.Viper, client *s3.S3, key string) (*io.ReadCloser, 
 }
 
 // S3PutObjectRequest return a presigned url for uploading a file to s3
-func S3PutObjectRequest(conf *viper.Viper, client *s3.S3, key string) (string, error) {
+func S3PutObjectRequest(conf *viper.Viper, client s3iface.S3API, key string) (string, error) {
 	bucket := conf.GetString("s3.bucket")
 	folder := conf.GetString("s3.folder")
 	objKey := fmt.Sprintf("%s/%s", folder, key)

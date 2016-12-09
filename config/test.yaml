@@ -15,9 +15,18 @@ faultyDb:
   poolSize: 20
   maxRetries: 3
   database: marathon_tet
+push:
+  db:
+    host: localhost
+    port: 8585
+    user: marathon_test_user
+    pass: ""
+    poolSize: 20
+    maxRetries: 3
+    database: marathon_test
 s3:
   bucket: "tfg-push-notifications"
-  folder: "test/files"
+  folder: "test/jobs"
   region: "us-east-1"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"

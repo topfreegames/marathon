@@ -30,7 +30,7 @@ import (
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
@@ -49,7 +49,7 @@ type CreateBatchesWorker struct {
 	Config                    *viper.Viper
 	BatchSize                 int
 	DBPageSize                int
-	S3Client                  *s3.S3
+	S3Client                  s3iface.S3API
 	PageProcessingConcurrency int
 	RedisClient               *redis.Client
 }
@@ -221,6 +221,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
 				cm.Write(zap.String("jobID", job.ID.String()), zap.Int("page", i))
 			})
+			wg.Done()
 			continue
 		}
 		userBatch := b.getPage(i, &userIds)
@@ -275,7 +276,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(l, err)
-		b.RedisClient.Del(fmt.Sprintf("%s-processedpages", job.ID.String()))
+		//TODO seria legal ver uma forma melhor para apagar ou expirar isso
+		//b.RedisClient.Del(fmt.Sprintf("%s-processedpages", job.ID.String()))
 	} else {
 		// Find the ids based on filters
 	}
