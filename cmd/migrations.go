@@ -26,6 +26,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 
 	// pg driver
 	_ "github.com/lib/pq"
@@ -60,6 +61,9 @@ func executeMigrationCmd(cmd string) {
 	)
 
 	viper.SetConfigFile(cfgFile)
+	viper.SetEnvPrefix("marathon")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		l.Panic("error loading config file", zap.Error(err))
 	}

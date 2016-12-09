@@ -270,6 +270,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(err)
+		b.RedisClient.Del(fmt.Sprintf("%s-processedpages", job.ID.String()))
 	} else {
 		// Find the ids based on filters
 	}
