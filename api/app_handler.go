@@ -40,7 +40,10 @@ func (a *Application) ListAppsHandler(c echo.Context) error {
 		zap.String("operation", "listApps"),
 	)
 	apps := []model.App{}
-	if err := a.DB.Model(&apps).Select(); err != nil {
+	err := WithSegment("db-select", c, func() error {
+		return a.DB.Model(&apps).Select()
+	})
+	if err != nil {
 		log.E(l, "Failed to list apps.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
@@ -63,11 +66,17 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 	}
 	email := c.Get("user-email").(string)
 	app.CreatedBy = email
-	err := decodeAndValidate(c, app)
+	err := WithSegment("decodeAndValidate", c, func() error {
+		return decodeAndValidate(c, app)
+	})
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
 	}
-	if err = a.DB.Insert(&app); err != nil {
+	err = WithSegment("db-insert", c, func() error {
+		return a.DB.Insert(&app)
+	})
+
+	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
@@ -94,7 +103,10 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
-	if err := a.DB.Select(&app); err != nil {
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Select(&app)
+	})
+	if err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
@@ -119,7 +131,9 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	app := &model.App{}
 	email := c.Get("user-email").(string)
 	app.CreatedBy = email
-	err := decodeAndValidate(c, app)
+	err := WithSegment("decodeAndValidate", c, func() error {
+		return decodeAndValidate(c, app)
+	})
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
 	}
@@ -128,7 +142,10 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app.ID = id
-	_, err = a.DB.Model(&app).Column("name").Column("bundle_id").Returning("*").Update()
+	err = WithSegment("db-update", c, func() error {
+		_, err = a.DB.Model(&app).Column("name").Column("bundle_id").Returning("*").Update()
+		return err
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
@@ -156,7 +173,10 @@ func (a *Application) DeleteAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
-	if err := a.DB.Delete(&app); err != nil {
+	err = WithSegment("db-delete", c, func() error {
+		return a.DB.Delete(&app)
+	})
+	if err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}

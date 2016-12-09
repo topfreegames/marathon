@@ -23,9 +23,8 @@
 package api
 
 import (
-	"io/ioutil"
-
 	"github.com/labstack/echo"
+	newrelic "github.com/newrelic/go-agent"
 )
 
 // RecordNotFoundString is the string returned when a record is not found
@@ -37,16 +36,23 @@ type Error struct {
 	Value  InputValidation `json:"value"`
 }
 
-//GetRequestBody from echo context
-func GetRequestBody(c echo.Context) ([]byte, error) {
-	bodyCache := c.Get("requestBody")
-	if bodyCache != nil {
-		return bodyCache.([]byte), nil
+//GetTX returns new relic transaction
+func GetTX(c echo.Context) newrelic.Transaction {
+	tx := c.Get("txn")
+	if tx == nil {
+		return nil
 	}
-	b, err := ioutil.ReadAll(c.Request().Body)
-	if err != nil {
-		return nil, err
+
+	return tx.(newrelic.Transaction)
+}
+
+//WithSegment adds a segment to new relic transaction
+func WithSegment(name string, c echo.Context, f func() error) error {
+	tx := GetTX(c)
+	if tx == nil {
+		return f()
 	}
-	c.Set("requestBody", b)
-	return b, nil
+	segment := newrelic.StartSegment(tx, name)
+	defer segment.End()
+	return f()
 }

@@ -60,7 +60,12 @@ func (a *Application) GetUploadURL(c echo.Context) error {
 		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
 	}
-	u, err := s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
+
+	var u *url.URL
+	err = WithSegment("s3Client", c, func() error {
+		u, err = s3Client.PresignedPutObject(s3Bucket, s3Key, s3DaysExpiry)
+		return err
+	})
 	if err != nil {
 		log.E(l, "Failed to create presigned PUT policy.", func(cm log.CM) {
 			cm.Write(

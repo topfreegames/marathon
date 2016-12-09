@@ -26,6 +26,8 @@ import (
 	"net/http"
 	"strings"
 
+	"gopkg.in/pg.v5/types"
+
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
@@ -45,7 +47,10 @@ func (a *Application) ListTemplatesHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	templates := []model.Template{}
-	if err := a.DB.Model(&templates).Column("template.*", "App").Where("template.app_id = ?", aid).Select(); err != nil {
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&templates).Column("template.*", "App").Where("template.app_id = ?", aid).Select()
+	})
+	if err != nil {
 		log.E(l, "Failed to list templates.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
@@ -74,11 +79,16 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 		AppID:     aid,
 		CreatedBy: email,
 	}
-	err = decodeAndValidate(c, template)
+	err = WithSegment("decodeAndValidate", c, func() error {
+		return decodeAndValidate(c, template)
+	})
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: template})
 	}
-	if err = a.DB.Insert(&template); err != nil {
+	err = WithSegment("db-insert", c, func() error {
+		return a.DB.Insert(&template)
+	})
+	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: template})
 		}
@@ -113,7 +123,10 @@ func (a *Application) GetTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	template := &model.Template{ID: tid, AppID: aid}
-	if err := a.DB.Model(&template).Column("template.*", "App").Where("template.id = ?", template.ID).Select(); err != nil {
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&template).Column("template.*", "App").Where("template.id = ?", template.ID).Select()
+	})
+	if err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, template)
 		}
@@ -147,13 +160,19 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 		AppID:     aid,
 		CreatedBy: email,
 	}
-	err = decodeAndValidate(c, template)
+	err = WithSegment("decodeAndValidate", c, func() error {
+		return decodeAndValidate(c, template)
+	})
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: template})
 	}
 	template.ID = tid
 	template.AppID = aid
-	values, err := a.DB.Model(&template).Column("name").Column("locale").Column("defaults").Column("body").Returning("*").Update()
+	var values *types.Result
+	err = WithSegment("db-update", c, func() error {
+		values, err = a.DB.Model(&template).Column("name").Column("locale").Column("defaults").Column("body").Returning("*").Update()
+		return err
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: template})
@@ -189,7 +208,11 @@ func (a *Application) DeleteTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	template := &model.Template{}
-	res, err := a.DB.Model(&template).Where("id = ? AND app_id = ?", tid, aid).Delete()
+	var res *types.Result
+	err = WithSegment("db-delete", c, func() error {
+		res, err = a.DB.Model(&template).Where("id = ? AND app_id = ?", tid, aid).Delete()
+		return err
+	})
 	if err != nil {
 		log.E(l, "Failed to delete template.", func(cm log.CM) {
 			cm.Write(zap.Error(err))

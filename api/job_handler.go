@@ -50,7 +50,10 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
 	jobs := []model.Job{}
-	if err := a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", aid).Select(); err != nil {
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", aid).Select()
+	})
+	if err != nil {
 		log.E(l, "Failed to list jobs.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
@@ -85,13 +88,18 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		TemplateName: templateName,
 		CreatedBy:    email,
 	}
-	err = decodeAndValidate(c, job)
+	err = WithSegment("decodeAndValidate", c, func() error {
+		return decodeAndValidate(c, job)
+	})
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
 
 	template := &model.Template{}
-	if err := a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ?", templateName).First(); err != nil {
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ?", templateName).First()
+	})
+	if err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
@@ -101,7 +109,11 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 
-	if err = a.DB.Insert(&job); err != nil {
+	err = WithSegment("db-insert", c, func() error {
+		return a.DB.Insert(&job)
+	})
+
+	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, job)
 		}
@@ -114,7 +126,12 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 	a.Logger.Debug("job successfully created! creating job in create_batches_worker")
-	jid, err := a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
+	var wJobID string
+	err = WithSegment("create-job", c, func() error {
+		wJobID, err = a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
+		return err
+	})
+
 	if err != nil {
 		a.DB.Delete(&job)
 		log.E(l, "Failed to send job to create_batches_worker.", func(cm log.CM) {
@@ -123,7 +140,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 	log.I(l, "Job successfully sent to create_batches_worker", func(cm log.CM) {
-		cm.Write(zap.String("workerJobId", jid))
+		cm.Write(zap.String("workerJobId", wJobID))
 	})
 	return c.JSON(http.StatusCreated, job)
 }
@@ -149,7 +166,10 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		ID:    jid,
 		AppID: aid,
 	}
-	if err := a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select(); err != nil {
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	})
+	if err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, job)
 		}
