@@ -83,7 +83,7 @@ func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, m
 			return err
 		}
 	default:
-		return fmt.Errorf("service should be in ['apns', 'gcm']")
+		panic("service should be in ['apns', 'gcm']")
 	}
 	return nil
 }
@@ -173,7 +173,19 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		err = json.Unmarshal([]byte(msgStr), &msg)
 		checkErr(l, err)
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, user.Token, job.ExpiresAt)
-		checkErr(l, err)
+		if err != nil {
+			log.E(l, "Failed to send message to Kafka.", func(cm log.CM) {
+				cm.Write(
+					zap.String("service", job.Service),
+					zap.String("topic", topic),
+					zap.Object("msg", msg),
+					zap.Object("metadata", job.Metadata),
+					zap.Object("token", user.Token),
+					zap.Object("expiresAt", job.ExpiresAt),
+					zap.Error(err),
+				)
+			})
+		}
 	}
 	log.D(l, "Sent push to aguia for all batch users.")
 
