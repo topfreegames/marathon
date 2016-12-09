@@ -46,12 +46,13 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	templateName := c.QueryParam("template")
-	if templateName == "" {
-		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
-	}
 	jobs := []model.Job{}
+	query := a.DB.Model(&jobs).Column("job.*", "App").Where("job.app_id = ?", aid)
+	if templateName != "" {
+		query.Where("job.template_name = ?", templateName)
+	}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Model(&jobs).Column("job.*", "App").Where("job.template_name = ?", templateName).Where("job.app_id = ?", aid).Select()
+		return query.Select()
 	})
 	if err != nil {
 		log.E(l, "Failed to list jobs.", func(cm log.CM) {
