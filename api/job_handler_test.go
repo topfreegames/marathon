@@ -89,7 +89,9 @@ var _ = Describe("Job Handler", func() {
 					Expect(job["service"]).To(Equal(testJobs[idx].Service))
 					Expect(job["createdBy"]).To(Equal(testJobs[idx].CreatedBy))
 					Expect(job["createdAt"]).ToNot(BeNil())
+					Expect(job["createdAt"]).ToNot(Equal(0))
 					Expect(job["updatedAt"]).ToNot(BeNil())
+					Expect(job["updatedAt"]).ToNot(Equal(0))
 
 					tempFilters := job["filters"].(map[string]interface{})
 					existFilters := testJobs[idx].Filters
@@ -182,7 +184,9 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
 				Expect(job["createdAt"]).ToNot(BeNil())
+				Expect(job["createdAt"]).ToNot(Equal(0))
 				Expect(job["updatedAt"]).ToNot(BeNil())
+				Expect(job["updatedAt"]).ToNot(Equal(0))
 
 				tempFilters := job["filters"].(map[string]interface{})
 				plFilters := payload["filters"].(map[string]interface{})
@@ -258,7 +262,9 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
 				Expect(job["createdAt"]).ToNot(BeNil())
+				Expect(job["createdAt"]).ToNot(Equal(0))
 				Expect(job["updatedAt"]).ToNot(BeNil())
+				Expect(job["updatedAt"]).ToNot(Equal(0))
 
 				tempContext := job["context"].(map[string]interface{})
 				plContext := payload["context"].(map[string]interface{})
@@ -290,7 +296,9 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
 				Expect(dbJob.CreatedAt).ToNot(BeNil())
+				Expect(dbJob.CreatedAt).ToNot(Equal(0))
 				Expect(dbJob.UpdatedAt).ToNot(BeNil())
+				Expect(dbJob.UpdatedAt).ToNot(Equal(0))
 
 				for key := range plContext {
 					Expect(dbJob.Context[key]).To(Equal(plContext[key]))

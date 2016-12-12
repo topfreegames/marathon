@@ -25,6 +25,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/pg.v5/types"
 
@@ -78,6 +79,8 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 		ID:        uuid.NewV4(),
 		AppID:     aid,
 		CreatedBy: email,
+		CreatedAt: time.Now().UnixNano(),
+		UpdatedAt: time.Now().UnixNano(),
 	}
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, template)
@@ -159,6 +162,7 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 		ID:        tid,
 		AppID:     aid,
 		CreatedBy: email,
+		UpdatedAt: time.Now().UnixNano(),
 	}
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, template)
@@ -170,7 +174,7 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	template.AppID = aid
 	var values *types.Result
 	err = WithSegment("db-update", c, func() error {
-		values, err = a.DB.Model(&template).Column("name").Column("locale").Column("defaults").Column("body").Returning("*").Update()
+		values, err = a.DB.Model(&template).Column("name").Column("locale").Column("defaults").Column("body").Column("updated_at").Returning("*").Update()
 		return err
 	})
 	if err != nil {

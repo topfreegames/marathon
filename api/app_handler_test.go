@@ -78,7 +78,9 @@ var _ = Describe("App Handler", func() {
 					Expect(app["bundleId"]).To(Equal(testApps[idx].BundleID))
 					Expect(app["createdBy"]).To(Equal(testApps[idx].CreatedBy))
 					Expect(app["createdAt"]).ToNot(BeNil())
+					Expect(app["createdAt"]).ToNot(Equal(0))
 					Expect(app["updatedAt"]).ToNot(BeNil())
+					Expect(app["updatedAt"]).ToNot(Equal(0))
 				}
 			})
 		})
@@ -118,7 +120,9 @@ var _ = Describe("App Handler", func() {
 				Expect(response["bundleId"]).To(Equal(payload["bundleId"]))
 				Expect(response["createdBy"]).To(Equal("success@test.com"))
 				Expect(response["createdAt"]).ToNot(BeNil())
+				Expect(response["createdAt"]).ToNot(Equal(0))
 				Expect(response["updatedAt"]).ToNot(BeNil())
+				Expect(response["updatedAt"]).ToNot(Equal(0))
 
 				id, err := uuid.FromString(response["id"].(string))
 				Expect(err).NotTo(HaveOccurred())
@@ -247,7 +251,9 @@ var _ = Describe("App Handler", func() {
 				Expect(response["bundleId"]).To(Equal(existingApp.BundleID))
 				Expect(response["createdBy"]).To(Equal(existingApp.CreatedBy))
 				Expect(response["createdAt"]).ToNot(BeNil())
+				Expect(response["createdAt"]).ToNot(Equal(0))
 				Expect(response["updatedAt"]).ToNot(BeNil())
+				Expect(response["updatedAt"]).ToNot(Equal(0))
 			})
 		})
 
@@ -302,8 +308,8 @@ var _ = Describe("App Handler", func() {
 				Expect(response["name"]).To(Equal(payload["name"]))
 				Expect(response["bundleId"]).To(Equal(payload["bundleId"]))
 				Expect(response["createdBy"]).To(Equal(existingApp.CreatedBy))
-				Expect(response["createdAt"]).ToNot(BeNil())
-				Expect(response["updatedAt"]).ToNot(BeNil())
+				Expect(int64(response["createdAt"].(float64))).To(Equal(existingApp.CreatedAt))
+				Expect(response["updatedAt"]).ToNot(Equal(existingApp.UpdatedAt))
 
 				id, err := uuid.FromString(response["id"].(string))
 				Expect(err).NotTo(HaveOccurred())

@@ -84,7 +84,9 @@ var _ = Describe("Template Handler", func() {
 					Expect(template["locale"]).To(Equal(testTemplates[idx].Locale))
 					Expect(template["createdBy"]).To(Equal(testTemplates[idx].CreatedBy))
 					Expect(template["createdAt"]).ToNot(BeNil())
+					Expect(template["createdAt"]).ToNot(Equal(0))
 					Expect(template["updatedAt"]).ToNot(BeNil())
+					Expect(template["updatedAt"]).ToNot(Equal(0))
 
 					tempBody := template["body"].(map[string]interface{})
 					existBody := testTemplates[idx].Body
@@ -147,7 +149,9 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["locale"]).To(Equal(payload["locale"]))
 				Expect(template["createdBy"]).To(Equal("success@test.com"))
 				Expect(template["createdAt"]).ToNot(BeNil())
+				Expect(template["createdAt"]).ToNot(Equal(0))
 				Expect(template["updatedAt"]).ToNot(BeNil())
+				Expect(template["updatedAt"]).ToNot(Equal(0))
 
 				tempBody := template["body"].(map[string]interface{})
 				plBody := payload["body"].(map[string]interface{})
@@ -380,7 +384,9 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["locale"]).To(Equal(existingTemplate.Locale))
 				Expect(template["createdBy"]).To(Equal(existingTemplate.CreatedBy))
 				Expect(template["createdAt"]).ToNot(BeNil())
+				Expect(template["createdAt"]).ToNot(Equal(0))
 				Expect(template["updatedAt"]).ToNot(BeNil())
+				Expect(template["updatedAt"]).ToNot(Equal(0))
 
 				tempBody := template["body"].(map[string]interface{})
 				for key := range existingTemplate.Body {
@@ -458,8 +464,8 @@ var _ = Describe("Template Handler", func() {
 				Expect(template["name"]).To(Equal(payload["name"]))
 				Expect(template["locale"]).To(Equal(payload["locale"]))
 				Expect(template["createdBy"]).To(Equal(existingTemplate.CreatedBy))
-				Expect(template["createdAt"]).ToNot(BeNil())
-				Expect(template["updatedAt"]).ToNot(BeNil())
+				Expect(int64(template["createdAt"].(float64))).To(Equal(existingTemplate.CreatedAt))
+				Expect(template["updatedAt"]).ToNot(Equal(existingTemplate.UpdatedAt))
 
 				tempBody := template["body"].(map[string]interface{})
 				plBody := payload["body"].(map[string]interface{})

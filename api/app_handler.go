@@ -25,6 +25,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
@@ -62,7 +63,9 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 		zap.String("operation", "postApp"),
 	)
 	app := &model.App{
-		ID: uuid.NewV4(),
+		ID:        uuid.NewV4(),
+		CreatedAt: time.Now().UnixNano(),
+		UpdatedAt: time.Now().UnixNano(),
 	}
 	email := c.Get("user-email").(string)
 	app.CreatedBy = email
@@ -131,6 +134,7 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	app := &model.App{}
 	email := c.Get("user-email").(string)
 	app.CreatedBy = email
+	app.UpdatedAt = time.Now().UnixNano()
 	err := WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, app)
 	})
@@ -143,7 +147,7 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	}
 	app.ID = id
 	err = WithSegment("db-update", c, func() error {
-		_, err = a.DB.Model(&app).Column("name").Column("bundle_id").Returning("*").Update()
+		_, err = a.DB.Model(&app).Column("name").Column("bundle_id").Column("updated_at").Returning("*").Update()
 		return err
 	})
 	if err != nil {

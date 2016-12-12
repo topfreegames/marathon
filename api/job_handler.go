@@ -25,6 +25,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
@@ -88,6 +89,8 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		AppID:        aid,
 		TemplateName: templateName,
 		CreatedBy:    email,
+		CreatedAt:    time.Now().UnixNano(),
+		UpdatedAt:    time.Now().UnixNano(),
 	}
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, job)
