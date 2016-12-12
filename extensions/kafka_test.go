@@ -93,7 +93,7 @@ var _ = Describe("Kafka Extension", func() {
 			err = json.Unmarshal(msg.Value, &gcmMessage)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(gcmMessage.To).To(Equal("device-token"))
-			Expect(gcmMessage.PushExpiry).To(BeEquivalentTo(expiry))
+			Expect(gcmMessage.TimeToLive).To(BeEquivalentTo(expiry))
 			Expect(gcmMessage.Data["x"]).To(BeEquivalentTo(1))
 			Expect(gcmMessage.Data["m"].(map[string]interface{})["a"]).To(BeEquivalentTo(1))
 		})

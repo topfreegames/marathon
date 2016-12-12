@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
@@ -276,8 +277,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(l, err)
-		//TODO seria legal ver uma forma melhor para apagar ou expirar isso
-		//b.RedisClient.Del(fmt.Sprintf("%s-processedpages", job.ID.String()))
+		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
 	} else {
 		// Find the ids based on filters
 	}

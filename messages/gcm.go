@@ -28,13 +28,17 @@ import "encoding/json"
 // For more info on the GCM Message Data attribute refer to:
 // https://developers.google.com/cloud-messaging/concept-options
 type GCMMessage struct {
-	To         string                 `json:"to"`
-	Data       map[string]interface{} `json:"data"`
-	PushExpiry int64                  `json:"push_expiry"`
+	To                     string                 `json:"to"`
+	Data                   map[string]interface{} `json:"data"`
+	TimeToLive             int64                  `json:"TimeToLive"`
+	DelayWhileIdle         bool                   `json:"DelayWhileIdle"`
+	DeliveryReceiptRequest bool                   `json:"DeliveryReceiptRequest"`
+	DryRun                 bool                   `json:"dry_run"`
+	MessageID              string                 `json:"message_id"`
 }
 
 // NewGCMMessage builds a new GCM Message
-func NewGCMMessage(to string, data, metadata map[string]interface{}, pushExpiry int64) *GCMMessage {
+func NewGCMMessage(to string, data, metadata map[string]interface{}, timeToLive int64) *GCMMessage {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
@@ -44,9 +48,13 @@ func NewGCMMessage(to string, data, metadata map[string]interface{}, pushExpiry 
 	}
 
 	msg := &GCMMessage{
-		To:         to,
-		Data:       data,
-		PushExpiry: pushExpiry,
+		To:                     to,
+		Data:                   data,
+		TimeToLive:             timeToLive,
+		DryRun:                 false,
+		DeliveryReceiptRequest: false,
+		DelayWhileIdle:         false,
+		MessageID:              "",
 	}
 	return msg
 }

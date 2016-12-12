@@ -36,7 +36,11 @@ var _ = Describe("GCM Message", func() {
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data).To(BeEquivalentTo(data))
-			Expect(msg.PushExpiry).To(BeEquivalentTo(357))
+			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
+			Expect(msg.DryRun).To(Equal(false))
+			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
+			Expect(msg.DelayWhileIdle).To(Equal(false))
+			Expect(msg.MessageID).To(Equal(""))
 		})
 
 		It("should return message if data is nil", func() {
@@ -44,7 +48,11 @@ var _ = Describe("GCM Message", func() {
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data).To(BeEquivalentTo(map[string]interface{}{}))
-			Expect(msg.PushExpiry).To(BeEquivalentTo(357))
+			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
+			Expect(msg.DryRun).To(Equal(false))
+			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
+			Expect(msg.DelayWhileIdle).To(Equal(false))
+			Expect(msg.MessageID).To(Equal(""))
 		})
 
 		It("should return message if metadata is not nil", func() {
@@ -53,7 +61,11 @@ var _ = Describe("GCM Message", func() {
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data["m"].(map[string]interface{})).To(BeEquivalentTo(mtd))
-			Expect(msg.PushExpiry).To(BeEquivalentTo(357))
+			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
+			Expect(msg.DryRun).To(Equal(false))
+			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
+			Expect(msg.DelayWhileIdle).To(Equal(false))
+			Expect(msg.MessageID).To(Equal(""))
 		})
 	})
 })

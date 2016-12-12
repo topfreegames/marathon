@@ -139,7 +139,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				err = json.Unmarshal(msg.Value, &gcmMessage)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(gcmMessage.To).To(Equal(users[idx].Token))
-				Expect(gcmMessage.PushExpiry).To(BeEquivalentTo(job.ExpiresAt / 1000000000))
+				Expect(gcmMessage.TimeToLive).To(BeEquivalentTo(job.ExpiresAt / 1000000000))
 				Expect(gcmMessage.Data["alert"]).To(Equal("Everyone just liked your village!"))
 				Expect(gcmMessage.Data["m"].(map[string]interface{})["meta"]).To(Equal(job.Metadata["meta"]))
 				idx++
