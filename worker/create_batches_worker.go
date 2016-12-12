@@ -131,7 +131,7 @@ func (b *CreateBatchesWorker) configureDatabases() {
 }
 
 func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
-	csvFile, err := extensions.S3GetObject(b.Config, b.S3Client, csvPath)
+	csvFile, err := extensions.S3GetObject(b.S3Client, csvPath)
 	checkErr(b.Logger, err)
 	r := csv.NewReader(*csvFile)
 	lines, err := r.ReadAll()

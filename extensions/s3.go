@@ -25,6 +25,7 @@ package extensions
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -56,10 +57,13 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (s3iface.S3API, error) {
 }
 
 //S3GetObject gets an object from s3
-func S3GetObject(conf *viper.Viper, client s3iface.S3API, key string) (*io.ReadCloser, error) {
-	bucket := conf.GetString("s3.bucket")
-	folder := conf.GetString("s3.folder")
-	objKey := fmt.Sprintf("%s/%s", folder, key)
+func S3GetObject(client s3iface.S3API, path string) (*io.ReadCloser, error) {
+	splittedString := strings.SplitN(path, "/", 2)
+	if len(splittedString) < 2 {
+		return nil, fmt.Errorf("Invalid path")
+	}
+	bucket := splittedString[0]
+	objKey := splittedString[1]
 	params := &s3.GetObjectInput{
 		Bucket: &bucket,
 		Key:    &objKey,

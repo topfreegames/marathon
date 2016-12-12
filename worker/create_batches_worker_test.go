@@ -40,7 +40,6 @@ var _ = Describe("CreateBatches Worker", func() {
 	var logger zap.Logger
 	var config *viper.Viper
 	var createBatchesWorker *worker.CreateBatchesWorker
-	var job *model.Job
 	var app *model.App
 	var template *model.Template
 	var context map[string]interface{}
@@ -69,7 +68,7 @@ var _ = Describe("CreateBatches Worker", func() {
 		context = map[string]interface{}{
 			"user_name": "Everyone",
 		}
-		job = CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+		CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 			"context": context,
 		})
 		users := make([]worker.User, 2)
@@ -111,6 +110,7 @@ var _ = Describe("CreateBatches Worker", func() {
 			smsg, err := json.Marshal(m)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
+			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesWorker.Process(msg) }).Should(Panic())
 		})
 
@@ -118,7 +118,7 @@ var _ = Describe("CreateBatches Worker", func() {
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "obj2.csv",
+				"csvPath": "tfg-push-notifications/test/jobs/obj2.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -127,6 +127,7 @@ var _ = Describe("CreateBatches Worker", func() {
 			smsg, err := json.Marshal(m)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
+			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 		})
 
@@ -135,7 +136,7 @@ var _ = Describe("CreateBatches Worker", func() {
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "obj1.csv",
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -168,7 +169,7 @@ var _ = Describe("CreateBatches Worker", func() {
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "obj1.csv",
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
 				"service": "gcm",
 			})
 			m := map[string]interface{}{
@@ -203,7 +204,7 @@ var _ = Describe("CreateBatches Worker", func() {
 		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 			"context": context,
 			"filters": map[string]interface{}{},
-			"csvPath": "obj1.csv",
+			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
 			"service": "gcm",
 		})
 		m := map[string]interface{}{
