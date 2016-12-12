@@ -24,6 +24,7 @@ package worker_test
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
@@ -275,5 +276,27 @@ var _ = Describe("CreateBatches Worker", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(j.DBPageSize).To(Equal(500))
 		Expect(createBatchesWorker.DBPageSize).To(Equal(500))
+	})
+
+	It("should update job totalBatches", func() {
+		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		})
+		m := map[string]interface{}{
+			"jid":  2,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		time.Sleep(1 * time.Second)
+		job := &model.Job{}
+		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(job.TotalBatches).To(BeEquivalentTo(2))
 	})
 })

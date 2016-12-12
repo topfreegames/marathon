@@ -153,7 +153,7 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	return users
 }
 
-func (b *CreateBatchesWorker) sendBatch(batches *map[string][]User, job *model.Job) {
+func (b *CreateBatchesWorker) sendBatches(batches *map[string][]User, job *model.Job) {
 	l := b.Logger
 	for tz, users := range *batches {
 		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
@@ -174,7 +174,7 @@ func (b *CreateBatchesWorker) isPageProcessed(page int, jobID uuid.UUID) bool {
 	return res
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan Batch, job *model.Job, wg *sync.WaitGroup) {
+func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- (int), job *model.Job, wg *sync.WaitGroup) {
 	l := b.Logger
 	bucketsByTZ := map[string][]User{}
 	for batch := range c {
@@ -198,11 +198,26 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, job *model.Job, wg *s
 				cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
 			})
 		}
-		b.sendBatch(&bucketsByTZ, job)
+		b.sendBatches(&bucketsByTZ, job)
 		b.markProcessedPage(batch.PageID, job.ID)
+		batchesSentCH <- len(bucketsByTZ)
 		//TODO for now I'll just ignore timezones and send all pushes
 		wg.Done()
 	}
+}
+
+func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
+	job.TotalBatches = totalBatches
+	_, err := b.MarathonDB.DB.Model(job).Column("total_batches").Update()
+	checkErr(b.Logger, err)
+}
+
+func (b *CreateBatchesWorker) computeBatchesSent(c <-chan int, job *model.Job) {
+	batchesSent := 0
+	for sent := range c {
+		batchesSent += sent
+	}
+	b.updateTotalBatches(batchesSent, job)
 }
 
 func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool) error {
@@ -213,10 +228,12 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
 	pgCH := make(chan Batch, pages)
+	batchesSentCH := make(chan int)
 	wg.Add(pages)
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processBatch(pgCH, job, &wg)
+		go b.processBatch(pgCH, batchesSentCH, job, &wg)
 	}
+	go b.computeBatchesSent(batchesSentCH, job)
 	for i := 0; i < pages; i++ {
 		if isReexecution && b.isPageProcessed(i, job.ID) {
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
@@ -233,6 +250,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	}
 	wg.Wait()
 	close(pgCH)
+	close(batchesSentCH)
 	return nil
 }
 
