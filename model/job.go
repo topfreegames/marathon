@@ -38,6 +38,7 @@ type Job struct {
 	DBPageSize       int                    `json:"dbPageSize"`
 	CompletedAt      int64                  `json:"completedAt"`
 	ExpiresAt        int64                  `json:"expiresAt"`
+	StartsAt         int64                  `json:"startsAt"`
 	Context          map[string]interface{} `json:"context"`
 	Service          string                 `json:"service"`
 	Filters          map[string]interface{} `json:"filters"`
@@ -66,6 +67,11 @@ func (j *Job) Validate(c echo.Context) error {
 	valid = j.ExpiresAt == 0 || time.Now().UnixNano() < j.ExpiresAt
 	if !valid {
 		return InvalidField("expiresAt")
+	}
+
+	valid = j.StartsAt == 0 || time.Now().UnixNano() < j.StartsAt
+	if !valid {
+		return InvalidField("startsAt")
 	}
 
 	valid = govalidator.IsEmail(j.CreatedBy)

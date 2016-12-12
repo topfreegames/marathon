@@ -171,6 +171,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 	job.CSVPath = getOpt(opts, "csvPath", "").(string)
 	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	job.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
+	job.StartsAt = getOpt(opts, "startsAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 
 	err := db.Insert(&job)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -202,6 +203,7 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 	service := getOpt(opts, "service", "apns").(string)
 	csvURL := getOpt(opts, "csvPath", "").(string)
 	expiresAt := getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
+	startsAt := getOpt(opts, "startsAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 
 	job := map[string]interface{}{
@@ -211,6 +213,7 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 		"service":   service,
 		"csvPath":   csvURL,
 		"expiresAt": expiresAt,
+		"startsAt":  startsAt,
 		"id":        id,
 	}
 	return job

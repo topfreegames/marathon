@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -85,6 +86,7 @@ var _ = Describe("Job Handler", func() {
 					Expect(job["totalBatches"]).To(Equal(float64(testJobs[idx].TotalBatches)))
 					Expect(job["completedBatches"]).To(Equal(float64(testJobs[idx].CompletedBatches)))
 					Expect(job["expiresAt"]).To(Equal(float64(testJobs[idx].ExpiresAt)))
+					Expect(job["startsAt"]).To(Equal(float64(testJobs[idx].StartsAt)))
 					Expect(job["csvPath"]).To(Equal(testJobs[idx].CSVPath))
 					Expect(job["service"]).To(Equal(testJobs[idx].Service))
 					Expect(job["createdBy"]).To(Equal(testJobs[idx].CreatedBy))
@@ -180,6 +182,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
 				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
+				Expect(job["startsAt"]).To(BeNumerically("==", payload["startsAt"]))
 				Expect(job["csvPath"]).To(Equal(""))
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
@@ -219,6 +222,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(BeEquivalentTo(payload["expiresAt"]))
+				Expect(dbJob.StartsAt).To(BeEquivalentTo(payload["startsAt"]))
 				Expect(dbJob.CSVPath).To(Equal(""))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
 				Expect(dbJob.CreatedBy).To(Equal("success@test.com"))
@@ -257,6 +261,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["totalBatches"]).To(BeEquivalentTo(0))
 				Expect(job["completedBatches"]).To(BeEquivalentTo(0))
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
+				Expect(job["startsAt"]).To(BeNumerically("==", payload["startsAt"]))
 				Expect(job["csvPath"]).To(Equal(payload["csvPath"]))
 				Expect(job["filters"]).To(Equal(map[string]interface{}{}))
 				Expect(job["service"]).To(Equal(payload["service"]))
@@ -291,6 +296,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.TotalBatches).To(Equal(0))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(Equal(payload["expiresAt"]))
+				Expect(dbJob.StartsAt).To(Equal(payload["startsAt"]))
 				Expect(dbJob.CSVPath).To(Equal(payload["csvPath"]))
 				Expect(dbJob.Filters).To(Equal(map[string]interface{}{}))
 				Expect(dbJob.Service).To(Equal(payload["service"]))
@@ -336,6 +342,35 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(int(dbJob.ExpiresAt)).To(BeEquivalentTo(0))
+			})
+
+			It("should return 201 and the created job without startsAt", func() {
+				payload := GetJobPayload()
+				delete(payload, "startsAt")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
+				Expect(job["startsAt"]).To(BeEquivalentTo(0))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).ToNot(BeNil())
+				Expect(dbJob.AppID).To(Equal(existingApp.ID))
+				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
+				Expect(int(dbJob.StartsAt)).To(BeEquivalentTo(0))
 			})
 
 			It("should return 201 and the created job without metadata", func() {
@@ -536,6 +571,32 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
 			})
+
+			It("should return 422 if invalid startsAt", func() {
+				payload := GetJobPayload()
+				payload["startsAt"] = "not-json"
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+			})
+
+			It("should return 422 if past startsAt", func() {
+				payload := GetJobPayload()
+				payload["startsAt"] = time.Now().Add(-1 * time.Hour).UnixNano()
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid startsAt"))
+			})
 		})
 	})
 
@@ -555,6 +616,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["totalBatches"]).To(Equal(float64(existingJob.TotalBatches)))
 				Expect(job["completedBatches"]).To(Equal(float64(existingJob.CompletedBatches)))
 				Expect(job["expiresAt"]).To(Equal(float64(existingJob.ExpiresAt)))
+				Expect(job["startsAt"]).To(Equal(float64(existingJob.StartsAt)))
 				Expect(job["csvPath"]).To(Equal(existingJob.CSVPath))
 				Expect(job["service"]).To(Equal(existingJob.Service))
 				Expect(job["createdBy"]).To(Equal(existingJob.CreatedBy))
