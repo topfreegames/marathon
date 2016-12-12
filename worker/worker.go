@@ -127,9 +127,16 @@ func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
 	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{Retry: true})
 }
 
-// ProcessBatchesJob creates a new ProcessBatchesWorker job
-func (w *Worker) ProcessBatchesJob(jobID *[]string) (string, error) {
-	return workers.Enqueue("process_batches_worker", "Add", jobID)
+// ScheduleCreateBatchesJob schedules a new CreateBatchesWorker job
+func (w *Worker) ScheduleCreateBatchesJob(jobID *[]string, at int64) (string, error) {
+	return workers.EnqueueWithOptions(
+		"create_batches_worker",
+		"Add",
+		jobID,
+		workers.EnqueueOptions{
+			Retry: true,
+			At:    float64(at) / workers.NanoSecondPrecision,
+		})
 }
 
 // CreateProcessBatchJob creates a new ProcessBatchWorker job

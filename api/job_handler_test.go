@@ -31,6 +31,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
+	"github.com/topfreegames/marathon/worker"
 	"github.com/uber-go/zap"
 )
 
@@ -45,9 +46,17 @@ var _ = Describe("Job Handler", func() {
 	var existingTemplate *model.Template
 	var baseRoute string
 	var baseRouteWithoutTemplate string
+	var createBatchesWorker *worker.CreateBatchesWorker
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
 		app.DB.Exec("DELETE FROM templates;")
+
+		config := GetConf()
+		w := worker.NewWorker(false, logger, GetConfPath())
+		createBatchesWorker = worker.NewCreateBatchesWorker(config, logger, w)
+		createBatchesWorker.S3Client = &FakeS3{}
+		createBatchesWorker.RedisClient.FlushAll()
+
 		existingApp = CreateTestApp(app.DB)
 		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID)
 		baseRoute = fmt.Sprintf("/apps/%s/jobs?template=%s", existingApp.ID, existingTemplate.Name)
@@ -400,6 +409,55 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(dbJob.Metadata).To(Equal(map[string]interface{}{}))
+			})
+
+			It("should start the job immediately if payload without startsAt", func() {
+				payload := GetJobPayload()
+				delete(payload, "startsAt")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				res, err := createBatchesWorker.RedisClient.LLen("queue:create_batches_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res).To(BeEquivalentTo(1))
+				job1, err := createBatchesWorker.RedisClient.LPop("queue:create_batches_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				j1 := map[string]interface{}{}
+				err = json.Unmarshal([]byte(job1), &j1)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(j1["queue"].(string)).To(Equal("create_batches_worker"))
+				Expect(j1["args"].([]interface{})[0]).To(Equal(job["id"]))
+			})
+
+			It("should schedule the job if payload with startsAt", func() {
+				payload := GetJobPayload()
+				payload["startsAt"] = time.Now().Add(3 * time.Second).UnixNano()
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				res, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, -1).Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(res)).To(BeEquivalentTo(1))
+				var result map[string]interface{}
+				err = json.Unmarshal([]byte(res[0]), &result)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result["queue"]).To(Equal("create_batches_worker"))
+				Expect(result["args"].([]interface{})[0]).To(Equal(job["id"]))
+				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64)) / 1000000000.0))
+
+				res1, err := createBatchesWorker.RedisClient.LLen("queue:create_batches_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res1).To(BeEquivalentTo(0))
 			})
 		})
 

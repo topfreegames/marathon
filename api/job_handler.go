@@ -132,7 +132,11 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	a.Logger.Debug("job successfully created! creating job in create_batches_worker")
 	var wJobID string
 	err = WithSegment("create-job", c, func() error {
-		wJobID, err = a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
+		if job.StartsAt != 0 {
+			wJobID, err = a.Worker.ScheduleCreateBatchesJob(&[]string{job.ID.String()}, job.StartsAt)
+		} else {
+			wJobID, err = a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
+		}
 		return err
 	})
 
