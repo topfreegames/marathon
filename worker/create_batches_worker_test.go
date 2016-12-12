@@ -233,4 +233,47 @@ var _ = Describe("CreateBatches Worker", func() {
 		Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
 		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 	})
+
+	It("should update job DBPageSize if no previous size", func() {
+		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		})
+		m := map[string]interface{}{
+			"jid":  2,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(j.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
+		Expect(createBatchesWorker.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
+	})
+
+	It("should use job DBPageSize if specified", func() {
+		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		})
+		createBatchesWorker.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
+		m := map[string]interface{}{
+			"jid":  2,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(j.DBPageSize).To(Equal(500))
+		Expect(createBatchesWorker.DBPageSize).To(Equal(500))
+	})
 })

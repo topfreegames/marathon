@@ -35,6 +35,7 @@ type Job struct {
 	ID               uuid.UUID              `sql:",pk" json:"id"`
 	TotalBatches     int                    `json:"totalBatches"`
 	CompletedBatches int                    `json:"completedBatches"`
+	DBPageSize       int                    `json:"dbPageSize"`
 	CompletedAt      int64                  `json:"completedAt"`
 	ExpiresAt        int64                  `json:"expiresAt"`
 	Context          map[string]interface{} `json:"context"`

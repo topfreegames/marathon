@@ -167,12 +167,9 @@ var _ = Describe("Worker Util", func() {
 			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
 		})
 
-		// TODO: how to handle this panic?
-		XIt("should fail if users is not array", func() {
+		It("should fail if users is not array", func() {
 			arr := []interface{}{jobID, appName, "some-string"}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid character"))
+			Expect(func() { worker.ParseProcessBatchWorkerMessageArray(arr) }).Should(Panic())
 		})
 
 		It("should fail if users is an empty array", func() {
