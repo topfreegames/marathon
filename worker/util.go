@@ -24,6 +24,10 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
+	"gopkg.in/pg.v5"
+	"gopkg.in/redis.v5"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
@@ -32,12 +36,95 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
+// User is the struct that will keep users before sending them to send batches worker
+type User struct {
+	UserID string `json:"user_id" sql:"user_id"`
+	Token  string `json:"token" sql:"token"`
+	Locale string `json:"locale" sql:"locale"`
+	Tz     string `json:"tz" sql:"tz"`
+}
+
+// Batch is a struct that helps tracking processes pages
+type Batch struct {
+	UserIds *[]string
+	PageID  int
+}
+
+// DBPage is a struct that helps create batches from filters jobs
+type DBPage struct {
+	Page   int
+	Offset int
+}
+
+func isPageProcessed(page int, jobID uuid.UUID, redisClient *redis.Client, l zap.Logger) bool {
+	res, err := redisClient.SIsMember(fmt.Sprintf("%s-processedpages", jobID.String()), page).Result()
+	checkErr(l, err)
+	return res
+}
+
+func checkIsReexecution(jobID uuid.UUID, redisClient *redis.Client, l zap.Logger) bool {
+	res, err := redisClient.Exists(fmt.Sprintf("%s-processedpages", jobID.String())).Result()
+	checkErr(l, err)
+	return res
+}
+
+func markProcessedPage(page int, jobID uuid.UUID, redisClient *redis.Client) {
+	redisClient.SAdd(fmt.Sprintf("%s-processedpages", jobID.String()), page)
+}
+
+func updateTotalBatches(totalBatches int, job *model.Job, db *pg.DB, l zap.Logger) {
+	job.TotalBatches = totalBatches
+	_, err := db.Model(job).Column("total_batches").Update()
+	checkErr(l, err)
+}
+
+func sendBatches(batches *map[string][]User, job *model.Job, l zap.Logger, workers *Worker) {
+	for tz, users := range *batches {
+		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
+			cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
+		})
+		_, err := workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
+		checkErr(l, err)
+	}
+}
+
+// SplitUsersInBucketsByTZ splits users in buckets by tz
+func SplitUsersInBucketsByTZ(users *[]User) map[string][]User {
+	bucketsByTZ := map[string][]User{}
+	for _, user := range *users {
+		userTz := user.Tz
+		if len(userTz) == 0 {
+			userTz = "-0500"
+		}
+		if res, ok := bucketsByTZ[userTz]; ok {
+			bucketsByTZ[userTz] = append(res, user)
+		} else {
+			bucketsByTZ[userTz] = []User{user}
+		}
+	}
+	return bucketsByTZ
+}
+
 func checkErr(l zap.Logger, err error) {
 	if err != nil {
 		log.P(l, "Worker panic.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
 	}
+}
+
+// GetWhereClauseFromFilters returns a string cointaining the where clause to use in the query
+func GetWhereClauseFromFilters(filters map[string]interface{}) string {
+	queryFilters := []string{}
+	for key, val := range filters {
+		queryFilters = append(queryFilters, fmt.Sprintf("\"%s\"='%s'", key, val))
+	}
+	return strings.Join(queryFilters, " AND ")
+}
+
+// GetPushDBTableName get the table name using appName and service
+func GetPushDBTableName(appName, service string) string {
+	return fmt.Sprintf("%s_%s", appName, service)
 }
 
 // InvalidMessageArray is the string returned when the message array of the process batch worker is not valid

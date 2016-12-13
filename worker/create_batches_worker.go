@@ -55,20 +55,6 @@ type CreateBatchesWorker struct {
 	RedisClient               *redis.Client
 }
 
-// User is the struct that will keep users before sending them to send batches worker
-type User struct {
-	UserID string `json:"user_id" sql:"user_id"`
-	Token  string `json:"token" sql:"token"`
-	Locale string `json:"locale" sql:"locale"`
-	Tz     string `json:"tz" sql:"tz"`
-}
-
-// Batch is a struct that helps tracking processes pages
-type Batch struct {
-	UserIds *[]string
-	PageID  int
-}
-
 // NewCreateBatchesWorker gets a new CreateBatchesWorker
 func NewCreateBatchesWorker(config *viper.Viper, logger zap.Logger, workers *Worker) *CreateBatchesWorker {
 	b := &CreateBatchesWorker{
@@ -148,58 +134,26 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
 
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
 	var users []User
-	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s_%s WHERE user_id IN (?)", appName, service), pg.In(*userIds))
+	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
 	checkErr(b.Logger, err)
 	return users
 }
 
-func (b *CreateBatchesWorker) sendBatches(batches *map[string][]User, job *model.Job) {
-	l := b.Logger
-	for tz, users := range *batches {
-		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
-		})
-		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
-		checkErr(l, err)
-	}
-}
-
-func (b *CreateBatchesWorker) markProcessedPage(page int, jobID uuid.UUID) {
-	b.RedisClient.SAdd(fmt.Sprintf("%s-processedpages", jobID.String()), page)
-}
-
-func (b *CreateBatchesWorker) isPageProcessed(page int, jobID uuid.UUID) bool {
-	res, err := b.RedisClient.SIsMember(fmt.Sprintf("%s-processedpages", jobID.String()), page).Result()
-	checkErr(b.Logger, err)
-	return res
-}
-
 func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- (int), job *model.Job, wg *sync.WaitGroup) {
 	l := b.Logger
-	bucketsByTZ := map[string][]User{}
 	for batch := range c {
 		usersFromBatch := b.getCSVUserBatchFromPG(batch.UserIds, job.App.Name, job.Service)
 		log.I(l, "got users from db", func(cm log.CM) {
 			cm.Write(zap.Int("usersInBatch", len(usersFromBatch)))
 		})
-		for _, user := range usersFromBatch {
-			userTz := user.Tz
-			if len(userTz) == 0 {
-				userTz = "-0500"
-			}
-			if res, ok := bucketsByTZ[userTz]; ok {
-				bucketsByTZ[userTz] = append(res, user)
-			} else {
-				bucketsByTZ[userTz] = []User{user}
-			}
-		}
+		bucketsByTZ := SplitUsersInBucketsByTZ(&usersFromBatch)
 		for tz, users := range bucketsByTZ {
 			log.D(l, "batch of users for tz", func(cm log.CM) {
 				cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
 			})
 		}
-		b.sendBatches(&bucketsByTZ, job)
-		b.markProcessedPage(batch.PageID, job.ID)
+		markProcessedPage(batch.PageID, job.ID, b.RedisClient)
+		sendBatches(&bucketsByTZ, job, b.Logger, b.Workers)
 		batchesSentCH <- len(bucketsByTZ)
 		//TODO for now I'll just ignore timezones and send all pushes
 		wg.Done()
@@ -217,7 +171,7 @@ func (b *CreateBatchesWorker) computeBatchesSent(c <-chan int, job *model.Job) {
 	for sent := range c {
 		batchesSent += sent
 	}
-	b.updateTotalBatches(batchesSent, job)
+	updateTotalBatches(batchesSent, job, b.MarathonDB.DB, b.Logger)
 }
 
 func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool) error {
@@ -235,7 +189,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	}
 	go b.computeBatchesSent(batchesSentCH, job)
 	for i := 0; i < pages; i++ {
-		if isReexecution && b.isPageProcessed(i, job.ID) {
+		if isReexecution && isPageProcessed(i, job.ID, b.RedisClient, b.Logger) {
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
 				cm.Write(zap.String("jobID", job.ID.String()), zap.Int("page", i))
 			})
@@ -266,12 +220,6 @@ func (b *CreateBatchesWorker) getPage(page int, users *[]string) []string {
 	return (*users)[start:end]
 }
 
-func (b *CreateBatchesWorker) checkIsReexecution(jobID uuid.UUID) bool {
-	res, err := b.RedisClient.Exists(fmt.Sprintf("%s-processedpages", jobID.String())).Result()
-	checkErr(b.Logger, err)
-	return res
-}
-
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	arr, err := message.Args().Array()
@@ -279,7 +227,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	jobID := arr[0]
 	id, err := uuid.FromString(jobID.(string))
 	checkErr(b.Logger, err)
-	isReexecution := b.checkIsReexecution(id)
+	isReexecution := checkIsReexecution(id, b.RedisClient, b.Logger)
 	l := b.Logger.With(
 		zap.Int("batchSize", b.BatchSize),
 		zap.Int("dbPageSize", b.DBPageSize),

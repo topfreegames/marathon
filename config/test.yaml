@@ -38,6 +38,9 @@ workers:
     batchSize: 10000
     dbPageSize: 10000
     pageProcessingConcurrency: 10
+  createBatchesFromFilters:
+    dbPageSize: 2
+    pageProcessingConcurrency: 2
   redis:
     poolSize: 10
     host: localhost
