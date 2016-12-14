@@ -31,6 +31,7 @@ RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
 
 ADD glide.yaml /go/src/github.com/topfreegames/marathon/glide.yaml
+ADD glide.lock /go/src/github.com/topfreegames/marathon/glide.lock
 RUN glide install
 
 ADD . /go/src/github.com/topfreegames/marathon
