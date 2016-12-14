@@ -208,7 +208,7 @@ func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPat
 func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) {
 	folder := b.Config.GetString("s3.folder")
 	bucket := b.Config.GetString("s3.bucket")
-	writePath := fmt.Sprintf("%s/job%s.csv", folder, job.ID.String())
+	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	log.I(b.Logger, "uploading file to s3", func(cm log.CM) {
 		cm.Write(
 			zap.String("path", writePath),

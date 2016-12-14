@@ -44,7 +44,6 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 	var createBatchesFromFiltersWorker *worker.CreateBatchesFromFiltersWorker
 	var app *model.App
 	var template *model.Template
-	var context map[string]interface{}
 	BeforeEach(func() {
 		logger = zap.New(
 			zap.NewJSONEncoder(zap.NoTime()),
@@ -66,9 +65,6 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			"body":     body,
 			"locale":   "en",
 		})
-		context = map[string]interface{}{
-			"user_name": "Everyone",
-		}
 		users := make([]worker.User, 2)
 		for index := range users {
 			id := uuid.NewV4().String()
@@ -114,7 +110,12 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 		//TODO fazer wg wait do createBatchesWoker (que reporta numero)
 		It("should not panic if job.ID is valid and filters are not empty", func() {
 			a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{})
+			j := CreateTestJob(
+				createBatchesFromFiltersWorker.MarathonDB.DB,
+				a.ID,
+				template.Name,
+				map[string]interface{}{"filters": map[string]interface{}{"locale": "en"}},
+			)
 			createBatchesFromFiltersWorker.S3Client = NewFakeS3()
 			m := map[string]interface{}{
 				"jid":  4,
@@ -186,7 +187,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
 			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
 				Bucket: &bucket,
 				Key:    &key,
@@ -220,7 +221,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
 			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
 				Bucket: &bucket,
 				Key:    &key,
@@ -256,7 +257,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
 			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
 				Bucket: &bucket,
 				Key:    &key,
@@ -288,7 +289,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
 			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
 				Bucket: &bucket,
 				Key:    &key,
@@ -324,7 +325,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
 			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
 				Bucket: &bucket,
 				Key:    &key,
@@ -360,7 +361,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
 			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			dbJob := &model.Job{
 				ID: j.ID,
 			}
@@ -394,6 +395,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			j1 := map[string]interface{}{}
 			job1, err := createBatchesFromFiltersWorker.RedisClient.LPop("queue:create_batches_worker").Result()
 			err = json.Unmarshal([]byte(job1), &j1)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("create_batches_worker"))
 			Expect(j1["args"].([]interface{})[0]).To(Equal(j.ID.String()))
 		})
