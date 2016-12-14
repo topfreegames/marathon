@@ -54,7 +54,7 @@ func CreateTestApp(db *pg.DB, options ...map[string]interface{}) *model.App {
 	app.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	app.Name = getOpt(opts, "name", uuid.NewV4().String()).(string)
 	app.BundleID = getOpt(opts, "bundleId", fmt.Sprintf("com.app.%s", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
-	app.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
+	app.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 
 	err := db.Insert(&app)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -97,8 +97,8 @@ func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interf
 		opts = options[0]
 	}
 
-	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": "default"}).(map[string]interface{})
-	body := getOpt(opts, "body", map[string]interface{}{"value": "custom"}).(map[string]interface{})
+	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
+	body := getOpt(opts, "body", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
 
 	template := &model.Template{}
 	template.AppID = appID
@@ -107,7 +107,7 @@ func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interf
 	template.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	template.Name = getOpt(opts, "name", uuid.NewV4().String()).(string)
 	template.Locale = getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
-	template.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
+	template.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 
 	err := db.Insert(&template)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -136,8 +136,8 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	locale := getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
 
-	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": "default"})
-	body := getOpt(opts, "body", map[string]interface{}{"value": "custom"})
+	defaults := getOpt(opts, "defaults", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
+	body := getOpt(opts, "body", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
 
 	template := map[string]interface{}{
 		"name":     name,
@@ -156,9 +156,9 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 		opts = options[0]
 	}
 
-	filters := getOpt(opts, "filters", map[string]interface{}{"locale": "en"}).(map[string]interface{})
-	context := getOpt(opts, "context", map[string]interface{}{"value": "context"}).(map[string]interface{})
-	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": "data"}).(map[string]interface{})
+	filters := getOpt(opts, "filters", map[string]interface{}{"locale": strings.Split(uuid.NewV4().String(), "-")[0]}).(map[string]interface{})
+	context := getOpt(opts, "context", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
+	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": uuid.NewV4().String()}).(map[string]interface{})
 
 	job := &model.Job{}
 	job.AppID = appID
@@ -170,7 +170,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 	job.Service = getOpt(opts, "service", "apns").(string)
 	job.CSVPath = getOpt(opts, "csvPath", "").(string)
 	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
-	job.CreatedBy = getOpt(opts, "createdBy", "test@test.com").(string)
+	job.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 	job.StartsAt = getOpt(opts, "startsAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 
 	err := db.Insert(&job)
@@ -196,9 +196,9 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 		opts = options[0]
 	}
 
-	filters := getOpt(opts, "filters", map[string]interface{}{"locale": "en"}).(map[string]interface{})
-	context := getOpt(opts, "context", map[string]interface{}{"value": "context"}).(map[string]interface{})
-	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": "data"}).(map[string]interface{})
+	filters := getOpt(opts, "filters", map[string]interface{}{"locale": strings.Split(uuid.NewV4().String(), "-")[0]}).(map[string]interface{})
+	context := getOpt(opts, "context", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
+	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": uuid.NewV4().String()}).(map[string]interface{})
 
 	service := getOpt(opts, "service", "apns").(string)
 	csvURL := getOpt(opts, "csvPath", "").(string)
