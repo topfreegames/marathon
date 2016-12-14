@@ -133,15 +133,15 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	var wJobID string
 	err = WithSegment("create-job", c, func() error {
 		if job.StartsAt != 0 {
-			if len(job.CSVPath) == 0 {
+			if len(job.CSVPath) > 0 {
 				wJobID, err = a.Worker.ScheduleCreateBatchesJob(&[]string{job.ID.String()}, job.StartsAt)
-			} else {
+			} else if len(job.Filters) > 0 {
 				wJobID, err = a.Worker.ScheduleCreateBatchesFromFiltersJob(&[]string{job.ID.String()}, job.StartsAt)
 			}
 		} else {
-			if len(job.CSVPath) == 0 {
+			if len(job.CSVPath) > 0 {
 				wJobID, err = a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
-			} else {
+			} else if len(job.Filters) > 0 {
 				wJobID, err = a.Worker.CreateBatchesFromFiltersJob(&[]string{job.ID.String()})
 			}
 		}
