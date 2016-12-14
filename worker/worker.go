@@ -116,10 +116,11 @@ func (w *Worker) configureWorkers() {
 	b := GetBenchmarkWorker(w.Config.GetString("workers.redis.server"), w.Config.GetString("workers.redis.database"))
 	p := NewProcessBatchWorker(w.Config, w.Logger)
 	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
-	//workers.Middleware.Append(&) TODO
+	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
 	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
 	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
 	workers.Process("process_batch_worker", p.Process, jobsConcurrency)
+	workers.Process("create_batches_from_filters_worker", f.Process, jobsConcurrency)
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
@@ -127,10 +128,27 @@ func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
 	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{Retry: true})
 }
 
+// CreateBatchesFromFiltersJob creates a new CreateBatchesFromFiltersWorker job
+func (w *Worker) CreateBatchesFromFiltersJob(jobID *[]string) (string, error) {
+	return workers.EnqueueWithOptions("create_batches_from_filters_worker", "Add", jobID, workers.EnqueueOptions{Retry: true})
+}
+
 // ScheduleCreateBatchesJob schedules a new CreateBatchesWorker job
 func (w *Worker) ScheduleCreateBatchesJob(jobID *[]string, at int64) (string, error) {
 	return workers.EnqueueWithOptions(
 		"create_batches_worker",
+		"Add",
+		jobID,
+		workers.EnqueueOptions{
+			Retry: true,
+			At:    float64(at) / workers.NanoSecondPrecision,
+		})
+}
+
+// ScheduleCreateBatchesFromFiltersJob schedules a new CreateBatchesWorker job
+func (w *Worker) ScheduleCreateBatchesFromFiltersJob(jobID *[]string, at int64) (string, error) {
+	return workers.EnqueueWithOptions(
+		"create_batches_from_filters_worker",
 		"Add",
 		jobID,
 		workers.EnqueueOptions{
