@@ -99,11 +99,7 @@ func (batchWorker *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, erro
 func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, templateName string) (map[string]*model.Template, error) {
 	templateByLocale := make(map[string]*model.Template)
 	var templates []model.Template
-	template := &model.Template{
-		Name:  templateName,
-		AppID: appID,
-	}
-	err := batchWorker.MarathonDB.DB.Model(template).Select(&templates)
+	err := batchWorker.MarathonDB.DB.Model(&templates).Where("app_id = ? AND name = ?", appID, templateName).Select()
 	if err != nil {
 		return nil, err
 	}
