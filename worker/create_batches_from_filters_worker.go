@@ -205,7 +205,7 @@ func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPat
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *io.Reader, job *model.Job) {
+func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) {
 	folder := b.Config.GetString("s3.folder")
 	bucket := b.Config.GetString("s3.bucket")
 	writePath := fmt.Sprintf("%s/job%s.csv", folder, job.ID.String())
@@ -244,12 +244,12 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if len(job.Filters) > 0 {
-		csvBytes := &bytes.Buffer{}
-		csvWriter := io.Writer(csvBytes)
-		csvReader := io.Reader(csvBytes)
+		csvBuffer := &bytes.Buffer{}
+		csvWriter := io.Writer(csvBuffer)
 		err := b.createBatchesFromFilters(job, &csvWriter)
 		checkErr(l, err)
-		b.sendCSVToS3AndCreateCreateBatchesJob(&csvReader, job)
+		csvBytes := csvBuffer.Bytes()
+		b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
 		log.I(l, "finished create_batches_using_filters_worker")
 	} else {
 		log.I(l, "panicked create_batches_using_filters_worker")

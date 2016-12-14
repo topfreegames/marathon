@@ -22,9 +22,7 @@
 package worker_test
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"strings"
 
 	workers "github.com/jrallison/go-workers"
@@ -55,7 +53,7 @@ var _ = Describe("CreateBatches Worker", func() {
 		w := worker.NewWorker(false, logger, GetConfPath())
 		createBatchesWorker = worker.NewCreateBatchesWorker(config, logger, w)
 		createBatchesWorker.S3Client = NewFakeS3()
-		fakeData1 := io.Reader(bytes.NewBufferString(`userids
+		fakeData1 := []byte(`userids
 9e558649-9c23-469d-a11c-59b05813e3d5
 57be9009-e616-42c6-9cfe-505508ede2d0
 a8e8d2d5-f178-4d90-9b31-683ad3aae920
@@ -65,8 +63,8 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 67b872de-8ae4-4763-aef8-7c87a7f928a7
 3f8732a1-8642-4f22-8d77-a9688dd6a5ae
 21854bbf-ea7e-43e3-8f79-9ab2c121b941
-843a61f8-45b3-44f9-9ab7-8becb2765653`))
-		fakeData2 := io.Reader(bytes.NewBufferString(`userids`))
+843a61f8-45b3-44f9-9ab7-8becb2765653`)
+		fakeData2 := []byte(`userids`)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj1.csv", &fakeData1)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj2.csv", &fakeData2)
 		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)

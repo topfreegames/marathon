@@ -23,6 +23,7 @@
 package extensions
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -76,13 +77,14 @@ func S3GetObject(client s3iface.S3API, path string) (*io.ReadCloser, error) {
 }
 
 //S3PutObject puts an object into s3
-func S3PutObject(conf *viper.Viper, client s3iface.S3API, path string, body *io.Reader) error {
+func S3PutObject(conf *viper.Viper, client s3iface.S3API, path string, body *[]byte) error {
 	bucket := conf.GetString("s3.bucket")
-	b := aws.ReadSeekCloser(*body)
+	//b := aws.ReadSeekCloser(*body)
+	b := bytes.NewReader(*body)
 	params := &s3.PutObjectInput{
 		Bucket: &bucket,
 		Key:    &path,
-		Body:   &b,
+		Body:   b,
 	}
 	_, err := client.PutObject(params)
 	if err != nil {
