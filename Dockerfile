@@ -7,7 +7,7 @@
 # the Software without restriction, including without limitation the rights to
 # use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
 # the Software, and to permit persons to whom the Software is furnished to do so,
-# subject to the following conditions: 
+# subject to the following conditions:
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 #
@@ -30,8 +30,10 @@ RUN go get -u github.com/Masterminds/glide
 RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
 
-ADD . /go/src/github.com/topfreegames/marathon
+ADD glide.yaml /go/src/github.com/topfreegames/marathon/glide.yaml
 RUN glide install
+
+ADD . /go/src/github.com/topfreegames/marathon
 RUN make build
 
 RUN mkdir /app
