@@ -250,7 +250,9 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 		err := b.createBatchesFromFilters(job, &csvWriter)
 		checkErr(l, err)
 		b.sendCSVToS3AndCreateCreateBatchesJob(&csvReader, job)
+		log.I(l, "finished create_batches_using_filters_worker")
 	} else {
+		log.I(l, "panicked create_batches_using_filters_worker")
 		panic(fmt.Errorf("no filters passed to worker"))
 	}
 }

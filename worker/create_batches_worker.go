@@ -256,7 +256,9 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(l, err)
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
+		log.I(l, "finished create_batches_worker")
 	} else {
-		// Find the ids based on filters
+		log.I(l, "panicked create_batches_worker")
+		panic(fmt.Errorf("no csvPath passed to worker"))
 	}
 }

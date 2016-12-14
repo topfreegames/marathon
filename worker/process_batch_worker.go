@@ -133,9 +133,9 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "process"),
 	)
+	log.I(l, "starting process_batch_worker")
 	arr, err := message.Args().Array()
 	checkErr(l, err)
-
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
 	checkErr(l, err)
 	log.D(l, "Parsed message info successfully.")
@@ -192,4 +192,5 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	err = batchWorker.updateJobBatchesInfo(parsed.JobID)
 	log.D(l, "Updated job batches info successfully.")
 	checkErr(l, err)
+	log.I(l, "finished process_batch_worker")
 }
