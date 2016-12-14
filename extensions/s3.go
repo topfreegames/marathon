@@ -75,6 +75,22 @@ func S3GetObject(client s3iface.S3API, path string) (*io.ReadCloser, error) {
 	return &resp.Body, nil
 }
 
+//S3PutObject puts an object into s3
+func S3PutObject(conf *viper.Viper, client s3iface.S3API, path string, body *io.Reader) error {
+	bucket := conf.GetString("s3.bucket")
+	b := aws.ReadSeekCloser(*body)
+	params := &s3.PutObjectInput{
+		Bucket: &bucket,
+		Key:    &path,
+		Body:   &b,
+	}
+	_, err := client.PutObject(params)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // S3PutObjectRequest return a presigned url for uploading a file to s3
 func S3PutObjectRequest(conf *viper.Viper, client s3iface.S3API, key string) (string, error) {
 	bucket := conf.GetString("s3.bucket")

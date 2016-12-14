@@ -22,15 +22,17 @@
 package worker_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"strings"
-	"time"
 
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -52,7 +54,21 @@ var _ = Describe("CreateBatches Worker", func() {
 		config = GetConf()
 		w := worker.NewWorker(false, logger, GetConfPath())
 		createBatchesWorker = worker.NewCreateBatchesWorker(config, logger, w)
-		createBatchesWorker.S3Client = &FakeS3{}
+		createBatchesWorker.S3Client = NewFakeS3()
+		fakeData1 := io.Reader(bytes.NewBufferString(`userids
+9e558649-9c23-469d-a11c-59b05813e3d5
+57be9009-e616-42c6-9cfe-505508ede2d0
+a8e8d2d5-f178-4d90-9b31-683ad3aae920
+5c3033c0-24ad-487a-a80d-68432464c8de
+4223171e-c665-4612-9edd-485f229240bf
+2df5bb01-15d1-4569-bc56-49fa0a33c4c3
+67b872de-8ae4-4763-aef8-7c87a7f928a7
+3f8732a1-8642-4f22-8d77-a9688dd6a5ae
+21854bbf-ea7e-43e3-8f79-9ab2c121b941
+843a61f8-45b3-44f9-9ab7-8becb2765653`))
+		fakeData2 := io.Reader(bytes.NewBufferString(`userids`))
+		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj1.csv", &fakeData1)
+		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj2.csv", &fakeData2)
 		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -196,7 +212,7 @@ var _ = Describe("CreateBatches Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
 			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
-			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
+			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(9))
 		})
 	})
 
@@ -231,7 +247,7 @@ var _ = Describe("CreateBatches Worker", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
 		Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
-		Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
+		Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(9))
 		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 	})
 
@@ -293,7 +309,6 @@ var _ = Describe("CreateBatches Worker", func() {
 		Expect(err).NotTo(HaveOccurred())
 		msg, err := workers.NewMsg(string(smsg))
 		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		time.Sleep(1 * time.Second)
 		job := &model.Job{}
 		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())

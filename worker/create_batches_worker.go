@@ -139,7 +139,7 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	return users
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- (int), job *model.Job, wg *sync.WaitGroup) {
+func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- (int), job *model.Job, wg *sync.WaitGroup, wgBatchesSent *sync.WaitGroup) {
 	l := b.Logger
 	for batch := range c {
 		usersFromBatch := b.getCSVUserBatchFromPG(batch.UserIds, job.App.Name, job.Service)
@@ -154,6 +154,7 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- 
 		}
 		markProcessedPage(batch.PageID, job.ID, b.RedisClient)
 		sendBatches(&bucketsByTZ, job, b.Logger, b.Workers)
+		wgBatchesSent.Add(1)
 		batchesSentCH <- len(bucketsByTZ)
 		//TODO for now I'll just ignore timezones and send all pushes
 		wg.Done()
@@ -162,16 +163,15 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- 
 
 func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
 	job.TotalBatches = totalBatches
-	_, err := b.MarathonDB.DB.Model(job).Column("total_batches").Update()
+	_, err := b.MarathonDB.DB.Model(job).Set("total_batches = total_batches + ?total_batches").Update()
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) computeBatchesSent(c <-chan int, job *model.Job) {
-	batchesSent := 0
+func (b *CreateBatchesWorker) computeBatchesSent(c <-chan int, job *model.Job, batchesSent *int, wg *sync.WaitGroup) {
 	for sent := range c {
-		batchesSent += sent
+		*batchesSent += sent
+		wg.Done()
 	}
-	updateTotalBatches(batchesSent, job, b.MarathonDB.DB, b.Logger)
 }
 
 func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool) error {
@@ -181,13 +181,15 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
+	var wgBatchesSent sync.WaitGroup
 	pgCH := make(chan Batch, pages)
 	batchesSentCH := make(chan int)
 	wg.Add(pages)
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processBatch(pgCH, batchesSentCH, job, &wg)
+		go b.processBatch(pgCH, batchesSentCH, job, &wg, &wgBatchesSent)
 	}
-	go b.computeBatchesSent(batchesSentCH, job)
+	batchesSent := 0
+	go b.computeBatchesSent(batchesSentCH, job, &batchesSent, &wgBatchesSent)
 	for i := 0; i < pages; i++ {
 		if isReexecution && isPageProcessed(i, job.ID, b.RedisClient, b.Logger) {
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
@@ -203,8 +205,10 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 		}
 	}
 	wg.Wait()
+	wgBatchesSent.Wait()
 	close(pgCH)
 	close(batchesSentCH)
+	updateTotalBatches(batchesSent, job, b.MarathonDB.DB, b.Logger)
 	return nil
 }
 

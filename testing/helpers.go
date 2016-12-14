@@ -23,6 +23,7 @@
 package testing
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -45,6 +46,7 @@ import (
 // FakeS3 for usage in tests
 type FakeS3 struct {
 	s3iface.S3API
+	FakeStorage *map[string][]byte
 }
 
 // MyReaderCloser for usage in tests
@@ -59,30 +61,43 @@ func (MyReaderCloser) Close() error {
 
 // GetObject for usage in tests
 func (s *FakeS3) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
-	validObjs := map[string]s3.GetObjectOutput{
-		"test/jobs/obj1.csv": s3.GetObjectOutput{
-			Body: MyReaderCloser{bytes.NewBufferString(
-				`userids
-9e558649-9c23-469d-a11c-59b05813e3d5
-57be9009-e616-42c6-9cfe-505508ede2d0
-a8e8d2d5-f178-4d90-9b31-683ad3aae920
-5c3033c0-24ad-487a-a80d-68432464c8de
-4223171e-c665-4612-9edd-485f229240bf
-2df5bb01-15d1-4569-bc56-49fa0a33c4c3
-67b872de-8ae4-4763-aef8-7c87a7f928a7
-3f8732a1-8642-4f22-8d77-a9688dd6a5ae
-21854bbf-ea7e-43e3-8f79-9ab2c121b941
-843a61f8-45b3-44f9-9ab7-8becb2765653
-`)},
-		},
-		"test/jobs/obj2.csv": s3.GetObjectOutput{
-			Body: MyReaderCloser{bytes.NewBufferString(`userids`)},
-		},
-	}
-	if val, ok := validObjs[*input.Key]; ok {
-		return &val, nil
+	if val, ok := (*s.FakeStorage)[fmt.Sprintf("%s/%s", *input.Bucket, *input.Key)]; ok {
+		reader := bytes.NewReader(val)
+		return &s3.GetObjectOutput{
+			Body: MyReaderCloser{reader},
+		}, nil
 	}
 	return nil, fmt.Errorf("NoSuchKey: The specified key does not exist. status code: 404, request id: 000000000000TEST")
+}
+
+// NewFakeS3 creates a new FakeS3
+func NewFakeS3() *FakeS3 {
+	return &FakeS3{
+		FakeStorage: &map[string][]byte{},
+	}
+}
+
+// PutObject for using in tests
+func (s *FakeS3) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	b, err := ioutil.ReadAll(input.Body)
+	if err != nil {
+		return nil, err
+	}
+	(*s.FakeStorage)[fmt.Sprintf("%s/%s", *input.Bucket, *input.Key)] = b
+	return &s3.PutObjectOutput{}, nil
+}
+
+// ReadLinesFromIOReader for testing
+func ReadLinesFromIOReader(reader io.Reader) []string {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reader)
+	scanner := bufio.NewScanner(buf)
+	scanner.Split(bufio.ScanLines)
+	lines := []string{}
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines
 }
 
 //GetTestDB for usage in tests

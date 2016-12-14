@@ -23,12 +23,15 @@
 package worker
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"sync"
 
 	"gopkg.in/redis.v5"
 
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
@@ -46,6 +49,7 @@ type CreateBatchesFromFiltersWorker struct {
 	Workers                   *Worker
 	Config                    *viper.Viper
 	DBPageSize                int
+	S3Client                  s3iface.S3API
 	PageProcessingConcurrency int
 	RedisClient               *redis.Client
 }
@@ -95,10 +99,17 @@ func (b *CreateBatchesFromFiltersWorker) configureRedisClient() {
 	b.RedisClient = r
 }
 
+func (b *CreateBatchesFromFiltersWorker) configureS3Client() {
+	s3Client, err := extensions.NewS3(b.Config, b.Logger)
+	checkErr(b.Logger, err)
+	b.S3Client = s3Client
+}
+
 func (b *CreateBatchesFromFiltersWorker) configure() {
 	b.loadConfigurationDefaults()
 	b.loadConfiguration()
 	b.configureDatabases()
+	b.configureS3Client()
 	b.configureRedisClient()
 }
 
@@ -106,30 +117,11 @@ func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
 	limit := b.DBPageSize
-	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE %s AND seq_id > %d LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), whereClause, page.Offset, limit)
+	query := fmt.Sprintf("SELECT user_id FROM %s WHERE %s AND seq_id > %d ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), whereClause, page.Offset, limit)
 	var users []User
 	_, err := b.PushDB.DB.Query(&users, query)
 	checkErr(b.Logger, err)
 	return users
-}
-
-func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, batchesSentCH chan<- int, job *model.Job, wg *sync.WaitGroup) {
-	for page := range c {
-		users := b.getPageFromDBWithFilters(job, page)
-		log.I(b.Logger, "got users from db", func(cm log.CM) {
-			cm.Write(zap.Int("usersInBatch", len(users)))
-		})
-		bucketsByTZ := SplitUsersInBucketsByTZ(&users)
-		for tz, users := range bucketsByTZ {
-			log.D(b.Logger, "batch of users for tz", func(cm log.CM) {
-				cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
-			})
-		}
-		markProcessedPage(page.Page, job.ID, b.RedisClient)
-		sendBatches(&bucketsByTZ, job, b.Logger, b.Workers)
-		batchesSentCH <- len(bucketsByTZ)
-		wg.Done()
-	}
 }
 
 func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int) {
@@ -138,6 +130,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	whereClause := GetWhereClauseFromFilters(filters)
 	query := fmt.Sprintf("SELECT count(1) FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
 	_, err := b.PushDB.DB.Query(&count, query)
+	if count == 0 {
+		panic(fmt.Errorf("no users matching the filters"))
+	}
 	pageCount := int(math.Ceil(float64(count) / float64(b.DBPageSize)))
 	checkErr(b.Logger, err)
 	pages := []DBPage{}
@@ -157,41 +152,78 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	return pages, pageCount
 }
 
-func (b *CreateBatchesFromFiltersWorker) computeBatchesSent(c <-chan int, job *model.Job) {
-	batchesSent := 0
-	for sent := range c {
-		batchesSent += sent
+func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup) {
+	for page := range c {
+		users := b.getPageFromDBWithFilters(job, page)
+		log.I(b.Logger, "got users from db", func(cm log.CM) {
+			cm.Write(zap.Int("usersInBatch", len(users)))
+		})
+		wgCSV.Add(1)
+		writeToCSVCH <- &users
+		wg.Done()
 	}
-	updateTotalBatches(batchesSent, job, b.MarathonDB.DB, b.Logger)
 }
 
-func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, isReexecution bool) error {
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, csvWriter *io.Writer, wgCSV *sync.WaitGroup) {
+	(*csvWriter).Write([]byte("userIds\n"))
+	for users := range c {
+		for _, user := range *users {
+			(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
+		}
+		wgCSV.Done()
+	}
+}
+
+func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, csvWriter *io.Writer) error {
 	pages, pageCount := b.preprocessPages(job)
 	var wg sync.WaitGroup
+	var wgCSV sync.WaitGroup
 	pageCH := make(chan DBPage, pageCount)
-	batchesSentCH := make(chan int)
+	csvWriterCH := make(chan *[]User)
 	wg.Add(pageCount)
+
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processPages(pageCH, batchesSentCH, job, &wg)
+		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV)
 	}
-	go b.computeBatchesSent(batchesSentCH, job)
+	go b.writeUserPageIntoCSV(csvWriterCH, csvWriter, &wgCSV)
 	for i := 0; i < pageCount; i++ {
-		if isReexecution && isPageProcessed(i, job.ID, b.RedisClient, b.Logger) {
-			log.I(b.Logger, "job is reexecution and page is already processed", func(cm log.CM) {
-				cm.Write(zap.String("jobID", job.ID.String()), zap.Int("page", i))
-			})
-			wg.Done()
-			continue
-		}
 		pageCH <- DBPage{
 			Page:   pages[i].Page,
 			Offset: pages[i].Offset,
 		}
 	}
 	wg.Wait()
+	wgCSV.Wait()
 	close(pageCH)
-	close(batchesSentCH)
+	close(csvWriterCH)
 	return nil
+}
+
+func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPath string) {
+	job.CSVPath = csvPath
+	_, err := b.MarathonDB.DB.Model(job).Set("csv_path = ?csv_path").Update()
+	checkErr(b.Logger, err)
+}
+
+func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *io.Reader, job *model.Job) {
+	folder := b.Config.GetString("s3.folder")
+	bucket := b.Config.GetString("s3.bucket")
+	writePath := fmt.Sprintf("%s/job%s.csv", folder, job.ID.String())
+	log.I(b.Logger, "uploading file to s3", func(cm log.CM) {
+		cm.Write(
+			zap.String("path", writePath),
+		)
+	})
+	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, csvBytes)
+	checkErr(b.Logger, err)
+	b.updateJobCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
+	jid, err := b.Workers.CreateBatchesJob(&[]string{job.ID.String()})
+	checkErr(b.Logger, err)
+	log.I(b.Logger, "created create batches job", func(cm log.CM) {
+		cm.Write(
+			zap.String("jid", jid),
+		)
+	})
 }
 
 // Process processes the messages sent to worker queue
@@ -201,11 +233,9 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	jobID := arr[0]
 	id, err := uuid.FromString(jobID.(string))
 	checkErr(b.Logger, err)
-	isReexecution := checkIsReexecution(id, b.RedisClient, b.Logger)
 	l := b.Logger.With(
 		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
-		zap.Bool("isReexecution", isReexecution),
 	)
 	log.I(l, "starting create_batches_using_filters_worker")
 	job := &model.Job{
@@ -214,8 +244,12 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if len(job.Filters) > 0 {
-		err := b.createBatchesFromFilters(job, isReexecution)
+		csvBytes := &bytes.Buffer{}
+		csvWriter := io.Writer(csvBytes)
+		csvReader := io.Reader(csvBytes)
+		err := b.createBatchesFromFilters(job, &csvWriter)
 		checkErr(l, err)
+		b.sendCSVToS3AndCreateCreateBatchesJob(&csvReader, job)
 	} else {
 		panic(fmt.Errorf("no filters passed to worker"))
 	}
