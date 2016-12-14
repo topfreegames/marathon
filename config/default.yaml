@@ -29,10 +29,15 @@ workers:
     batchSize: 10000
     dbPageSize: 10000
     pageProcessingConcurrency: 10
+    concurrency: 10
+    maxRetries: 5
   createBatchesFromFilters:
     dbPageSize: 10000
     pageProcessingConcurrency: 10
-  concurrency: 10
+    concurrency: 10
+    maxRetries: 5
+  processBatch:
+    concurrency: 10
   redis:
     poolSize: 10
     host: localhost

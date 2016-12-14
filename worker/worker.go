@@ -112,25 +112,33 @@ func (w *Worker) configureRedis() {
 }
 
 func (w *Worker) configureWorkers() {
-	jobsConcurrency := w.Config.GetInt("workers.concurrency")
-	b := GetBenchmarkWorker(w.Config.GetString("workers.redis.server"), w.Config.GetString("workers.redis.database"))
 	p := NewProcessBatchWorker(w.Config, w.Logger)
 	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
 	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
-	workers.Process("benchmark_worker", b.Process, jobsConcurrency)
-	workers.Process("create_batches_worker", c.Process, jobsConcurrency)
-	workers.Process("process_batch_worker", p.Process, jobsConcurrency)
-	workers.Process("create_batches_from_filters_worker", f.Process, jobsConcurrency)
+	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
+	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
+	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
+	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
+	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
+	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
 func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
-	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{Retry: true})
+	maxRetries := w.Config.GetInt("workers.createBatches.maxRetries")
+	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+	})
 }
 
 // CreateBatchesFromFiltersJob creates a new CreateBatchesFromFiltersWorker job
 func (w *Worker) CreateBatchesFromFiltersJob(jobID *[]string) (string, error) {
-	return workers.EnqueueWithOptions("create_batches_from_filters_worker", "Add", jobID, workers.EnqueueOptions{Retry: true})
+	maxRetries := w.Config.GetInt("workers.createBatchesFromFilters.maxRetries")
+	return workers.EnqueueWithOptions("create_batches_from_filters_worker", "Add", jobID, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+	})
 }
 
 // ScheduleCreateBatchesJob schedules a new CreateBatchesWorker job
