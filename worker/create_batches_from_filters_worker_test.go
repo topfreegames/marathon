@@ -269,7 +269,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(generatedCSV.Body)
-			Expect(len(lines)).To(Equal(6))
+			Expect(len(lines)).To(Equal(7))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("5c3033c0-24ad-487a-a80d-68432464c8de"))
 			Expect(lines).To(ContainElement("67b872de-8ae4-4763-aef8-7c87a7f928a7"))

@@ -180,7 +180,7 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
 		})
 
-		FIt("should create batches with the right tokens and tz and send to process_batches_worker if a filter has multiple values separated bt comma", func() {
+		It("should create batches with the right tokens and tz and send to process_batches_worker if a filter has multiple values separated bt comma", func() {
 			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
