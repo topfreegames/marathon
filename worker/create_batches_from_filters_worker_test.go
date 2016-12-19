@@ -276,7 +276,6 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-9ab7-8becb2765653"))
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-9ab7-8becb3365653"))
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-aaaa-8becb3365653"))
-			Expect(lines).NotTo(ContainElement("843a61f8-45b3-44f9-bbbb-8becb3365653"))
 		})
 
 		It("should generate a csv with the right users", func() {
