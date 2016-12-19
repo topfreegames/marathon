@@ -248,5 +248,32 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
 		})
+
+		It("should increment job completed users", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = gcm").Where("id = ?", job.ID).Update()
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedUsers).To(Equal(len(users)))
+		})
 	})
 })

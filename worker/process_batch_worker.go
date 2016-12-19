@@ -110,6 +110,12 @@ func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, 
 	return templateByLocale, nil
 }
 
+func (batchWorker *ProcessBatchWorker) updateJobUsersInfo(jobID uuid.UUID, numUsers int) error {
+	job := model.Job{}
+	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_users = completed_users + ?", numUsers).Where("id = ?", jobID).Returning("*").Update()
+	return err
+}
+
 func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 	job := model.Job{}
 	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Returning("*").Update()
@@ -187,6 +193,8 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 
 	err = batchWorker.updateJobBatchesInfo(parsed.JobID)
 	log.D(l, "Updated job batches info successfully.")
+	err = batchWorker.updateJobUsersInfo(parsed.JobID, len(parsed.Users))
+	log.D(l, "Updated job users info successfully.")
 	checkErr(l, err)
 	log.I(l, "finished process_batch_worker")
 }

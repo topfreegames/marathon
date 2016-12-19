@@ -167,6 +167,12 @@ func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Jo
 	checkErr(b.Logger, err)
 }
 
+func (b *CreateBatchesWorker) setTotalUsers(totalUsers int, job *model.Job) {
+	job.TotalUsers = totalUsers
+	_, err := b.MarathonDB.DB.Model(job).Set("total_users = ?", totalUsers).Update()
+	checkErr(b.Logger, err)
+}
+
 func (b *CreateBatchesWorker) computeBatchesSent(c <-chan int, job *model.Job, batchesSent *int, wg *sync.WaitGroup) {
 	for sent := range c {
 		*batchesSent += sent
@@ -178,6 +184,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(userIds)
+	b.setTotalUsers(numPushes, job)
 	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
