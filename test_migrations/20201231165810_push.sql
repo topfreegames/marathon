@@ -32,6 +32,8 @@ INSERT INTO testapp_apns (user_id, token, locale, tz) VALUES ('3f8732a1-8642-4f2
 INSERT INTO testapp_apns (user_id, token, locale, tz) VALUES ('21854bbf-ea7e-43e3-8f79-9ab2c121b941', '1246', 'en', '-0300');
 INSERT INTO testapp_apns (user_id, token, locale, tz) VALUES ('843a61f8-45b3-44f9-9ab7-8becb2765653', '1247', 'pt', '-0500');
 INSERT INTO testapp_apns (user_id, token, locale, tz) VALUES ('843a61f8-45b3-44f9-9ab7-8becb3365653', '1247', 'au', '-0500');
+INSERT INTO testapp_apns (user_id, token, locale, tz) VALUES ('843a61f8-45b3-44f9-9ab7-8becb3365653', '1247', 'fr', '-0800');
+INSERT INTO testapp_apns (user_id, token, locale, tz) VALUES ('843a61f8-45b3-44f9-9ab7-8becb3365653', '1247', 'fr', '-0800');
 
 INSERT INTO testapp_gcm (user_id, token, locale, tz) VALUES ('9e558649-9c23-469d-a11c-59b05000e3d5', '1234', 'pt', '-0300');
 INSERT INTO testapp_gcm (user_id, token, locale, tz) VALUES ('57be9009-e616-42c6-9cfe-505508ede2d0', '1235', 'en', '-0300');

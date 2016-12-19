@@ -117,7 +117,17 @@ func checkErr(l zap.Logger, err error) {
 func GetWhereClauseFromFilters(filters map[string]interface{}) string {
 	queryFilters := []string{}
 	for key, val := range filters {
-		queryFilters = append(queryFilters, fmt.Sprintf("\"%s\"='%s'", key, val))
+		strVal := val.(string)
+		if strings.Contains(strVal, ",") {
+			filterArray := []string{}
+			vals := strings.Split(strVal, ",")
+			for _, fVal := range vals {
+				filterArray = append(filterArray, fmt.Sprintf("\"%s\"='%s'", key, fVal))
+			}
+			queryFilters = append(queryFilters, fmt.Sprintf("(%s)", strings.Join(filterArray, " OR ")))
+		} else {
+			queryFilters = append(queryFilters, fmt.Sprintf("\"%s\"='%s'", key, val))
+		}
 	}
 	return strings.Join(queryFilters, " AND ")
 }

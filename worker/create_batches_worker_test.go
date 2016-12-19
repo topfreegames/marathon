@@ -11,7 +11,6 @@
  *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
  * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
@@ -153,6 +152,41 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(2))
+			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			j1 := map[string]interface{}{}
+			j2 := map[string]interface{}{}
+			err = json.Unmarshal([]byte(job1), &j1)
+			Expect(err).NotTo(HaveOccurred())
+			err = json.Unmarshal([]byte(job2), &j2)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
+			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
+			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
+		})
+
+		FIt("should create batches with the right tokens and tz and send to process_batches_worker if a filter has multiple values separated bt comma", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{
+					"locale": "pt,en",
+				},
 				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
