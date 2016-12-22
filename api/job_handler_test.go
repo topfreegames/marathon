@@ -291,6 +291,51 @@ var _ = Describe("Job Handler", func() {
 				}
 			})
 
+			It("should return 201 and the created job with localized set to false by default", func() {
+				payload := GetJobPayload()
+				delete(payload, "csvPath")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.Localized).To(Equal(false))
+
+			})
+
+			It("should return 201 and the created job with localized set to true", func() {
+				payload := GetJobPayload()
+				payload["localized"] = true
+				delete(payload, "csvPath")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.Localized).To(Equal(true))
+
+			})
+
 			It("should return 201 and the created job with csvPath", func() {
 				payload := GetJobPayload()
 				delete(payload, "filters")

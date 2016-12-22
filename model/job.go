@@ -38,6 +38,7 @@ type Job struct {
 	TotalUsers       int                    `json:"totalUsers"`
 	CompletedUsers   int                    `json:"completedUsers"`
 	DBPageSize       int                    `json:"dbPageSize"`
+	Localized        bool                   `json:"localized"`
 	CompletedAt      int64                  `json:"completedAt"`
 	ExpiresAt        int64                  `json:"expiresAt"`
 	StartsAt         int64                  `json:"startsAt"`
