@@ -506,6 +506,5 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 		Expect(err).NotTo(HaveOccurred())
 		lines := ReadLinesFromIOReader(generatedCSV.Body)
 		Expect(len(lines)).To(Equal(4))
-		fmt.Printf("aeee %s", lines)
 	})
 })

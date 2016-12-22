@@ -146,6 +146,11 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	checkErr(l, err)
 	log.D(l, "Retrieved job successfully.")
 
+	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
+		log.I(l, "expired process_batch_worker")
+		return
+	}
+
 	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
 	checkErr(l, err)
 	log.D(l, "Retrieved templatesByLocale successfully.", func(cm log.CM) {

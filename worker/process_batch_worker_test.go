@@ -275,5 +275,42 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedUsers).To(Equal(len(users)))
 		})
+
+		It("should not process batch if job is expired", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("expires_at = ?", time.Now().UnixNano()-50000).Where("id = ?", job.ID).Update()
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newOffset).To(Equal(oldOffset + 1))
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedBatches).To(Equal(0))
+			Expect(dbJob.CompletedUsers).To(Equal(0))
+		})
 	})
 })
