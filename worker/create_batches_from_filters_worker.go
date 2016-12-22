@@ -39,6 +39,7 @@ import (
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
+	"github.com/willf/bloom"
 )
 
 // CreateBatchesFromFiltersWorker is the CreateBatchesUsingFiltersWorker struct
@@ -124,7 +125,7 @@ func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job
 	return users
 }
 
-func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int) {
+func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int, int) {
 	filters := job.Filters
 	var count int
 	whereClause := GetWhereClauseFromFilters(filters)
@@ -149,7 +150,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 		_, err := b.PushDB.DB.Query(&nextPageOffset, query)
 		checkErr(b.Logger, err)
 	}
-	return pages, pageCount
+	return pages, pageCount, count
 }
 
 func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup) {
@@ -164,18 +165,21 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, csvWriter *io.Writer, wgCSV *sync.WaitGroup) {
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
 		for _, user := range *users {
-			(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
+			if !bFilter.TestString(user.UserID) {
+				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
+				bFilter.AddString(user.UserID)
+			}
 		}
 		wgCSV.Done()
 	}
 }
 
 func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, csvWriter *io.Writer) error {
-	pages, pageCount := b.preprocessPages(job)
+	pages, pageCount, usersCount := b.preprocessPages(job)
 	var wg sync.WaitGroup
 	var wgCSV sync.WaitGroup
 	pageCH := make(chan DBPage, pageCount)
@@ -185,7 +189,9 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
 		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV)
 	}
-	go b.writeUserPageIntoCSV(csvWriterCH, csvWriter, &wgCSV)
+	rate := 1E-8
+	bFilter := bloom.NewWithEstimates(uint(usersCount), rate)
+	go b.writeUserPageIntoCSV(csvWriterCH, bFilter, csvWriter, &wgCSV)
 	for i := 0; i < pageCount; i++ {
 		pageCH <- DBPage{
 			Page:   pages[i].Page,

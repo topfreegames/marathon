@@ -4,9 +4,7 @@
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
+ * the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all
@@ -269,13 +267,16 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(generatedCSV.Body)
-			Expect(len(lines)).To(Equal(7))
+			Expect(len(lines)).To(Equal(10))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("5c3033c0-24ad-487a-a80d-68432464c8de"))
 			Expect(lines).To(ContainElement("67b872de-8ae4-4763-aef8-7c87a7f928a7"))
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-9ab7-8becb2765653"))
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-9ab7-8becb3365653"))
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-aaaa-8becb3365653"))
+			Expect(lines).To(ContainElement("e78431ca-69a8-4326-af1f-48f817a4a669"))
+			Expect(lines).To(ContainElement("d9b42bb8-78ca-44d0-ae50-a472d9fbad92"))
+			Expect(lines).To(ContainElement("ee4455fe-8ff6-4878-8d7c-aec096bd68b4"))
 		})
 
 		It("should generate a csv with the right users", func() {
@@ -475,5 +476,36 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(j1["queue"].(string)).To(Equal("create_batches_worker"))
 			Expect(j1["args"].([]interface{})[0]).To(Equal(j.ID.String()))
 		})
+	})
+
+	It("should generate a csv without duplicates", func() {
+		a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"filters": map[string]interface{}{
+				"locale": "es",
+			},
+			"service": "apns",
+		})
+		fakeS3 := NewFakeS3()
+		createBatchesFromFiltersWorker.S3Client = fakeS3
+		m := map[string]interface{}{
+			"jid":  7,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
+		bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
+		key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+		generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
+			Bucket: &bucket,
+			Key:    &key,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		lines := ReadLinesFromIOReader(generatedCSV.Body)
+		Expect(len(lines)).To(Equal(4))
+		fmt.Printf("aeee %s", lines)
 	})
 })

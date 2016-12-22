@@ -85,6 +85,7 @@ func (c *KafkaClient) LoadKafkaBrokers() error {
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaClient) ConnectToKafka() error {
 	saramaConfig := sarama.NewConfig()
+	saramaConfig.Producer.Return.Successes = true
 
 	producer, err := sarama.NewSyncProducer(c.KafkaBrokers, saramaConfig)
 	if err != nil {

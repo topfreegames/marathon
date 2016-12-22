@@ -43,3 +43,4 @@ import:
   version: ^1.6.2
 - package: github.com/willf/bloom
   version: ^2.0.0
+- package: github.com/pierrec/lz4
