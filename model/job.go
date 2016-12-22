@@ -83,9 +83,5 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("filters or csvPath must exist, not both")
 	}
 
-	valid = !(len(j.Filters) == 0 && govalidator.IsNull(j.CSVPath))
-	if !valid {
-		return InvalidField("filters or csvPath must exist")
-	}
 	return nil
 }

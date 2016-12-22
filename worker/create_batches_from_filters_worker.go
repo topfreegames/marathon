@@ -118,7 +118,12 @@ func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
 	limit := b.DBPageSize
-	query := fmt.Sprintf("SELECT user_id FROM %s WHERE %s AND seq_id > %d ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), whereClause, page.Offset, limit)
+	var query string
+	if (whereClause) != "" {
+		query = fmt.Sprintf("SELECT user_id FROM %s WHERE seq_id > %d AND %s ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.Offset, whereClause, limit)
+	} else {
+		query = fmt.Sprintf("SELECT user_id FROM %s WHERE seq_id > %d ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.Offset, limit)
+	}
 	var users []User
 	_, err := b.PushDB.DB.Query(&users, query)
 	checkErr(b.Logger, err)
@@ -129,7 +134,12 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	filters := job.Filters
 	var count int
 	whereClause := GetWhereClauseFromFilters(filters)
-	query := fmt.Sprintf("SELECT count(1) FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+	var query string
+	if (whereClause) != "" {
+		query = fmt.Sprintf("SELECT count(1) FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+	} else {
+		query = fmt.Sprintf("SELECT count(1) FROM %s;", GetPushDBTableName(job.App.Name, job.Service))
+	}
 	_, err := b.PushDB.DB.Query(&count, query)
 	if count == 0 {
 		panic(fmt.Errorf("no users matching the filters"))
@@ -143,7 +153,11 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 			Page:   page,
 			Offset: nextPageOffset,
 		})
-		query := fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d AND %s LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, whereClause, b.DBPageSize)
+		if (whereClause) != "" {
+			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d AND %s LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, whereClause, b.DBPageSize)
+		} else {
+			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, b.DBPageSize)
+		}
 		log.I(b.Logger, "Querying database.", func(cm log.CM) {
 			cm.Write(zap.String("query", query))
 		})
@@ -249,16 +263,11 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	}
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
-	if len(job.Filters) > 0 {
-		csvBuffer := &bytes.Buffer{}
-		csvWriter := io.Writer(csvBuffer)
-		err := b.createBatchesFromFilters(job, &csvWriter)
-		checkErr(l, err)
-		csvBytes := csvBuffer.Bytes()
-		b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
-		log.I(l, "finished create_batches_using_filters_worker")
-	} else {
-		log.I(l, "panicked create_batches_using_filters_worker")
-		panic(fmt.Errorf("no filters passed to worker"))
-	}
+	csvBuffer := &bytes.Buffer{}
+	csvWriter := io.Writer(csvBuffer)
+	err = b.createBatchesFromFilters(job, &csvWriter)
+	checkErr(l, err)
+	csvBytes := csvBuffer.Bytes()
+	b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
+	log.I(l, "finished create_batches_using_filters_worker")
 }

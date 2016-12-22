@@ -126,6 +126,10 @@ func checkErr(l zap.Logger, err error) {
 
 // GetWhereClauseFromFilters returns a string cointaining the where clause to use in the query
 func GetWhereClauseFromFilters(filters map[string]interface{}) string {
+	if len(filters) == 0 {
+		return ""
+	}
+
 	queryFilters := []string{}
 	for key, val := range filters {
 		strVal := val.(string)

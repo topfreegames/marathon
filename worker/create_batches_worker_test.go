@@ -229,6 +229,7 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 			var data workers.EnqueueData
 			jobs, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, 2).Result()
 			bytes, err := RedisReplyToBytes(jobs[0], err)
+			Expect(err).NotTo(HaveOccurred())
 			json.Unmarshal(bytes, &data)
 			pushTime := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
 			fmt.Printf("push time %s", pushTime.String())
@@ -257,6 +258,7 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 			var data workers.EnqueueData
 			jobs, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, 2).Result()
 			bytes, err := RedisReplyToBytes(jobs[0], err)
+			Expect(err).NotTo(HaveOccurred())
 			json.Unmarshal(bytes, &data)
 			pushTime := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
 			Expect(pushTime.After(time.Now())).To(Equal(true))
