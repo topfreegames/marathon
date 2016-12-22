@@ -68,7 +68,7 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("expiresAt")
 	}
 
-	valid = j.StartsAt == 0 || time.Now().UnixNano() < j.StartsAt
+	valid = j.StartsAt == 0 || j.Localized || time.Now().UnixNano() < j.StartsAt
 	if !valid {
 		return InvalidField("startsAt")
 	}
