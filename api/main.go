@@ -48,6 +48,7 @@ type Application struct {
 	Port       int
 	Host       string
 	DB         *pg.DB
+	PushDB     *pg.DB
 	ConfigPath string
 	Config     *viper.Viper
 	NewRelic   newrelic.Application
@@ -99,6 +100,11 @@ func (a *Application) configure() error {
 	}
 
 	err = a.configureDatabase()
+	if err != nil {
+		return err
+	}
+
+	err = a.configurePushDatabase()
 	if err != nil {
 		return err
 	}
@@ -198,28 +204,21 @@ func (a *Application) configureApplication() {
 }
 
 func (a *Application) configureDatabase() error {
-	host := a.Config.GetString("db.host")
-	user := a.Config.GetString("db.user")
-	pass := a.Config.GetString("db.pass")
-	database := a.Config.GetString("db.database")
-	port := a.Config.GetInt("db.port")
-	poolSize := a.Config.GetInt("db.poolSize")
-	maxRetries := a.Config.GetInt("db.maxRetries")
-	logger := a.Logger.With(
-		zap.String("source", "main"),
-		zap.String("operation", "configureDatabase"),
-	)
-	db := pg.Connect(&pg.Options{
-		Addr:       fmt.Sprintf("%s:%d", host, port),
-		User:       user,
-		Password:   pass,
-		Database:   database,
-		PoolSize:   poolSize,
-		MaxRetries: maxRetries,
-	})
-	log.I(logger, "successfully connected to the database")
-	a.DB = db
-	return nil
+	PgClient, err := extensions.NewPGClient("db", a.Config, a.Logger)
+	a.DB = PgClient.DB
+	if err == nil {
+		log.I(a.Logger, "successfully connected to the marathon database")
+	}
+	return err
+}
+
+func (a *Application) configurePushDatabase() error {
+	PgClient, err := extensions.NewPGClient("push.db", a.Config, a.Logger)
+	a.PushDB = PgClient.DB
+	if err == nil {
+		log.I(a.Logger, "successfully connected to the push database")
+	}
+	return err
 }
 
 func (a *Application) configureSentry() {

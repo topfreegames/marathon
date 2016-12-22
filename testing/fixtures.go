@@ -52,7 +52,7 @@ func CreateTestApp(db *pg.DB, options ...map[string]interface{}) *model.App {
 
 	app := &model.App{}
 	app.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
-	app.Name = getOpt(opts, "name", uuid.NewV4().String()).(string)
+	app.Name = getOpt(opts, "name", "testapp").(string)
 	app.BundleID = getOpt(opts, "bundleId", fmt.Sprintf("com.app.%s", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 	app.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 

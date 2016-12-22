@@ -385,7 +385,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
-					"locale": "pt",
+					"locale": "PT",
 					"tz":     "-0300",
 				},
 				"service": "gcm",
@@ -421,7 +421,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
-					"locale": "pt",
+					"locale": "PT",
 					"tz":     "-0300",
 				},
 				"service": "gcm",
@@ -451,7 +451,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
-					"locale": "pt",
+					"locale": "PT",
 					"tz":     "-0300",
 				},
 				"service": "gcm",

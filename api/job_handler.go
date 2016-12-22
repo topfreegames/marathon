@@ -23,6 +23,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
+	"github.com/topfreegames/marathon/worker"
 	"github.com/uber-go/zap"
 )
 
@@ -79,6 +81,21 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
+
+	app := &model.App{ID: aid}
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Select(&app)
+	})
+	if err != nil {
+		if err.Error() == RecordNotFoundString {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "App not found with given id."})
+		}
+		log.E(l, "Failed to retrieve app.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: app})
+	}
+
 	templateName := c.QueryParam("template")
 	if templateName == "" {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
@@ -95,8 +112,50 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, job)
 	})
+
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+	}
+
+	if job.Filters["region"] != nil || job.Filters["locale"] != nil {
+		var users []worker.User
+		query := fmt.Sprintf("SELECT locale, region FROM %s WHERE locale is not NULL AND region is not NULL LIMIT 1;", worker.GetPushDBTableName(app.Name, job.Service))
+		a.PushDB.Query(&users, query)
+		if len(users) != 1 {
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: "Failed to check filters in Push DB"})
+		}
+		locale := users[0].Locale
+		region := users[0].Region
+
+		localeSettings := map[string]bool{
+			"isUpperCase": strings.ToUpper(locale) == locale,
+			"isLowerCase": strings.ToLower(locale) == locale,
+		}
+
+		regionSettings := map[string]bool{
+			"isUpperCase": strings.ToUpper(region) == region,
+			"isLowerCase": strings.ToLower(region) == region,
+		}
+
+		if job.Filters["locale"] != nil {
+			if localeSettings["isUpperCase"] && !localeSettings["isLowerCase"] {
+				job.Filters["locale"] = strings.ToUpper(job.Filters["locale"].(string))
+			} else if localeSettings["isLowerCase"] && !localeSettings["isUpperCase"] {
+				job.Filters["locale"] = strings.ToLower(job.Filters["locale"].(string))
+			} else {
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
+			}
+		}
+
+		if job.Filters["region"] != nil {
+			if regionSettings["isUpperCase"] && !regionSettings["isLowerCase"] {
+				job.Filters["region"] = strings.ToUpper(job.Filters["region"].(string))
+			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
+				job.Filters["region"] = strings.ToLower(job.Filters["region"].(string))
+			} else {
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
+			}
+		}
 	}
 
 	template := &model.Template{}

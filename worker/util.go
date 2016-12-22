@@ -41,6 +41,7 @@ type User struct {
 	UserID string `json:"user_id" sql:"user_id"`
 	Token  string `json:"token" sql:"token"`
 	Locale string `json:"locale" sql:"locale"`
+	Region string `json:"region" sql:"region"`
 	Tz     string `json:"tz" sql:"tz"`
 }
 

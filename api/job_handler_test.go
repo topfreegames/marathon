@@ -251,6 +251,46 @@ var _ = Describe("Job Handler", func() {
 				}
 			})
 
+			It("should return 201 and the created job with filter converting filters to the correct case", func() {
+				payload := GetJobPayload()
+				payload["service"] = "gcm"
+				payload["filters"] = map[string]interface{}{
+					"region": "US,CA",
+					"locale": "en,fr",
+				}
+				delete(payload, "csvPath")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
+
+				tempFilters := job["filters"].(map[string]interface{})
+				Expect(tempFilters["region"]).To(Equal("us,ca"))
+				Expect(tempFilters["locale"]).To(Equal("EN,FR"))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).ToNot(BeNil())
+				Expect(dbJob.AppID).To(Equal(existingApp.ID))
+				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
+
+				for key := range tempFilters {
+					Expect(dbJob.Filters[key]).To(Equal(tempFilters[key]))
+				}
+			})
+
 			It("should return 201 and the created job with csvPath", func() {
 				payload := GetJobPayload()
 				delete(payload, "filters")
@@ -559,7 +599,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("no rows in result set"))
+				Expect(response["reason"]).To(ContainSubstring("App not found with given id."))
 			})
 
 			It("should return 422 if template with given name does not exist", func() {
