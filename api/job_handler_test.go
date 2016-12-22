@@ -653,19 +653,6 @@ var _ = Describe("Job Handler", func() {
 				Expect(response["reason"]).To(Equal("invalid filters or csvPath must exist"))
 			})
 
-			It("should return 422 if missing context", func() {
-				payload := GetJobPayload()
-				delete(payload, "context")
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, baseRoute, string(pl), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid context"))
-			})
-
 			It("should return 422 if missing service", func() {
 				payload := GetJobPayload()
 				delete(payload, "service")

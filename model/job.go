@@ -56,12 +56,7 @@ type Job struct {
 
 // Validate implementation of the InputValidation interface
 func (j *Job) Validate(c echo.Context) error {
-	valid := len(j.Context) != 0
-	if !valid {
-		return InvalidField("context")
-	}
-
-	valid = govalidator.StringMatches(j.Service, "^(apns|gcm)$")
+	valid := govalidator.StringMatches(j.Service, "^(apns|gcm)$")
 	if !valid {
 		return InvalidField("service")
 	}
