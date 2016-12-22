@@ -25,6 +25,7 @@ package testing
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -57,6 +58,22 @@ type MyReaderCloser struct {
 // Close for usage in tests
 func (MyReaderCloser) Close() error {
 	return nil
+}
+
+// RedisReplyToBytes for testing
+func RedisReplyToBytes(reply interface{}, err error) ([]byte, error) {
+	if err != nil {
+		return nil, err
+	}
+	switch reply := reply.(type) {
+	case []byte:
+		return reply, nil
+	case string:
+		return []byte(reply), nil
+	case nil:
+		return nil, errors.New("nil returned")
+	}
+	return nil, fmt.Errorf("unexpected type for Bytes, got type %T", reply)
 }
 
 // GetObject for usage in tests

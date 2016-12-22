@@ -166,6 +166,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 	job.Filters = filters
 	job.Metadata = metadata
 	job.Context = context
+	job.Localized = getOpt(opts, "localized", false).(bool)
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	job.Service = getOpt(opts, "service", "apns").(string)
 	job.CSVPath = getOpt(opts, "csvPath", "").(string)

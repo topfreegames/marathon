@@ -165,6 +165,17 @@ func (w *Worker) ScheduleCreateBatchesFromFiltersJob(jobID *[]string, at int64) 
 		})
 }
 
+// ScheduleProcessBatchJob schedules a new ProcessBatchWorker job
+func (w *Worker) ScheduleProcessBatchJob(jobID string, appName string, users []User, at int64) (string, error) {
+	return workers.EnqueueWithOptions(
+		"process_batch_worker",
+		"Add",
+		[]interface{}{jobID, appName, users},
+		workers.EnqueueOptions{
+			At: float64(at) / workers.NanoSecondPrecision,
+		})
+}
+
 // CreateProcessBatchJob creates a new ProcessBatchWorker job
 func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users []User) (string, error) {
 	return workers.Enqueue("process_batch_worker", "Add", []interface{}{jobID, appName, users})

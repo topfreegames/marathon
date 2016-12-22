@@ -153,11 +153,42 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- 
 			})
 		}
 		markProcessedPage(batch.PageID, job.ID, b.RedisClient)
-		sendBatches(&bucketsByTZ, job, b.Logger, b.Workers)
+		if job.Localized {
+			b.sendLocalizedBatches(&bucketsByTZ, job)
+		} else {
+			b.sendBatches(&bucketsByTZ, job)
+		}
 		wgBatchesSent.Add(1)
 		batchesSentCH <- len(bucketsByTZ)
-		//TODO for now I'll just ignore timezones and send all pushes
 		wg.Done()
+	}
+}
+
+func (b *CreateBatchesWorker) sendLocalizedBatches(batches *map[string][]User, job *model.Job) {
+	l := b.Logger
+	for tz, users := range *batches {
+		offset, err := GetTimeOffsetFromUTCInSeconds(tz, b.Logger)
+		checkErr(b.Logger, err)
+		t := time.Unix(0, job.StartsAt)
+		localizedTime := t.Add(time.Duration(offset) * time.Second)
+		log.I(l, "scheduling batch of users to process batches worker", func(cm log.CM) {
+			cm.Write(zap.Int("numUsers", len(users)),
+				zap.String("at", localizedTime.String()),
+			)
+		})
+		_, err = b.Workers.ScheduleProcessBatchJob(job.ID.String(), job.App.Name, users, localizedTime.UnixNano())
+		checkErr(l, err)
+	}
+}
+
+func (b *CreateBatchesWorker) sendBatches(batches *map[string][]User, job *model.Job) {
+	l := b.Logger
+	for tz, users := range *batches {
+		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
+			cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
+		})
+		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
+		checkErr(l, err)
 	}
 }
 

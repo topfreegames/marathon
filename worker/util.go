@@ -24,6 +24,8 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/pg.v5"
@@ -63,6 +65,24 @@ func isPageProcessed(page int, jobID uuid.UUID, redisClient *redis.Client, l zap
 	return res
 }
 
+// GetTimeOffsetFromUTCInSeconds returns the offset in seconds from UTC for tz
+func GetTimeOffsetFromUTCInSeconds(tz string, l zap.Logger) (int, error) {
+	r := regexp.MustCompile(`([\+|\-])(\d{2}).*(\d{2})`)
+	matches := r.FindStringSubmatch(tz)
+	if len(matches) < 4 {
+		return 0, nil
+	}
+	hours, err := strconv.Atoi(matches[2])
+	checkErr(l, err)
+	minutes, err := strconv.Atoi(matches[3])
+	checkErr(l, err)
+	offsetInSeconds := (hours*60 + minutes) * 60
+	if matches[1] == "+" {
+		offsetInSeconds *= -1
+	}
+	return offsetInSeconds, err
+}
+
 func checkIsReexecution(jobID uuid.UUID, redisClient *redis.Client, l zap.Logger) bool {
 	res, err := redisClient.Exists(fmt.Sprintf("%s-processedpages", jobID.String())).Result()
 	checkErr(l, err)
@@ -77,16 +97,6 @@ func updateTotalBatches(totalBatches int, job *model.Job, db *pg.DB, l zap.Logge
 	job.TotalBatches = totalBatches
 	_, err := db.Model(job).Column("total_batches").Update()
 	checkErr(l, err)
-}
-
-func sendBatches(batches *map[string][]User, job *model.Job, l zap.Logger, workers *Worker) {
-	for tz, users := range *batches {
-		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
-		})
-		_, err := workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
-		checkErr(l, err)
-	}
 }
 
 // SplitUsersInBucketsByTZ splits users in buckets by tz
