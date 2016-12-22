@@ -170,6 +170,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	job.Service = getOpt(opts, "service", "apns").(string)
 	job.CSVPath = getOpt(opts, "csvPath", "").(string)
+	job.PastTimeStrategy = getOpt(opts, "pastTimeStrategy", "").(string)
 	job.ExpiresAt = getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 	job.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 	job.StartsAt = getOpt(opts, "startsAt", time.Now().Add(time.Hour).UnixNano()).(int64)

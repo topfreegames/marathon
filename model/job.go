@@ -51,6 +51,7 @@ type Job struct {
 	App              App                    `json:"app"`
 	AppID            uuid.UUID              `json:"appId"`
 	TemplateName     string                 `json:"templateName"`
+	PastTimeStrategy string                 `json:"pastTimeStrategy"`
 	CreatedAt        int64                  `json:"createdAt"`
 	UpdatedAt        int64                  `json:"updatedAt"`
 }

@@ -22,6 +22,7 @@ package worker_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -179,6 +180,58 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
 			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
+		})
+
+		It("should skip batches if startsAt is past and pastTimeStrategy is skip", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context":          context,
+				"filters":          map[string]interface{}{},
+				"csvPath":          "tfg-push-notifications/test/jobs/obj1.csv",
+				"localized":        true,
+				"startsAt":         time.Now().UTC().Add(-12 * time.Hour).UnixNano(),
+				"pastTimeStrategy": "skip",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(0))
+		})
+
+		It("should delay batches to next day if startsAt is past and pastTimeStrategy is nextDay", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context":          context,
+				"filters":          map[string]interface{}{},
+				"csvPath":          "tfg-push-notifications/test/jobs/obj1.csv",
+				"localized":        true,
+				"startsAt":         time.Now().UTC().Add(time.Duration(-6) * time.Hour).UnixNano(),
+				"pastTimeStrategy": "nextDay",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(2))
+			var data workers.EnqueueData
+			jobs, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, 2).Result()
+			bytes, err := RedisReplyToBytes(jobs[0], err)
+			json.Unmarshal(bytes, &data)
+			pushTime := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
+			fmt.Printf("push time %s", pushTime.String())
 		})
 
 		It("should schedule process_batches_worker if push is localized and starts in future", func() {

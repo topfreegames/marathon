@@ -176,6 +176,14 @@ func (b *CreateBatchesWorker) sendLocalizedBatches(batches *map[string][]User, j
 				zap.String("at", localizedTime.String()),
 			)
 		})
+		isLocalizedTimeInPast := time.Now().After(localizedTime)
+		if isLocalizedTimeInPast {
+			if job.PastTimeStrategy == "skip" {
+				continue
+			} else {
+				localizedTime = localizedTime.Add(time.Duration(24) * time.Hour)
+			}
+		}
 		_, err = b.Workers.ScheduleProcessBatchJob(job.ID.String(), job.App.Name, users, localizedTime.UnixNano())
 		checkErr(l, err)
 	}
