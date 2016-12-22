@@ -1,10 +1,10 @@
-hash: 21d0821c7bb850c368ac123265e367ea9c37c1b40a3385f1965f5adbd6ce3d91
-updated: 2016-12-09T15:07:45.116779317-02:00
+hash: a22c681334db07bce738d986ecd48e89ce2c500d1495534fc5200f1c6970cb94
+updated: 2016-12-22T01:32:16.034595982-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/aws/aws-sdk-go
-  version: 1355b456f6ba4a8453249e0dc7743f16ccac362d
+  version: 9dcf25708294b7b416ffd4b238b9708417f1d351
   subpackages:
   - aws
   - aws/awserr
@@ -30,6 +30,7 @@ imports:
   - private/protocol/xml/xmlutil
   - private/waiter
   - service/s3
+  - service/s3/s3iface
   - service/sts
 - name: github.com/bitly/go-simplejson
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
@@ -59,7 +60,7 @@ imports:
 - name: github.com/getsentry/raven-go
   version: 3f7439d3e74d88e21d196ba20eb61a5a958bc118
 - name: github.com/go-ini/ini
-  version: 2ba15ac2dc9cdf88c110ec2dc0ced7fa45f5678c
+  version: 6f66b0e091edb3c7b380f7c4f0f884274d550b67
 - name: github.com/golang/snappy
   version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
 - name: github.com/hashicorp/hcl
@@ -82,7 +83,7 @@ imports:
 - name: github.com/jrallison/go-workers
   version: d60d79dbbfbb83f849d2430013a59152845fa598
 - name: github.com/klauspost/crc32
-  version: 19b0b332c9e4516a6370a0456e6182c3b5036720
+  version: cb6bfca970f6908083f26f39a79009d608efd5cd
 - name: github.com/labstack/echo
   version: 8d504c1b699c757b267255c53b3e5219f9974abc
   subpackages:
@@ -95,7 +96,7 @@ imports:
   - log
   - random
 - name: github.com/lib/pq
-  version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617
+  version: 80f8150043c80fb52dee6bc863a709cdac7ec8f8
   subpackages:
   - oid
 - name: github.com/magiconair/properties
@@ -151,6 +152,8 @@ imports:
   version: ce7be745f09fe4ff89af8e3ea744e1deabf20ee3
 - name: github.com/pressly/goose
   version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
+- name: github.com/rcrowley/go-metrics
+  version: ab2277b1c5d15c3cba104e9cbddbdfc622df5ad8
 - name: github.com/samuel/go-zookeeper
   version: 1d7be4effb13d2d908342d349d71a284a7542693
   subpackages:
@@ -158,7 +161,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/Shopify/sarama
-  version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
+  version: 0fb560e5f7fbcaee2f75e3c34174320709f69944
 - name: github.com/spf13/afero
   version: 06b7e5f50606ecd49148a01a6008942d9b669217
   subpackages:
@@ -178,9 +181,11 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber-go/zap
-  version: 35cd7966cc81adc0449c91b3f6b1939812be73aa
+  version: d11d2851fcabcf03421c4dbdbc3146fc74eb1035
 - name: github.com/valyala/fasttemplate
   version: 3b874956e03f1636d171bda64b130f9135f42cff
+- name: github.com/willf/bloom
+  version: 73320a6e73f3e139842058d7e4886e09ca83ac9b
 - name: golang.org/x/crypto
   version: 3f77d695175f990a2967385c493939f380ee40a3
   subpackages:
@@ -192,7 +197,7 @@ imports:
   - context
   - context/ctxhttp
 - name: golang.org/x/sys
-  version: 478fcf54317e52ab69f40bb4c7a1520288d7f7ea
+  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -203,7 +208,7 @@ imports:
 - name: gopkg.in/bsm/ratelimit.v1
   version: db14e161995a5177acef654cb0dd785e8ee8bc22
 - name: gopkg.in/pg.v5
-  version: 9cfde8bcff926439c623e6fee04595ae609b84df
+  version: 5aa8fba9770fcb1d12c98ed8442fed8d67e90ed5
   subpackages:
   - internal
   - internal/parser
@@ -211,7 +216,7 @@ imports:
   - orm
   - types
 - name: gopkg.in/redis.v5
-  version: 854c88a72c8bb9c09936145aef886b7697d6b995
+  version: 5e76db680467ebce5495cc2159a9289a6851d773
   subpackages:
   - internal
   - internal/consistenthash
