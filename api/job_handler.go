@@ -191,7 +191,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	a.Logger.Debug("job successfully created! creating job in create_batches_worker")
 	var wJobID string
 	err = WithSegment("create-job", c, func() error {
-		if job.StartsAt != 0 {
+		if job.StartsAt != 0 && !job.Localized {
 			if len(job.CSVPath) > 0 {
 				wJobID, err = a.Worker.ScheduleCreateBatchesJob(&[]string{job.ID.String()}, job.StartsAt)
 			} else {

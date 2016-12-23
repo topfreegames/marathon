@@ -575,6 +575,28 @@ var _ = Describe("Job Handler", func() {
 				Expect(res1).To(BeEquivalentTo(0))
 			})
 
+			It("should start the job if payload with startsAt and localized=true", func() {
+				payload := GetJobPayload()
+				payload["startsAt"] = time.Now().Add(3 * time.Second).UnixNano()
+				payload["csvPath"] = "bucket/somecsv"
+				payload["localized"] = true
+				payload["filters"] = map[string]interface{}{}
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				res, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, -1).Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(res)).To(BeEquivalentTo(0))
+				res1, err := createBatchesWorker.RedisClient.LLen("queue:create_batches_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res1).To(BeEquivalentTo(1))
+			})
+
 			It("should schedule create batches worker from filters if payload with startsAt", func() {
 				payload := GetJobPayload()
 				payload["startsAt"] = time.Now().Add(3 * time.Second).UnixNano()
