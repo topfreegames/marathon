@@ -207,7 +207,7 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 }
 
 // BuildMessageFromTemplate build a message using a template and the context
-func BuildMessageFromTemplate(template *model.Template, context map[string]interface{}) (string, error) {
+func BuildMessageFromTemplate(template model.Template, context map[string]interface{}) (string, error) {
 	body, err := json.Marshal(template.Body)
 	if err != nil {
 		return "", err

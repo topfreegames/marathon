@@ -35,13 +35,13 @@ import (
 )
 
 var _ = Describe("Worker Util", func() {
-	var template *model.Template
+	var template model.Template
 	var users []worker.User
 	var usersObj []interface{}
 	var jobID string
 	var appName string
 	BeforeEach(func() {
-		template = &model.Template{
+		template = model.Template{
 			Body: map[string]interface{}{
 				"alert": "{{user_name}} just liked your {{object_name}}!",
 			},

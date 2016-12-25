@@ -60,6 +60,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 	var app *model.App
 	var template *model.Template
 	var job *model.Job
+	var gcmJob *model.Job
 	var users []worker.User
 	BeforeEach(func() {
 		logger = zap.New(
@@ -80,12 +81,39 @@ var _ = Describe("ProcessBatch Worker", func() {
 			"defaults": defaults,
 			"body":     body,
 			"locale":   "en",
+			"name":     "village-like",
+		})
+		CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
+			"defaults": map[string]interface{}{
+				"user_name":   "Alguém",
+				"object_name": "vila",
+			},
+			"body": map[string]interface{}{
+				"alert": "{{user_name}} curtiram sua {{object_name}}!",
+			},
+			"locale": "pt",
+			"name":   "village-like",
+		})
+		CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
+			"defaults": map[string]interface{}{
+				"user_name":   "Quelqu'un",
+				"object_name": "ville",
+			},
+			"body": map[string]interface{}{
+				"alert": "{{user_name}} a aimé ta {{object_name}}!",
+			},
+			"locale": "fr",
+			"name":   "village-like",
 		})
 		context := map[string]interface{}{
 			"user_name": "Everyone",
 		}
 		job = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 			"context": context,
+		})
+		gcmJob = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"service": "gcm",
 		})
 		Expect(job.CompletedAt).To(Equal(int64(0)))
 		users = make([]worker.User, 2)
@@ -102,13 +130,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 	Describe("Process", func() {
 		It("should process when service is gcm and increment job completed batches", func() {
-			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = gcm").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
 			topic := worker.BuildTopicName(appName, "gcm", topicTemplate)
 
 			messageObj := []interface{}{
-				job.ID,
+				gcmJob.ID,
 				appName,
 				users,
 			}
@@ -128,6 +155,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			newPartition, newOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newPartition).To(Equal(oldPartition))
+			Expect(newOffset).To(Equal(oldOffset + 3))
 
 			idx := 0
 			for offset := oldOffset + 1; offset < newOffset; offset++ {
@@ -139,9 +167,9 @@ var _ = Describe("ProcessBatch Worker", func() {
 				err = json.Unmarshal(msg.Value, &gcmMessage)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(gcmMessage.To).To(Equal(users[idx].Token))
-				Expect(gcmMessage.TimeToLive).To(BeEquivalentTo(job.ExpiresAt / 1000000000))
+				Expect(gcmMessage.TimeToLive).To(BeEquivalentTo(gcmJob.ExpiresAt / 1000000000))
 				Expect(gcmMessage.Data["alert"]).To(Equal("Everyone just liked your village!"))
-				Expect(gcmMessage.Data["m"].(map[string]interface{})["meta"]).To(Equal(job.Metadata["meta"]))
+				Expect(gcmMessage.Data["m"].(map[string]interface{})["meta"]).To(Equal(gcmJob.Metadata["meta"]))
 				idx++
 			}
 		})
@@ -173,6 +201,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newPartition).To(Equal(oldPartition))
+			Expect(newOffset).To(Equal(oldOffset + 3))
 
 			idx := 0
 			for offset := oldOffset + 1; offset < newOffset; offset++ {
@@ -311,6 +340,58 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedUsers).To(Equal(0))
+		})
+
+		It("should process the message using the correct template", func() {
+			users = make([]worker.User, 2)
+			for index, _ := range users {
+				id := uuid.NewV4().String()
+				token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+				users[index] = worker.User{
+					UserID: id,
+					Token:  token,
+					Locale: "pt",
+				}
+			}
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newPartition).To(Equal(oldPartition))
+			Expect(newOffset).To(Equal(oldOffset + 3))
+
+			idx := 0
+			for offset := oldOffset + 1; offset < newOffset; offset++ {
+				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(msg).NotTo(BeNil())
+
+				var apnsMessage messages.APNSMessage
+				err = json.Unmarshal(msg.Value, &apnsMessage)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(apnsMessage.DeviceToken).To(Equal(users[idx].Token))
+				Expect(apnsMessage.Payload.Aps["alert"]).To(Equal("Everyone curtiram sua vila!"))
+				idx++
+			}
 		})
 	})
 })

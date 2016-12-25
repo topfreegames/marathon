@@ -96,15 +96,15 @@ func (batchWorker *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, erro
 	return &job, err
 }
 
-func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, templateName string) (map[string]*model.Template, error) {
-	templateByLocale := make(map[string]*model.Template)
+func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, templateName string) (map[string]model.Template, error) {
+	templateByLocale := make(map[string]model.Template)
 	var templates []model.Template
 	err := batchWorker.MarathonDB.DB.Model(&templates).Where("app_id = ? AND name = ?", appID, templateName).Select()
 	if err != nil {
 		return nil, err
 	}
 	for _, tpl := range templates {
-		templateByLocale[tpl.Locale] = &tpl
+		templateByLocale[tpl.Locale] = tpl
 	}
 
 	return templateByLocale, nil
@@ -163,14 +163,12 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		cm.Write(zap.String("topic", topic))
 	})
 	for _, user := range parsed.Users {
-		var template *model.Template
+		var template model.Template
 		if val, ok := templatesByLocale[user.Locale]; ok {
 			template = val
+		} else if val, ok := templatesByLocale["en"]; ok {
+			template = val
 		} else {
-			template = templatesByLocale["en"]
-		}
-
-		if template == nil {
 			checkErr(l, fmt.Errorf("there is no template for the given locale or 'en'"))
 		}
 
