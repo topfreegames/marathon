@@ -59,6 +59,12 @@ type DBPage struct {
 	Offset int
 }
 
+// SentBatches is a struct that helps tracking sent batches
+type SentBatches struct {
+	NumBatches int
+	TotalUsers int
+}
+
 func isPageProcessed(page int, jobID uuid.UUID, redisClient *redis.Client, l zap.Logger) bool {
 	res, err := redisClient.SIsMember(fmt.Sprintf("%s-processedpages", jobID.String()), page).Result()
 	checkErr(l, err)

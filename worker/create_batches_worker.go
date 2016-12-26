@@ -139,12 +139,13 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	return users
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- (int), job *model.Job, wg *sync.WaitGroup, wgBatchesSent *sync.WaitGroup) {
+func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- SentBatches, job *model.Job, wg *sync.WaitGroup, wgBatchesSent *sync.WaitGroup) {
 	l := b.Logger
 	for batch := range c {
 		usersFromBatch := b.getCSVUserBatchFromPG(batch.UserIds, job.App.Name, job.Service)
+		numUsersFromBatch := len(usersFromBatch)
 		log.I(l, "got users from db", func(cm log.CM) {
-			cm.Write(zap.Int("usersInBatch", len(usersFromBatch)))
+			cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
 		})
 		bucketsByTZ := SplitUsersInBucketsByTZ(&usersFromBatch)
 		for tz, users := range bucketsByTZ {
@@ -158,8 +159,11 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- 
 		} else {
 			b.sendBatches(&bucketsByTZ, job)
 		}
+		batchesSentCH <- SentBatches{
+			NumBatches: len(bucketsByTZ),
+			TotalUsers: numUsersFromBatch,
+		}
 		wgBatchesSent.Add(1)
-		batchesSentCH <- len(bucketsByTZ)
 		wg.Done()
 	}
 }
@@ -212,9 +216,10 @@ func (b *CreateBatchesWorker) setTotalUsers(totalUsers int, job *model.Job) {
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) computeBatchesSent(c <-chan int, job *model.Job, batchesSent *int, wg *sync.WaitGroup) {
+func (b *CreateBatchesWorker) computeTotalUsersAndBatchesSent(c <-chan SentBatches, job *model.Job, batchesSent *int, totalUsers *int, wg *sync.WaitGroup) {
 	for sent := range c {
-		*batchesSent += sent
+		*batchesSent += sent.NumBatches
+		*totalUsers += sent.TotalUsers
 		wg.Done()
 	}
 }
@@ -223,19 +228,19 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(userIds)
-	b.setTotalUsers(numPushes, job)
 	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
 	var wgBatchesSent sync.WaitGroup
 	pgCH := make(chan Batch, pages)
-	batchesSentCH := make(chan int)
+	batchesSentCH := make(chan SentBatches)
 	wg.Add(pages)
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
 		go b.processBatch(pgCH, batchesSentCH, job, &wg, &wgBatchesSent)
 	}
 	batchesSent := 0
-	go b.computeBatchesSent(batchesSentCH, job, &batchesSent, &wgBatchesSent)
+	totalUsers := 0
+	go b.computeTotalUsersAndBatchesSent(batchesSentCH, job, &batchesSent, &totalUsers, &wgBatchesSent)
 	for i := 0; i < pages; i++ {
 		if isReexecution && isPageProcessed(i, job.ID, b.RedisClient, b.Logger) {
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
@@ -255,6 +260,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	close(pgCH)
 	close(batchesSentCH)
 	updateTotalBatches(batchesSent, job, b.MarathonDB.DB, b.Logger)
+	b.setTotalUsers(totalUsers, job)
 	return nil
 }
 

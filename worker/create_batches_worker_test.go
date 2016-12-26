@@ -8,7 +8,6 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,7 +21,6 @@ package worker_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -66,8 +64,12 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 21854bbf-ea7e-43e3-8f79-9ab2c121b941
 843a61f8-45b3-44f9-9ab7-8becb2765653`)
 		fakeData2 := []byte(`userids`)
+		fakeData3 := []byte(`userids
+e78431ca-69a8-4326-af1f-48f817a4a669
+ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj1.csv", &fakeData1)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj2.csv", &fakeData2)
+		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj3.csv", &fakeData3)
 		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -232,7 +234,7 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 			Expect(err).NotTo(HaveOccurred())
 			json.Unmarshal(bytes, &data)
 			pushTime := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
-			fmt.Printf("push time %s", pushTime.String())
+			Expect(pushTime.After(time.Now())).To(Equal(true))
 		})
 
 		It("should schedule process_batches_worker if push is localized and starts in future", func() {
@@ -452,5 +454,26 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(job.TotalUsers).To(BeEquivalentTo(10))
+	})
+
+	It("should set job totalUsers", func() {
+		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+		})
+		m := map[string]interface{}{
+			"jid":  3,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		job := &model.Job{}
+		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(job.TotalUsers).To(BeEquivalentTo(4))
 	})
 })
