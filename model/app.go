@@ -44,7 +44,7 @@ func (a *App) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("name")
 	}
-	valid = govalidator.StringMatches(a.BundleID, "^[a-z0-9]+\\.[a-z0-9]+\\.[a-z0-9]+$")
+	valid = govalidator.StringMatches(a.BundleID, "^[a-z0-9]+\\.[a-z0-9]+(\\.[a-z0-9]+)+$")
 	if !valid {
 		return InvalidField("bundleId")
 	}
