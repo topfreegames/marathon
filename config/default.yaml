@@ -47,3 +47,6 @@ workers:
     db: 0
     pass:
   topicTemplate: "%s-%s-c"
+  resume:
+    concurrency: 10
+    maxRetries: 5

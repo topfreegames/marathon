@@ -115,12 +115,15 @@ func (w *Worker) configureWorkers() {
 	p := NewProcessBatchWorker(w.Config, w.Logger)
 	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
 	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
+	r := NewResumeJobWorker(w.Config, w.Logger, w)
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
 	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
+	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
+	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
@@ -144,6 +147,15 @@ func (w *Worker) CreateBatchesFromFiltersJob(jobID *[]string) (string, error) {
 // CreateProcessBatchJob creates a new ProcessBatchWorker job
 func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users []User) (string, error) {
 	return workers.Enqueue("process_batch_worker", "Add", []interface{}{jobID, appName, users})
+}
+
+// CreateResumeJob creates a new ResumeJobWorker job
+func (w *Worker) CreateResumeJob(jobID *[]string) (string, error) {
+	maxRetries := w.Config.GetInt("workers.resume.maxRetries")
+	return workers.EnqueueWithOptions("resume_job_worker", "Add", jobID, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+	})
 }
 
 // ScheduleCreateBatchesJob schedules a new CreateBatchesWorker job
