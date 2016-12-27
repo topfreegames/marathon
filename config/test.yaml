@@ -46,12 +46,14 @@ workers:
     maxRetries: 5
   processBatch:
     concurrency: 10
+    maxBatchFailure: 0.05
+    maxUserFailureInBatch: 0.05
   redis:
     poolSize: 10
     host: localhost
     port: 6333
     db: 0
-    pass: 
+    pass:
   zookeeper:
     hosts:
       - localhost:9930

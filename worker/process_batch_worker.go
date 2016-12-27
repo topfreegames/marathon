@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"time"
 
+	redis "gopkg.in/redis.v5"
+
 	workers "github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
@@ -38,11 +40,12 @@ import (
 
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
-	Config     *viper.Viper
-	Kafka      *extensions.KafkaClient
-	Logger     zap.Logger
-	MarathonDB *extensions.PGClient
-	Zookeeper  *extensions.ZookeeperClient
+	Config      *viper.Viper
+	Kafka       *extensions.KafkaClient
+	Logger      zap.Logger
+	MarathonDB  *extensions.PGClient
+	RedisClient *redis.Client
+	Zookeeper   *extensions.ZookeeperClient
 }
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
@@ -59,14 +62,32 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 	checkErr(l, err)
 	marathonDB, err := extensions.NewPGClient("db", config, logger)
 	checkErr(l, err)
+	redisClient, err := extensions.NewRedis("workers", config, logger)
+	checkErr(l, err)
 	batchWorker := &ProcessBatchWorker{
-		Config:     config,
-		Logger:     logger,
-		Kafka:      kafka,
-		Zookeeper:  zookeeper,
-		MarathonDB: marathonDB,
+		Config:      config,
+		Logger:      logger,
+		Kafka:       kafka,
+		Zookeeper:   zookeeper,
+		MarathonDB:  marathonDB,
+		RedisClient: redisClient,
 	}
 	return batchWorker
+}
+
+func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalBatches int) {
+	failedJobs, err := batchWorker.RedisClient.Incr(fmt.Sprintf("%s-failedbatches", jobID.String())).Result()
+	checkErr(batchWorker.Logger, err)
+	ttl, err := batchWorker.RedisClient.TTL(fmt.Sprintf("%s-failedbatches", jobID.String())).Result()
+	checkErr(batchWorker.Logger, err)
+	if ttl < 0 {
+		batchWorker.RedisClient.Expire(fmt.Sprintf("%s-failedbatches", jobID.String()), 7*24*time.Hour)
+	}
+	if float64(failedJobs)/float64(totalBatches) >= batchWorker.Config.GetFloat64("workers.processBatch.maxBatchFailure") {
+		job := model.Job{}
+		_, err := batchWorker.MarathonDB.DB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", jobID).Returning("*").Update()
+		checkErr(batchWorker.Logger, err)
+	}
 }
 
 func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string, expiresAt int64) error {
@@ -129,8 +150,19 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 	return err
 }
 
+func (batchWorker *ProcessBatchWorker) moveJobToPausedQueue(jobID uuid.UUID, message *workers.Msg) {
+	_, err := batchWorker.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", jobID.String()), message.ToJson()).Result()
+	checkErr(batchWorker.Logger, err)
+	ttl, err := batchWorker.RedisClient.TTL(fmt.Sprintf("%s-pausedjobs", jobID.String())).Result()
+	checkErr(batchWorker.Logger, err)
+	if ttl < 0 {
+		batchWorker.RedisClient.Expire(fmt.Sprintf("%s-pausedjobs", jobID.String()), 7*24*time.Hour)
+	}
+}
+
 // Process processes the messages sent to batch worker queue and send them to kafka
 func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
+	batchErrorCounter := 0
 	l := batchWorker.Logger.With(
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "process"),
@@ -151,7 +183,26 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		return
 	}
 
+	switch job.Status {
+	case "circuitbreak":
+		log.I(l, "circuit break process_batch_worker")
+		batchWorker.moveJobToPausedQueue(job.ID, message)
+		return
+	case "paused":
+		log.I(l, "paused process_batch_worker")
+		batchWorker.moveJobToPausedQueue(job.ID, message)
+		return
+	case "stopped":
+		log.I(l, "stopped process_batch_worker")
+		return
+	default:
+		log.D(l, "valid process_batch_worker")
+	}
+
 	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
+	if err != nil {
+		batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+	}
 	checkErr(l, err)
 	log.D(l, "Retrieved templatesByLocale successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("templatesByLocale", templatesByLocale))
@@ -169,16 +220,24 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		} else if val, ok := templatesByLocale["en"]; ok {
 			template = val
 		} else {
+			batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
 			checkErr(l, fmt.Errorf("there is no template for the given locale or 'en'"))
 		}
 
 		msgStr, msgErr := BuildMessageFromTemplate(template, job.Context)
+		if msgErr != nil {
+			batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+		}
 		checkErr(l, msgErr)
 		var msg map[string]interface{}
 		err = json.Unmarshal([]byte(msgStr), &msg)
+		if err != nil {
+			batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+		}
 		checkErr(l, err)
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, user.Token, job.ExpiresAt)
 		if err != nil {
+			batchErrorCounter = batchErrorCounter + 1
 			log.E(l, "Failed to send message to Kafka.", func(cm log.CM) {
 				cm.Write(
 					zap.String("service", job.Service),
@@ -192,12 +251,16 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			})
 		}
 	}
-	log.D(l, "Sent push to aguia for all batch users.")
-
+	log.D(l, "Sent push to aguia for batch users.")
 	err = batchWorker.updateJobBatchesInfo(parsed.JobID)
-	log.D(l, "Updated job batches info successfully.")
-	err = batchWorker.updateJobUsersInfo(parsed.JobID, len(parsed.Users))
-	log.D(l, "Updated job users info successfully.")
 	checkErr(l, err)
+	log.D(l, "Updated job batches info successfully.")
+	err = batchWorker.updateJobUsersInfo(parsed.JobID, len(parsed.Users)-batchErrorCounter)
+	checkErr(l, err)
+	log.D(l, "Updated job users info successfully.")
+	if float64(batchErrorCounter)/float64(len(parsed.Users)) > batchWorker.Config.GetFloat64("workers.processBatch.maxUserFailureInBatch") {
+		batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+		checkErr(l, fmt.Errorf("failed to send message to several users, considering batch as failed"))
+	}
 	log.I(l, "finished process_batch_worker")
 }

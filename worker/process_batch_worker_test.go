@@ -24,6 +24,7 @@ package worker_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -342,6 +343,43 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(dbJob.CompletedUsers).To(Equal(0))
 		})
 
+		It("should not process batch if job is stopped", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("status = 'stopped'").Where("id = ?", job.ID).Update()
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newOffset).To(Equal(oldOffset + 1))
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedBatches).To(Equal(0))
+			Expect(dbJob.CompletedUsers).To(Equal(0))
+		})
+
 		It("should process the message using the correct template", func() {
 			users = make([]worker.User, 2)
 			for index, _ := range users {
@@ -392,6 +430,175 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Expect(apnsMessage.Payload.Aps["alert"]).To(Equal("Everyone curtiram sua vila!"))
 				idx++
 			}
+		})
+
+		It("should increment failedJobs", func() {
+			// unexistent template
+			processBatchWorker.MarathonDB.DB.Exec("DELETE FROM templates;")
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
+
+			failedJobs, err := processBatchWorker.RedisClient.Get(fmt.Sprintf("%s-failedbatches", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(failedJobs).To(Equal("1"))
+			ttl, err := processBatchWorker.RedisClient.TTL(fmt.Sprintf("%s-failedbatches", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ttl).To(BeNumerically("~", 7*24*time.Hour, 10))
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedBatches).To(Equal(0))
+			Expect(dbJob.Status).To(Equal(""))
+		})
+
+		It("should increment failedJobs and mark job status as circuitbreak", func() {
+			// unexistent template
+			processBatchWorker.MarathonDB.DB.Exec("DELETE FROM templates;")
+			err := processBatchWorker.RedisClient.Set(fmt.Sprintf("%s-failedbatches", job.ID.String()), 4, time.Hour).Err()
+			Expect(err).NotTo(HaveOccurred())
+			_, err = processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
+
+			failedJobs, err := processBatchWorker.RedisClient.Get(fmt.Sprintf("%s-failedbatches", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(failedJobs).To(Equal("5"))
+			ttl, err := processBatchWorker.RedisClient.TTL(fmt.Sprintf("%s-failedbatches", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ttl).To(BeNumerically("~", time.Hour, 10))
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedBatches).To(Equal(0))
+			Expect(dbJob.Status).To(Equal("circuitbreak"))
+		})
+
+		// TODO: found out how to test this
+		XIt("should increment failedJobs if push no sent to users", func() {
+		})
+
+		It("should not process job and add it to paused jobs list if job is paused", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'paused'").Where("id = ?", job.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newOffset).To(Equal(oldOffset + 1))
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedBatches).To(Equal(0))
+			Expect(dbJob.CompletedUsers).To(Equal(0))
+
+			pausedMsg, err := processBatchWorker.RedisClient.LPop(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pausedMsg).To(Equal(message.ToJson()))
+		})
+
+		It("should not process job and add it to paused jobs list if job is circuitbreak", func() {
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'circuitbreak'").Where("id = ?", job.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newOffset).To(Equal(oldOffset + 1))
+
+			dbJob := model.Job{
+				ID: job.ID,
+			}
+			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.CompletedBatches).To(Equal(0))
+			Expect(dbJob.CompletedUsers).To(Equal(0))
+
+			pausedMsg, err := processBatchWorker.RedisClient.LPop(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pausedMsg).To(Equal(message.ToJson()))
 		})
 	})
 })
