@@ -199,7 +199,7 @@ func (a *Application) configureApplication() {
 	e.GET("/apps/:aid/jobs/:jid", a.GetJobHandler)
 	e.PUT("/apps/:aid/jobs/:jid/pause", a.PauseJobHandler)
 	e.PUT("/apps/:aid/jobs/:jid/stop", a.StopJobHandler)
-	// e.PUT("/apps/:aid/jobs/:jid/resume", a.ResumeJobHandler)
+	e.PUT("/apps/:aid/jobs/:jid/resume", a.ResumeJobHandler)
 	a.API = e
 }
 

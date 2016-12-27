@@ -46,15 +46,15 @@ var _ = Describe("Job Handler", func() {
 	var existingTemplate *model.Template
 	var baseRoute string
 	var baseRouteWithoutTemplate string
-	var createBatchesWorker *worker.CreateBatchesWorker
+
+	config := GetConf()
+	w := worker.NewWorker(false, logger, GetConfPath())
+	createBatchesWorker := worker.NewCreateBatchesWorker(config, logger, w)
+	createBatchesWorker.S3Client = &FakeS3{}
+
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
 		app.DB.Exec("DELETE FROM templates;")
-
-		config := GetConf()
-		w := worker.NewWorker(false, logger, GetConfPath())
-		createBatchesWorker = worker.NewCreateBatchesWorker(config, logger, w)
-		createBatchesWorker.S3Client = &FakeS3{}
 		createBatchesWorker.RedisClient.FlushAll()
 
 		existingApp = CreateTestApp(app.DB)
@@ -1031,6 +1031,86 @@ var _ = Describe("Job Handler", func() {
 			It("should return 404 if the job does not exist", func() {
 				status, _ := Put(app, fmt.Sprintf("%s/%s/stop", baseRouteWithoutTemplate, uuid.NewV4().String()), "", "test@test.com")
 				Expect(status).To(Equal(http.StatusNotFound))
+			})
+		})
+	})
+
+	Describe("Put /apps/:id/jobs/:jid/resume", func() {
+		Describe("Sucesfully", func() {
+			It("should start the resume_job_worker and return 200 and the updated job", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				_, err := app.DB.Model(&model.Job{}).Set("status = 'paused'").Where("id = ?", existingJob.ID).Update()
+				Expect(err).NotTo(HaveOccurred())
+
+				status, body := Put(app, fmt.Sprintf("%s/%s/resume", baseRouteWithoutTemplate, existingJob.ID), "", "success@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var job map[string]interface{}
+				err = json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["status"]).To(Equal(""))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).ToNot(BeNil())
+				Expect(dbJob.AppID).To(Equal(existingApp.ID))
+				Expect(dbJob.Status).To(Equal(""))
+
+				res, err := createBatchesWorker.RedisClient.LLen("queue:resume_job_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res).To(BeEquivalentTo(1))
+				job1, err := createBatchesWorker.RedisClient.LPop("queue:resume_job_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				j1 := map[string]interface{}{}
+				err = json.Unmarshal([]byte(job1), &j1)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(j1["queue"].(string)).To(Equal("resume_job_worker"))
+				Expect(j1["args"].([]interface{})[0]).To(Equal(job["id"]))
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				status, _ := Put(app, fmt.Sprintf("%s/%s/resume", baseRouteWithoutTemplate, existingJob.ID), "", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				goodDB := app.DB
+				app.DB = faultyDb
+				status, _ := Put(app, fmt.Sprintf("%s/%s/resume", baseRouteWithoutTemplate, existingJob.ID), "", "success@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
+			})
+
+			It("should return 404 if the job does not exist", func() {
+				status, _ := Put(app, fmt.Sprintf("%s/%s/resume", baseRouteWithoutTemplate, uuid.NewV4().String()), "", "test@test.com")
+				Expect(status).To(Equal(http.StatusNotFound))
+			})
+
+			It("should return 403 if job status is not paused/circuitbreak", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				_, err := app.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", existingJob.ID).Update()
+				Expect(err).NotTo(HaveOccurred())
+				status, body := Put(app, fmt.Sprintf("%s/%s/resume", baseRouteWithoutTemplate, existingJob.ID), "", "success@test.com")
+				Expect(status).To(Equal(http.StatusForbidden))
+
+				var response map[string]interface{}
+				err = json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("cannot resume job with status other than paused/circuitbreak"))
 			})
 		})
 	})

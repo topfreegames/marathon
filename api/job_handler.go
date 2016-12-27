@@ -264,7 +264,7 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 func (a *Application) PauseJobHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "jobHandler"),
-		zap.String("operation", "jobHandler"),
+		zap.String("operation", "pauseJob"),
 		zap.String("appId", c.Param("aid")),
 		zap.String("jobId", c.Param("jid")),
 	)
@@ -320,7 +320,7 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 func (a *Application) StopJobHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "jobHandler"),
-		zap.String("operation", "jobHandler"),
+		zap.String("operation", "stopJob"),
 		zap.String("appId", c.Param("aid")),
 		zap.String("jobId", c.Param("jid")),
 	)
@@ -355,6 +355,80 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{})
 	}
 	log.D(l, "Updated job successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("job", job))
+	})
+	return c.JSON(http.StatusOK, job)
+}
+
+// ResumeJobHandler is the method called when a put to apps/:id/jobs/:jid/resume is called
+func (a *Application) ResumeJobHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "resumeJob"),
+		zap.String("appId", c.Param("aid")),
+		zap.String("jobId", c.Param("jid")),
+	)
+	aid, err := uuid.FromString(c.Param("aid"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	jid, err := uuid.FromString(c.Param("jid"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	email := c.Get("user-email").(string)
+	prevJob := &model.Job{}
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&prevJob).Column("job.*", "App").Where("job.id = ?", jid).Select()
+	})
+	if err != nil {
+		if err.Error() == RecordNotFoundString {
+			return c.JSON(http.StatusNotFound, prevJob)
+		}
+		log.E(l, "Failed to retrieve job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: prevJob})
+	}
+	if prevJob.Status != "paused" && prevJob.Status != "circuitbreak" {
+		return c.JSON(http.StatusForbidden, &Error{Reason: "cannot resume job with status other than paused/circuitbreak"})
+	}
+
+	var wJobID string
+	err = WithSegment("resume-job", c, func() error {
+		wJobID, err = a.Worker.CreateResumeJob(&[]string{prevJob.ID.String()})
+		return err
+	})
+
+	if err != nil {
+		log.E(l, "Failed to send job to resume_job_worker.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
+	}
+
+	log.I(l, "Job successfully sent to resume_job_worker", func(cm log.CM) {
+		cm.Write(zap.String("workerJobId", wJobID))
+	})
+
+	job := &model.Job{
+		ID:        jid,
+		AppID:     aid,
+		CreatedBy: email,
+		Status:    "",
+		UpdatedAt: time.Now().UnixNano(),
+	}
+	err = WithSegment("db-update", c, func() error {
+		_, err = a.DB.Model(&job).Column("status").Column("updated_at").Returning("*").Update()
+		return err
+	})
+	if err != nil {
+		log.E(l, "Failed to resume job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+	}
+	log.D(l, "Resumed job successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("job", job))
 	})
 	return c.JSON(http.StatusOK, job)
