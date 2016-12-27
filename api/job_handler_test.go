@@ -899,4 +899,139 @@ var _ = Describe("Job Handler", func() {
 			})
 		})
 	})
+
+	Describe("Put /apps/:id/jobs/:jid/pause", func() {
+		Describe("Sucesfully", func() {
+			It("should return 200 and the paused job", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				status, body := Put(app, fmt.Sprintf("%s/%s/pause", baseRouteWithoutTemplate, existingJob.ID), "", "success@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
+				Expect(job["totalBatches"]).To(Equal(float64(existingJob.TotalBatches)))
+				Expect(job["completedBatches"]).To(Equal(float64(existingJob.CompletedBatches)))
+				Expect(job["expiresAt"]).To(Equal(float64(existingJob.ExpiresAt)))
+				Expect(job["startsAt"]).To(Equal(float64(existingJob.StartsAt)))
+				Expect(job["csvPath"]).To(Equal(existingJob.CSVPath))
+				Expect(job["service"]).To(Equal(existingJob.Service))
+				Expect(job["createdBy"]).To(Equal(existingJob.CreatedBy))
+				Expect(job["createdAt"]).To(Equal(float64(existingJob.CreatedAt)))
+				Expect(job["updatedAt"]).ToNot(Equal(float64(existingJob.UpdatedAt)))
+				Expect(job["status"]).To(Equal("paused"))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).To(Equal(existingJob.ID))
+				Expect(dbJob.Status).To(Equal("paused"))
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				status, _ := Put(app, fmt.Sprintf("%s/%s/pause", baseRouteWithoutTemplate, existingJob.ID), "", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				goodDB := app.DB
+				app.DB = faultyDb
+				status, _ := Put(app, fmt.Sprintf("%s/%s/pause", baseRouteWithoutTemplate, existingJob.ID), "", "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
+			})
+
+			It("should return 404 if the job does not exist", func() {
+				status, _ := Put(app, fmt.Sprintf("%s/%s/pause", baseRouteWithoutTemplate, uuid.NewV4().String()), "", "test@test.com")
+				Expect(status).To(Equal(http.StatusNotFound))
+			})
+
+			It("should return 403 if job status is not empty", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				_, err := app.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", existingJob.ID).Update()
+				Expect(err).NotTo(HaveOccurred())
+				status, body := Put(app, fmt.Sprintf("%s/%s/pause", baseRouteWithoutTemplate, existingJob.ID), "", "success@test.com")
+				Expect(status).To(Equal(http.StatusForbidden))
+
+				var response map[string]interface{}
+				err = json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("cannot pause stopped job"))
+			})
+		})
+	})
+
+	Describe("Put /apps/:id/jobs/:jid/stop", func() {
+		Describe("Sucesfully", func() {
+			It("should return 200 and the stopped job", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				status, body := Put(app, fmt.Sprintf("%s/%s/stop", baseRouteWithoutTemplate, existingJob.ID), "", "success@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateName"]).To(Equal(existingTemplate.Name))
+				Expect(job["totalBatches"]).To(Equal(float64(existingJob.TotalBatches)))
+				Expect(job["completedBatches"]).To(Equal(float64(existingJob.CompletedBatches)))
+				Expect(job["expiresAt"]).To(Equal(float64(existingJob.ExpiresAt)))
+				Expect(job["startsAt"]).To(Equal(float64(existingJob.StartsAt)))
+				Expect(job["csvPath"]).To(Equal(existingJob.CSVPath))
+				Expect(job["service"]).To(Equal(existingJob.Service))
+				Expect(job["createdBy"]).To(Equal(existingJob.CreatedBy))
+				Expect(job["createdAt"]).To(Equal(float64(existingJob.CreatedAt)))
+				Expect(job["updatedAt"]).ToNot(Equal(float64(existingJob.UpdatedAt)))
+				Expect(job["status"]).To(Equal("stopped"))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).To(Equal(existingJob.ID))
+				Expect(dbJob.Status).To(Equal("stopped"))
+			})
+		})
+
+		Describe("Unsucesfully", func() {
+			It("should return 401 if no authenticated user", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				status, _ := Put(app, fmt.Sprintf("%s/%s/stop", baseRouteWithoutTemplate, existingJob.ID), "", "")
+
+				Expect(status).To(Equal(http.StatusUnauthorized))
+			})
+
+			It("should return 500 if some error occured", func() {
+				existingJob := CreateTestJob(app.DB, existingApp.ID, existingTemplate.Name)
+				goodDB := app.DB
+				app.DB = faultyDb
+				status, _ := Put(app, fmt.Sprintf("%s/%s/stop", baseRouteWithoutTemplate, existingJob.ID), "", "test@test.com")
+
+				Expect(status).To(Equal(http.StatusInternalServerError))
+				app.DB = goodDB
+			})
+
+			It("should return 404 if the job does not exist", func() {
+				status, _ := Put(app, fmt.Sprintf("%s/%s/stop", baseRouteWithoutTemplate, uuid.NewV4().String()), "", "test@test.com")
+				Expect(status).To(Equal(http.StatusNotFound))
+			})
+		})
+	})
 })

@@ -197,9 +197,9 @@ func (a *Application) configureApplication() {
 	e.POST("/apps/:aid/jobs", a.PostJobHandler)
 	e.GET("/apps/:aid/jobs", a.ListJobsHandler)
 	e.GET("/apps/:aid/jobs/:jid", a.GetJobHandler)
-	// TODO: implement these routes
-	// e.PUT("/apps/:id/jobs/:jid/stop", a.StopJobHandler)
-	// e.PUT("/apps/:id/josb/:jid/resume", a.ResumeJobHandler)
+	e.PUT("/apps/:aid/jobs/:jid/pause", a.PauseJobHandler)
+	e.PUT("/apps/:aid/jobs/:jid/stop", a.StopJobHandler)
+	// e.PUT("/apps/:aid/jobs/:jid/resume", a.ResumeJobHandler)
 	a.API = e
 }
 

@@ -28,6 +28,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/pg.v5/types"
+
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
@@ -226,7 +228,6 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		zap.String("source", "jobHandler"),
 		zap.String("operation", "getJob"),
 		zap.String("appId", c.Param("aid")),
-		zap.String("template", c.QueryParam("template")),
 		zap.String("jobId", c.Param("jid")),
 	)
 	aid, err := uuid.FromString(c.Param("aid"))
@@ -254,6 +255,106 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 	log.D(l, "Retrieved job successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("job", job))
+	})
+	return c.JSON(http.StatusOK, job)
+}
+
+// PauseJobHandler is the method called when a put to apps/:id/jobs/:jid/pause is called
+func (a *Application) PauseJobHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "jobHandler"),
+		zap.String("appId", c.Param("aid")),
+		zap.String("jobId", c.Param("jid")),
+	)
+	aid, err := uuid.FromString(c.Param("aid"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	jid, err := uuid.FromString(c.Param("jid"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	email := c.Get("user-email").(string)
+	job := &model.Job{
+		ID:        jid,
+		AppID:     aid,
+		CreatedBy: email,
+		Status:    "paused",
+		UpdatedAt: time.Now().UnixNano(),
+	}
+	prevJob := &model.Job{}
+	err = WithSegment("db-select", c, func() error {
+		return a.DB.Model(&prevJob).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	})
+	if err != nil {
+		if err.Error() == RecordNotFoundString {
+			return c.JSON(http.StatusNotFound, job)
+		}
+		log.E(l, "Failed to retrieve job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: prevJob})
+	}
+	if prevJob.Status != "" {
+		return c.JSON(http.StatusForbidden, &Error{Reason: fmt.Sprintf("cannot pause %s job", prevJob.Status)})
+	}
+	err = WithSegment("db-update", c, func() error {
+		_, err = a.DB.Model(&job).Column("status").Column("updated_at").Returning("*").Update()
+		return err
+	})
+	if err != nil {
+		log.E(l, "Failed to pause job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+	}
+	log.D(l, "Updated job successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("job", job))
+	})
+	return c.JSON(http.StatusOK, job)
+}
+
+// StopJobHandler is the method called when a put to apps/:id/jobs/:jid/stop is called
+func (a *Application) StopJobHandler(c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "jobHandler"),
+		zap.String("appId", c.Param("aid")),
+		zap.String("jobId", c.Param("jid")),
+	)
+	aid, err := uuid.FromString(c.Param("aid"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	jid, err := uuid.FromString(c.Param("jid"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+	}
+	email := c.Get("user-email").(string)
+	job := &model.Job{
+		ID:        jid,
+		AppID:     aid,
+		CreatedBy: email,
+		Status:    "stopped",
+		UpdatedAt: time.Now().UnixNano(),
+	}
+	var values *types.Result
+	err = WithSegment("db-update", c, func() error {
+		values, err = a.DB.Model(&job).Column("status").Column("updated_at").Returning("*").Update()
+		return err
+	})
+	if err != nil {
+		log.E(l, "Failed to stop job.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+	}
+	if values.RowsAffected() == 0 {
+		return c.JSON(http.StatusNotFound, map[string]string{})
+	}
+	log.D(l, "Updated job successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("job", job))
 	})
 	return c.JSON(http.StatusOK, job)
