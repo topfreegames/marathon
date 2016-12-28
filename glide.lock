@@ -1,10 +1,10 @@
-hash: aaafd9f75a6a492faa2f309f9aedde77f1063fbb8a19455da69e1eddc8a88916
-updated: 2016-12-22T01:49:20.441780006-02:00
+hash: d1ade3c4206d002dee930f5150090b81fcdc5b7a28e4f32f2bcbc7e4db7036bd
+updated: 2016-12-28T10:51:23.522009083-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/aws/aws-sdk-go
-  version: 9dcf25708294b7b416ffd4b238b9708417f1d351
+  version: 1e6377549087b490b693300bce2c5e286dc87740
   subpackages:
   - aws
   - aws/awserr
@@ -166,6 +166,12 @@ imports:
   - zk
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/sendgrid/rest
+  version: 3ec51b4f1754e13e92409355851a0a82e9a06461
+- name: github.com/sendgrid/sendgrid-go
+  version: aae62ebbdabd46754b041a12b9f74d2ffdfc49d7
+  subpackages:
+  - helpers/mail
 - name: github.com/Shopify/sarama
   version: 0fb560e5f7fbcaee2f75e3c34174320709f69944
 - name: github.com/spf13/afero
@@ -216,7 +222,7 @@ imports:
 - name: gopkg.in/bsm/ratelimit.v1
   version: db14e161995a5177acef654cb0dd785e8ee8bc22
 - name: gopkg.in/pg.v5
-  version: 5aa8fba9770fcb1d12c98ed8442fed8d67e90ed5
+  version: 8a8439b05791ad404bf5a685460288586cd0208a
   subpackages:
   - internal
   - internal/parser
@@ -224,7 +230,7 @@ imports:
   - orm
   - types
 - name: gopkg.in/redis.v5
-  version: 5e76db680467ebce5495cc2159a9289a6851d773
+  version: b7bae3a78050e2e7ec2130a05cde296a9ff2e9c0
   subpackages:
   - internal
   - internal/consistenthash

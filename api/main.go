@@ -42,18 +42,19 @@ import (
 
 // Application is the api main struct
 type Application struct {
-	Debug      bool
-	API        *echo.Echo
-	Logger     zap.Logger
-	Port       int
-	Host       string
-	DB         *pg.DB
-	PushDB     *pg.DB
-	ConfigPath string
-	Config     *viper.Viper
-	NewRelic   newrelic.Application
-	Worker     *worker.Worker
-	S3Client   s3iface.S3API
+	Debug          bool
+	API            *echo.Echo
+	Logger         zap.Logger
+	Port           int
+	Host           string
+	DB             *pg.DB
+	PushDB         *pg.DB
+	ConfigPath     string
+	Config         *viper.Viper
+	NewRelic       newrelic.Application
+	Worker         *worker.Worker
+	S3Client       s3iface.S3API
+	SendgridClient *extensions.SendgridClient
 }
 
 // GetApplication returns a configured api
@@ -112,6 +113,7 @@ func (a *Application) configure() error {
 	a.configureApplication()
 	a.configureWorker()
 	a.configureSentry()
+	a.configureSendgrid()
 
 	err = a.configureNewRelic()
 	if err != nil {
@@ -219,6 +221,18 @@ func (a *Application) configurePushDatabase() error {
 		log.I(a.Logger, "successfully connected to the push database")
 	}
 	return err
+}
+
+func (a *Application) configureSendgrid() {
+	l := a.Logger.With(
+		zap.String("source", "main"),
+		zap.String("operation", "configureSendgrid"),
+	)
+	apiKey := a.Config.GetString("sendgrid.key")
+	if apiKey != "" {
+		a.SendgridClient = extensions.NewSendgridClient(a.Config, a.Logger, apiKey)
+		log.I(l, "Configured sendgrid successfully.")
+	}
 }
 
 func (a *Application) configureSentry() {
