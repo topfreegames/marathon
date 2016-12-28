@@ -3,6 +3,8 @@ language: go
 go:
   - 1.7
 
+sudo: required
+
 addons:
   postgresql: "9.5"
 
