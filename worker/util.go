@@ -27,11 +27,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -230,4 +232,33 @@ func BuildMessageFromTemplate(template model.Template, context map[string]interf
 	}
 	message := t.ExecuteString(substitutions)
 	return message, nil
+}
+
+//SendCircuitBreakJobEmail builds a circuit break job email message and sends it with sendgrid
+func SendCircuitBreakJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName string, expireAt int64) error {
+	subject := "Push job entered circuit break state"
+
+	var platform string
+	if job.Service == "apns" {
+		platform = "iOS"
+	} else if job.Service == "gcm" {
+		platform = "Android"
+	} else {
+		platform = fmt.Sprintf("Unknown platform for service %s", job.Service)
+	}
+
+	expireAtDate := fmt.Sprintf("(%s)", time.Unix(0, expireAt).UTC().Format(time.RFC1123))
+
+	message := fmt.Sprintf(`
+Hello, your push job status has changed to circuit break.
+
+App: %s
+Template: %s
+Platform: %s
+JobID: %s
+
+This job will be removed from the paused queue on %s. After this date the job will no longer be available.
+Please fix the issues causing the circuit break and resume or stop it before then.
+`, appName, job.TemplateName, platform, job.ID, expireAtDate)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }

@@ -40,12 +40,13 @@ import (
 
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
-	Config      *viper.Viper
-	Kafka       *extensions.KafkaClient
-	Logger      zap.Logger
-	MarathonDB  *extensions.PGClient
-	RedisClient *redis.Client
-	Zookeeper   *extensions.ZookeeperClient
+	Config         *viper.Viper
+	Kafka          *extensions.KafkaClient
+	Logger         zap.Logger
+	MarathonDB     *extensions.PGClient
+	RedisClient    *redis.Client
+	Zookeeper      *extensions.ZookeeperClient
+	SendgridClient *extensions.SendgridClient
 }
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
@@ -64,6 +65,7 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 	checkErr(l, err)
 	redisClient, err := extensions.NewRedis("workers", config, logger)
 	checkErr(l, err)
+
 	batchWorker := &ProcessBatchWorker{
 		Config:      config,
 		Logger:      logger,
@@ -72,10 +74,15 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 		MarathonDB:  marathonDB,
 		RedisClient: redisClient,
 	}
+
+	apiKey := config.GetString("sendgrid.key")
+	if apiKey != "" {
+		batchWorker.SendgridClient = extensions.NewSendgridClient(config, logger, apiKey)
+	}
 	return batchWorker
 }
 
-func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalBatches int) {
+func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalBatches int, appName string) {
 	failedJobs, err := batchWorker.RedisClient.Incr(fmt.Sprintf("%s-failedbatches", jobID.String())).Result()
 	checkErr(batchWorker.Logger, err)
 	ttl, err := batchWorker.RedisClient.TTL(fmt.Sprintf("%s-failedbatches", jobID.String())).Result()
@@ -87,6 +94,15 @@ func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalB
 		job := model.Job{}
 		_, err := batchWorker.MarathonDB.DB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", jobID).Returning("*").Update()
 		checkErr(batchWorker.Logger, err)
+		if batchWorker.SendgridClient != nil {
+			var expireAt int64
+			if ttl > 0 {
+				expireAt = time.Now().Add(ttl).UnixNano()
+			} else {
+				expireAt = time.Now().Add(7 * 24 * time.Hour).UnixNano()
+			}
+			SendCircuitBreakJobEmail(batchWorker.SendgridClient, &job, appName, expireAt)
+		}
 	}
 }
 
@@ -201,7 +217,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 
 	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
 	if err != nil {
-		batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 	}
 	checkErr(l, err)
 	log.D(l, "Retrieved templatesByLocale successfully.", func(cm log.CM) {
@@ -220,19 +236,19 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		} else if val, ok := templatesByLocale["en"]; ok {
 			template = val
 		} else {
-			batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+			batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 			checkErr(l, fmt.Errorf("there is no template for the given locale or 'en'"))
 		}
 
 		msgStr, msgErr := BuildMessageFromTemplate(template, job.Context)
 		if msgErr != nil {
-			batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+			batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 		}
 		checkErr(l, msgErr)
 		var msg map[string]interface{}
 		err = json.Unmarshal([]byte(msgStr), &msg)
 		if err != nil {
-			batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+			batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 		}
 		checkErr(l, err)
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, user.Token, job.ExpiresAt)
@@ -259,7 +275,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	checkErr(l, err)
 	log.D(l, "Updated job users info successfully.")
 	if float64(batchErrorCounter)/float64(len(parsed.Users)) > batchWorker.Config.GetFloat64("workers.processBatch.maxUserFailureInBatch") {
-		batchWorker.incrFailedBatches(job.ID, job.TotalBatches)
+		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 		checkErr(l, fmt.Errorf("failed to send message to several users, considering batch as failed"))
 	}
 	log.I(l, "finished process_batch_worker")
