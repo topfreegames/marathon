@@ -328,6 +328,21 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 	log.D(l, "Updated job successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("job", job))
 	})
+
+	if a.SendgridClient != nil {
+		log.D(l, "sending email with paused job info")
+		app := &model.App{ID: aid}
+		a.DB.Select(&app)
+
+		expireAt := time.Now().Add(7 * 24 * time.Hour).UnixNano()
+		err := SendPausedJobEmail(a.SendgridClient, job, app.Name, expireAt)
+		if err != nil {
+			log.E(l, "Failed to send email with paused job info.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+		}
+		log.I(l, "Successfully sent email with paused job info.")
+	}
 	return c.JSON(http.StatusOK, job)
 }
 

@@ -117,3 +117,32 @@ Localized: %t %s
 `, action, app.Name, job.TemplateName, platform, job.ID, job.StartsAt != 0, scheduledInfo, job.Localized, strategy, extraInfo)
 	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }
+
+//SendPausedJobEmail builds a paused job email message and sends it with sendgrid
+func SendPausedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName string, expireAt int64) error {
+	subject := "Push job entered paused state"
+
+	var platform string
+	if job.Service == "apns" {
+		platform = "iOS"
+	} else if job.Service == "gcm" {
+		platform = "Android"
+	} else {
+		platform = fmt.Sprintf("Unknown platform for service %s", job.Service)
+	}
+
+	expireAtDate := fmt.Sprintf("(%s)", time.Unix(0, expireAt).UTC().Format(time.RFC1123))
+
+	message := fmt.Sprintf(`
+Hello, your push job status has changed to paused.
+
+App: %s
+Template: %s
+Platform: %s
+JobID: %s
+
+This job will be removed from the paused queue on %s. After this date the job will no longer be available.
+Please resume or stop it before then.
+`, appName, job.TemplateName, platform, job.ID, expireAtDate)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
+}
