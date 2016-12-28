@@ -190,7 +190,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
-	a.Logger.Debug("job successfully created! creating job in create_batches_worker")
+	log.D(l, "job successfully created! creating job in create_batches_worker")
 	var wJobID string
 	err = WithSegment("create-job", c, func() error {
 		if job.StartsAt != 0 && !job.Localized {
@@ -219,6 +219,21 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	log.I(l, "Job successfully sent to create_batches_worker", func(cm log.CM) {
 		cm.Write(zap.String("workerJobId", wJobID))
 	})
+
+	if a.SendgridClient != nil {
+		log.D(l, "sending email with job info")
+		app := &model.App{ID: aid}
+		a.DB.Select(&app)
+
+		err := SendCreatedJobEmail(a.SendgridClient, job, app)
+		if err != nil {
+			log.E(l, "Failed to send email with job info.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+		}
+		log.I(l, "Successfully sent email with job info.")
+
+	}
 	return c.JSON(http.StatusCreated, job)
 }
 

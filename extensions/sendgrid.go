@@ -53,26 +53,33 @@ func NewSendgridClient(config *viper.Viper, logger zap.Logger, apiKey string) *S
 
 // LoadDefaults sets default values for keys needed by this module
 func (c *SendgridClient) LoadDefaults() {
-	c.Config.SetDefault("sendgrid.sender", []string{"no-reply@tfgco.com"})
-	c.Config.SetDefault("sendgrid.addressees", []string{""})
+	c.Config.SetDefault("sendgrid.sender", "no-reply@tfgco.com")
+	c.Config.SetDefault("sendgrid.addressees", "")
 }
 
 // SendgridSendEmail sends an email with the given message and addressee
-func (c *SendgridClient) SendgridSendEmail(adressee, subject, message string) error {
+func (c *SendgridClient) SendgridSendEmail(addressee, subject, message string) error {
 	l := c.Logger.With(
 		zap.String("source", "sendgridExtension"),
 		zap.String("operation", "SendgridSendEmail"),
 	)
 
-	from := mail.NewEmail("Marathon Push", c.Config.GetString("sendgrid.sender"))
+	from := mail.NewEmail("Marathon", c.Config.GetString("sendgrid.sender"))
 	content := mail.NewContent("text/plain", message)
 
-	defaultAdressees := strings.Split(c.Config.GetString("sendgrid.adressees"), ",")
-	tos := make([]*mail.Email, len(defaultAdressees)+1)
-	for idx, email := range defaultAdressees {
-		tos[idx] = mail.NewEmail(strings.Split(email, "@")[0], email)
+	var tos []*mail.Email
+	defaultAdressees := c.Config.GetString("sendgrid.addressees")
+	if defaultAdressees != "" {
+		defaultAdresseesAr := strings.Split(defaultAdressees, ",")
+		tos = make([]*mail.Email, len(defaultAdresseesAr)+1)
+		for idx, email := range defaultAdresseesAr {
+			tos[idx] = mail.NewEmail(strings.Split(email, "@")[0], email)
+		}
+	} else {
+		tos = make([]*mail.Email, 1)
 	}
-	tos[len(tos)-1] = mail.NewEmail(strings.Split(adressee, "@")[0], adressee)
+
+	tos[len(tos)-1] = mail.NewEmail(strings.Split(addressee, "@")[0], addressee)
 
 	m := new(mail.SGMailV3)
 	m.SetFrom(from)

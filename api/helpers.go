@@ -23,8 +23,14 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
+	"time"
+
 	"github.com/labstack/echo"
 	newrelic "github.com/newrelic/go-agent"
+	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/model"
 )
 
 // RecordNotFoundString is the string returned when a record is not found
@@ -55,4 +61,59 @@ func WithSegment(name string, c echo.Context, f func() error) error {
 	segment := newrelic.StartSegment(tx, name)
 	defer segment.End()
 	return f()
+}
+
+//SendCreatedJobEmail builds a created job email message and sends it with sendgrid
+func SendCreatedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, app *model.App) error {
+	action := "created"
+	if job.StartsAt != 0 {
+		action = "scheduled"
+	}
+	subject := fmt.Sprintf("New push job %s", action)
+
+	strategy := ""
+	if job.PastTimeStrategy != "" {
+		strategy = fmt.Sprintf("(strategy for push in the past: %s)", job.PastTimeStrategy)
+	}
+
+	var extraInfo string
+
+	if len(job.CSVPath) > 0 {
+		extraInfo = fmt.Sprintf("This job uses the following csvPath: %s.", job.CSVPath)
+	} else if len(job.Filters) > 0 {
+		filters, _ := json.MarshalIndent(job.Filters, "", "  ")
+		extraInfo = fmt.Sprintf("This job uses the following filters: \n%s.", string(filters))
+	} else {
+		extraInfo = "This job has no specified filters or csvPath."
+	}
+
+	var platform string
+	if job.Service == "apns" {
+		platform = "iOS"
+	} else if job.Service == "gcm" {
+		platform = "Android"
+	} else {
+		platform = fmt.Sprintf("Unknown platform for service %s", job.Service)
+	}
+
+	var scheduledInfo string
+	if job.StartsAt != 0 {
+		scheduledInfo = fmt.Sprintf("(%s)", time.Unix(0, job.StartsAt).UTC().Format(time.RFC1123))
+	} else {
+		scheduledInfo = ""
+	}
+
+	message := fmt.Sprintf(`
+Hi there, a new push job was %s.
+
+App: %s
+Template: %s
+Platform: %s
+JobID: %s
+Scheduled: %t %s
+Localized: %t %s
+
+%s
+`, action, app.Name, job.TemplateName, platform, job.ID, job.StartsAt != 0, scheduledInfo, job.Localized, strategy, extraInfo)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }
