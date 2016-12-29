@@ -3,7 +3,6 @@ Marathon
 [![Build Status](https://travis-ci.org/topfreegames/marathon.svg?branch=master)](https://travis-ci.org/topfreegames/marathon)
 [![Docs](https://readthedocs.org/projects/marathon/badge/?version=latest
 )](http://marathon.readthedocs.io/en/latest/)
-[![](https://imagelayers.io/badge/tfgco/marathon:latest.svg)](https://imagelayers.io/?images=tfgco/marathon:latest 'Marathon Image Layers')
 
 The Marathon push notification platform makes it very easy to send massive push notifications to tens of millions of users for several different apps. The architecture is composed of two main modules:
 - An API built on top of [Echo Web Framework](https://github.com/labstack/echo).
