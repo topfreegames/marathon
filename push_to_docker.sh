@@ -1,7 +1,7 @@
 #!/bin/bash
 
 VERSION=$(cat ./api/version.go | grep "var VERSION" | awk ' { print $4 } ' | sed s/\"//g)
-COMMIT=$(git rev-parse HEAD)
+COMMIT=$(git rev-parse --short HEAD)
 
 docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
