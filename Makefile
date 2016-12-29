@@ -27,3 +27,4 @@ include ./make/run.mk
 include ./make/setup.mk
 include ./make/test.mk
 include ./make/deps.mk
+include ./make/rtfd.mk

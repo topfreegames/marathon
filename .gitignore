@@ -8,6 +8,7 @@ bench/benchmark_workers
 _obj
 _test
 vendor
+_build
 
 # Architecture specific extensions/prefixes
 *.[568vq]
