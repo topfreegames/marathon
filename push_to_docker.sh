@@ -12,11 +12,3 @@ docker tag marathon:latest tfgco/marathon:latest
 docker push tfgco/marathon:$TRAVIS_BUILD_NUMBER-v$VERSION-$COMMIT
 docker push tfgco/marathon:$VERSION
 docker push tfgco/marathon:latest
-
-DOCKERHUB_LATEST=$(python get_latest_tag.py)
-
-if [ "$DOCKERHUB_LATEST" != "$VERSION.$TRAVIS_BUILD_NUMBER" ]; then
-    echo "Last version is not in docker hub!"
-    echo "docker hub: $DOCKERHUB_LATEST, expected: $TRAVIS_BUILD_NUMBER-v$VERSION-$COMMIT"
-    exit 1
-fi
