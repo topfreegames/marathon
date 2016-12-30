@@ -153,9 +153,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 			Offset: nextPageOffset,
 		})
 		if (whereClause) != "" {
-			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d AND %s LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, whereClause, b.DBPageSize)
+			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d AND %s ORDER BY seq_id ASC LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, whereClause, b.DBPageSize)
 		} else {
-			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, b.DBPageSize)
+			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d ORDER BY seq_id ASC LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, b.DBPageSize)
 		}
 		b.Logger.Info("Querying database", zap.String("query", query))
 		_, err := b.PushDB.DB.Query(&nextPageOffset, query)
