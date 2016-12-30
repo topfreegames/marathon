@@ -36,7 +36,6 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
-	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 	"github.com/willf/bloom"
@@ -63,7 +62,7 @@ func NewCreateBatchesFromFiltersWorker(config *viper.Viper, logger zap.Logger, w
 		Workers: workers,
 	}
 	b.configure()
-	log.D(logger, "Configured CreateBatchesFromFiltersWorker successfully.")
+	b.Logger.Debug("Configured CreateBatchesFromFiltersWorker successfully")
 	return b
 }
 
@@ -158,9 +157,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 		} else {
 			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, b.DBPageSize)
 		}
-		log.I(b.Logger, "Querying database.", func(cm log.CM) {
-			cm.Write(zap.String("query", query))
-		})
+		b.Logger.Info("Querying database", zap.String("query", query))
 		_, err := b.PushDB.DB.Query(&nextPageOffset, query)
 		checkErr(b.Logger, err)
 	}
@@ -170,9 +167,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup) {
 	for page := range c {
 		users := b.getPageFromDBWithFilters(job, page)
-		log.I(b.Logger, "got users from db", func(cm log.CM) {
-			cm.Write(zap.Int("usersInBatch", len(users)))
-		})
+		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(users)))
 		wgCSV.Add(1)
 		writeToCSVCH <- &users
 		wg.Done()
@@ -229,21 +224,13 @@ func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(cs
 	folder := b.Config.GetString("s3.folder")
 	bucket := b.Config.GetString("s3.bucket")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
-	log.I(b.Logger, "uploading file to s3", func(cm log.CM) {
-		cm.Write(
-			zap.String("path", writePath),
-		)
-	})
+	b.Logger.Info("uploading file to s3", zap.String("path", writePath))
 	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, csvBytes)
 	checkErr(b.Logger, err)
 	b.updateJobCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
 	jid, err := b.Workers.CreateBatchesJob(&[]string{job.ID.String()})
 	checkErr(b.Logger, err)
-	log.I(b.Logger, "created create batches job", func(cm log.CM) {
-		cm.Write(
-			zap.String("jid", jid),
-		)
-	})
+	b.Logger.Info("created create batches job", zap.String("jid", jid))
 }
 
 // Process processes the messages sent to worker queue
@@ -257,7 +244,7 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
 	)
-	log.I(l, "starting create_batches_using_filters_worker")
+	l.Info("starting create_batches_using_filters_worker")
 	job := &model.Job{
 		ID: id,
 	}
@@ -269,5 +256,5 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	checkErr(l, err)
 	csvBytes := csvBuffer.Bytes()
 	b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
-	log.I(l, "finished create_batches_using_filters_worker")
+	l.Info("finished create_batches_using_filters_worker")
 }
