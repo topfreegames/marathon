@@ -159,11 +159,11 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- 
 		} else {
 			b.sendBatches(&bucketsByTZ, job)
 		}
+		wgBatchesSent.Add(1)
 		batchesSentCH <- SentBatches{
 			NumBatches: len(bucketsByTZ),
 			TotalUsers: numUsersFromBatch,
 		}
-		wgBatchesSent.Add(1)
 		wg.Done()
 	}
 }
