@@ -256,9 +256,10 @@ App: %s
 Template: %s
 Platform: %s
 JobID: %s
+CreatedBy: %s
 
 This job will be removed from the paused queue on %s. After this date the job will no longer be available.
 Please fix the issues causing the circuit break and resume or stop it before then.
-`, appName, job.TemplateName, platform, job.ID, expireAtDate)
+`, appName, job.TemplateName, platform, job.ID, job.CreatedBy, expireAtDate)
 	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }
