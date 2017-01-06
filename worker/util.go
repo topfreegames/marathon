@@ -140,16 +140,23 @@ func GetWhereClauseFromFilters(filters map[string]interface{}) string {
 
 	queryFilters := []string{}
 	for key, val := range filters {
+		operator := "="
+		connector := " OR "
+		if strings.Contains(key, "NOT") {
+			key = strings.Trim(key, "NOT")
+			operator = "!="
+			connector = " AND "
+		}
 		strVal := val.(string)
 		if strings.Contains(strVal, ",") {
 			filterArray := []string{}
 			vals := strings.Split(strVal, ",")
 			for _, fVal := range vals {
-				filterArray = append(filterArray, fmt.Sprintf("\"%s\"='%s'", key, fVal))
+				filterArray = append(filterArray, fmt.Sprintf("\"%s\"%s'%s'", key, operator, fVal))
 			}
-			queryFilters = append(queryFilters, fmt.Sprintf("(%s)", strings.Join(filterArray, " OR ")))
+			queryFilters = append(queryFilters, fmt.Sprintf("(%s)", strings.Join(filterArray, connector)))
 		} else {
-			queryFilters = append(queryFilters, fmt.Sprintf("\"%s\"='%s'", key, val))
+			queryFilters = append(queryFilters, fmt.Sprintf("\"%s\"%s'%s'", key, operator, val))
 		}
 	}
 	return strings.Join(queryFilters, " AND ")

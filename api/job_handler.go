@@ -119,7 +119,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
 
-	if job.Filters["region"] != nil || job.Filters["locale"] != nil {
+	if job.Filters["region"] != nil || job.Filters["NOTregion"] != nil || job.Filters["locale"] != nil || job.Filters["NOTlocale"] != nil {
 		var users []worker.User
 		query := fmt.Sprintf("SELECT locale, region FROM %s WHERE locale is not NULL AND region is not NULL LIMIT 1;", worker.GetPushDBTableName(app.Name, job.Service))
 		a.PushDB.Query(&users, query)
@@ -149,11 +149,31 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			}
 		}
 
+		if job.Filters["NOTlocale"] != nil {
+			if localeSettings["isUpperCase"] && !localeSettings["isLowerCase"] {
+				job.Filters["NOTlocale"] = strings.ToUpper(job.Filters["NOTlocale"].(string))
+			} else if localeSettings["isLowerCase"] && !localeSettings["isUpperCase"] {
+				job.Filters["NOTlocale"] = strings.ToLower(job.Filters["NOTlocale"].(string))
+			} else {
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
+			}
+		}
+
 		if job.Filters["region"] != nil {
 			if regionSettings["isUpperCase"] && !regionSettings["isLowerCase"] {
 				job.Filters["region"] = strings.ToUpper(job.Filters["region"].(string))
 			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
 				job.Filters["region"] = strings.ToLower(job.Filters["region"].(string))
+			} else {
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
+			}
+		}
+
+		if job.Filters["NOTregion"] != nil {
+			if regionSettings["isUpperCase"] && !regionSettings["isLowerCase"] {
+				job.Filters["NOTregion"] = strings.ToUpper(job.Filters["NOTregion"].(string))
+			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
+				job.Filters["NOTregion"] = strings.ToLower(job.Filters["NOTregion"].(string))
 			} else {
 				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
 			}

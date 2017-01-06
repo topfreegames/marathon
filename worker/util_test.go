@@ -180,4 +180,55 @@ var _ = Describe("Worker Util", func() {
 			Expect(err.Error()).To(Equal("there must be at least one user"))
 		})
 	})
+
+	Describe("Get Clause From Filters", func() {
+		It("should return empty string if filters is empty", func() {
+			filters := map[string]interface{}{}
+			where := worker.GetWhereClauseFromFilters(filters)
+			Expect(where).To(Equal(""))
+		})
+
+		It("should succeed with one simple filter", func() {
+			filters := map[string]interface{}{
+				"region": "US",
+			}
+			where := worker.GetWhereClauseFromFilters(filters)
+			Expect(where).To(Equal("\"region\"='US'"))
+		})
+
+		It("should succeedd with one comma separated filter", func() {
+			filters := map[string]interface{}{
+				"region": "US,CA",
+			}
+			where := worker.GetWhereClauseFromFilters(filters)
+			Expect(where).To(Equal("(\"region\"='US' OR \"region\"='CA')"))
+		})
+
+		It("should succeed with one negative simple filter", func() {
+			filters := map[string]interface{}{
+				"NOTregion": "US",
+			}
+			where := worker.GetWhereClauseFromFilters(filters)
+			Expect(where).To(Equal("\"region\"!='US'"))
+		})
+
+		It("should succeed with one negative comma separated filter", func() {
+			filters := map[string]interface{}{
+				"NOTregion": "US,CA",
+			}
+			where := worker.GetWhereClauseFromFilters(filters)
+			Expect(where).To(Equal("(\"region\"!='US' AND \"region\"!='CA')"))
+		})
+
+		It("should succeed with multiple filters", func() {
+			filters := map[string]interface{}{
+				"NOTregion": "US,CA",
+				"locale":    "en,fr",
+			}
+			where := worker.GetWhereClauseFromFilters(filters)
+			Expect(where).To(ContainSubstring("(\"locale\"='en' OR \"locale\"='fr')"))
+			Expect(where).To(ContainSubstring("(\"region\"!='US' AND \"region\"!='CA')"))
+			Expect(where).To(ContainSubstring(") AND ("))
+		})
+	})
 })
