@@ -53,7 +53,8 @@ func NewSendgridClient(config *viper.Viper, logger zap.Logger, apiKey string) *S
 
 // LoadDefaults sets default values for keys needed by this module
 func (c *SendgridClient) LoadDefaults() {
-	c.Config.SetDefault("sendgrid.sender", "no-reply@tfgco.com")
+	c.Config.SetDefault("sendgrid.sender.name", "Marathon")
+	c.Config.SetDefault("sendgrid.sender.email", "no-reply@tfgco.com")
 	c.Config.SetDefault("sendgrid.addressees", "")
 }
 
@@ -64,7 +65,7 @@ func (c *SendgridClient) SendgridSendEmail(addressee, subject, message string) e
 		zap.String("operation", "SendgridSendEmail"),
 	)
 
-	from := mail.NewEmail("Marathon", c.Config.GetString("sendgrid.sender"))
+	from := mail.NewEmail(c.Config.GetString("sendgrid.sender.name"), c.Config.GetString("sendgrid.sender.email"))
 	content := mail.NewContent("text/plain", message)
 
 	var tos []*mail.Email
