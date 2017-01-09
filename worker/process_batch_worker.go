@@ -159,7 +159,7 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 	if err != nil {
 		return err
 	}
-	if job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
+	if job.TotalBatches != 0 && job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
 		job.CompletedAt = time.Now().UnixNano()
 		_, err = batchWorker.MarathonDB.DB.Model(&job).Column("completed_at").Update()
 	}
