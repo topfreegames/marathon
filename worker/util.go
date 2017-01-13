@@ -67,6 +67,20 @@ type SentBatches struct {
 	TotalUsers int
 }
 
+func IsUserIDValid(userID string) bool {
+	forbiddenChars := []string{
+		"\"",
+		",",
+		"'",
+	}
+	for _, c := range forbiddenChars {
+		if strings.Contains(userID, c) {
+			return false
+		}
+	}
+	return true
+}
+
 func isPageProcessed(page int, jobID uuid.UUID, redisClient *redis.Client, l zap.Logger) bool {
 	res, err := redisClient.SIsMember(fmt.Sprintf("%s-processedpages", jobID.String()), page).Result()
 	checkErr(l, err)

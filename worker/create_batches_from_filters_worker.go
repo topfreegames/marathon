@@ -178,7 +178,7 @@ func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, 
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
 		for _, user := range *users {
-			if !bFilter.TestString(user.UserID) {
+			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
 				bFilter.AddString(user.UserID)
 			}

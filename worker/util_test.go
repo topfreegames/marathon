@@ -72,6 +72,25 @@ var _ = Describe("Worker Util", func() {
 		jobID = uuid.NewV4().String()
 	})
 
+	Describe("Check if userID is valid", func() {
+		It("should reject userID with double quote", func() {
+			valid := worker.IsUserIDValid("+.\"Paco\".+")
+			Expect(valid).To(BeFalse())
+		})
+		It("should reject userID with single quote", func() {
+			valid := worker.IsUserIDValid("+.'Paco'.+")
+			Expect(valid).To(BeFalse())
+		})
+		It("should reject userID with comma", func() {
+			valid := worker.IsUserIDValid("+,Paco,+")
+			Expect(valid).To(BeFalse())
+		})
+		It("should accept userID with no invalid characters", func() {
+			valid := worker.IsUserIDValid("b64398fd8f460376d9536a39e48009ef39d218bd3")
+			Expect(valid).To(BeTrue())
+		})
+	})
+
 	Describe("Build message from template", func() {
 		It("should make correct substitutions using defaults", func() {
 			context := map[string]interface{}{}
