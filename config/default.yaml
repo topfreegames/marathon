@@ -26,9 +26,9 @@ s3:
 workers:
   statsPort: 8081
   createBatches:
-    batchSize: 10000
-    dbPageSize: 10000
-    pageProcessingConcurrency: 10
+    batchSize: 20000
+    dbPageSize: 20000
+    pageProcessingConcurrency: 20
     concurrency: 10
     maxRetries: 5
   createBatchesFromFilters:

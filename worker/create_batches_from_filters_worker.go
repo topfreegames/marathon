@@ -113,7 +113,7 @@ func (b *CreateBatchesFromFiltersWorker) configure() {
 	b.configureRedisClient()
 }
 
-func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job, page DBPage) []User {
+func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job, page DBPage) *[]User {
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
 	limit := b.DBPageSize
@@ -126,7 +126,7 @@ func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job
 	var users []User
 	_, err := b.PushDB.DB.Query(&users, query)
 	checkErr(b.Logger, err)
-	return users
+	return &users
 }
 
 func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int, int) {
@@ -167,9 +167,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup) {
 	for page := range c {
 		users := b.getPageFromDBWithFilters(job, page)
-		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(users)))
+		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)))
 		wgCSV.Add(1)
-		writeToCSVCH <- &users
+		writeToCSVCH <- users
 		wg.Done()
 	}
 }

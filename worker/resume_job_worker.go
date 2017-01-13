@@ -97,7 +97,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 		checkErr(b.Logger, err)
 		parsed, err := ParseProcessBatchWorkerMessageArray(pausedJobArr)
 		checkErr(b.Logger, err)
-		_, err = b.Workers.CreateProcessBatchJob(parsed.JobID.String(), parsed.AppName, parsed.Users)
+		_, err = b.Workers.CreateProcessBatchJob(parsed.JobID.String(), parsed.AppName, &parsed.Users)
 		checkErr(l, err)
 	}
 

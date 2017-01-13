@@ -116,7 +116,7 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	b.configurePushDatabase()
 }
 
-func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
+func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) *[]string {
 	csvFile, err := extensions.S3GetObject(b.S3Client, csvPath)
 	checkErr(b.Logger, err)
 	r := csv.NewReader(*csvFile)
@@ -129,38 +129,58 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) []string {
 		}
 		res = append(res, line[0])
 	}
-	return res
+	return &res
 }
 
-func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) []User {
+func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
+	job.TotalBatches = totalBatches
+	_, err := b.MarathonDB.DB.Model(job).Set("total_batches = total_batches + ?total_batches").Update()
+	checkErr(b.Logger, err)
+}
+
+func (b *CreateBatchesWorker) setTotalUsers(totalUsers int, job *model.Job) {
+	job.TotalUsers = totalUsers
+	_, err := b.MarathonDB.DB.Model(job).Set("total_users = ?", totalUsers).Update()
+	checkErr(b.Logger, err)
+}
+
+func (b *CreateBatchesWorker) computeTotalUsersAndBatchesSent(c <-chan *SentBatches, job *model.Job, batchesSent *int, totalUsers *int, wg *sync.WaitGroup) {
+	for sent := range c {
+		*batchesSent += (*sent).NumBatches
+		*totalUsers += (*sent).TotalUsers
+		wg.Done()
+	}
+}
+
+func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
 	var users []User
 	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
 	checkErr(b.Logger, err)
-	return users
+	return &users
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- SentBatches, job *model.Job, wg *sync.WaitGroup, wgBatchesSent *sync.WaitGroup) {
+func (b *CreateBatchesWorker) processBatch(c <-chan *Batch, batchesSentCH chan<- *SentBatches, job *model.Job, wg *sync.WaitGroup, wgBatchesSent *sync.WaitGroup) {
 	l := b.Logger
 	for batch := range c {
-		usersFromBatch := b.getCSVUserBatchFromPG(batch.UserIds, job.App.Name, job.Service)
-		numUsersFromBatch := len(usersFromBatch)
+		usersFromBatch := b.getCSVUserBatchFromPG((*batch).UserIds, job.App.Name, job.Service)
+		numUsersFromBatch := len(*usersFromBatch)
 		log.I(l, "got users from db", func(cm log.CM) {
 			cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
 		})
-		bucketsByTZ := SplitUsersInBucketsByTZ(&usersFromBatch)
+		bucketsByTZ := SplitUsersInBucketsByTZ(usersFromBatch)
 		for tz, users := range bucketsByTZ {
 			log.D(l, "batch of users for tz", func(cm log.CM) {
-				cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
+				cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
 			})
 		}
-		markProcessedPage(batch.PageID, job.ID, b.RedisClient)
+		markProcessedPage((*batch).PageID, job.ID, b.RedisClient)
 		if job.Localized {
-			b.sendLocalizedBatches(&bucketsByTZ, job)
+			b.sendLocalizedBatches(bucketsByTZ, job)
 		} else {
-			b.sendBatches(&bucketsByTZ, job)
+			b.sendBatches(bucketsByTZ, job)
 		}
 		wgBatchesSent.Add(1)
-		batchesSentCH <- SentBatches{
+		batchesSentCH <- &SentBatches{
 			NumBatches: len(bucketsByTZ),
 			TotalUsers: numUsersFromBatch,
 		}
@@ -168,15 +188,15 @@ func (b *CreateBatchesWorker) processBatch(c <-chan Batch, batchesSentCH chan<- 
 	}
 }
 
-func (b *CreateBatchesWorker) sendLocalizedBatches(batches *map[string][]User, job *model.Job) {
+func (b *CreateBatchesWorker) sendLocalizedBatches(batches map[string]*[]User, job *model.Job) {
 	l := b.Logger
-	for tz, users := range *batches {
+	for tz, users := range batches {
 		offset, err := GetTimeOffsetFromUTCInSeconds(tz, b.Logger)
 		checkErr(b.Logger, err)
 		t := time.Unix(0, job.StartsAt)
 		localizedTime := t.Add(time.Duration(offset) * time.Second)
 		log.I(l, "scheduling batch of users to process batches worker", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(users)),
+			cm.Write(zap.Int("numUsers", len(*users)),
 				zap.String("at", localizedTime.String()),
 			)
 		})
@@ -193,47 +213,27 @@ func (b *CreateBatchesWorker) sendLocalizedBatches(batches *map[string][]User, j
 	}
 }
 
-func (b *CreateBatchesWorker) sendBatches(batches *map[string][]User, job *model.Job) {
+func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model.Job) {
 	l := b.Logger
-	for tz, users := range *batches {
+	for tz, users := range batches {
 		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(users)), zap.String("tz", tz))
+			cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
 		})
 		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
 		checkErr(l, err)
 	}
 }
 
-func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
-	job.TotalBatches = totalBatches
-	_, err := b.MarathonDB.DB.Model(job).Set("total_batches = total_batches + ?total_batches").Update()
-	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesWorker) setTotalUsers(totalUsers int, job *model.Job) {
-	job.TotalUsers = totalUsers
-	_, err := b.MarathonDB.DB.Model(job).Set("total_users = ?", totalUsers).Update()
-	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesWorker) computeTotalUsersAndBatchesSent(c <-chan SentBatches, job *model.Job, batchesSent *int, totalUsers *int, wg *sync.WaitGroup) {
-	for sent := range c {
-		*batchesSent += sent.NumBatches
-		*totalUsers += sent.TotalUsers
-		wg.Done()
-	}
-}
-
 func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool) error {
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
-	numPushes := len(userIds)
+	numPushes := len(*userIds)
 	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
 	var wgBatchesSent sync.WaitGroup
-	pgCH := make(chan Batch, pages)
-	batchesSentCH := make(chan SentBatches)
+	pgCH := make(chan *Batch, pages)
+	batchesSentCH := make(chan *SentBatches)
 	wg.Add(pages)
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
 		go b.processBatch(pgCH, batchesSentCH, job, &wg, &wgBatchesSent)
@@ -249,8 +249,8 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 			wg.Done()
 			continue
 		}
-		userBatch := b.getPage(i, &userIds)
-		pgCH <- Batch{
+		userBatch := b.getPage(i, userIds)
+		pgCH <- &Batch{
 			UserIds: &userBatch,
 			PageID:  i,
 		}

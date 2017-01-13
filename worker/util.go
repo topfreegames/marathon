@@ -67,6 +67,7 @@ type SentBatches struct {
 	TotalUsers int
 }
 
+// IsUserIDValid tests whether a userID is valid or not
 func IsUserIDValid(userID string) bool {
 	forbiddenChars := []string{
 		"\"",
@@ -122,17 +123,18 @@ func updateTotalBatches(totalBatches int, job *model.Job, db *pg.DB, l zap.Logge
 }
 
 // SplitUsersInBucketsByTZ splits users in buckets by tz
-func SplitUsersInBucketsByTZ(users *[]User) map[string][]User {
-	bucketsByTZ := map[string][]User{}
+func SplitUsersInBucketsByTZ(users *[]User) map[string]*[]User {
+	bucketsByTZ := map[string]*[]User{}
 	for _, user := range *users {
 		userTz := user.Tz
 		if len(userTz) == 0 {
 			userTz = "-0500"
 		}
 		if res, ok := bucketsByTZ[userTz]; ok {
-			bucketsByTZ[userTz] = append(res, user)
+			users := append(*res, user)
+			bucketsByTZ[userTz] = &users
 		} else {
-			bucketsByTZ[userTz] = []User{user}
+			bucketsByTZ[userTz] = &[]User{user}
 		}
 	}
 	return bucketsByTZ
