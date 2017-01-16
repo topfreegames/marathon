@@ -1,10 +1,10 @@
-hash: d1ade3c4206d002dee930f5150090b81fcdc5b7a28e4f32f2bcbc7e4db7036bd
-updated: 2016-12-28T10:51:23.522009083-02:00
+hash: 25516f1d249368b40584ab425035852579ba3cd90611e11e3014d13978f020fb
+updated: 2017-01-16T14:31:44.367010731-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/aws/aws-sdk-go
-  version: 1e6377549087b490b693300bce2c5e286dc87740
+  version: 63ce630574a5ec05ecd8e8de5cea16332a5a684d
   subpackages:
   - aws
   - aws/awserr
@@ -36,6 +36,8 @@ imports:
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/certifi/gocertifi
   version: a61bf5eafa3aee233ec8043e9da052447e5463dd
+- name: github.com/confluentinc/confluent-kafka-go
+  version: 1a081c6faa129cee96a011a6f6aa289050044539
 - name: github.com/davecgh/go-spew
   version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
@@ -222,7 +224,7 @@ imports:
 - name: gopkg.in/bsm/ratelimit.v1
   version: db14e161995a5177acef654cb0dd785e8ee8bc22
 - name: gopkg.in/pg.v5
-  version: 8a8439b05791ad404bf5a685460288586cd0208a
+  version: 490eaed78d21cac6f4e99e6a0d07a62d99195248
   subpackages:
   - internal
   - internal/parser
@@ -230,7 +232,7 @@ imports:
   - orm
   - types
 - name: gopkg.in/redis.v5
-  version: b7bae3a78050e2e7ec2130a05cde296a9ff2e9c0
+  version: 8829ddcd8bdb333e477cc845946c4b9b2ef66280
   subpackages:
   - internal
   - internal/consistenthash

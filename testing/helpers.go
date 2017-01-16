@@ -41,8 +41,64 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/api"
+	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
+
+// FakeKafkaProducer is a mock producer that implements PushProducer interface
+type FakeKafkaProducer struct {
+	APNSMessages []string
+	GCMMessages  []string
+}
+
+// NewFakeKafkaProducer creates a new FakeKafkaProducer
+func NewFakeKafkaProducer() *FakeKafkaProducer {
+	return &FakeKafkaProducer{
+		APNSMessages: []string{},
+		GCMMessages:  []string{},
+	}
+}
+
+// SendAPNSPush for testing
+func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+	msg := messages.NewAPNSMessage(
+		deviceToken,
+		pushExpiry,
+		payload,
+		messageMetadata,
+		pushMetadata,
+	)
+
+	message, err := msg.ToJSON()
+	if err != nil {
+		return err
+	}
+
+	f.APNSMessages = append(f.APNSMessages, message)
+
+	return nil
+}
+
+// SendGCMPush for testing
+func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+	msg := messages.NewGCMMessage(
+		deviceToken,
+		payload,
+		messageMetadata,
+		pushMetadata,
+		pushExpiry,
+	)
+
+	message, err := msg.ToJSON()
+
+	if err != nil {
+		return err
+	}
+
+	f.GCMMessages = append(f.GCMMessages, message)
+
+	return nil
+}
 
 // FakeS3 for usage in tests
 type FakeS3 struct {

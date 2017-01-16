@@ -33,6 +33,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -41,7 +42,7 @@ import (
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
 	Config         *viper.Viper
-	Kafka          *extensions.KafkaClient
+	Kafka          interfaces.PushProducer
 	Logger         zap.Logger
 	MarathonDB     *extensions.PGClient
 	RedisClient    *redis.Client
@@ -50,7 +51,7 @@ type ProcessBatchWorker struct {
 }
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
-func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatchWorker {
+func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient interfaces.PushProducer) *ProcessBatchWorker {
 	l := logger.With(
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "NewProcessBatchWorker"),
@@ -59,8 +60,12 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 	checkErr(l, err)
 	//Wait 10s at max for a connection
 	zookeeper.WaitForConnection(10)
-	kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
-	checkErr(l, err)
+	k := kafkaClient
+	if k == nil {
+		kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
+		checkErr(l, err)
+		k = kafka
+	}
 	marathonDB, err := extensions.NewPGClient("db", config, logger)
 	checkErr(l, err)
 	redisClient, err := extensions.NewRedis("workers", config, logger)
@@ -69,7 +74,7 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger) *ProcessBatch
 	batchWorker := &ProcessBatchWorker{
 		Config:      config,
 		Logger:      logger,
-		Kafka:       kafka,
+		Kafka:       k,
 		Zookeeper:   zookeeper,
 		MarathonDB:  marathonDB,
 		RedisClient: redisClient,
@@ -111,12 +116,12 @@ func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, m
 	switch service {
 	//TODO por pushmetadata
 	case "apns":
-		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry)
+		err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry)
 		if err != nil {
 			return err
 		}
 	case "gcm":
-		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry)
+		err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry)
 		if err != nil {
 			return err
 		}

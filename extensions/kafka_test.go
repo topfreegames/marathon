@@ -26,31 +26,56 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
 
-func getNextMessageFrom(kafkaBrokers []string, topic string, partition int32, offset int64) (*sarama.ConsumerMessage, error) {
-	consumer, err := sarama.NewConsumer(kafkaBrokers, nil)
-	Expect(err).NotTo(HaveOccurred())
-	defer consumer.Close()
+func getNextMessageFrom(consumer *kafka.Consumer) (*kafka.Message, error) {
+	for ev := range consumer.Events() {
+		if ev == nil {
+			continue
+		}
+		switch ev.(type) {
+		case *kafka.Message:
+			return ev.(*kafka.Message), nil
+		case kafka.PartitionEOF:
+			continue
+		case kafka.Error:
+			return nil, ev.(error)
+		default:
+			continue
+		}
+	}
+	return nil, nil
+}
 
-	partitionConsumer, err := consumer.ConsumePartition(topic, partition, offset)
-	Expect(err).NotTo(HaveOccurred())
-	defer partitionConsumer.Close()
-
-	msg := <-partitionConsumer.Messages()
-	return msg, nil
+func waitForConsumer(consumer *kafka.Consumer) error {
+	for ev := range consumer.Events() {
+		if ev == nil {
+			continue
+		}
+		switch ev.(type) {
+		case kafka.PartitionEOF:
+			return nil
+		case kafka.Error:
+			return ev.(error)
+		default:
+			continue
+		}
+	}
+	return nil
 }
 
 var _ = Describe("Kafka Extension", func() {
 	var logger zap.Logger
 	var config *viper.Viper
+	var testConsumer *kafka.Consumer
 
 	BeforeEach(func() {
 		logger = zap.New(
@@ -58,6 +83,22 @@ var _ = Describe("Kafka Extension", func() {
 			zap.FatalLevel,
 		)
 		config = viper.New()
+		var err error
+		testConsumer, err = kafka.NewConsumer(&kafka.ConfigMap{
+			"bootstrap.servers":        "localhost:9940",
+			"group.id":                 uuid.NewV4().String(),
+			"go.events.channel.enable": true,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		err = testConsumer.Subscribe("consumer", nil)
+		Expect(err).NotTo(HaveOccurred())
+		err = waitForConsumer(testConsumer)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		err := testConsumer.Close()
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Describe("Creating new client", func() {
@@ -67,7 +108,7 @@ var _ = Describe("Kafka Extension", func() {
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
-			Expect(kafka.KafkaBrokers).To(HaveLen(1))
+			Expect(kafka.KafkaBootstrapBrokers).NotTo(BeNil())
 			Expect(kafka.Producer).NotTo(BeNil())
 		})
 	})
@@ -82,10 +123,8 @@ var _ = Describe("Kafka Extension", func() {
 			payload := map[string]interface{}{"x": 1}
 			meta := map[string]interface{}{"a": 1}
 			expiry := time.Now().Unix()
-			partition, offset, err := kafka.SendGCMPush("consumergcm", "device-token", payload, meta, nil, expiry)
-			Expect(err).NotTo(HaveOccurred())
-
-			msg, err := getNextMessageFrom(kafka.KafkaBrokers, "consumergcm", partition, offset)
+			kafka.SendGCMPush("consumer", "device-token", payload, meta, nil, expiry)
+			msg, err := getNextMessageFrom(testConsumer)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(msg).NotTo(BeNil())
 
@@ -109,10 +148,9 @@ var _ = Describe("Kafka Extension", func() {
 			payload := map[string]interface{}{"x": 1}
 			meta := map[string]interface{}{"a": 1}
 			expiry := time.Now().Unix()
-			partition, offset, err := kafka.SendAPNSPush("consumerapns", "device-token", payload, meta, nil, expiry)
-			Expect(err).NotTo(HaveOccurred())
+			kafka.SendAPNSPush("consumer", "device-token", payload, meta, nil, expiry)
 
-			msg, err := getNextMessageFrom(kafka.KafkaBrokers, "consumerapns", partition, offset)
+			msg, err := getNextMessageFrom(testConsumer)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(msg).NotTo(BeNil())
 

@@ -24,8 +24,9 @@ package extensions
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/Shopify/sarama"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/log"
@@ -35,13 +36,13 @@ import (
 
 // KafkaClient is the struct that connects to Kafka
 type KafkaClient struct {
-	ZookeeperClient *ZookeeperClient
-	Config          *viper.Viper
-	ConfigPath      string
-	Conn            *zk.Conn
-	Logger          zap.Logger
-	KafkaBrokers    []string
-	Producer        sarama.SyncProducer // TODO: should we use asynProducer?
+	ZookeeperClient       *ZookeeperClient
+	Config                *viper.Viper
+	ConfigPath            string
+	Conn                  *zk.Conn
+	Logger                zap.Logger
+	KafkaBootstrapBrokers string
+	Producer              *kafka.Producer
 }
 
 // NewKafkaClient creates a new client
@@ -55,12 +56,12 @@ func NewKafkaClient(zookeeperClient *ZookeeperClient, config *viper.Viper, logge
 		Logger:          l,
 	}
 
-	err := client.LoadKafkaBrokers()
+	err := client.loadKafkaBrokers()
 	if err != nil {
 		return nil, err
 	}
 
-	err = client.ConnectToKafka()
+	err = client.connectToKafka()
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func NewKafkaClient(zookeeperClient *ZookeeperClient, config *viper.Viper, logge
 }
 
 //LoadKafkaBrokers from Zookeeper
-func (c *KafkaClient) LoadKafkaBrokers() error {
+func (c *KafkaClient) loadKafkaBrokers() error {
 	if c.ZookeeperClient == nil || !c.ZookeeperClient.IsConnected() {
 		return fmt.Errorf("Failed to start kafka extension due to zookeeper not being connected.")
 	}
@@ -78,32 +79,29 @@ func (c *KafkaClient) LoadKafkaBrokers() error {
 	if err != nil {
 		return err
 	}
-	c.KafkaBrokers = brokers
+	c.KafkaBootstrapBrokers = strings.Join(brokers, ",")
 	return nil
 }
 
 //ConnectToKafka connects with the Kafka from the broker
-func (c *KafkaClient) ConnectToKafka() error {
-	saramaConfig := sarama.NewConfig()
-	saramaConfig.Producer.Return.Successes = true
-
-	producer, err := sarama.NewSyncProducer(c.KafkaBrokers, saramaConfig)
+func (c *KafkaClient) connectToKafka() error {
+	cfg := &kafka.ConfigMap{
+		"bootstrap.servers": c.KafkaBootstrapBrokers,
+	}
+	p, err := kafka.NewProducer(cfg)
 	if err != nil {
 		return err
 	}
 
-	c.Producer = producer
+	c.Producer = p
 	return nil
 }
 
 //Close the connections to kafka and zookeeper
 func (c *KafkaClient) Close() error {
-	err := c.Producer.Close()
-	if err != nil {
-		return err
-	}
+	c.Producer.Close()
 
-	err = c.ZookeeperClient.Close()
+	err := c.ZookeeperClient.Close()
 	if err != nil {
 		return err
 	}
@@ -111,7 +109,7 @@ func (c *KafkaClient) Close() error {
 }
 
 //SendAPNSPush notification to Kafka
-func (c *KafkaClient) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) (int32, int64, error) {
+func (c *KafkaClient) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
 	msg := messages.NewAPNSMessage(
 		deviceToken,
 		pushExpiry,
@@ -122,14 +120,14 @@ func (c *KafkaClient) SendAPNSPush(topic, deviceToken string, payload, messageMe
 
 	message, err := msg.ToJSON()
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
-
-	return c.SendPush(messages.NewKafkaMessage(topic, message))
+	c.sendPush(messages.NewKafkaMessage(topic, message))
+	return nil
 }
 
 //SendGCMPush notification to Kafka
-func (c *KafkaClient) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) (int32, int64, error) {
+func (c *KafkaClient) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
 	msg := messages.NewGCMMessage(
 		deviceToken,
 		payload,
@@ -140,33 +138,27 @@ func (c *KafkaClient) SendGCMPush(topic, deviceToken string, payload, messageMet
 
 	message, err := msg.ToJSON()
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
-
-	return c.SendPush(messages.NewKafkaMessage(topic, message))
+	c.sendPush(messages.NewKafkaMessage(topic, message))
+	return nil
 }
 
 //SendPush notification to Kafka
-func (c *KafkaClient) SendPush(msg *messages.KafkaMessage) (int32, int64, error) {
-	saramaMessage := &sarama.ProducerMessage{
-		Topic: msg.Topic,
-		Value: sarama.StringEncoder(msg.Message),
+func (c *KafkaClient) sendPush(msg *messages.KafkaMessage) {
+	message := &kafka.Message{
+		TopicPartition: kafka.TopicPartition{
+			Topic:     &msg.Topic,
+			Partition: kafka.PartitionAny,
+		},
+		Value: []byte(msg.Message),
 	}
 
-	partition, offset, err := c.Producer.SendMessage(saramaMessage) // TODO: use SendMessages instead?
-	if err != nil {
-		log.E(c.Logger, "Error sending message", func(cm log.CM) {
-			cm.Write(zap.Object("KafkaMessage", saramaMessage), zap.Error(err))
-		})
-		return 0, 0, err
-	}
+	c.Producer.ProduceChannel() <- message
 	log.D(c.Logger, "Sent message", func(cm log.CM) {
 		cm.Write(
-			zap.Object("KafkaMessage", saramaMessage),
+			zap.Object("KafkaMessage", message),
 			zap.String("topic", msg.Topic),
-			zap.Int("partition", int(partition)),
-			zap.Int64("offset", offset),
 		)
 	})
-	return partition, offset, nil
 }

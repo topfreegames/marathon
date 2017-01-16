@@ -63,13 +63,17 @@ var _ = Describe("ProcessBatch Worker", func() {
 	var job *model.Job
 	var gcmJob *model.Job
 	var users []worker.User
+	var mockKafkaProducer *FakeKafkaProducer
+
 	BeforeEach(func() {
 		logger = zap.New(
 			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
 			zap.FatalLevel,
 		)
 		config = GetConf()
-		processBatchWorker = worker.NewProcessBatchWorker(config, logger)
+		mockKafkaProducer = NewFakeKafkaProducer()
+		processBatchWorker = worker.NewProcessBatchWorker(config, logger, mockKafkaProducer)
+
 		app = CreateTestApp(processBatchWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -132,8 +136,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 	Describe("Process", func() {
 		It("should process when service is gcm and increment job completed batches", func() {
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "gcm", topicTemplate)
 
 			messageObj := []interface{}{
 				gcmJob.ID,
@@ -148,38 +150,24 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
 
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newPartition).To(Equal(oldPartition))
-			Expect(newOffset).To(Equal(oldOffset + 3))
-
-			idx := 0
-			for offset := oldOffset + 1; offset < newOffset; offset++ {
-				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(msg).NotTo(BeNil())
-
+			for idx := range users {
+				m := mockKafkaProducer.GCMMessages[idx]
 				var gcmMessage messages.GCMMessage
-				err = json.Unmarshal(msg.Value, &gcmMessage)
+				err = json.Unmarshal([]byte(m), &gcmMessage)
 				Expect(err).NotTo(HaveOccurred())
+
 				Expect(gcmMessage.To).To(Equal(users[idx].Token))
 				Expect(gcmMessage.TimeToLive).To(BeEquivalentTo(gcmJob.ExpiresAt / 1000000000))
 				Expect(gcmMessage.Data["alert"]).To(Equal("Everyone just liked your village!"))
 				Expect(gcmMessage.Data["m"].(map[string]interface{})["meta"]).To(Equal(gcmJob.Metadata["meta"]))
-				idx++
 			}
 		})
 
 		It("should process when service is apns and increment job completed batches", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = apns").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 
 			messageObj := []interface{}{
 				job.ID,
@@ -194,24 +182,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
 
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newPartition).To(Equal(oldPartition))
-			Expect(newOffset).To(Equal(oldOffset + 3))
-
-			idx := 0
-			for offset := oldOffset + 1; offset < newOffset; offset++ {
-				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(msg).NotTo(BeNil())
-
+			for idx := range users {
+				m := mockKafkaProducer.APNSMessages[idx]
 				var apnsMessage messages.APNSMessage
-				err = json.Unmarshal(msg.Value, &apnsMessage)
+				err = json.Unmarshal([]byte(m), &apnsMessage)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(apnsMessage.DeviceToken).To(Equal(users[idx].Token))
 				Expect(apnsMessage.PushExpiry).To(BeEquivalentTo(job.ExpiresAt / 1000000000))
@@ -338,8 +314,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should not process batch if job is expired", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("expires_at = ?", time.Now().UnixNano()-50000).Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 
 			messageObj := []interface{}{
 				job.ID,
@@ -354,14 +328,9 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
 
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
-			Expect(newOffset).To(Equal(oldOffset + 1))
 
 			dbJob := model.Job{
 				ID: job.ID,
@@ -375,8 +344,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should not process batch if job is stopped", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("status = 'stopped'").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 
 			messageObj := []interface{}{
 				job.ID,
@@ -391,14 +358,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
-
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newOffset).To(Equal(oldOffset + 1))
 
 			dbJob := model.Job{
 				ID: job.ID,
@@ -421,8 +381,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 				}
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 			messageObj := []interface{}{
 				job.ID,
 				appName,
@@ -436,24 +394,13 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
 
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newPartition).To(Equal(oldPartition))
-			Expect(newOffset).To(Equal(oldOffset + 3))
-
-			idx := 0
-			for offset := oldOffset + 1; offset < newOffset; offset++ {
-				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(msg).NotTo(BeNil())
+			for idx := range users {
+				m := mockKafkaProducer.APNSMessages[idx]
 
 				var apnsMessage messages.APNSMessage
-				err = json.Unmarshal(msg.Value, &apnsMessage)
+				err = json.Unmarshal([]byte(m), &apnsMessage)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(apnsMessage.DeviceToken).To(Equal(users[idx].Token))
 				Expect(apnsMessage.Payload.Aps["alert"]).To(Equal("Everyone curtiram sua vila!"))
@@ -470,8 +417,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Locale: "pt",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 			messageObj := []interface{}{
 				job.ID,
 				appName,
@@ -485,15 +430,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
-
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newPartition).To(Equal(oldPartition))
-			Expect(newOffset).To(Equal(oldOffset + 2))
 
 			expectedPushMetadata := map[string]interface{}{
 				"jobId":        job.ID.String(),
@@ -502,18 +439,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"pushType":     "massive",
 			}
 
-			idx := 0
-			for offset := oldOffset + 1; offset < newOffset; offset++ {
-				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(msg).NotTo(BeNil())
+			m := mockKafkaProducer.APNSMessages[0]
+			var apnsMessage messages.APNSMessage
+			err = json.Unmarshal([]byte(m), &apnsMessage)
 
-				var apnsMessage messages.APNSMessage
-				err = json.Unmarshal(msg.Value, &apnsMessage)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(apnsMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
-				idx++
-			}
+			Expect(err).NotTo(HaveOccurred())
+			Expect(apnsMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
 		})
 
 		It("should process the message and put the right pushMetadata on it if gcm push", func() {
@@ -525,8 +456,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Locale: "pt",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "gcm", topicTemplate)
 			messageObj := []interface{}{
 				gcmJob.ID,
 				appName,
@@ -540,15 +469,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
-
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newPartition).To(Equal(oldPartition))
-			Expect(newOffset).To(Equal(oldOffset + 2))
 
 			expectedPushMetadata := map[string]interface{}{
 				"jobId":        gcmJob.ID.String(),
@@ -557,18 +478,11 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"pushType":     "massive",
 			}
 
-			idx := 0
-			for offset := oldOffset + 1; offset < newOffset; offset++ {
-				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(msg).NotTo(BeNil())
-
-				var apnsMessage messages.APNSMessage
-				err = json.Unmarshal(msg.Value, &apnsMessage)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(apnsMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
-				idx++
-			}
+			m := mockKafkaProducer.GCMMessages[0]
+			var gcmMessage messages.GCMMessage
+			err = json.Unmarshal([]byte(m), &gcmMessage)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gcmMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
 		})
 
 		It("should increment failedJobs", func() {
@@ -650,7 +564,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(dbJob.Status).To(Equal("circuitbreak"))
 		})
 
-		// TODO: found out how to test this
+		//// TODO: found out how to test this
 		XIt("should increment failedJobs if push no sent to users", func() {
 		})
 
@@ -659,8 +573,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 
 			messageObj := []interface{}{
 				job.ID,
@@ -675,14 +587,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
-
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newOffset).To(Equal(oldOffset + 1))
 
 			dbJob := model.Job{
 				ID: job.ID,
@@ -702,8 +607,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
-			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
-			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
 
 			messageObj := []interface{}{
 				job.ID,
@@ -718,14 +621,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
-
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newOffset).To(Equal(oldOffset + 1))
 
 			dbJob := model.Job{
 				ID: job.ID,

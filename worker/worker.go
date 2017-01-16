@@ -112,7 +112,7 @@ func (w *Worker) configureRedis() {
 }
 
 func (w *Worker) configureWorkers() {
-	p := NewProcessBatchWorker(w.Config, w.Logger)
+	p := NewProcessBatchWorker(w.Config, w.Logger, nil)
 	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
 	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
 	r := NewResumeJobWorker(w.Config, w.Logger, w)
