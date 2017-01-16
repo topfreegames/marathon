@@ -12,6 +12,17 @@ services:
   - postgres
   - docker
 
+env:
+  - LIBRDKAFKA_VERSION=0.9.2.x
+  - LIBRDKAFKA_VERSION=master
+
+cache:
+  directories:
+    - $HOME/.cache/librdkafka
+
+before_install:
+  - sudo /bin/bash ./travis.sh
+
 sudo: false
 
 before_script: make setup-ci
