@@ -42,6 +42,10 @@ type APNSPayloadContent struct {
 
 // NewAPNSMessage builds an APNSMessage
 func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}) *APNSMessage {
+	if pushMetadata == nil {
+		pushMetadata = map[string]interface{}{}
+	}
+
 	msg := &APNSMessage{
 		DeviceToken: deviceToken,
 		PushExpiry:  pushExpiry,
@@ -53,6 +57,7 @@ func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, messageMetadata m
 	if messageMetadata == nil {
 		messageMetadata = map[string]interface{}{}
 	}
+
 	msg.Payload = APNSPayloadContent{
 		Aps: aps,
 		M:   messageMetadata,

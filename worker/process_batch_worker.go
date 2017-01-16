@@ -106,17 +106,17 @@ func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalB
 	}
 }
 
-func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string, expiresAt int64) error {
+func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, deviceToken string, expiresAt int64) error {
 	pushExpiry := expiresAt / 1000000000 // convert from nanoseconds to seconds
 	switch service {
 	//TODO por pushmetadata
 	case "apns":
-		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, metadata, nil, pushExpiry)
+		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry)
 		if err != nil {
 			return err
 		}
 	case "gcm":
-		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, metadata, nil, pushExpiry)
+		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry)
 		if err != nil {
 			return err
 		}
@@ -252,7 +252,13 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 		}
 		checkErr(l, err)
-		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, user.Token, job.ExpiresAt)
+		pushMetadata := map[string]interface{}{
+			"userId":       user.UserID,
+			"templateName": job.TemplateName,
+			"jobId":        job.ID.String(),
+			"pushType":     "massive",
+		}
+		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt)
 		if err != nil {
 			batchErrorCounter = batchErrorCounter + 1
 			log.E(l, "Failed to send message to Kafka.", func(cm log.CM) {

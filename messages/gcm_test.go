@@ -67,5 +67,30 @@ var _ = Describe("GCM Message", func() {
 			Expect(msg.DelayWhileIdle).To(Equal(false))
 			Expect(msg.MessageID).To(Equal(""))
 		})
+
+		It("should return message if pushMetadata is not nil", func() {
+			mtd := map[string]interface{}{"a": 1, "b": 2}
+			msg := messages.NewGCMMessage("to", nil, nil, mtd, 357)
+			Expect(msg).NotTo(BeNil())
+			Expect(msg.To).To(Equal("to"))
+			Expect(msg.Metadata).To(BeEquivalentTo(mtd))
+			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
+			Expect(msg.DryRun).To(Equal(false))
+			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
+			Expect(msg.DelayWhileIdle).To(Equal(false))
+			Expect(msg.MessageID).To(Equal(""))
+		})
+
+		It("should return message if pushMetadata is nil", func() {
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 357)
+			Expect(msg).NotTo(BeNil())
+			Expect(msg.To).To(Equal("to"))
+			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
+			Expect(msg.DryRun).To(Equal(false))
+			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
+			Expect(msg.DelayWhileIdle).To(Equal(false))
+			Expect(msg.MessageID).To(Equal(""))
+		})
+
 	})
 })

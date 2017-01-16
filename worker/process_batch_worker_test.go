@@ -461,6 +461,116 @@ var _ = Describe("ProcessBatch Worker", func() {
 			}
 		})
 
+		It("should process the message and put the right pushMetadata on it if apns push", func() {
+			userID := uuid.NewV4().String()
+			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			user := worker.User{
+				UserID: userID,
+				Token:  token,
+				Locale: "pt",
+			}
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "apns", topicTemplate)
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				&[]worker.User{user},
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newPartition).To(Equal(oldPartition))
+			Expect(newOffset).To(Equal(oldOffset + 2))
+
+			expectedPushMetadata := map[string]interface{}{
+				"jobId":        job.ID.String(),
+				"userId":       userID,
+				"templateName": job.TemplateName,
+				"pushType":     "massive",
+			}
+
+			idx := 0
+			for offset := oldOffset + 1; offset < newOffset; offset++ {
+				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(msg).NotTo(BeNil())
+
+				var apnsMessage messages.APNSMessage
+				err = json.Unmarshal(msg.Value, &apnsMessage)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(apnsMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
+				idx++
+			}
+		})
+
+		It("should process the message and put the right pushMetadata on it if gcm push", func() {
+			userID := uuid.NewV4().String()
+			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			user := worker.User{
+				UserID: userID,
+				Token:  token,
+				Locale: "pt",
+			}
+			appName := strings.Split(app.BundleID, ".")[2]
+			topicTemplate := processBatchWorker.Config.GetString("workers.topicTemplate")
+			topic := worker.BuildTopicName(appName, "gcm", topicTemplate)
+			messageObj := []interface{}{
+				gcmJob.ID,
+				appName,
+				&[]worker.User{user},
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(newPartition).To(Equal(oldPartition))
+			Expect(newOffset).To(Equal(oldOffset + 2))
+
+			expectedPushMetadata := map[string]interface{}{
+				"jobId":        gcmJob.ID.String(),
+				"userId":       userID,
+				"templateName": job.TemplateName,
+				"pushType":     "massive",
+			}
+
+			idx := 0
+			for offset := oldOffset + 1; offset < newOffset; offset++ {
+				msg, err := getNextMessageFrom(processBatchWorker.Kafka.KafkaBrokers, topic, oldPartition, offset)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(msg).NotTo(BeNil())
+
+				var apnsMessage messages.APNSMessage
+				err = json.Unmarshal(msg.Value, &apnsMessage)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(apnsMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
+				idx++
+			}
+		})
+
 		It("should increment failedJobs", func() {
 			// unexistent template
 			processBatchWorker.MarathonDB.DB.Exec("DELETE FROM templates;")
