@@ -32,7 +32,7 @@ var _ = Describe("GCM Message", func() {
 	Describe("Creating new message", func() {
 		It("should return message", func() {
 			data := map[string]interface{}{"x": 1}
-			msg := messages.NewGCMMessage("to", data, nil, 357)
+			msg := messages.NewGCMMessage("to", data, nil, nil, 357)
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data).To(BeEquivalentTo(data))
@@ -44,7 +44,7 @@ var _ = Describe("GCM Message", func() {
 		})
 
 		It("should return message if data is nil", func() {
-			msg := messages.NewGCMMessage("to", nil, nil, 357)
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 357)
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data).To(BeEquivalentTo(map[string]interface{}{}))
@@ -57,7 +57,7 @@ var _ = Describe("GCM Message", func() {
 
 		It("should return message if metadata is not nil", func() {
 			mtd := map[string]interface{}{"a": 1, "b": 2}
-			msg := messages.NewGCMMessage("to", nil, mtd, 357)
+			msg := messages.NewGCMMessage("to", nil, mtd, nil, 357)
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data["m"].(map[string]interface{})).To(BeEquivalentTo(mtd))

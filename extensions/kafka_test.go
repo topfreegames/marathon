@@ -82,7 +82,7 @@ var _ = Describe("Kafka Extension", func() {
 			payload := map[string]interface{}{"x": 1}
 			meta := map[string]interface{}{"a": 1}
 			expiry := time.Now().Unix()
-			partition, offset, err := kafka.SendGCMPush("consumergcm", "device-token", payload, meta, expiry)
+			partition, offset, err := kafka.SendGCMPush("consumergcm", "device-token", payload, meta, nil, expiry)
 			Expect(err).NotTo(HaveOccurred())
 
 			msg, err := getNextMessageFrom(kafka.KafkaBrokers, "consumergcm", partition, offset)
@@ -109,7 +109,7 @@ var _ = Describe("Kafka Extension", func() {
 			payload := map[string]interface{}{"x": 1}
 			meta := map[string]interface{}{"a": 1}
 			expiry := time.Now().Unix()
-			partition, offset, err := kafka.SendAPNSPush("consumerapns", "device-token", payload, meta, expiry)
+			partition, offset, err := kafka.SendAPNSPush("consumerapns", "device-token", payload, meta, nil, expiry)
 			Expect(err).NotTo(HaveOccurred())
 
 			msg, err := getNextMessageFrom(kafka.KafkaBrokers, "consumerapns", partition, offset)

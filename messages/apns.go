@@ -28,9 +28,10 @@ import "encoding/json"
 // For more info on APNS payload building, refer to this document:
 // https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CreatingtheNotificationPayload.html#//apple_ref/doc/uid/TP40008194-CH10-SW1
 type APNSMessage struct {
-	DeviceToken string             `json:"DeviceToken"`
-	Payload     APNSPayloadContent `json:"Payload"`
-	PushExpiry  int64              `json:"push_expiry"`
+	DeviceToken string                 `json:"DeviceToken"`
+	Payload     APNSPayloadContent     `json:"Payload"`
+	PushExpiry  int64                  `json:"push_expiry"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }
 
 // APNSPayloadContent stores payload content of apns message
@@ -40,20 +41,21 @@ type APNSPayloadContent struct {
 }
 
 // NewAPNSMessage builds an APNSMessage
-func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, m map[string]interface{}) *APNSMessage {
+func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}) *APNSMessage {
 	msg := &APNSMessage{
 		DeviceToken: deviceToken,
 		PushExpiry:  pushExpiry,
+		Metadata:    pushMetadata,
 	}
 	if aps == nil {
 		aps = map[string]interface{}{}
 	}
-	if m == nil {
-		m = map[string]interface{}{}
+	if messageMetadata == nil {
+		messageMetadata = map[string]interface{}{}
 	}
 	msg.Payload = APNSPayloadContent{
 		Aps: aps,
-		M:   m,
+		M:   messageMetadata,
 	}
 	return msg
 }

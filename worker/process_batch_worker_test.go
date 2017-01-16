@@ -118,7 +118,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 		Expect(job.CompletedAt).To(Equal(int64(0)))
 		users = make([]worker.User, 2)
-		for index, _ := range users {
+		for index := range users {
 			id := uuid.NewV4().String()
 			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
 			users[index] = worker.User{
@@ -148,12 +148,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			newPartition, newOffset, err := processBatchWorker.Kafka.SendGCMPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newPartition).To(Equal(oldPartition))
 			Expect(newOffset).To(Equal(oldOffset + 3))
@@ -194,12 +194,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newPartition).To(Equal(oldPartition))
 			Expect(newOffset).To(Equal(oldOffset + 3))
@@ -354,12 +354,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newOffset).To(Equal(oldOffset + 1))
 
@@ -391,12 +391,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newOffset).To(Equal(oldOffset + 1))
 
@@ -411,7 +411,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 		It("should process the message using the correct template", func() {
 			users = make([]worker.User, 2)
-			for index, _ := range users {
+			for index := range users {
 				id := uuid.NewV4().String()
 				token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
 				users[index] = worker.User{
@@ -436,12 +436,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			oldPartition, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			newPartition, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newPartition).To(Equal(oldPartition))
 			Expect(newOffset).To(Equal(oldOffset + 3))
@@ -565,12 +565,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newOffset).To(Equal(oldOffset + 1))
 
@@ -608,12 +608,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, oldOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
 
-			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
+			_, newOffset, err := processBatchWorker.Kafka.SendAPNSPush(topic, "device-token", map[string]interface{}{}, map[string]interface{}{}, map[string]interface{}{}, time.Now().Unix())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newOffset).To(Equal(oldOffset + 1))
 

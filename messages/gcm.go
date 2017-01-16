@@ -35,16 +35,17 @@ type GCMMessage struct {
 	DeliveryReceiptRequest bool                   `json:"DeliveryReceiptRequest"`
 	DryRun                 bool                   `json:"dry_run"`
 	MessageID              string                 `json:"message_id"`
+	Metadata               map[string]interface{} `json:"metadata"`
 }
 
 // NewGCMMessage builds a new GCM Message
-func NewGCMMessage(to string, data, metadata map[string]interface{}, timeToLive int64) *GCMMessage {
+func NewGCMMessage(to string, data, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, timeToLive int64) *GCMMessage {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
 
-	if metadata != nil && len(metadata) > 0 {
-		data["m"] = metadata
+	if messageMetadata != nil && len(messageMetadata) > 0 {
+		data["m"] = messageMetadata
 	}
 
 	msg := &GCMMessage{
@@ -55,6 +56,7 @@ func NewGCMMessage(to string, data, metadata map[string]interface{}, timeToLive 
 		DeliveryReceiptRequest: false,
 		DelayWhileIdle:         false,
 		MessageID:              "",
+		Metadata:               pushMetadata,
 	}
 	return msg
 }

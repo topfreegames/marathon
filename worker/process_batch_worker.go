@@ -109,13 +109,14 @@ func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalB
 func (batchWorker *ProcessBatchWorker) sendToKafka(service, topic string, msg, metadata map[string]interface{}, deviceToken string, expiresAt int64) error {
 	pushExpiry := expiresAt / 1000000000 // convert from nanoseconds to seconds
 	switch service {
+	//TODO por pushmetadata
 	case "apns":
-		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, metadata, pushExpiry)
+		_, _, err := batchWorker.Kafka.SendAPNSPush(topic, deviceToken, msg, metadata, nil, pushExpiry)
 		if err != nil {
 			return err
 		}
 	case "gcm":
-		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, metadata, pushExpiry)
+		_, _, err := batchWorker.Kafka.SendGCMPush(topic, deviceToken, msg, metadata, nil, pushExpiry)
 		if err != nil {
 			return err
 		}

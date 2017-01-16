@@ -101,7 +101,7 @@ func (c *SendgridClient) SendgridSendEmail(addressee, subject, message string) e
 		})
 	} else if response.StatusCode >= 400 {
 		log.E(l, "Failed to send email.", func(cm log.CM) {
-			cm.Write(zap.Error(fmt.Errorf(fmt.Sprintf("Failed with status %s and body %s.", response.StatusCode, response.Body))))
+			cm.Write(zap.Error(fmt.Errorf(fmt.Sprintf("Failed with status %d and body %s.", response.StatusCode, response.Body))))
 		})
 	} else {
 		log.I(l, "Sent email successfully.")
