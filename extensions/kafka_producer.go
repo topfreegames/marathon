@@ -34,8 +34,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// KafkaClient is the struct that connects to Kafka
-type KafkaClient struct {
+// KafkaProducer is the struct that connects to Kafka
+type KafkaProducer struct {
 	ZookeeperClient       *ZookeeperClient
 	Config                *viper.Viper
 	ConfigPath            string
@@ -45,12 +45,12 @@ type KafkaClient struct {
 	Producer              *kafka.Producer
 }
 
-// NewKafkaClient creates a new client
-func NewKafkaClient(zookeeperClient *ZookeeperClient, config *viper.Viper, logger zap.Logger) (*KafkaClient, error) {
+// NewKafkaProducer creates a new kafka producer
+func NewKafkaProducer(zookeeperClient *ZookeeperClient, config *viper.Viper, logger zap.Logger) (*KafkaProducer, error) {
 	l := logger.With(
 		zap.String("source", "KafkaExtension"),
 	)
-	client := &KafkaClient{
+	client := &KafkaProducer{
 		ZookeeperClient: zookeeperClient,
 		Config:          config,
 		Logger:          l,
@@ -66,11 +66,13 @@ func NewKafkaClient(zookeeperClient *ZookeeperClient, config *viper.Viper, logge
 		return nil, err
 	}
 
+	l.Info("configured kafka producer")
+
 	return client, nil
 }
 
 //LoadKafkaBrokers from Zookeeper
-func (c *KafkaClient) loadKafkaBrokers() error {
+func (c *KafkaProducer) loadKafkaBrokers() error {
 	if c.ZookeeperClient == nil || !c.ZookeeperClient.IsConnected() {
 		return fmt.Errorf("Failed to start kafka extension due to zookeeper not being connected.")
 	}
@@ -84,7 +86,7 @@ func (c *KafkaClient) loadKafkaBrokers() error {
 }
 
 //ConnectToKafka connects with the Kafka from the broker
-func (c *KafkaClient) connectToKafka() error {
+func (c *KafkaProducer) connectToKafka() error {
 	cfg := &kafka.ConfigMap{
 		"bootstrap.servers": c.KafkaBootstrapBrokers,
 	}
@@ -98,7 +100,7 @@ func (c *KafkaClient) connectToKafka() error {
 }
 
 //Close the connections to kafka and zookeeper
-func (c *KafkaClient) Close() error {
+func (c *KafkaProducer) Close() error {
 	c.Producer.Close()
 
 	err := c.ZookeeperClient.Close()
@@ -109,7 +111,7 @@ func (c *KafkaClient) Close() error {
 }
 
 //SendAPNSPush notification to Kafka
-func (c *KafkaClient) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
 	msg := messages.NewAPNSMessage(
 		deviceToken,
 		pushExpiry,
@@ -127,7 +129,7 @@ func (c *KafkaClient) SendAPNSPush(topic, deviceToken string, payload, messageMe
 }
 
 //SendGCMPush notification to Kafka
-func (c *KafkaClient) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
 	msg := messages.NewGCMMessage(
 		deviceToken,
 		payload,
@@ -145,7 +147,7 @@ func (c *KafkaClient) SendGCMPush(topic, deviceToken string, payload, messageMet
 }
 
 //SendPush notification to Kafka
-func (c *KafkaClient) sendPush(msg *messages.KafkaMessage) {
+func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage) {
 	message := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{
 			Topic:     &msg.Topic,

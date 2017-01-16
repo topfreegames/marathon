@@ -40,6 +40,9 @@ workers:
     concurrency: 10
     maxBatchFailure: 0.05
     maxUserFailureInBatch: 0.05
+  zookeeper:
+    hosts:
+      - localhost:2288
   redis:
     poolSize: 10
     host: localhost
