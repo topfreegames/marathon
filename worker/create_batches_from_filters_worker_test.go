@@ -105,6 +105,33 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).Should(Panic())
 		})
 
+		It("should do nothing if job status is stopped", func() {
+			jobOptions := map[string]interface{}{
+				"filters": map[string]interface{}{},
+			}
+			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, app.ID, template.Name, jobOptions)
+			_, err := createBatchesFromFiltersWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			m := map[string]interface{}{
+				"jid":  3,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
+			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
+			fakeS3 := NewFakeS3()
+			_, err = fakeS3.GetObject(&s3.GetObjectInput{
+				Bucket: &bucket,
+				Key:    &key,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("NoSuchKey: The specified key does not exist. status code: 404"))
+		})
+
 		//TODO fazer wg wait do createBatchesWoker (que reporta numero)
 		It("should not panic if job.ID is valid and filters are not empty", func() {
 			a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})

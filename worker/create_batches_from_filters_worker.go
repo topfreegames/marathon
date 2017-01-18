@@ -250,6 +250,10 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	}
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
+	if job.Status == stoppedJobStatus {
+		l.Info("stopped job create_batches_using_filters_worker")
+		return
+	}
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
 	err = b.createBatchesFromFilters(job, &csvWriter)

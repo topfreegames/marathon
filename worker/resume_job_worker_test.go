@@ -88,7 +88,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 	})
 
 	Describe("Process", func() {
-		It("should remove jobs from the paused jobs list until it is empty", func() {
+		It("should remove jobs from the paused jobs list and enqueue to process_batch_worker until it is empty", func() {
 			messageObj := []interface{}{
 				job.ID,
 			}
@@ -108,6 +108,30 @@ var _ = Describe("ProcessBatch Worker", func() {
 			remainingJobsLen, err := resumeJobWorker.RedisClient.LLen(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(remainingJobsLen).To(Equal(int64(0)))
+		})
+
+		It("should remove the paused jobs list and not enqueue to process_batch_worker if job status is stopped", func() {
+			_, err := resumeJobWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", job.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			messageObj := []interface{}{
+				job.ID,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+			resumeJobWorker.Process(message)
+
+			res, err := resumeJobWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(0))
+
+			exists, err := resumeJobWorker.RedisClient.Exists(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(exists).To(BeFalse())
 		})
 	})
 })

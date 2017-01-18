@@ -295,6 +295,11 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		ID: id,
 	}
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	checkErr(l, err)
+	if job.Status == stoppedJobStatus {
+		l.Info("stopped job create_batches_worker")
+		return
+	}
 	if job.DBPageSize == 0 {
 		b.MarathonDB.DB.Model(job).Set("db_page_size = ?", b.DBPageSize).Returning("*").Update()
 	} else if job.DBPageSize != b.DBPageSize {
@@ -303,7 +308,6 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 			cm.Write(zap.Int("dbPageSize", job.DBPageSize))
 		})
 	}
-	checkErr(l, err)
 	if len(job.CSVPath) > 0 {
 		err := b.createBatchesUsingCSV(job, isReexecution)
 		checkErr(l, err)

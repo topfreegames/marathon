@@ -151,6 +151,28 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 			//  }).ShouldNot(Panic())
 		})
 
+		It("should do nothing if job status is stopped", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			_, err := createBatchesWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(0))
+		})
+
 		It("should create batches with the right tokens and tz and send to process_batches_worker", func() {
 			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{

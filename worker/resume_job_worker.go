@@ -32,6 +32,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
+	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
 
@@ -84,6 +85,20 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 		zap.String("jobID", id.String()),
 	)
 	log.I(l, "starting resume_job_worker")
+
+	job := &model.Job{
+		ID: id,
+	}
+	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	checkErr(l, err)
+	if job.Status == stoppedJobStatus {
+		l.Info("stopped job resume_job_worker")
+		err := b.RedisClient.Del(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Err()
+		if err != nil && err != redis.Nil {
+			checkErr(b.Logger, err)
+		}
+		return
+	}
 
 	for {
 		batchInfo, err := b.RedisClient.RPop(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Result()

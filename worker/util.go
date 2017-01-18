@@ -40,6 +40,8 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
+const stoppedJobStatus = "stopped"
+
 // User is the struct that will keep users before sending them to send batches worker
 type User struct {
 	UserID string `json:"user_id" sql:"user_id"`
