@@ -28,7 +28,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
@@ -37,20 +36,19 @@ import (
 )
 
 var _ = Describe("CreateBatches Worker", func() {
-	var logger zap.Logger
-	var config *viper.Viper
-	var createBatchesWorker *worker.CreateBatchesWorker
 	var app *model.App
 	var template *model.Template
 	var context map[string]interface{}
+
+	config := GetConf()
+	logger := zap.New(
+		zap.NewJSONEncoder(zap.NoTime()),
+		zap.FatalLevel,
+	)
+	w := worker.NewWorker(false, logger, GetConfPath())
+	createBatchesWorker := worker.NewCreateBatchesWorker(config, logger, w)
+
 	BeforeEach(func() {
-		logger = zap.New(
-			zap.NewJSONEncoder(zap.NoTime()),
-			zap.FatalLevel,
-		)
-		config = GetConf()
-		w := worker.NewWorker(false, logger, GetConfPath())
-		createBatchesWorker = worker.NewCreateBatchesWorker(config, logger, w)
 		createBatchesWorker.S3Client = NewFakeS3()
 		fakeData1 := []byte(`userids
 9e558649-9c23-469d-a11c-59b05813e3d5

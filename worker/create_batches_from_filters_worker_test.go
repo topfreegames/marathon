@@ -29,7 +29,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -37,19 +36,18 @@ import (
 )
 
 var _ = Describe("CreateBatchesFromFilters Worker", func() {
-	var logger zap.Logger
-	var config *viper.Viper
-	var createBatchesFromFiltersWorker *worker.CreateBatchesFromFiltersWorker
 	var app *model.App
 	var template *model.Template
+
+	config := GetConf()
+	logger := zap.New(
+		zap.NewJSONEncoder(zap.NoTime()),
+		zap.FatalLevel,
+	)
+	w := worker.NewWorker(false, logger, GetConfPath())
+	createBatchesFromFiltersWorker := worker.NewCreateBatchesFromFiltersWorker(config, logger, w)
+
 	BeforeEach(func() {
-		logger = zap.New(
-			zap.NewJSONEncoder(zap.NoTime()),
-			zap.FatalLevel,
-		)
-		config = GetConf()
-		w := worker.NewWorker(false, logger, GetConfPath())
-		createBatchesFromFiltersWorker = worker.NewCreateBatchesFromFiltersWorker(config, logger, w)
 		app = CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
