@@ -407,6 +407,20 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 	log.D(l, "Updated job successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("job", job))
 	})
+
+	if a.SendgridClient != nil {
+		log.D(l, "sending email with stopped job info")
+		app := &model.App{ID: aid}
+		a.DB.Select(&app)
+
+		err := SendStoppedJobEmail(a.SendgridClient, job, app.Name)
+		if err != nil {
+			log.E(l, "Failed to send email with stopped job info.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+		}
+		log.I(l, "Successfully sent email with stopped job info.")
+	}
 	return c.JSON(http.StatusOK, job)
 }
 
