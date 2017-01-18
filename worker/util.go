@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
 	uuid "github.com/satori/go.uuid"
@@ -116,12 +115,6 @@ func checkIsReexecution(jobID uuid.UUID, redisClient *redis.Client, l zap.Logger
 
 func markProcessedPage(page int, jobID uuid.UUID, redisClient *redis.Client) {
 	redisClient.SAdd(fmt.Sprintf("%s-processedpages", jobID.String()), page)
-}
-
-func updateTotalBatches(totalBatches int, job *model.Job, db *pg.DB, l zap.Logger) {
-	job.TotalBatches = totalBatches
-	_, err := db.Model(job).Column("total_batches").Update()
-	checkErr(l, err)
 }
 
 // SplitUsersInBucketsByTZ splits users in buckets by tz

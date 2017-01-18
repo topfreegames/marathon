@@ -134,20 +134,22 @@ func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) *[]string {
 
 func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
 	job.TotalBatches = totalBatches
-	_, err := b.MarathonDB.DB.Model(job).Set("total_batches = total_batches + ?total_batches").Update()
+	// coalesce is necessary since total_batches can be null
+	_, err := b.MarathonDB.DB.Model(job).Set("total_batches = coalesce(total_batches, 0) + ?", totalBatches).Where("id = ?", job.ID).Update()
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) setTotalUsers(totalUsers int, job *model.Job) {
+func (b *CreateBatchesWorker) updateTotalUsers(totalUsers int, job *model.Job) {
 	job.TotalUsers = totalUsers
-	_, err := b.MarathonDB.DB.Model(job).Set("total_users = ?", totalUsers).Update()
+	// coalesce is necessary since total_users can be null
+	_, err := b.MarathonDB.DB.Model(job).Set("total_users = coalesce(total_users, 0) + ?", totalUsers).Where("id = ?", job.ID).Update()
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) computeTotalUsersAndBatchesSent(c <-chan *SentBatches, job *model.Job, batchesSent *int, totalUsers *int, wg *sync.WaitGroup) {
+func (b *CreateBatchesWorker) computeTotalUsersAndBatchesSent(c <-chan *SentBatches, job *model.Job, wg *sync.WaitGroup) {
 	for sent := range c {
-		*batchesSent += (*sent).NumBatches
-		*totalUsers += (*sent).TotalUsers
+		b.updateTotalBatches((*sent).NumBatches, job)
+		b.updateTotalUsers((*sent).TotalUsers, job)
 		wg.Done()
 	}
 }
@@ -238,9 +240,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
 		go b.processBatch(pgCH, batchesSentCH, job, &wg, &wgBatchesSent)
 	}
-	batchesSent := 0
-	totalUsers := 0
-	go b.computeTotalUsersAndBatchesSent(batchesSentCH, job, &batchesSent, &totalUsers, &wgBatchesSent)
+	go b.computeTotalUsersAndBatchesSent(batchesSentCH, job, &wgBatchesSent)
 	for i := 0; i < pages; i++ {
 		if isReexecution && isPageProcessed(i, job.ID, b.RedisClient, b.Logger) {
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
@@ -259,8 +259,6 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	wgBatchesSent.Wait()
 	close(pgCH)
 	close(batchesSentCH)
-	updateTotalBatches(batchesSent, job, b.MarathonDB.DB, b.Logger)
-	b.setTotalUsers(totalUsers, job)
 	return nil
 }
 
