@@ -62,7 +62,8 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 	zookeeper.WaitForConnection(10)
 	k := kafkaClient
 	if k == nil {
-		kafka, err := extensions.NewKafkaClient(zookeeper, config, logger)
+		var kafka interfaces.PushProducer
+		kafka, err = extensions.NewKafkaClient(zookeeper, config, logger)
 		checkErr(l, err)
 		k = kafka
 	}

@@ -226,11 +226,11 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 	}
 }
 
-func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool) error {
+func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool, dbPageSize int) error {
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(*userIds)
-	pages := int(math.Ceil(float64(numPushes) / float64(b.DBPageSize)))
+	pages := int(math.Ceil(float64(numPushes) / float64(dbPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
 	var wgBatchesSent sync.WaitGroup
@@ -249,7 +249,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 			wg.Done()
 			continue
 		}
-		userBatch := b.getPage(i, userIds)
+		userBatch := b.getPage(i, dbPageSize, userIds)
 		pgCH <- &Batch{
 			UserIds: &userBatch,
 			PageID:  i,
@@ -262,9 +262,9 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	return nil
 }
 
-func (b *CreateBatchesWorker) getPage(page int, users *[]string) []string {
-	start := page * b.DBPageSize
-	end := (page + 1) * b.DBPageSize
+func (b *CreateBatchesWorker) getPage(page, dbPageSize int, users *[]string) []string {
+	start := page * dbPageSize
+	end := (page + 1) * dbPageSize
 	if start >= len(*users) {
 		return nil
 	}
@@ -298,16 +298,17 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		l.Info("stopped job create_batches_worker")
 		return
 	}
+	dbPageSize := b.DBPageSize
 	if job.DBPageSize == 0 {
 		b.MarathonDB.DB.Model(job).Set("db_page_size = ?", b.DBPageSize).Returning("*").Update()
 	} else if job.DBPageSize != b.DBPageSize {
-		b.DBPageSize = job.DBPageSize
-		log.I(l, "Changing DBPageSize to the job value", func(cm log.CM) {
+		dbPageSize = job.DBPageSize
+		log.I(l, "Using job DBPageSize value", func(cm log.CM) {
 			cm.Write(zap.Int("dbPageSize", job.DBPageSize))
 		})
 	}
 	if len(job.CSVPath) > 0 {
-		err := b.createBatchesUsingCSV(job, isReexecution)
+		err := b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
 		checkErr(l, err)
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
 		log.I(l, "finished create_batches_worker")

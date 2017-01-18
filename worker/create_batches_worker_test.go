@@ -409,7 +409,6 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 		err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(j.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
-		Expect(createBatchesWorker.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
 	})
 
 	It("should use job DBPageSize if specified", func() {
@@ -431,7 +430,6 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 		err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(j.DBPageSize).To(Equal(500))
-		Expect(createBatchesWorker.DBPageSize).To(Equal(500))
 	})
 
 	It("should increment job totalBatches when no previous totalBatches", func() {

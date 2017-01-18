@@ -84,23 +84,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).Should(Panic())
-		})
-
-		It("should panic if filters has 0 len", func() {
-			jobOptions := map[string]interface{}{
-				"filters": map[string]interface{}{},
-			}
-			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, app.ID, template.Name, jobOptions)
-			m := map[string]interface{}{
-				"jid":  3,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).Should(Panic())
+			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).To(Panic())
 		})
 
 		It("should do nothing if job status is stopped", func() {
@@ -188,7 +172,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).Should(Panic())
+			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).To(Panic())
 		})
 
 		It("should generate a csv with the right number of users", func() {
