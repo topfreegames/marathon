@@ -92,5 +92,20 @@ var _ = Describe("GCM Message", func() {
 			Expect(msg.MessageID).To(Equal(""))
 		})
 
+		It("should contain ttl in json message if ttl is greater than 0", func() {
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 357)
+			Expect(msg).NotTo(BeNil())
+			msgStr, err := msg.ToJSON()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(msgStr).To(ContainSubstring("time_to_live"))
+		})
+
+		It("should not contain ttl in json message if ttl is equal to 0", func() {
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 0)
+			Expect(msg).NotTo(BeNil())
+			msgStr, err := msg.ToJSON()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(msgStr).NotTo(ContainSubstring("time_to_live"))
+		})
 	})
 })

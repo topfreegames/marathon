@@ -30,9 +30,9 @@ import "encoding/json"
 type GCMMessage struct {
 	To                     string                 `json:"to"`
 	Data                   map[string]interface{} `json:"data"`
-	TimeToLive             int64                  `json:"TimeToLive"`
-	DelayWhileIdle         bool                   `json:"DelayWhileIdle"`
-	DeliveryReceiptRequest bool                   `json:"DeliveryReceiptRequest"`
+	TimeToLive             int64                  `json:"time_to_live,omitempty"`
+	DelayWhileIdle         bool                   `json:"delay_while_idle,omitempty"`
+	DeliveryReceiptRequest bool                   `json:"delivery_receipt_requested,omitempty"`
 	DryRun                 bool                   `json:"dry_run"`
 	MessageID              string                 `json:"message_id"`
 	Metadata               map[string]interface{} `json:"metadata"`
