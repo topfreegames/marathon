@@ -136,7 +136,7 @@ imports:
   - reporters/stenographer
   - types
 - name: github.com/onsi/gomega
-  version: a78ae492d53aad5a7a232d0d0462c14c400e3ee7
+  version: e85f63af4302dc0e4277c6008ecf803f1d80e4f0
   subpackages:
   - format
   - internal/assertion

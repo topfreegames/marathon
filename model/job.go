@@ -53,6 +53,7 @@ type Job struct {
 	TemplateName     string                 `json:"templateName"`
 	PastTimeStrategy string                 `json:"pastTimeStrategy"`
 	Status           string                 `json:"status"`
+	Feedbacks        map[string]interface{} `json:"feedbacks"`
 	CreatedAt        int64                  `json:"createdAt"`
 	UpdatedAt        int64                  `json:"updatedAt"`
 }

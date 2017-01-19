@@ -53,3 +53,14 @@ workers:
   resume:
     concurrency: 10
     maxRetries: 5
+feedbackListener:
+  flushInterval: 5000
+  gracefulShutdownTimeout: 30
+  kafka:
+    topics:
+      - "^.*-feedbacks$"
+    brokers: localhost:9940
+    group: marathon-consumer-group
+    sessionTimeout: 6000
+    handleAllMessagesBeforeExiting: true
+    offsetResetStrategy: latest

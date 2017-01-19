@@ -27,10 +27,9 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/pg.v5"
-
 	"github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/model"
 )
 
@@ -44,7 +43,7 @@ func getOpt(options map[string]interface{}, key string, defaultValue interface{}
 }
 
 //CreateTestApp with specified optional values
-func CreateTestApp(db *pg.DB, options ...map[string]interface{}) *model.App {
+func CreateTestApp(db interfaces.DB, options ...map[string]interface{}) *model.App {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -62,7 +61,7 @@ func CreateTestApp(db *pg.DB, options ...map[string]interface{}) *model.App {
 }
 
 //CreateTestApps for n apps
-func CreateTestApps(db *pg.DB, n int, options ...map[string]interface{}) []*model.App {
+func CreateTestApps(db interfaces.DB, n int, options ...map[string]interface{}) []*model.App {
 	apps := make([]*model.App, n)
 	for i := 0; i < n; i++ {
 		app := CreateTestApp(db, options...)
@@ -91,7 +90,7 @@ func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
 }
 
 //CreateTestTemplate with specified optional values
-func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interface{}) *model.Template {
+func CreateTestTemplate(db interfaces.DB, appID uuid.UUID, options ...map[string]interface{}) *model.Template {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -115,7 +114,7 @@ func CreateTestTemplate(db *pg.DB, appID uuid.UUID, options ...map[string]interf
 }
 
 //CreateTestTemplates for n apps
-func CreateTestTemplates(db *pg.DB, appID uuid.UUID, n int, options ...map[string]interface{}) []*model.Template {
+func CreateTestTemplates(db interfaces.DB, appID uuid.UUID, n int, options ...map[string]interface{}) []*model.Template {
 	templates := make([]*model.Template, n)
 	for i := 0; i < n; i++ {
 		template := CreateTestTemplate(db, appID, options...)
@@ -150,7 +149,7 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 }
 
 //CreateTestJob with specified optional values
-func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
+func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -181,7 +180,7 @@ func CreateTestJob(db *pg.DB, appID uuid.UUID, templateName string, options ...m
 }
 
 //CreateTestJobs for n apps
-func CreateTestJobs(db *pg.DB, appID uuid.UUID, templateName string, n int, options ...map[string]interface{}) []*model.Job {
+func CreateTestJobs(db interfaces.DB, appID uuid.UUID, templateName string, n int, options ...map[string]interface{}) []*model.Job {
 	jobs := make([]*model.Job, n)
 	for i := 0; i < n; i++ {
 		job := CreateTestJob(db, appID, templateName, options...)

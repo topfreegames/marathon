@@ -35,6 +35,8 @@ import (
 	"strings"
 
 	"gopkg.in/pg.v5"
+	"gopkg.in/pg.v5/orm"
+	"gopkg.in/pg.v5/types"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
@@ -97,6 +99,116 @@ func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, mess
 
 	f.GCMMessages = append(f.GCMMessages, message)
 
+	return nil
+}
+
+//PGMock should be used for tests that need to connect to PG
+type PGMock struct {
+	Execs        [][]interface{}
+	ExecOnes     [][]interface{}
+	Queries      [][]interface{}
+	Closed       bool
+	RowsAffected int
+	RowsReturned int
+	Error        error
+}
+
+//NewPGMock creates a new instance
+func NewPGMock(rowsAffected, rowsReturned int, errOrNil ...error) *PGMock {
+	var err error
+	if len(errOrNil) == 1 {
+		err = errOrNil[0]
+	}
+	return &PGMock{
+		Closed:       false,
+		RowsAffected: rowsAffected,
+		RowsReturned: rowsReturned,
+		Error:        err,
+	}
+}
+
+func (m *PGMock) getResult() *types.Result {
+	return types.NewResult([]byte(fmt.Sprintf(" %d", m.RowsAffected)), m.RowsReturned)
+}
+
+//Close records that it is closed
+func (m *PGMock) Close() error {
+	m.Closed = true
+
+	if m.Error != nil {
+		return m.Error
+	}
+
+	return nil
+}
+
+//Exec stores executed params
+func (m *PGMock) Exec(obj interface{}, params ...interface{}) (*types.Result, error) {
+	op := []interface{}{
+		obj, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
+//ExecOne stores executed params
+func (m *PGMock) ExecOne(obj interface{}, params ...interface{}) (*types.Result, error) {
+	op := []interface{}{
+		obj, params,
+	}
+	m.ExecOnes = append(m.ExecOnes, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
+//Query stores executed params
+func (m *PGMock) Query(obj interface{}, query interface{}, params ...interface{}) (*types.Result, error) {
+	op := []interface{}{
+		obj, query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
+//Model mock for testing
+func (m *PGMock) Model(params ...interface{}) *orm.Query {
+	return nil
+}
+
+//Select mock for testing
+func (m *PGMock) Select(params interface{}) error {
+	return nil
+}
+
+//Insert mock for testing
+func (m *PGMock) Insert(params ...interface{}) error {
+	return nil
+}
+
+//Update mock for testing
+func (m *PGMock) Update(params interface{}) error {
+	return nil
+}
+
+//Delete mock for testing
+func (m *PGMock) Delete(params interface{}) error {
 	return nil
 }
 

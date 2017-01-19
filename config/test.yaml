@@ -58,3 +58,14 @@ workers:
     hosts:
       - localhost:9930
   topicTemplate: "%s-%s-c"
+feedbackListener:
+  flushInterval: 5000
+  gracefulShutdownTimeout: 30
+  kafka:
+    topics:
+      - "^.*-feedbacks$"
+    brokers: localhost:9940
+    group: marathon-consumer-group
+    sessionTimeout: 6000
+    handleAllMessagesBeforeExiting: true
+    offsetResetStrategy: latest
