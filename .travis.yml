@@ -15,6 +15,7 @@ services:
 env:
   - LIBRDKAFKA_VERSION=0.9.2.x
   - LIBRDKAFKA_VERSION=master
+  - FARM_URL=${FARM_URL}
 
 cache:
   directories:
