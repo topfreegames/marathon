@@ -53,8 +53,6 @@ imports:
   subpackages:
   - internal
   - redis
-- name: github.com/getsentry/raven-go
-  version: 3f7439d3e74d88e21d196ba20eb61a5a958bc118
 - name: github.com/go-ini/ini
   version: 6f66b0e091edb3c7b380f7c4f0f884274d550b67
 - name: github.com/hashicorp/hcl

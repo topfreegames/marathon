@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	raven "github.com/getsentry/raven-go"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	newrelic "github.com/newrelic/go-agent"
@@ -112,7 +111,6 @@ func (a *Application) configure() error {
 
 	a.configureApplication()
 	a.configureWorker()
-	a.configureSentry()
 	a.configureSendgrid()
 
 	err = a.configureNewRelic()
@@ -149,11 +147,6 @@ func (a *Application) OnErrorHandler(err error, stack []byte) {
 		zap.String("stack", string(stack)),
 	)
 
-	tags := map[string]string{
-		"source": "app",
-		"type":   "panic",
-	}
-	raven.CaptureError(err, tags)
 }
 
 func (a *Application) configureWorker() {
@@ -172,7 +165,6 @@ func (a *Application) configureApplication() {
 	e.Use(NewLoggerMiddleware(a.Logger).Serve)
 	e.Use(NewRecoveryMiddleware(a.OnErrorHandler).Serve)
 	e.Use(NewVersionMiddleware().Serve)
-	e.Use(NewSentryMiddleware(a).Serve)
 	e.Use(NewNewRelicMiddleware(a, a.Logger).Serve)
 
 	// Base Routes
@@ -233,16 +225,6 @@ func (a *Application) configureSendgrid() {
 		a.SendgridClient = extensions.NewSendgridClient(a.Config, a.Logger, apiKey)
 		log.I(l, "Configured sendgrid successfully.")
 	}
-}
-
-func (a *Application) configureSentry() {
-	l := a.Logger.With(
-		zap.String("source", "main"),
-		zap.String("operation", "configureSentry"),
-	)
-	sentryURL := a.Config.GetString("sentry.url")
-	raven.SetDSN(sentryURL)
-	log.I(l, "Configured sentry successfully.")
 }
 
 func (a *Application) configureNewRelic() error {
