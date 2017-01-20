@@ -42,7 +42,7 @@ workers:
     maxUserFailureInBatch: 0.05
   zookeeper:
     hosts:
-      - localhost:2288
+      - localhost:9930
   redis:
     poolSize: 10
     host: localhost
