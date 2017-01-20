@@ -135,7 +135,7 @@ func (c *ZookeeperClient) WaitForConnection(timeout int) error {
 
 //GetKafkaBrokers gets a slice with the hostname of the kafka brokers
 func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
-	brokersPath := fmt.Sprintf("%s/brokers/ids/", c.ZKPrefix)
+	brokersPath := fmt.Sprintf("%s/brokers/ids", c.ZKPrefix)
 	ids, _, err := c.Conn.Children(brokersPath)
 
 	if err != nil {
@@ -156,7 +156,7 @@ func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
 			cm.Write(zap.Object("brokerId", id))
 		})
 
-		info, _, err := c.Conn.Get(fmt.Sprintf("%s%s", brokersPath, id))
+		info, _, err := c.Conn.Get(fmt.Sprintf("%s/%s", brokersPath, id))
 		if err != nil {
 			log.E(c.Logger, "Getting Kafka broker failed.", func(cm log.CM) {
 				cm.Write(zap.Object("brokerId", id))
