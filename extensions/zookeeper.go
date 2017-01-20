@@ -135,7 +135,7 @@ func (c *ZookeeperClient) WaitForConnection(timeout int) error {
 
 //GetKafkaBrokers gets a slice with the hostname of the kafka brokers
 func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
-	brokersPath := fmt.Sprintf("%s/brokers/ids", c.ZKPrefix)
+	brokersPath := fmt.Sprintf("%s/brokers/ids/", c.ZKPrefix)
 	ids, _, err := c.Conn.Children(brokersPath)
 
 	if err != nil {
