@@ -15,7 +15,6 @@ services:
 env:
   - LIBRDKAFKA_VERSION=0.9.2.x
   - LIBRDKAFKA_VERSION=master
-  - FARM_URL=${FARM_URL}
 
 cache:
   directories:
@@ -32,4 +31,4 @@ script: make test
 
 after_success:
   - ./push_to_docker.sh
-  - ./success_webhook.sh
+  - env FARM_URL=${FARM_URL} ./success_webhook.sh
