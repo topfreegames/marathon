@@ -56,9 +56,10 @@ type KafkaInfo struct {
 
 // ZookeeperClient is the struct that connects to Zookeeper
 type ZookeeperClient struct {
-	Config *viper.Viper
-	Conn   *zk.Conn
-	Logger zap.Logger
+	Config   *viper.Viper
+	Conn     *zk.Conn
+	Logger   zap.Logger
+	ZKPrefix string
 }
 
 // NewZookeeperClient creates a new client
@@ -84,6 +85,8 @@ func (c *ZookeeperClient) LoadDefaults() {
 //ConfigureConn to zookeeper
 func (c *ZookeeperClient) ConfigureConn() error {
 	zookeeperHosts := c.Config.GetStringSlice("workers.zookeeper.hosts")
+	zkPrefix := c.Config.GetString("workers.zookeeper.prefix")
+	c.ZKPrefix = zkPrefix
 	log.D(c.Logger, "Connecting to Zookeeper...", func(cm log.CM) {
 		cm.Write(zap.Object("zookeeperHosts", zookeeperHosts))
 	})
@@ -132,7 +135,8 @@ func (c *ZookeeperClient) WaitForConnection(timeout int) error {
 
 //GetKafkaBrokers gets a slice with the hostname of the kafka brokers
 func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
-	ids, _, err := c.Conn.Children("/brokers/ids")
+	brokersPath := fmt.Sprintf("%s/brokers/ids", c.ZKPrefix)
+	ids, _, err := c.Conn.Children(brokersPath)
 
 	if err != nil {
 		log.E(c.Logger, "Getting Kafka brokers failed.", func(cm log.CM) {
@@ -152,7 +156,7 @@ func (c *ZookeeperClient) GetKafkaBrokers() ([]string, error) {
 			cm.Write(zap.Object("brokerId", id))
 		})
 
-		info, _, err := c.Conn.Get(fmt.Sprintf("%s%s", "/brokers/ids/", id))
+		info, _, err := c.Conn.Get(fmt.Sprintf("%s%s", brokersPath, id))
 		if err != nil {
 			log.E(c.Logger, "Getting Kafka broker failed.", func(cm log.CM) {
 				cm.Write(zap.Object("brokerId", id))
