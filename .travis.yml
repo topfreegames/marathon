@@ -31,3 +31,4 @@ script: make test
 
 after_success:
   - ./push_to_docker.sh
+  - ./success_webhook.sh
