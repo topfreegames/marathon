@@ -24,8 +24,14 @@ FROM golang:1.7.3-alpine
 MAINTAINER TFG Co <backend@tfgco.com>
 
 RUN apk update
-RUN apk add make git
+RUN apk add make git curl g++ bash python
 RUN go get -u github.com/Masterminds/glide
+
+ENV LIBRDKAFKA_VERSION 0.9.2
+RUN curl -Lk -o /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
+    tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
+    cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
+    ./configure && make && make install && make clean && ./configure --clean
 
 RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
@@ -35,7 +41,11 @@ ADD glide.lock /go/src/github.com/topfreegames/marathon/glide.lock
 RUN glide install
 
 ADD . /go/src/github.com/topfreegames/marathon
-RUN make build
+
+ENV CPLUS_INCLUDE_PATH /usr/local/include
+ENV LIBRARY_PATH /usr/local/lib
+ENV LD_LIBRARY_PATH /usr/local/lib
+RUN export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH && make build
 
 RUN mkdir /app
 RUN mv /go/src/github.com/topfreegames/marathon/bin/marathon /app/marathon

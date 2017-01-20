@@ -31,4 +31,4 @@ script: make test
 
 after_success:
   - ./push_to_docker.sh
-  - env FARM_URL=${FARM_URL} ./success_webhook.sh
+  - ./success_webhook.sh
