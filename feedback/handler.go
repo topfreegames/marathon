@@ -196,7 +196,12 @@ func (h *Handler) generatePGIncrJSON(jobID string, values map[string]int) string
 func (h *Handler) flushFeedbacks() {
 	ticker := time.NewTicker(h.FlushInterval)
 	for range ticker.C {
-		h.Logger.Info("flushing feedbacks", zap.Int("feedbacks", len(h.FeedbackCache)))
+		numFeedbacks := len(h.FeedbackCache)
+		if numFeedbacks > 0 {
+			h.Logger.Info("flushing feedbacks", zap.Int("feedbacks", numFeedbacks))
+		} else {
+			h.Logger.Debug("no feedbacks to flush")
+		}
 		feedbackCacheMutex.Lock()
 		for k, v := range h.FeedbackCache {
 			query := h.generatePGIncrJSON(k, v)
