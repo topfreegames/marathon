@@ -38,6 +38,7 @@ Finally, the workers use kafka and zookeper for sending push notifications:
 
 * `MARATHON_WORKERS_ZOOKEEPER_HOSTS` - Zookeeper hosts to connect to;
 * `MARATHON_WORKERS_TOPICTEMPLATE` - Kafka topic template;
+* `MARATHON_WORKERS_ZOOKEEPER_PREFIX` - The prefix that contains kafka brokers info; e.g. /prefix for accessing brokers node at /prefix/brokers
 
 Other than that, there are a couple more configurations you can pass using environment variables:
 
