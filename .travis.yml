@@ -1,34 +1,25 @@
 language: go
-
 go:
-  - 1.7
-
-sudo: required
-
+- 1.7
+sudo: false
 addons:
-  postgresql: "9.5"
-
+  postgresql: '9.5'
 services:
-  - postgres
-  - docker
-
+- postgres
+- docker
 env:
+  matrix:
   - LIBRDKAFKA_VERSION=0.9.2.x
   - LIBRDKAFKA_VERSION=master
-
+  global:
+    secure: pZyPnWKi9zHJYgntT9eqi9Ox5oGL3+28IJxVxaDHn0bLKbx1A3lRNpPVXftYuqYF+yK4HVHRiCeHpGkUhqzc/OCSCMJg8PKUTkVhvJdqlO038J4lPDPuPKbO2WgTfaZABhURzTy4iNZUStee08yH5xLqn4NvoGzvaX4emGU1KDrqY8vlgqVFHWpKNw27aE3UdILrE95bQzf1PE/A6SYmcozDZ+cF5XHTIVj+4B+LCn2N/QniedYcmoEyQuuaoZ0Ykg9BcDv+WD4cEhDF6FT9R9NWKIf4sq0f9TufyFpn/lbXyA5lN6spG0f+RUPSPqHSDMtlQDPribJXwoXJuTZgXBRM/pg9xEeUDetOiwqVSwNTB4mtoCsi2W/3/JT+u3yh3PEql5JMOeVwBn+Y0067rNRNxh2mvwYpInyZ6hMVWT72q9wFYk6Pw/iYc2RI7i5cLeKUyueEB1na4ALOLyxYVxDH8i09HKAuspYsNxJ6Fa8OrnveL3iLE4xj2zkhMwwlm5IuQ9405an2P4lES18UcDsrfmk/AT/5rQ5cXR5LXBkXcPEqTstWI/JS9nInZ1mPOQGyu1vHYchp3/v4kH4l43v2TZBnWnZEL5DKdSjiXMVyvnJ/iWXUT0Iu7s81R3fiyCdJxBUczRYnyjcOHi6Fn6Xxgg6ach45qjV3B0PyBLU=
 cache:
   directories:
-    - $HOME/.cache/librdkafka
-
+  - "$HOME/.cache/librdkafka"
 before_install:
-  - sudo /bin/bash ./travis.sh
-
-sudo: false
-
+- sudo /bin/bash ./travis.sh
 before_script: make setup-ci
-
 script: make test
-
 after_success:
-  - ./push_to_docker.sh
-  - ./success_webhook.sh
+- "./push_to_docker.sh"
+- "./success_webhook.sh"
