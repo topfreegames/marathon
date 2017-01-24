@@ -34,11 +34,18 @@ The workers use redis for queueing:
 * `MARATHON_WORKERS_REDIS_PORT` - Redis port to connect to;
 * `MARATHON_WORKERS_REDIS_PASS` - Password of the redis server to connect to;
 
-Finally, the workers use kafka and zookeper for sending push notifications:
+The workers use kafka and zookeper for sending push notifications:
 
 * `MARATHON_WORKERS_ZOOKEEPER_HOSTS` - Zookeeper hosts to connect to;
 * `MARATHON_WORKERS_TOPICTEMPLATE` - Kafka topic template;
 * `MARATHON_WORKERS_ZOOKEEPER_PREFIX` - The prefix that contains kafka brokers info; e.g. /prefix for accessing brokers node at /prefix/brokers
+
+Finally, the feedback listener uses kafka for receiving the push notifications' feedbacks from APNS or GCM:
+
+* `MARATHON_FEEDBACKLISTENER_KAFKA_BROKERS` - Kafka brokers to connect to (comma separated, without spaces);
+* `MARATHON_FEEDBACKLISTENER_KAFKA_TOPICS` - Array of kafka topics to read from;
+* `MARATHON_FEEDBACKLISTENER_KAFKA_GROUP` - Kafka consumer group;
+* `MARATHON_FEEDBACKLISTENER_FLUSHINTERVAL` - Interval during which the feedback listener caches the feedbacks metrics before updating the job feedbacks in PostgreSQL;
 
 Other than that, there are a couple more configurations you can pass using environment variables:
 

@@ -24,12 +24,13 @@ Marathon is based on some premises:
   - tz: the timezone of the device (ex: -0400, -0300, +0100)
 - The apps registered in the Marathon api already have created user tables (in the previous PostgreSQL Database) and Kafka topics for apns and gcm services;
 
-Marathon is composed of two main modules:
+Marathon is composed of three main modules:
   - An API responsible for CRUD of apps, templates and jobs;
   - A worker composed of several sub-workers:
     - A sub-worker responsible for creating a CSV file with all user ids matching the filters given in the job;
     - A sub-worker responsible for scheduling push notifiction for users in a CSV file using each user timezone;
     - A sub-worker responsible for building a message given a template and a context and sending it to the app and service corresponding kafka topic;
+  - A feedback listener responsible for processing feedbacks of the notifications sent to apns or gcm;
 
 ## The Stack
 

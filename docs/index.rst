@@ -17,6 +17,7 @@ Contents:
    hosting
    API
    workers
+   feedback
 
 
 Indices and tables
