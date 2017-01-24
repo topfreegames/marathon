@@ -437,11 +437,11 @@ var _ = Describe("ProcessBatch Worker", func() {
 			processBatchWorker.Process(message)
 
 			expectedPushMetadata := map[string]interface{}{
-				"jobId":        job.ID.String(),
-				"userId":       userID,
-				"templateName": job.TemplateName,
-				"pushType":     "massive",
-				"createdAt":    createdAt.Unix(),
+				"jobId":          job.ID.String(),
+				"userId":         userID,
+				"templateName":   job.TemplateName,
+				"pushType":       "massive",
+				"tokenCreatedAt": createdAt.Unix(),
 			}
 
 			m := mockKafkaProducer.APNSMessages[0]
@@ -481,11 +481,11 @@ var _ = Describe("ProcessBatch Worker", func() {
 			processBatchWorker.Process(message)
 
 			expectedPushMetadata := map[string]interface{}{
-				"jobId":        gcmJob.ID.String(),
-				"userId":       userID,
-				"templateName": job.TemplateName,
-				"pushType":     "massive",
-				"createdAt":    createdAt.Unix(),
+				"jobId":          gcmJob.ID.String(),
+				"userId":         userID,
+				"templateName":   job.TemplateName,
+				"pushType":       "massive",
+				"tokenCreatedAt": createdAt.Unix(),
 			}
 
 			m := mockKafkaProducer.GCMMessages[0]

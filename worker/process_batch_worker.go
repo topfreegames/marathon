@@ -264,7 +264,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			"pushType":     "massive",
 		}
 		if user.CreatedAt.Unix() > 0 {
-			pushMetadata["createdAt"] = user.CreatedAt.Unix()
+			pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
 		}
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt)
 		if err != nil {
