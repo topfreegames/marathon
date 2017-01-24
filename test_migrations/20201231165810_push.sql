@@ -5,6 +5,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE "testapp_apns" (
   "id" uuid DEFAULT uuid_generate_v4(),
+  "created_at" timestamp DEFAULT now(),
   "user_id" text NOT NULL,
   "token" text NOT NULL,
   "region" text NOT NULL,
@@ -15,6 +16,7 @@ CREATE TABLE "testapp_apns" (
 
 CREATE TABLE "testapp_gcm" (
   "id" uuid DEFAULT uuid_generate_v4(),
+  "created_at" timestamp DEFAULT now(),
   "user_id" text NOT NULL,
   "token" text NOT NULL,
   "region" text NOT NULL,

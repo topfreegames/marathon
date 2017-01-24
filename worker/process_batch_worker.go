@@ -62,7 +62,8 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 	zookeeper.WaitForConnection(10)
 	k := kafkaClient
 	if k == nil {
-		kafka, err := extensions.NewKafkaProducer(zookeeper, config, logger)
+		var kafka *extensions.KafkaProducer
+		kafka, err = extensions.NewKafkaProducer(zookeeper, config, logger)
 		checkErr(l, err)
 		k = kafka
 	}
@@ -259,6 +260,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		checkErr(l, err)
 		pushMetadata := map[string]interface{}{
 			"userId":       user.UserID,
+			"createdAt":    user.CreatedAt,
 			"templateName": job.TemplateName,
 			"jobId":        job.ID.String(),
 			"pushType":     "massive",

@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	pg "gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
 	uuid "github.com/satori/go.uuid"
@@ -43,11 +44,12 @@ const stoppedJobStatus = "stopped"
 
 // User is the struct that will keep users before sending them to send batches worker
 type User struct {
-	UserID string `json:"user_id" sql:"user_id"`
-	Token  string `json:"token" sql:"token"`
-	Locale string `json:"locale" sql:"locale"`
-	Region string `json:"region" sql:"region"`
-	Tz     string `json:"tz" sql:"tz"`
+	CreatedAt pg.NullTime `json:"created_at" sql:"created_at"`
+	UserID    string      `json:"user_id" sql:"user_id"`
+	Token     string      `json:"token" sql:"token"`
+	Locale    string      `json:"locale" sql:"locale"`
+	Region    string      `json:"region" sql:"region"`
+	Tz        string      `json:"tz" sql:"tz"`
 }
 
 // Batch is a struct that helps tracking processes pages

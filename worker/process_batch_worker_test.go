@@ -28,6 +28,8 @@ import (
 	"strings"
 	"time"
 
+	pg "gopkg.in/pg.v5"
+
 	"github.com/Shopify/sarama"
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
@@ -411,10 +413,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should process the message and put the right pushMetadata on it if apns push", func() {
 			userID := uuid.NewV4().String()
 			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			createdAt := time.Now()
 			user := worker.User{
-				UserID: userID,
-				Token:  token,
-				Locale: "pt",
+				CreatedAt: pg.NullTime{createdAt},
+				UserID:    userID,
+				Token:     token,
+				Locale:    "pt",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
 			messageObj := []interface{}{
@@ -437,6 +441,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"userId":       userID,
 				"templateName": job.TemplateName,
 				"pushType":     "massive",
+				"createdAt":    createdAt.Format("2006-01-02T15:04:05.999999999-07:00"),
 			}
 
 			m := mockKafkaProducer.APNSMessages[0]
@@ -450,10 +455,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should process the message and put the right pushMetadata on it if gcm push", func() {
 			userID := uuid.NewV4().String()
 			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			createdAt := time.Now()
 			user := worker.User{
-				UserID: userID,
-				Token:  token,
-				Locale: "pt",
+				CreatedAt: pg.NullTime{createdAt},
+				UserID:    userID,
+				Token:     token,
+				Locale:    "pt",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
 			messageObj := []interface{}{
@@ -476,6 +483,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"userId":       userID,
 				"templateName": job.TemplateName,
 				"pushType":     "massive",
+				"createdAt":    createdAt.Format("2006-01-02T15:04:05.999999999-07:00"),
 			}
 
 			m := mockKafkaProducer.GCMMessages[0]
