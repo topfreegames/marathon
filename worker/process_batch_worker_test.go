@@ -441,7 +441,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"userId":       userID,
 				"templateName": job.TemplateName,
 				"pushType":     "massive",
-				"createdAt":    createdAt.Format("2006-01-02T15:04:05.999999999-07:00"),
+				"createdAt":    createdAt.Unix(),
 			}
 
 			m := mockKafkaProducer.APNSMessages[0]
@@ -449,7 +449,9 @@ var _ = Describe("ProcessBatch Worker", func() {
 			err = json.Unmarshal([]byte(m), &apnsMessage)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(apnsMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
+			for k, v := range expectedPushMetadata {
+				Expect(apnsMessage.Metadata[k]).To(BeEquivalentTo(v))
+			}
 		})
 
 		It("should process the message and put the right pushMetadata on it if gcm push", func() {
@@ -483,14 +485,16 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"userId":       userID,
 				"templateName": job.TemplateName,
 				"pushType":     "massive",
-				"createdAt":    createdAt.Format("2006-01-02T15:04:05.999999999-07:00"),
+				"createdAt":    createdAt.Unix(),
 			}
 
 			m := mockKafkaProducer.GCMMessages[0]
 			var gcmMessage messages.GCMMessage
 			err = json.Unmarshal([]byte(m), &gcmMessage)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(gcmMessage.Metadata).To(BeEquivalentTo(expectedPushMetadata))
+			for k, v := range expectedPushMetadata {
+				Expect(gcmMessage.Metadata[k]).To(BeEquivalentTo(v))
+			}
 		})
 
 		It("should increment failedJobs", func() {
