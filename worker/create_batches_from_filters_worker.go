@@ -141,7 +141,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	}
 	_, err := b.PushDB.DB.Query(&count, query)
 	if count == 0 {
-		panic(fmt.Errorf("no users matching the filters"))
+		checkErr(b.Logger, fmt.Errorf("no users matching the filters"))
 	}
 	pageCount := int(math.Ceil(float64(count) / float64(b.DBPageSize)))
 	checkErr(b.Logger, err)

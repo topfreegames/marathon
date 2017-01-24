@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
@@ -283,6 +284,7 @@ func (q *KafkaConsumer) handleError(ev kafka.Event) {
 		zap.String("method", "handleError"),
 	)
 	err := ev.(error)
+	raven.CaptureError(err, nil)
 	l.Error("Error in Kafka connection.", zap.Error(err))
 }
 

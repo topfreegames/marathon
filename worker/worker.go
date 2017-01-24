@@ -27,6 +27,7 @@ import (
 	"os"
 	"strings"
 
+	raven "github.com/getsentry/raven-go"
 	"github.com/jrallison/go-workers"
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
@@ -66,6 +67,7 @@ func (w *Worker) configure() {
 		panic(err)
 	}
 	w.loadConfigurationDefaults()
+	w.configureSentry()
 	w.configureRedis()
 	w.configureWorkers()
 }
@@ -124,6 +126,16 @@ func (w *Worker) configureWorkers() {
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
+}
+
+func (w *Worker) configureSentry() {
+	l := w.Logger.With(
+		zap.String("source", "worker"),
+		zap.String("operation", "configureSentry"),
+	)
+	sentryURL := w.Config.GetString("sentry.url")
+	raven.SetDSN(sentryURL)
+	l.Info("Configured sentry successfully.")
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job

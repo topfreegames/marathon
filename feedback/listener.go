@@ -30,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
@@ -76,6 +77,7 @@ func (l *Listener) configure() error {
 		return err
 	}
 	l.loadConfigurationDefaults()
+	l.configureSentry()
 	l.GracefulShutdownTimeout = l.Config.GetInt("feedbackListener.gracefulShutdownTimeout")
 	q, err := extensions.NewKafkaConsumer(l.Config, l.Logger, nil)
 	if err != nil {
@@ -88,6 +90,16 @@ func (l *Listener) configure() error {
 	}
 	l.FeedbackHandler = h
 	return nil
+}
+
+func (l *Listener) configureSentry() {
+	ll := l.Logger.With(
+		zap.String("source", "listener"),
+		zap.String("operation", "configureSentry"),
+	)
+	sentryURL := l.Config.GetString("sentry.url")
+	raven.SetDSN(sentryURL)
+	ll.Info("Configured sentry successfully.")
 }
 
 // Start starts the listener

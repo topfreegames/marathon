@@ -32,6 +32,7 @@ import (
 	pg "gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
+	raven "github.com/getsentry/raven-go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
@@ -139,6 +140,7 @@ func SplitUsersInBucketsByTZ(users *[]User) map[string]*[]User {
 
 func checkErr(l zap.Logger, err error) {
 	if err != nil {
+		raven.CaptureErrorAndWait(err, nil)
 		log.P(l, "Worker panic.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})

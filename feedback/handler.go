@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
@@ -151,7 +152,7 @@ func (h *Handler) handleMessage(msg []byte) {
 	err := json.Unmarshal(msg, &message)
 	service := h.feedbackService(&message)
 	if err != nil {
-		//TODO add sentry
+		raven.CaptureError(err, nil)
 		l.Error("error handling message", zap.Error(err))
 	}
 	//TODO too many logging, zap has leaks

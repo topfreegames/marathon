@@ -308,12 +308,12 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		})
 	}
 	if len(job.CSVPath) > 0 {
-		err := b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
+		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
 		checkErr(l, err)
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
 		log.I(l, "finished create_batches_worker")
 	} else {
 		log.I(l, "panicked create_batches_worker")
-		panic(fmt.Errorf("no csvPath passed to worker"))
+		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
 	}
 }
