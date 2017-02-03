@@ -25,6 +25,7 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	redis "gopkg.in/redis.v5"
@@ -237,7 +238,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	})
 	for _, user := range parsed.Users {
 		var template model.Template
-		if val, ok := templatesByLocale[user.Locale]; ok {
+		if val, ok := templatesByLocale[strings.ToLower(user.Locale)]; ok {
 			template = val
 		} else if val, ok := templatesByLocale["en"]; ok {
 			template = val

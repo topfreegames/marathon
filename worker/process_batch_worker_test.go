@@ -379,7 +379,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				users[index] = worker.User{
 					UserID: id,
 					Token:  token,
-					Locale: "pt",
+					Locale: "PT",
 				}
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
