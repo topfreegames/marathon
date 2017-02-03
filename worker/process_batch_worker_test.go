@@ -574,6 +574,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.Status).To(Equal("circuitbreak"))
+			circuitBreak, err := processBatchWorker.RedisClient.Get(fmt.Sprintf("%s-circuitbreak", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(circuitBreak).To(Equal("1"))
+			ttl2, err := processBatchWorker.RedisClient.TTL(fmt.Sprintf("%s-circuitbreak", job.ID.String())).Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ttl2).To(BeNumerically("~", time.Minute, 10))
 		})
 
 		//// TODO: found out how to test this

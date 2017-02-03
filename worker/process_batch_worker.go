@@ -101,7 +101,9 @@ func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalB
 		job := model.Job{}
 		_, err := batchWorker.MarathonDB.DB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", jobID).Returning("*").Update()
 		checkErr(batchWorker.Logger, err)
-		if batchWorker.SendgridClient != nil {
+		changedStatus, err := batchWorker.RedisClient.SetNX(fmt.Sprintf("%s-circuitbreak", jobID.String()), 1, 1*time.Minute).Result()
+		checkErr(batchWorker.Logger, err)
+		if changedStatus && batchWorker.SendgridClient != nil {
 			var expireAt int64
 			if ttl > 0 {
 				expireAt = time.Now().Add(ttl).UnixNano()
