@@ -427,6 +427,7 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 	})
 
 	It("should update job DBPageSize if no previous size", func() {
+		createBatchesWorker.DBPageSize = config.GetInt("workers.createBatches.dbPageSize")
 		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 			"context": context,
