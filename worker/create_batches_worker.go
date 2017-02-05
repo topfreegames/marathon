@@ -230,6 +230,11 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(*userIds)
+	log.D(l, "finished reading csv from s3", func(cm log.CM) {
+		cm.Write(zap.Int("numPushes", numPushes),
+			zap.Int("dbPageSize", dbPageSize),
+		)
+	})
 	pages := int(math.Max(math.Ceil(float64(numPushes)/float64(dbPageSize)), 1))
 	if numPushes == 0 {
 		pages = 0
