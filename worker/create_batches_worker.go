@@ -230,7 +230,10 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	l := b.Logger
 	userIds := b.readCSVFromS3(job.CSVPath)
 	numPushes := len(*userIds)
-	pages := int(math.Ceil(float64(numPushes) / float64(dbPageSize)))
+	pages := int(math.Max(math.Ceil(float64(numPushes)/float64(dbPageSize)), 1))
+	if numPushes == 0 {
+		pages = 0
+	}
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
 	var wg sync.WaitGroup
 	var wgBatchesSent sync.WaitGroup
