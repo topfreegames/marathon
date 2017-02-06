@@ -65,9 +65,11 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 		fakeData3 := []byte(`userids
 e78431ca-69a8-4326-af1f-48f817a4a669
 ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
+		fakeData4 := []byte("remoteplayeridb00b2bf9-9999-4be9-bdbd-cf0dbbd82cb26ce8a64f-c888-48c4-a040-f24ca7a71714")
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj1.csv", &fakeData1)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj2.csv", &fakeData2)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj3.csv", &fakeData3)
+		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj4.csv", &fakeData4)
 		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -147,6 +149,23 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 			// Expect(func() {
 			createBatchesWorker.Process(msg)
 			//  }).ShouldNot(Panic())
+		})
+
+		It("should work if CSV is from Excel/Windows", func() {
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj4.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(err).NotTo(HaveOccurred())
+			createBatchesWorker.Process(msg)
 		})
 
 		It("should do nothing if job status is stopped", func() {
@@ -518,5 +537,17 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(job.TotalUsers).To(BeEquivalentTo(8))
+	})
+
+	Describe("Read CSV from S3", func() {
+		It("should return correct array from Unix csv data", func() {
+			res := createBatchesWorker.ReadCSVFromS3("tfg-push-notifications/test/jobs/obj3.csv")
+			Expect(*res).To(HaveLen(2))
+		})
+
+		It("should return correct array from DOS csv data", func() {
+			res := createBatchesWorker.ReadCSVFromS3("tfg-push-notifications/test/jobs/obj4.csv")
+			Expect(*res).To(HaveLen(2))
+		})
 	})
 })

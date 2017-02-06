@@ -22,8 +22,10 @@
 package worker
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"math"
 	"sync"
 	"time"
@@ -116,10 +118,22 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	b.configurePushDatabase()
 }
 
-func (b *CreateBatchesWorker) readCSVFromS3(csvPath string) *[]string {
+func streamToByte(stream io.Reader) []byte {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(stream)
+	return buf.Bytes()
+}
+
+func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) *[]string {
 	csvFile, err := extensions.S3GetObject(b.S3Client, csvPath)
 	checkErr(b.Logger, err)
-	r := csv.NewReader(*csvFile)
+	bs := streamToByte(*csvFile)
+	for i, b := range bs {
+		if b == 0x0D {
+			bs[i] = 0x0A
+		}
+	}
+	r := csv.NewReader(bytes.NewReader(bs))
 	lines, err := r.ReadAll()
 	checkErr(b.Logger, err)
 	res := []string{}
@@ -228,7 +242,7 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 
 func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool, dbPageSize int) error {
 	l := b.Logger
-	userIds := b.readCSVFromS3(job.CSVPath)
+	userIds := b.ReadCSVFromS3(job.CSVPath)
 	numPushes := len(*userIds)
 	pages := int(math.Ceil(float64(numPushes) / float64(dbPageSize)))
 	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
