@@ -57,8 +57,14 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (s3iface.S3API, error) {
 	return s3, nil
 }
 
+func streamToByte(stream *io.ReadCloser) []byte {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(*stream)
+	return buf.Bytes()
+}
+
 //S3GetObject gets an object from s3
-func S3GetObject(client s3iface.S3API, path string) (*io.ReadCloser, error) {
+func S3GetObject(client s3iface.S3API, path string) ([]byte, error) {
 	splittedString := strings.SplitN(path, "/", 2)
 	if len(splittedString) < 2 {
 		return nil, fmt.Errorf("Invalid path")
@@ -73,7 +79,7 @@ func S3GetObject(client s3iface.S3API, path string) (*io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &resp.Body, nil
+	return streamToByte(&resp.Body), nil
 }
 
 //S3PutObject puts an object into s3
