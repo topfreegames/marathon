@@ -25,7 +25,6 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"io"
 	"math"
 	"sync"
 	"time"
@@ -118,22 +117,16 @@ func (b *CreateBatchesWorker) configureDatabases() {
 	b.configurePushDatabase()
 }
 
-func streamToByte(stream io.Reader) []byte {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(stream)
-	return buf.Bytes()
-}
-
+// ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
 func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) *[]string {
-	csvFile, err := extensions.S3GetObject(b.S3Client, csvPath)
+	csvFileBytes, err := extensions.S3GetObject(b.S3Client, csvPath)
 	checkErr(b.Logger, err)
-	bs := streamToByte(*csvFile)
-	for i, b := range bs {
+	for i, b := range csvFileBytes {
 		if b == 0x0D {
-			bs[i] = 0x0A
+			csvFileBytes[i] = 0x0A
 		}
 	}
-	r := csv.NewReader(bytes.NewReader(bs))
+	r := csv.NewReader(bytes.NewReader(csvFileBytes))
 	lines, err := r.ReadAll()
 	checkErr(b.Logger, err)
 	res := []string{}
