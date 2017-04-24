@@ -1,10 +1,10 @@
 hash: 27ad89ba50c6bacadff60c219b686f90464913370d859793b8f006591829616a
-updated: 2017-01-20T19:43:22.093538115-02:00
+updated: 2017-04-24T18:43:21.359654498-03:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/aws/aws-sdk-go
-  version: 15bd33ce2edbdb46acdec779652ed39926682a9f
+  version: f6ea558f30e0a983d529b32c741e4caed17c7df0
   subpackages:
   - aws
   - aws/awserr
@@ -28,7 +28,6 @@ imports:
   - private/protocol/rest
   - private/protocol/restxml
   - private/protocol/xml/xmlutil
-  - private/waiter
   - service/s3
   - service/s3/s3iface
   - service/sts
@@ -37,7 +36,7 @@ imports:
 - name: github.com/certifi/gocertifi
   version: a61bf5eafa3aee233ec8043e9da052447e5463dd
 - name: github.com/confluentinc/confluent-kafka-go
-  version: 1a081c6faa129cee96a011a6f6aa289050044539
+  version: a9b5c269c66e9a2eb5f195563b2f01e65a84c527
   subpackages:
   - kafka
 - name: github.com/davecgh/go-spew
@@ -100,7 +99,7 @@ imports:
 - name: github.com/mitchellh/mapstructure
   version: 5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
 - name: github.com/newrelic/go-agent
-  version: 7d12ae2201fc160e486197614a6f65afcf3f8170
+  version: 29ec3cd1bb2f21d21d36da37dae52695cb2c3a17
   subpackages:
   - internal
   - internal/jsonx
@@ -108,7 +107,7 @@ imports:
   - internal/sysinfo
   - internal/utilization
 - name: github.com/onsi/ginkgo
-  version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
+  version: 77a8c1e5c40d6bb6c5eb4dd4bdce9763564f6298
   subpackages:
   - config
   - ginkgo
@@ -118,12 +117,15 @@ imports:
   - internal/leafnodes
   - internal/remote
   - internal/spec
+  - internal/spec_iterator
   - internal/specrunner
   - internal/suite
   - internal/testingtproxy
   - internal/writer
   - reporters
   - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
   version: e85f63af4302dc0e4277c6008ecf803f1d80e4f0
@@ -154,7 +156,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/sendgrid/rest
-  version: 3ec51b4f1754e13e92409355851a0a82e9a06461
+  version: 80b39aaf5a30edab5bf2f99d56052abe01a0d41d
 - name: github.com/sendgrid/sendgrid-go
   version: aae62ebbdabd46754b041a12b9f74d2ffdfc49d7
   subpackages:
@@ -176,7 +178,7 @@ imports:
 - name: github.com/tylerb/graceful
   version: 4df1190835320af7076dfcf27b3d071fd3612caf
 - name: github.com/uber-go/atomic
-  version: 0c9e689d64f004564b79d9a663634756df322902
+  version: 4e336646b2ef9fc6e47be8e21594178f98e5ebcf
 - name: github.com/uber-go/zap
   version: d11d2851fcabcf03421c4dbdbc3146fc74eb1035
 - name: github.com/valyala/fasttemplate
@@ -207,7 +209,7 @@ imports:
 - name: gopkg.in/bsm/ratelimit.v1
   version: db14e161995a5177acef654cb0dd785e8ee8bc22
 - name: gopkg.in/pg.v5
-  version: 5fde4b65f7338b401e44e90495a9cba69478fa45
+  version: 2246060a2a43f8282ad53295d56d780dbc930b7f
   subpackages:
   - internal
   - internal/parser
@@ -215,7 +217,7 @@ imports:
   - orm
   - types
 - name: gopkg.in/redis.v5
-  version: 8829ddcd8bdb333e477cc845946c4b9b2ef66280
+  version: a16aeec10ff407b1e7be6dd35797ccf5426ef0f0
   subpackages:
   - internal
   - internal/consistenthash
