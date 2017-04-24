@@ -349,7 +349,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 
 			It("should return 422 if invalid body", func() {
@@ -362,7 +362,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 		})
 	})
@@ -682,7 +682,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 
 			It("should return 422 if invalid body", func() {
@@ -696,7 +696,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 		})
 	})

@@ -741,7 +741,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 
 			It("should return 422 if invalid service", func() {
@@ -767,7 +767,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 
 			It("should return 422 if invalid expiresAt", func() {
@@ -780,7 +780,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 
 			It("should return 422 if invalid startsAt", func() {
@@ -793,7 +793,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go value"))
+				Expect(response["reason"]).To(ContainSubstring("cannot unmarshal string into Go struct"))
 			})
 
 			It("should return 422 if past startsAt", func() {
