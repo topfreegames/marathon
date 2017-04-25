@@ -385,7 +385,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			}
 			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dbJob.CompletedUsers).To(Equal(len(users)))
+			Expect(dbJob.CompletedTokens).To(Equal(len(users)))
 		})
 
 		It("should not process batch if job is expired", func() {
@@ -415,7 +415,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
-			Expect(dbJob.CompletedUsers).To(Equal(0))
+			Expect(dbJob.CompletedTokens).To(Equal(0))
 		})
 
 		It("should not process batch if job is stopped", func() {
@@ -443,7 +443,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
-			Expect(dbJob.CompletedUsers).To(Equal(0))
+			Expect(dbJob.CompletedTokens).To(Equal(0))
 		})
 
 		It("should process the message using the correct template", func() {
@@ -688,7 +688,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
-			Expect(dbJob.CompletedUsers).To(Equal(0))
+			Expect(dbJob.CompletedTokens).To(Equal(0))
 
 			pausedMsg, err := processBatchWorker.RedisClient.LPop(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -722,7 +722,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			err = processBatchWorker.MarathonDB.DB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
-			Expect(dbJob.CompletedUsers).To(Equal(0))
+			Expect(dbJob.CompletedTokens).To(Equal(0))
 
 			pausedMsg, err := processBatchWorker.RedisClient.LPop(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
 			Expect(err).NotTo(HaveOccurred())

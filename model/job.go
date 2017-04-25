@@ -38,7 +38,7 @@ type Job struct {
 	ControlGroup        float64                `json:"controlGroup"`
 	TotalUsers          int                    `json:"totalUsers"`
 	TotalTokens         int                    `json:"totalTokens"`
-	CompletedUsers      int                    `json:"completedUsers"`
+	CompletedTokens     int                    `json:"completedTokens"`
 	DBPageSize          int                    `json:"dbPageSize"`
 	Localized           bool                   `json:"localized"`
 	CompletedAt         int64                  `json:"completedAt"`

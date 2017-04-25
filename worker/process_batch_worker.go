@@ -160,7 +160,7 @@ func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, 
 
 func (batchWorker *ProcessBatchWorker) updateJobUsersInfo(jobID uuid.UUID, numUsers int) error {
 	job := model.Job{}
-	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_users = completed_users + ?", numUsers).Where("id = ?", jobID).Returning("*").Update()
+	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_tokens = completed_tokens + ?", numUsers).Where("id = ?", jobID).Returning("*").Update()
 	return err
 }
 

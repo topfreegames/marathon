@@ -316,7 +316,7 @@ func SendJobCompletedEmail(sendgridClient *extensions.SendgridClient, job *model
 	idx := 0
 	for key, val := range job.Feedbacks {
 		intVal := int(val.(float64))
-		feedbacks[idx] = fmt.Sprintf("- %s: %.2f%% (%d)\n", key, float64(100*intVal)/float64(job.TotalUsers), intVal)
+		feedbacks[idx] = fmt.Sprintf("- %s: %.2f%% (%d)\n", key, float64(100*intVal)/float64(job.TotalTokens), intVal)
 		idx++
 	}
 
@@ -334,11 +334,11 @@ Feedbacks:
 		float64(100*job.CompletedBatches)/float64(job.TotalBatches),
 		job.CompletedBatches,
 		job.TotalBatches,
-		float64(100*job.CompletedUsers)/float64(job.TotalUsers),
-		job.CompletedUsers,
-		job.TotalUsers,
+		float64(100*job.CompletedTokens)/float64(job.TotalTokens),
+		job.CompletedTokens,
+		job.TotalTokens,
 		strings.ToUpper(job.Service),
-		float64(100*ack)/float64(job.TotalUsers),
+		float64(100*ack)/float64(job.TotalTokens),
 		ack,
 		strings.Join(feedbacks, ""),
 	)
