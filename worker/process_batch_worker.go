@@ -224,6 +224,12 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		log.D(l, "valid process_batch_worker")
 	}
 
+	templateNames := strings.Split(job.TemplateName, ",")
+
+	if templateNames != nil && len(templateNames) > 1 {
+		job.TemplateName = RandomElementFromSlice(templateNames)
+	}
+
 	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
 	if err != nil {
 		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)

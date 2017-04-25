@@ -62,7 +62,9 @@ var _ = Describe("ProcessBatch Worker", func() {
 	var processBatchWorker *worker.ProcessBatchWorker
 	var app *model.App
 	var template *model.Template
+	var template2 *model.Template
 	var job *model.Job
+	var jobWithManyTemplates *model.Job
 	var gcmJob *model.Job
 	var users []worker.User
 	var mockKafkaProducer *FakeKafkaProducer
@@ -75,6 +77,8 @@ var _ = Describe("ProcessBatch Worker", func() {
 		config = GetConf()
 		mockKafkaProducer = NewFakeKafkaProducer()
 		processBatchWorker = worker.NewProcessBatchWorker(config, logger, mockKafkaProducer)
+		templateName1 := "village-like"
+		templateName2 := "village-dislike"
 
 		app = CreateTestApp(processBatchWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
@@ -84,11 +88,20 @@ var _ = Describe("ProcessBatch Worker", func() {
 		body := map[string]interface{}{
 			"alert": "{{user_name}} just liked your {{object_name}}!",
 		}
+		bodyDislike := map[string]interface{}{
+			"alert": "{{user_name}} just disliked your {{object_name}}!",
+		}
 		template = CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
 			"defaults": defaults,
 			"body":     body,
 			"locale":   "en",
-			"name":     "village-like",
+			"name":     templateName1,
+		})
+		template2 = CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
+			"defaults": defaults,
+			"body":     bodyDislike,
+			"locale":   "en",
+			"name":     templateName2,
 		})
 		CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
 			"defaults": map[string]interface{}{
@@ -99,7 +112,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"alert": "{{user_name}} curtiram sua {{object_name}}!",
 			},
 			"locale": "pt",
-			"name":   "village-like",
+			"name":   templateName1,
 		})
 		CreateTestTemplate(processBatchWorker.MarathonDB.DB, app.ID, map[string]interface{}{
 			"defaults": map[string]interface{}{
@@ -110,15 +123,18 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"alert": "{{user_name}} a aimé ta {{object_name}}!",
 			},
 			"locale": "fr",
-			"name":   "village-like",
+			"name":   templateName1,
 		})
 		context := map[string]interface{}{
 			"user_name": "Everyone",
 		}
-		job = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+		job = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, templateName1, map[string]interface{}{
 			"context": context,
 		})
-		gcmJob = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+		jobWithManyTemplates = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, fmt.Sprintf("%s,%s", templateName1, templateName2), map[string]interface{}{
+			"context": context,
+		})
+		gcmJob = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, templateName1, map[string]interface{}{
 			"context": context,
 			"service": "gcm",
 		})
@@ -195,6 +211,44 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Expect(apnsMessage.PushExpiry).To(BeEquivalentTo(job.ExpiresAt / 1000000000))
 				Expect(apnsMessage.Payload.Aps["alert"]).To(Equal("Everyone just liked your village!"))
 				Expect(apnsMessage.Payload.M["meta"]).To(Equal(job.Metadata["meta"]))
+				idx++
+			}
+		})
+
+		It("should choose a random template and put it in push metadata when many are passed to the job", func() {
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			messageObj := []interface{}{
+				jobWithManyTemplates.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			for idx := range users {
+				m := mockKafkaProducer.APNSMessages[idx]
+				var apnsMessage messages.APNSMessage
+				err = json.Unmarshal([]byte(m), &apnsMessage)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(apnsMessage.DeviceToken).To(Equal(users[idx].Token))
+				Expect(apnsMessage.PushExpiry).To(BeEquivalentTo(jobWithManyTemplates.ExpiresAt / 1000000000))
+				Expect(apnsMessage.Payload.Aps["alert"]).To(Or(
+					Equal("Everyone just liked your village!"),
+					Equal("Everyone just disliked your village!"),
+				))
+				Expect(apnsMessage.Payload.M["meta"]).To(Equal(jobWithManyTemplates.Metadata["meta"]))
+				Expect(apnsMessage.Metadata["templateName"]).To(Or(
+					Equal(template.Name),
+					Equal(template2.Name),
+				))
 				idx++
 			}
 		})

@@ -24,6 +24,7 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
@@ -254,6 +255,13 @@ func BuildMessageFromTemplate(template model.Template, context map[string]interf
 	}
 	message := t.ExecuteString(substitutions)
 	return message, nil
+}
+
+// RandomElementFromSlice gets a random element from a slice
+func RandomElementFromSlice(elements []string) string {
+	rand.Seed(time.Now().Unix())
+	element := elements[rand.Intn(len(elements))]
+	return element
 }
 
 //SendCircuitBreakJobEmail builds a circuit break job email message and sends it with sendgrid
