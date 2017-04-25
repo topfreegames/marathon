@@ -427,7 +427,7 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 		app := &model.App{ID: aid}
 		a.DB.Select(&app)
 
-		err := SendStoppedJobEmail(a.SendgridClient, job, app.Name)
+		err := SendStoppedJobEmail(a.SendgridClient, job, app.Name, email)
 		if err != nil {
 			log.E(l, "Failed to send email with stopped job info.", func(cm log.CM) {
 				cm.Write(zap.Error(err))

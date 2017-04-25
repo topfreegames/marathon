@@ -146,12 +146,14 @@ Please resume or stop it before then.
 }
 
 //SendStoppedJobEmail builds a stopped job email message and sends it with sendgrid
-func SendStoppedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName string) error {
+func SendStoppedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName, stoppedBy string) error {
 	subject := "Push job stopped"
 	platform := getPlatformFromService(job.Service)
 
 	message := fmt.Sprintf(`
 Hello, your push job status has changed to stopped.
+
+StoppedBy: %s
 
 App: %s
 Template: %s
@@ -160,6 +162,6 @@ JobID: %s
 CreatedBy: %s
 
 This action is irreversible and this job's push notifications will no longer be sent.
-`, appName, job.TemplateName, platform, job.ID, job.CreatedBy)
+`, stoppedBy, appName, job.TemplateName, platform, job.ID, job.CreatedBy)
 	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }
