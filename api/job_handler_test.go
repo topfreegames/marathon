@@ -58,7 +58,9 @@ var _ = Describe("Job Handler", func() {
 		createBatchesWorker.RedisClient.FlushAll()
 
 		existingApp = CreateTestApp(app.DB)
-		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID)
+		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID, map[string]interface{}{
+			"locale": "en",
+		})
 		baseRoute = fmt.Sprintf("/apps/%s/jobs?template=%s", existingApp.ID, existingTemplate.Name)
 		baseRouteWithoutTemplate = fmt.Sprintf("/apps/%s/jobs", existingApp.ID)
 	})
@@ -703,6 +705,19 @@ var _ = Describe("Job Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(ContainSubstring("no rows in result set"))
+			})
+
+			It("should return 422 if template with given name does not have locale 'en'", func() {
+				badTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				payload := GetJobPayload()
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, fmt.Sprintf("/apps/%s/jobs?template=%s", existingApp.ID, badTemplate.Name), string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("Cannot create job if there is no template for locale 'en'."))
 			})
 
 			It("should return 422 if template is not specified", func() {
