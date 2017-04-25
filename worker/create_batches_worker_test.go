@@ -638,7 +638,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		Expect(job.TotalBatches).To(BeEquivalentTo(6))
 	})
 
-	It("should increment job totalUsers when no previous totalUsers", func() {
+	It("should update totalTokens and totalUsers correctly", func() {
 		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 			"context": context,
@@ -657,16 +657,60 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(job.TotalUsers).To(BeEquivalentTo(10))
+		Expect(job.TotalTokens).To(BeEquivalentTo(10))
 	})
 
-	It("should increment job totalUsers when previous totalUsers", func() {
+	It("should increment job totalTokens when no previous totalTokens", func() {
+		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		})
+		m := map[string]interface{}{
+			"jid":  2,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		job := &model.Job{}
+		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(job.TotalTokens).To(BeEquivalentTo(10))
+	})
+
+	It("should set totalTokens and totalUsers correctly", func() {
 		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 			"context": context,
 			"filters": map[string]interface{}{},
 			"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
 		})
-		_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_users = 4").Where("id = ?", j.ID).Update()
+		m := map[string]interface{}{
+			"jid":  3,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		job := &model.Job{}
+		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(job.TotalTokens).To(BeEquivalentTo(4))
+		Expect(job.TotalUsers).To(BeEquivalentTo(2))
+	})
+
+	It("should increment job totalTokens when previous totalTokens", func() {
+		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+		})
+		_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
 		Expect(err).NotTo(HaveOccurred())
 		m := map[string]interface{}{
 			"jid":  3,
@@ -679,7 +723,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		job := &model.Job{}
 		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalUsers).To(BeEquivalentTo(8))
+		Expect(job.TotalTokens).To(BeEquivalentTo(8))
 	})
 
 	Describe("Read CSV from S3", func() {

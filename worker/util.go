@@ -70,8 +70,8 @@ type DBPage struct {
 
 // SentBatches is a struct that helps tracking sent batches
 type SentBatches struct {
-	NumBatches int
-	TotalUsers int
+	NumBatches  int
+	TotalTokens int
 }
 
 // IsUserIDValid tests whether a userID is valid or not
