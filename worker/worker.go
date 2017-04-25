@@ -114,18 +114,21 @@ func (w *Worker) configureRedis() {
 }
 
 func (w *Worker) configureWorkers() {
-	p := NewProcessBatchWorker(w.Config, w.Logger, nil)
+	p := NewProcessBatchWorker(w.Config, w.Logger, nil, w)
 	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
 	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
 	r := NewResumeJobWorker(w.Config, w.Logger, w)
+	j := NewJobCompletedWorker(w.Config, w.Logger)
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
 	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
+	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
+	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
 }
 
 func (w *Worker) configureSentry() {
@@ -202,6 +205,20 @@ func (w *Worker) ScheduleProcessBatchJob(jobID string, appName string, users *[]
 		[]interface{}{jobID, appName, *users},
 		workers.EnqueueOptions{
 			At: float64(at) / workers.NanoSecondPrecision,
+		})
+}
+
+// ScheduleJobCompletedJob schedules a new JobCompletedWorker job
+func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error) {
+	maxRetries := w.Config.GetInt("workers.jobCompleted.maxRetries")
+	return workers.EnqueueWithOptions(
+		"job_completed_worker",
+		"Add",
+		[]interface{}{jobID},
+		workers.EnqueueOptions{
+			Retry:      true,
+			RetryCount: maxRetries,
+			At:         float64(at) / workers.NanoSecondPrecision,
 		})
 }
 

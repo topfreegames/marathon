@@ -76,10 +76,11 @@ var _ = Describe("ProcessBatch Worker", func() {
 		)
 		config = GetConf()
 		mockKafkaProducer = NewFakeKafkaProducer()
-		processBatchWorker = worker.NewProcessBatchWorker(config, logger, mockKafkaProducer)
+		w := worker.NewWorker(false, logger, GetConfPath())
+		processBatchWorker = worker.NewProcessBatchWorker(config, logger, mockKafkaProducer, w)
+		processBatchWorker.RedisClient.FlushAll()
 		templateName1 := "village-like"
 		templateName2 := "village-dislike"
-
 		app = CreateTestApp(processBatchWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -253,7 +254,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			}
 		})
 
-		It("should set job completedAt if last batch", func() {
+		It("should set job completedAt if last batch and schedule job_completed job", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = 1").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
@@ -280,9 +281,21 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(BeNumerically("~", time.Now().UnixNano(), 50000000))
+
+			res, err := processBatchWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(1))
+			var data workers.EnqueueData
+			jobs, err := processBatchWorker.RedisClient.ZRange("schedule", 0, -1).Result()
+			bytes, err := RedisReplyToBytes(jobs[0], err)
+			Expect(err).NotTo(HaveOccurred())
+			json.Unmarshal(bytes, &data)
+			at := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
+			Expect(at.Unix()).To(BeNumerically("~", time.Now().Add(10*time.Minute).Unix(), 1))
+			Expect(data.Args).To(BeEquivalentTo([]interface{}{job.ID.String()}))
 		})
 
-		It("should not set job completedAt if not last batch", func() {
+		It("should not set job completedAt if not last batch and not schedule job_completed job", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = 2").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
@@ -309,9 +322,13 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
+
+			res, err := processBatchWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(0))
 		})
 
-		It("should not set job completedAt total_batches is null", func() {
+		It("should not set job completedAt total_batches is null and not schedule job_completed job", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = null").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
@@ -338,6 +355,10 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
+
+			res, err := processBatchWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(0))
 		})
 
 		It("should increment job completed users", func() {

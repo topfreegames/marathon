@@ -54,6 +54,9 @@ workers:
   resume:
     concurrency: 10
     maxRetries: 5
+  jobCompleted:
+    concurrency: 10
+    maxRetries: 5
 feedbackListener:
   flushInterval: 5000
   gracefulShutdownTimeout: 30

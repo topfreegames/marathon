@@ -47,12 +47,13 @@ type ProcessBatchWorker struct {
 	Logger         zap.Logger
 	MarathonDB     *extensions.PGClient
 	RedisClient    *redis.Client
-	Zookeeper      *extensions.ZookeeperClient
 	SendgridClient *extensions.SendgridClient
+	Workers        *Worker
+	Zookeeper      *extensions.ZookeeperClient
 }
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
-func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient interfaces.PushProducer) *ProcessBatchWorker {
+func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient interfaces.PushProducer, workers *Worker) *ProcessBatchWorker {
 	l := logger.With(
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "NewProcessBatchWorker"),
@@ -80,6 +81,7 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 		Zookeeper:   zookeeper,
 		MarathonDB:  marathonDB,
 		RedisClient: redisClient,
+		Workers:     workers,
 	}
 
 	apiKey := config.GetString("sendgrid.key")
@@ -171,6 +173,11 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 	if job.TotalBatches != 0 && job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
 		job.CompletedAt = time.Now().UnixNano()
 		_, err = batchWorker.MarathonDB.DB.Model(&job).Column("completed_at").Update()
+		if err != nil {
+			return err
+		}
+		at := time.Now().Add(10 * time.Minute).UnixNano()
+		_, err = batchWorker.Workers.ScheduleJobCompletedJob(jobID.String(), at)
 	}
 	return err
 }
