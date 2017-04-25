@@ -27,6 +27,7 @@ push:
 s3:
   bucket: "tfg-push-notifications"
   folder: "test/jobs"
+  controlGroupFolder: "test/control-groups"
   region: "us-east-1"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"

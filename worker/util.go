@@ -259,7 +259,6 @@ func BuildMessageFromTemplate(template model.Template, context map[string]interf
 
 // RandomElementFromSlice gets a random element from a slice
 func RandomElementFromSlice(elements []string) string {
-	rand.Seed(time.Now().Unix())
 	element := elements[rand.Intn(len(elements))]
 	return element
 }

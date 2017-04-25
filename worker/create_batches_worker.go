@@ -25,12 +25,14 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"math"
 	"sync"
 	"time"
 
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
+	"math/rand"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/jrallison/go-workers"
@@ -118,7 +120,7 @@ func (b *CreateBatchesWorker) configureDatabases() {
 }
 
 // ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
-func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) *[]string {
+func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
 	csvFileBytes, err := extensions.S3GetObject(b.S3Client, csvPath)
 	checkErr(b.Logger, err)
 	for i, b := range csvFileBytes {
@@ -136,7 +138,7 @@ func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) *[]string {
 		}
 		res = append(res, line[0])
 	}
-	return &res
+	return res
 }
 
 func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
@@ -233,10 +235,59 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 	}
 }
 
+func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup []string) {
+	bucket := b.Config.GetString("s3.bucket")
+	folder := b.Config.GetString("s3.controlGroupFolder")
+	csvBuffer := &bytes.Buffer{}
+	csvWriter := io.Writer(csvBuffer)
+	csvWriter.Write([]byte("controlGroupUserIds\n"))
+	for _, user := range controlGroup {
+		csvWriter.Write([]byte(fmt.Sprintf("%s\n", user)))
+	}
+	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
+	csvBytes := csvBuffer.Bytes()
+	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, &csvBytes)
+	checkErr(b.Logger, err)
+	b.updateJobControlGroupCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
+}
+
+func (b *CreateBatchesWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
+	job.ControlGroupCSVPath = csvPath
+	_, err := b.MarathonDB.DB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
+	checkErr(b.Logger, err)
+}
+
 func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool, dbPageSize int) error {
 	l := b.Logger
 	userIds := b.ReadCSVFromS3(job.CSVPath)
-	numPushes := len(*userIds)
+	controlGroupSize := int(math.Ceil(float64(len(userIds)) * job.ControlGroup))
+	if controlGroupSize > 0 {
+		if controlGroupSize >= len(userIds) {
+			panic("control group size cannot be higher than number of users")
+		}
+		log.I(l, "this job has a control group!", func(cm log.CM) {
+			cm.Write(
+				zap.Int("controlGroupSize", controlGroupSize),
+				zap.String("jobID", job.ID.String()),
+			)
+		})
+		// shuffle slice in place
+		for i := range userIds {
+			j := rand.Intn(i + 1)
+			userIds[i], userIds[j] = userIds[j], userIds[i]
+		}
+		// grab control group
+		controlGroup := userIds[len(userIds)-controlGroupSize:]
+		b.sendControlGroupToS3(job, controlGroup)
+		// cut control group from the slice
+		userIds = append(userIds[:len(userIds)-controlGroupSize], userIds[len(userIds):]...)
+		log.I(l, "control group cut from the users", func(cm log.CM) {
+			cm.Write(
+				zap.Int("usersRemaining", len(userIds)),
+			)
+		})
+	}
+	numPushes := len(userIds)
 	log.D(l, "finished reading csv from s3", func(cm log.CM) {
 		cm.Write(zap.Int("numPushes", numPushes),
 			zap.Int("dbPageSize", dbPageSize),
@@ -277,16 +328,16 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	return nil
 }
 
-func (b *CreateBatchesWorker) getPage(page, dbPageSize int, users *[]string) []string {
+func (b *CreateBatchesWorker) getPage(page, dbPageSize int, users []string) []string {
 	start := page * dbPageSize
 	end := (page + 1) * dbPageSize
-	if start >= len(*users) {
+	if start >= len(users) {
 		return nil
 	}
-	if end > len(*users) {
-		end = len(*users)
+	if end > len(users) {
+		end = len(users)
 	}
-	return (*users)[start:end]
+	return users[start:end]
 }
 
 // Process processes the messages sent to batch worker queue

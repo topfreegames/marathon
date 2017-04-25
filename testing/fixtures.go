@@ -165,6 +165,7 @@ func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, optio
 	job.Filters = filters
 	job.Metadata = metadata
 	job.Context = context
+	job.ControlGroup = getOpt(opts, "controlGroup", 0.0).(float64)
 	job.Localized = getOpt(opts, "localized", false).(bool)
 	job.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 	job.Service = getOpt(opts, "service", "apns").(string)
@@ -201,6 +202,8 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 	context := getOpt(opts, "context", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
 	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": uuid.NewV4().String()}).(map[string]interface{})
 
+	controlGroup := getOpt(opts, "controlGroup", 0.0).(float64)
+	controlGroupCsvPath := getOpt(opts, "controlGroupCsvPath", "").(string)
 	service := getOpt(opts, "service", "apns").(string)
 	csvURL := getOpt(opts, "csvPath", "").(string)
 	expiresAt := getOpt(opts, "expiresAt", time.Now().Add(time.Hour).UnixNano()).(int64)
@@ -208,14 +211,16 @@ func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 	id := getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
 
 	job := map[string]interface{}{
-		"filters":   filters,
-		"context":   context,
-		"metadata":  metadata,
-		"service":   service,
-		"csvPath":   csvURL,
-		"expiresAt": expiresAt,
-		"startsAt":  startsAt,
-		"id":        id,
+		"filters":             filters,
+		"context":             context,
+		"metadata":            metadata,
+		"service":             service,
+		"csvPath":             csvURL,
+		"controlGroupCsvPath": controlGroupCsvPath,
+		"controlGroup":        controlGroup,
+		"expiresAt":           expiresAt,
+		"startsAt":            startsAt,
+		"id":                  id,
 	}
 	return job
 }

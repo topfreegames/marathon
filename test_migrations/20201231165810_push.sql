@@ -43,6 +43,16 @@ INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('d9b42bb8-
 INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('ee4455fe-8ff6-4878-8d7c-aec096bd68b4', '1247', 'ES', 'es', '-0800');
 INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('e78431ca-69a8-4326-af1f-48f817a4a669', '1247', 'ES', 'es', '-0800');
 INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('e78431ca-69a8-4326-af1f-48f817a4a669', '1248', 'ES', 'es', '-0800');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('7ed725ce-e516-4386-bc6a-0b16bbbac678', '1222', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('6ec06ad1-0416-4e0a-9c2c-0b4381976091', '1223', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('a04087d6-4d95-4d99-901f-a1ff8578a2bf', '1224', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('5146be6c-ffda-401c-8721-3c43c7370872', '1225', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('dc2be5c1-2b6d-47d6-9a45-c188fd96d124', '1226', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('7ae62ce6-94fb-4636-9484-05bae4398505', '1227', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('9e3dfdf8-5991-4609-82ba-258ed2a78504', '1228', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('f57a0010-1318-4997-9a92-dcfb8ca0f24a', '1229', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('6be7b349-6034-4f99-847c-dab3ee4576d0', '1244', 'CN', 'cn', '-444');
+INSERT INTO testapp_apns (user_id, token, region, locale, tz) VALUES ('830a4cbf-c95f-40de-ab20-fef493899944', '1233', 'CN', 'cn', '-444');
 
 INSERT INTO testapp_gcm (user_id, token, region, locale, tz) VALUES ('9e558649-9c23-469d-a11c-59b05000e3d5', '1234', 'br', 'PT', '-0300');
 INSERT INTO testapp_gcm (user_id, token, region, locale, tz) VALUES ('57be9009-e616-42c6-9cfe-505508ede2d0', '1235', 'us', 'EN', '-0300');

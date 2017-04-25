@@ -21,9 +21,12 @@ package worker_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -38,6 +41,7 @@ import (
 var _ = Describe("CreateBatches Worker", func() {
 	var app *model.App
 	var template *model.Template
+	var fakeS3 s3iface.S3API
 	var context map[string]interface{}
 
 	config := GetConf()
@@ -49,7 +53,8 @@ var _ = Describe("CreateBatches Worker", func() {
 	createBatchesWorker := worker.NewCreateBatchesWorker(config, logger, w)
 
 	BeforeEach(func() {
-		createBatchesWorker.S3Client = NewFakeS3()
+		fakeS3 = NewFakeS3()
+		createBatchesWorker.S3Client = fakeS3
 		fakeData1 := []byte(`userids
 9e558649-9c23-469d-a11c-59b05813e3d5
 57be9009-e616-42c6-9cfe-505508ede2d0
@@ -66,10 +71,22 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 e78431ca-69a8-4326-af1f-48f817a4a669
 ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 		fakeData4 := []byte("remoteplayeridb00b2bf9-9999-4be9-bdbd-cf0dbbd82cb26ce8a64f-c888-48c4-a040-f24ca7a71714")
+		fakeData5 := []byte(`userids
+7ae62ce6-94fb-4636-9484-05bae4398505
+9e3dfdf8-5991-4609-82ba-258ed2a78504
+f57a0010-1318-4997-9a92-dcfb8ca0f24a
+6be7b349-6034-4f99-847c-dab3ee4576d0
+830a4cbf-c95f-40de-ab20-fef493899944
+7ed725ce-e516-4386-bc6a-0b16bbbac678
+6ec06ad1-0416-4e0a-9c2c-0b4381976091
+a04087d6-4d95-4d99-901f-a1ff8578a2bf
+5146be6c-ffda-401c-8721-3c43c7370872
+dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj1.csv", &fakeData1)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj2.csv", &fakeData2)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj3.csv", &fakeData3)
 		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj4.csv", &fakeData4)
+		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj5.csv", &fakeData5)
 		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -221,6 +238,96 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
 			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(10))
+		})
+
+		It("should create batches with the right number of tokens if a controlGroup is specified", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context":      context,
+				"filters":      map[string]interface{}{},
+				"csvPath":      "tfg-push-notifications/test/jobs/obj5.csv",
+				"controlGroup": 0.2,
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(1))
+			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			j1 := map[string]interface{}{}
+			err = json.Unmarshal([]byte(job1), &j1)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
+			Expect(len((j1["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(8))
+		})
+
+		It("should create batches with the right number of tokens if a controlGroup is specified", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context":      context,
+				"filters":      map[string]interface{}{},
+				"csvPath":      "tfg-push-notifications/test/jobs/obj5.csv",
+				"controlGroup": 0.4,
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(1))
+			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			j1 := map[string]interface{}{}
+			err = json.Unmarshal([]byte(job1), &j1)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
+			Expect(len((j1["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(6))
+		})
+
+		It("should put control group in s3 and also update job with controlGroupCSVPath", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context":      context,
+				"filters":      map[string]interface{}{},
+				"csvPath":      "tfg-push-notifications/test/jobs/obj5.csv",
+				"controlGroup": 0.4,
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			bucket := createBatchesWorker.Config.GetString("s3.bucket")
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesWorker.Config.GetString("s3.controlGroupFolder"), j.ID)
+			controlGroupCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
+				Bucket: &bucket,
+				Key:    &key,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			lines := ReadLinesFromIOReader(controlGroupCSV.Body)
+			Expect(len(lines)).To(Equal(5)) //5 -> header + 4 control group userIds
+
+			dbJob := &model.Job{
+				ID: j.ID,
+			}
+			err = createBatchesWorker.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.ControlGroupCSVPath).To(Equal(fmt.Sprintf("%s/%s", bucket, key)))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if numPushes < dbPageSize", func() {
@@ -578,12 +685,12 @@ ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
 	Describe("Read CSV from S3", func() {
 		It("should return correct array from Unix csv data", func() {
 			res := createBatchesWorker.ReadCSVFromS3("tfg-push-notifications/test/jobs/obj3.csv")
-			Expect(*res).To(HaveLen(2))
+			Expect(res).To(HaveLen(2))
 		})
 
 		It("should return correct array from DOS csv data", func() {
 			res := createBatchesWorker.ReadCSVFromS3("tfg-push-notifications/test/jobs/obj4.csv")
-			Expect(*res).To(HaveLen(2))
+			Expect(res).To(HaveLen(2))
 		})
 	})
 })

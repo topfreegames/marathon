@@ -32,30 +32,32 @@ import (
 
 // Job is the job model struct
 type Job struct {
-	ID               uuid.UUID              `sql:",pk" json:"id"`
-	TotalBatches     int                    `json:"totalBatches"`
-	CompletedBatches int                    `json:"completedBatches"`
-	TotalUsers       int                    `json:"totalUsers"`
-	CompletedUsers   int                    `json:"completedUsers"`
-	DBPageSize       int                    `json:"dbPageSize"`
-	Localized        bool                   `json:"localized"`
-	CompletedAt      int64                  `json:"completedAt"`
-	ExpiresAt        int64                  `json:"expiresAt"`
-	StartsAt         int64                  `json:"startsAt"`
-	Context          map[string]interface{} `json:"context"`
-	Service          string                 `json:"service"`
-	Filters          map[string]interface{} `json:"filters"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	CSVPath          string                 `json:"csvPath"`
-	CreatedBy        string                 `json:"createdBy"`
-	App              App                    `json:"app"`
-	AppID            uuid.UUID              `json:"appId"`
-	TemplateName     string                 `json:"templateName"`
-	PastTimeStrategy string                 `json:"pastTimeStrategy"`
-	Status           string                 `json:"status"`
-	Feedbacks        map[string]interface{} `json:"feedbacks"`
-	CreatedAt        int64                  `json:"createdAt"`
-	UpdatedAt        int64                  `json:"updatedAt"`
+	ID                  uuid.UUID              `sql:",pk" json:"id"`
+	TotalBatches        int                    `json:"totalBatches"`
+	CompletedBatches    int                    `json:"completedBatches"`
+	ControlGroup        float64                `json:"controlGroup"`
+	TotalUsers          int                    `json:"totalUsers"`
+	CompletedUsers      int                    `json:"completedUsers"`
+	DBPageSize          int                    `json:"dbPageSize"`
+	Localized           bool                   `json:"localized"`
+	CompletedAt         int64                  `json:"completedAt"`
+	ExpiresAt           int64                  `json:"expiresAt"`
+	StartsAt            int64                  `json:"startsAt"`
+	Context             map[string]interface{} `json:"context"`
+	Service             string                 `json:"service"`
+	Filters             map[string]interface{} `json:"filters"`
+	Metadata            map[string]interface{} `json:"metadata"`
+	CSVPath             string                 `json:"csvPath"`
+	ControlGroupCSVPath string                 `json:"controlGroupCsvPath"`
+	CreatedBy           string                 `json:"createdBy"`
+	App                 App                    `json:"app"`
+	AppID               uuid.UUID              `json:"appId"`
+	TemplateName        string                 `json:"templateName"`
+	PastTimeStrategy    string                 `json:"pastTimeStrategy"`
+	Status              string                 `json:"status"`
+	Feedbacks           map[string]interface{} `json:"feedbacks"`
+	CreatedAt           int64                  `json:"createdAt"`
+	UpdatedAt           int64                  `json:"updatedAt"`
 }
 
 // Validate implementation of the InputValidation interface
@@ -73,6 +75,11 @@ func (j *Job) Validate(c echo.Context) error {
 	valid = j.StartsAt == 0 || j.Localized || time.Now().UnixNano() < j.StartsAt
 	if !valid {
 		return InvalidField("startsAt")
+	}
+
+	valid = j.ControlGroup >= 0 && j.ControlGroup < 1
+	if !valid {
+		return InvalidField("controlGroup")
 	}
 
 	valid = govalidator.IsEmail(j.CreatedBy)

@@ -193,6 +193,8 @@ var _ = Describe("Job Handler", func() {
 				Expect(job["expiresAt"]).To(BeNumerically("==", payload["expiresAt"]))
 				Expect(job["startsAt"]).To(BeNumerically("==", payload["startsAt"]))
 				Expect(job["csvPath"]).To(Equal(""))
+				Expect(job["controlGroup"]).To(BeEquivalentTo(0.0))
+				Expect(job["controlGroupCsvPath"]).To(Equal(""))
 				Expect(job["service"]).To(Equal(payload["service"]))
 				Expect(job["createdBy"]).To(Equal("success@test.com"))
 				Expect(job["createdAt"]).ToNot(BeNil())
@@ -334,6 +336,28 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.Localized).To(Equal(true))
 
+			})
+
+			It("should return 201 and the created job with control group set to value between 0.0 and 1.0", func() {
+				payload := GetJobPayload()
+				payload["controlGroup"] = 0.10
+				delete(payload, "csvPath")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ControlGroup).To(BeEquivalentTo(0.10))
 			})
 
 			It("should return 201 and the created job with csvPath", func() {
@@ -704,6 +728,32 @@ var _ = Describe("Job Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid filters or csvPath must exist, not both"))
+			})
+
+			It("should return 422 if controlGroup is < 0", func() {
+				payload := GetJobPayload()
+				payload["controlGroup"] = -0.10
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid controlGroup"))
+			})
+
+			It("should return 422 if controlGroup is > 0", func() {
+				payload := GetJobPayload()
+				payload["controlGroup"] = 1.10
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid controlGroup"))
 			})
 
 			It("should return 422 if missing service", func() {
