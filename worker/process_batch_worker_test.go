@@ -657,8 +657,74 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(ttl2).To(BeNumerically("~", time.Minute, 10))
 		})
 
-		//// TODO: found out how to test this
-		XIt("should increment failedJobs if push no sent to users", func() {
+		It("should re-schedule job if error getting the job", func() {
+			// unexistent job
+			processBatchWorker.MarathonDB.DB.Exec("DELETE FROM jobs;")
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
+
+			res, err := processBatchWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(1))
+			var data workers.EnqueueData
+			jobs, err := processBatchWorker.RedisClient.ZRange("schedule", 0, -1).Result()
+			bytes, err := RedisReplyToBytes(jobs[0], err)
+			Expect(err).NotTo(HaveOccurred())
+			json.Unmarshal(bytes, &data)
+			at := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
+			Expect(at.Unix()).To(BeNumerically(">", time.Now().Unix()))
+			Expect(at.Unix()).To(BeNumerically("<", time.Now().Add(100*time.Second).Unix()))
+			Expect(data.Queue).To(Equal("process_batch_worker"))
+		})
+
+		It("should re-schedule job if error getting the templates", func() {
+			// unexistent template
+			processBatchWorker.MarathonDB.DB.Exec("DELETE FROM templates;")
+			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			messageObj := []interface{}{
+				job.ID,
+				appName,
+				users,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
+
+			res, err := processBatchWorker.RedisClient.ZCard("schedule").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(1))
+			var data workers.EnqueueData
+			jobs, err := processBatchWorker.RedisClient.ZRange("schedule", 0, -1).Result()
+			bytes, err := RedisReplyToBytes(jobs[0], err)
+			Expect(err).NotTo(HaveOccurred())
+			json.Unmarshal(bytes, &data)
+			at := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
+			Expect(at.Unix()).To(BeNumerically(">", time.Now().Unix()))
+			Expect(at.Unix()).To(BeNumerically("<", time.Now().Add(100*time.Second).Unix()))
+			Expect(data.Queue).To(Equal("process_batch_worker"))
 		})
 
 		It("should not process job and add it to paused jobs list if job is paused", func() {

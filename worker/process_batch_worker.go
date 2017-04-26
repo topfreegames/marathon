@@ -25,6 +25,7 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -155,6 +156,9 @@ func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, 
 		templateByLocale[tpl.Locale] = tpl
 	}
 
+	if len(templateByLocale) == 0 {
+		return nil, fmt.Errorf("No templates were found with name %s", templateName)
+	}
 	return templateByLocale, nil
 }
 
@@ -192,6 +196,19 @@ func (batchWorker *ProcessBatchWorker) moveJobToPausedQueue(jobID uuid.UUID, mes
 	}
 }
 
+func (batchWorker *ProcessBatchWorker) checkErrWithReEnqueue(parsed *BatchWorkerMessage, l zap.Logger, err error) {
+	if err != nil {
+		at := time.Now().Add(time.Duration(rand.Intn(100)) * time.Second).UnixNano()
+		batchWorker.Workers.ScheduleProcessBatchJob(
+			parsed.JobID.String(),
+			parsed.AppName,
+			&parsed.Users,
+			at,
+		)
+	}
+	checkErr(l, err)
+}
+
 // Process processes the messages sent to batch worker queue and send them to kafka
 func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	batchErrorCounter := 0
@@ -207,7 +224,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	log.D(l, "Parsed message info successfully.")
 
 	job, err := batchWorker.getJob(parsed.JobID)
-	checkErr(l, err)
+	batchWorker.checkErrWithReEnqueue(parsed, l, err)
 	log.D(l, "Retrieved job successfully.")
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
@@ -241,7 +258,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	if err != nil {
 		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 	}
-	checkErr(l, err)
+	batchWorker.checkErrWithReEnqueue(parsed, l, err)
 	log.D(l, "Retrieved templatesByLocale successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("templatesByLocale", templatesByLocale))
 	})
