@@ -181,32 +181,34 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		}
 	}
 
-	template := &model.Template{}
-	err = WithSegment("db-select", c, func() error {
-		return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ?", templateName).First()
-	})
-	if err != nil {
-		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
-		}
-		log.E(l, "Failed to create job.", func(cm log.CM) {
-			cm.Write(zap.Error(err))
+	for _, tpl := range strings.Split(templateName, ",") {
+		template := &model.Template{}
+		err = WithSegment("db-select", c, func() error {
+			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ?", tpl).First()
 		})
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
-	}
+		if err != nil {
+			if err.Error() == RecordNotFoundString {
+				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+			}
+			log.E(l, "Failed to create job.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+		}
 
-	err = WithSegment("db-select", c, func() error {
-		return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ? AND template.locale='en'", templateName).First()
-	})
-	if err != nil {
-		if err.Error() == RecordNotFoundString {
-			localeErr := "Cannot create job if there is no template for locale 'en'."
-			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
-		}
-		log.E(l, "Failed to create job.", func(cm log.CM) {
-			cm.Write(zap.Error(err))
+		err = WithSegment("db-select", c, func() error {
+			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ? AND template.locale='en'", tpl).First()
 		})
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+		if err != nil {
+			if err.Error() == RecordNotFoundString {
+				localeErr := "Cannot create job if there is no template for locale 'en'."
+				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
+			}
+			log.E(l, "Failed to create job.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+		}
 	}
 
 	err = WithSegment("db-insert", c, func() error {

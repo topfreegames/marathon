@@ -44,6 +44,7 @@ var _ = Describe("Job Handler", func() {
 	faultyDb := GetFaultyTestDB(app)
 	var existingApp *model.App
 	var existingTemplate *model.Template
+	var anotherTemplate *model.Template
 	var baseRoute string
 	var baseRouteWithoutTemplate string
 
@@ -59,6 +60,9 @@ var _ = Describe("Job Handler", func() {
 
 		existingApp = CreateTestApp(app.DB)
 		existingTemplate = CreateTestTemplate(app.DB, existingApp.ID, map[string]interface{}{
+			"locale": "en",
+		})
+		anotherTemplate = CreateTestTemplate(app.DB, existingApp.ID, map[string]interface{}{
 			"locale": "en",
 		})
 		baseRoute = fmt.Sprintf("/apps/%s/jobs?template=%s", existingApp.ID, existingTemplate.Name)
@@ -520,6 +524,35 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
 				Expect(dbJob.Metadata).To(Equal(map[string]interface{}{}))
+			})
+
+			It("should return 201 and the created job if several templates", func() {
+				payload := GetJobPayload()
+				delete(payload, "metadata")
+				pl, _ := json.Marshal(payload)
+				route := fmt.Sprintf("/apps/%s/jobs?template=%s,%s", existingApp.ID, existingTemplate.Name, anotherTemplate.Name)
+				status, body := Post(app, route, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(job["id"]).ToNot(BeNil())
+				Expect(job["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(job["templateName"]).To(Equal(fmt.Sprintf("%s,%s", existingTemplate.Name, anotherTemplate.Name)))
+				Expect(job["metadata"]).To(Equal(map[string]interface{}{}))
+
+				id, err := uuid.FromString(job["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbJob := &model.Job{
+					ID: id,
+				}
+				err = app.DB.Select(&dbJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbJob.ID).ToNot(BeNil())
+				Expect(dbJob.AppID).To(Equal(existingApp.ID))
+				Expect(dbJob.TemplateName).To(Equal(fmt.Sprintf("%s,%s", existingTemplate.Name, anotherTemplate.Name)))
 			})
 
 			It("should start the job immediately if payload without startsAt", func() {
