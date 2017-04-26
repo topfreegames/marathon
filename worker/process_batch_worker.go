@@ -34,6 +34,7 @@ import (
 	workers "github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/log"
@@ -113,7 +114,7 @@ func (batchWorker *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalB
 			} else {
 				expireAt = time.Now().Add(7 * 24 * time.Hour).UnixNano()
 			}
-			SendCircuitBreakJobEmail(batchWorker.SendgridClient, &job, appName, expireAt)
+			email.SendCircuitBreakJobEmail(batchWorker.SendgridClient, &job, appName, expireAt)
 		}
 	}
 }

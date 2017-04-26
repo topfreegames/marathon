@@ -32,6 +32,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
+	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/topfreegames/marathon/worker"
@@ -102,12 +103,12 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	if templateName == "" {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "template name must be specified"})
 	}
-	email := c.Get("user-email").(string)
+	userEmail := c.Get("user-email").(string)
 	job := &model.Job{
 		ID:           uuid.NewV4(),
 		AppID:        aid,
 		TemplateName: templateName,
-		CreatedBy:    email,
+		CreatedBy:    userEmail,
 		CreatedAt:    time.Now().UnixNano(),
 		UpdatedAt:    time.Now().UnixNano(),
 	}
@@ -259,7 +260,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		app := &model.App{ID: aid}
 		a.DB.Select(&app)
 
-		err := SendCreatedJobEmail(a.SendgridClient, job, app)
+		err := email.SendCreatedJobEmail(a.SendgridClient, job, app)
 		if err != nil {
 			log.E(l, "Failed to send email with job info.", func(cm log.CM) {
 				cm.Write(zap.Error(err))
@@ -325,11 +326,11 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	email := c.Get("user-email").(string)
+	userEmail := c.Get("user-email").(string)
 	job := &model.Job{
 		ID:        jid,
 		AppID:     aid,
-		CreatedBy: email,
+		CreatedBy: userEmail,
 		Status:    "paused",
 		UpdatedAt: time.Now().UnixNano(),
 	}
@@ -369,7 +370,7 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 		a.DB.Select(&app)
 
 		expireAt := time.Now().Add(7 * 24 * time.Hour).UnixNano()
-		err := SendPausedJobEmail(a.SendgridClient, job, app.Name, expireAt)
+		err := email.SendPausedJobEmail(a.SendgridClient, job, app.Name, expireAt)
 		if err != nil {
 			log.E(l, "Failed to send email with paused job info.", func(cm log.CM) {
 				cm.Write(zap.Error(err))
@@ -396,11 +397,11 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	email := c.Get("user-email").(string)
+	userEmail := c.Get("user-email").(string)
 	job := &model.Job{
 		ID:        jid,
 		AppID:     aid,
-		CreatedBy: email,
+		CreatedBy: userEmail,
 		Status:    "stopped",
 		UpdatedAt: time.Now().UnixNano(),
 	}
@@ -427,7 +428,7 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 		app := &model.App{ID: aid}
 		a.DB.Select(&app)
 
-		err := SendStoppedJobEmail(a.SendgridClient, job, app.Name, email)
+		err := email.SendStoppedJobEmail(a.SendgridClient, job, app.Name, userEmail)
 		if err != nil {
 			log.E(l, "Failed to send email with stopped job info.", func(cm log.CM) {
 				cm.Write(zap.Error(err))
@@ -454,7 +455,7 @@ func (a *Application) ResumeJobHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
-	email := c.Get("user-email").(string)
+	userEmail := c.Get("user-email").(string)
 	prevJob := &model.Job{}
 	err = WithSegment("db-select", c, func() error {
 		return a.DB.Model(&prevJob).Column("job.*", "App").Where("job.id = ?", jid).Select()
@@ -492,7 +493,7 @@ func (a *Application) ResumeJobHandler(c echo.Context) error {
 	job := &model.Job{
 		ID:        jid,
 		AppID:     aid,
-		CreatedBy: email,
+		CreatedBy: userEmail,
 		Status:    "",
 		UpdatedAt: time.Now().UnixNano(),
 	}

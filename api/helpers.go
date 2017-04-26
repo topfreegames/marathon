@@ -23,14 +23,8 @@
 package api
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
-
 	"github.com/labstack/echo"
 	newrelic "github.com/newrelic/go-agent"
-	"github.com/topfreegames/marathon/extensions"
-	"github.com/topfreegames/marathon/model"
 )
 
 // RecordNotFoundString is the string returned when a record is not found
@@ -61,107 +55,4 @@ func WithSegment(name string, c echo.Context, f func() error) error {
 	segment := newrelic.StartSegment(tx, name)
 	defer segment.End()
 	return f()
-}
-
-func getPlatformFromService(service string) string {
-	var platform string
-	if service == "apns" {
-		platform = "iOS"
-	} else if service == "gcm" {
-		platform = "Android"
-	} else {
-		platform = fmt.Sprintf("Unknown platform for service %s", service)
-	}
-	return platform
-}
-
-//SendCreatedJobEmail builds a created job email message and sends it with sendgrid
-func SendCreatedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, app *model.App) error {
-	action := "created"
-	if job.StartsAt != 0 {
-		action = "scheduled"
-	}
-	subject := fmt.Sprintf("New push job %s", action)
-
-	strategy := ""
-	if job.PastTimeStrategy != "" {
-		strategy = fmt.Sprintf("(strategy for push in the past: %s)", job.PastTimeStrategy)
-	}
-
-	var extraInfo string
-
-	if len(job.CSVPath) > 0 {
-		extraInfo = fmt.Sprintf("This job uses the following csvPath: %s.", job.CSVPath)
-	} else if len(job.Filters) > 0 {
-		filters, _ := json.MarshalIndent(job.Filters, "", "  ")
-		extraInfo = fmt.Sprintf("This job uses the following filters: \n%s.", string(filters))
-	} else {
-		extraInfo = "This job has no specified filters or csvPath."
-	}
-
-	platform := getPlatformFromService(job.Service)
-
-	var scheduledInfo string
-	if job.StartsAt != 0 {
-		scheduledInfo = fmt.Sprintf("(%s)", time.Unix(0, job.StartsAt).UTC().Format(time.RFC1123))
-	} else {
-		scheduledInfo = ""
-	}
-
-	message := fmt.Sprintf(`
-Hi there, a new push job was %s.
-
-App: %s
-Template: %s
-Platform: %s
-JobID: %s
-CreatedBy: %s
-Scheduled: %t %s
-Localized: %t %s
-
-%s
-`, action, app.Name, job.TemplateName, platform, job.ID, job.CreatedBy, job.StartsAt != 0, scheduledInfo, job.Localized, strategy, extraInfo)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
-}
-
-//SendPausedJobEmail builds a paused job email message and sends it with sendgrid
-func SendPausedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName string, expireAt int64) error {
-	subject := "Push job entered paused state"
-	platform := getPlatformFromService(job.Service)
-	expireAtDate := fmt.Sprintf("(%s)", time.Unix(0, expireAt).UTC().Format(time.RFC1123))
-
-	message := fmt.Sprintf(`
-Hello, your push job status has changed to paused.
-
-App: %s
-Template: %s
-Platform: %s
-JobID: %s
-CreatedBy: %s
-
-This job will be removed from the paused queue on %s. After this date the job will no longer be available.
-Please resume or stop it before then.
-`, appName, job.TemplateName, platform, job.ID, job.CreatedBy, expireAtDate)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
-}
-
-//SendStoppedJobEmail builds a stopped job email message and sends it with sendgrid
-func SendStoppedJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName, stoppedBy string) error {
-	subject := "Push job stopped"
-	platform := getPlatformFromService(job.Service)
-
-	message := fmt.Sprintf(`
-Hello, your push job status has changed to stopped.
-
-StoppedBy: %s
-
-App: %s
-Template: %s
-Platform: %s
-JobID: %s
-CreatedBy: %s
-
-This action is irreversible and this job's push notifications will no longer be sent.
-`, stoppedBy, appName, job.TemplateName, platform, job.ID, job.CreatedBy)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }

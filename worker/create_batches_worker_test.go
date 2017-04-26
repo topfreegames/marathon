@@ -515,215 +515,239 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(9))
 		})
-	})
 
-	It("should not panic if job is a reexecution", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
-			"service": "gcm",
+		It("should not panic if job is a reexecution", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"service": "gcm",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(2))
+			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			j1 := map[string]interface{}{}
+			j2 := map[string]interface{}{}
+			err = json.Unmarshal([]byte(job1), &j1)
+			Expect(err).NotTo(HaveOccurred())
+			err = json.Unmarshal([]byte(job2), &j2)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
+			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
+			Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(9))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 		})
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(res).To(BeEquivalentTo(2))
-		job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
-		Expect(err).NotTo(HaveOccurred())
-		job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
-		Expect(err).NotTo(HaveOccurred())
-		j1 := map[string]interface{}{}
-		j2 := map[string]interface{}{}
-		err = json.Unmarshal([]byte(job1), &j1)
-		Expect(err).NotTo(HaveOccurred())
-		err = json.Unmarshal([]byte(job2), &j2)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
-		Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
-		Expect(len((j1["args"].([]interface{}))[2].([]interface{})) + len((j2["args"].([]interface{}))[2].([]interface{}))).To(BeEquivalentTo(9))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-	})
 
-	It("should update job DBPageSize if no previous size", func() {
-		createBatchesWorker.DBPageSize = config.GetInt("workers.createBatches.dbPageSize")
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		It("should update job DBPageSize if no previous size", func() {
+			createBatchesWorker.DBPageSize = config.GetInt("workers.createBatches.dbPageSize")
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
 		})
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(j.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
-	})
 
-	It("should use job DBPageSize if specified", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		It("should use job DBPageSize if specified", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			createBatchesWorker.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j.DBPageSize).To(Equal(500))
 		})
-		createBatchesWorker.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(j.DBPageSize).To(Equal(500))
-	})
 
-	It("should increment job totalBatches when no previous totalBatches", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		It("should increment job totalBatches when no previous totalBatches", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			job := &model.Job{}
+			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job.TotalBatches).To(BeEquivalentTo(2))
 		})
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		job := &model.Job{}
-		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalBatches).To(BeEquivalentTo(2))
-	})
 
-	It("should increment job totalBatches when previous totalBatches", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		It("should increment job totalBatches when previous totalBatches", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			job := &model.Job{}
+			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job.TotalBatches).To(BeEquivalentTo(6))
 		})
-		_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
-		Expect(err).NotTo(HaveOccurred())
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		job := &model.Job{}
-		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalBatches).To(BeEquivalentTo(6))
-	})
 
-	It("should update totalTokens and totalUsers correctly", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		It("should update totalTokens and totalUsers correctly", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			job := &model.Job{}
+			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job.TotalUsers).To(BeEquivalentTo(10))
+			Expect(job.TotalTokens).To(BeEquivalentTo(10))
 		})
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		job := &model.Job{}
-		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalUsers).To(BeEquivalentTo(10))
-		Expect(job.TotalTokens).To(BeEquivalentTo(10))
-	})
 
-	It("should increment job totalTokens when no previous totalTokens", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+		It("should increment job totalTokens when no previous totalTokens", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			job := &model.Job{}
+			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job.TotalTokens).To(BeEquivalentTo(10))
 		})
-		m := map[string]interface{}{
-			"jid":  2,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		job := &model.Job{}
-		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalTokens).To(BeEquivalentTo(10))
-	})
 
-	It("should set totalTokens and totalUsers correctly", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+		It("should set totalTokens and totalUsers correctly", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  3,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			job := &model.Job{}
+			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job.TotalTokens).To(BeEquivalentTo(4))
+			Expect(job.TotalUsers).To(BeEquivalentTo(2))
 		})
-		m := map[string]interface{}{
-			"jid":  3,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		job := &model.Job{}
-		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalTokens).To(BeEquivalentTo(4))
-		Expect(job.TotalUsers).To(BeEquivalentTo(2))
-	})
 
-	It("should increment job totalTokens when previous totalTokens", func() {
-		a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-		j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-			"context": context,
-			"filters": map[string]interface{}{},
-			"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+		It("should increment job totalTokens when previous totalTokens", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+			})
+			_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+			m := map[string]interface{}{
+				"jid":  3,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			job := &model.Job{}
+			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job.TotalTokens).To(BeEquivalentTo(8))
 		})
-		_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
-		Expect(err).NotTo(HaveOccurred())
-		m := map[string]interface{}{
-			"jid":  3,
-			"args": []string{j.ID.String()},
-		}
-		smsg, err := json.Marshal(m)
-		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-		job := &model.Job{}
-		err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(job.TotalTokens).To(BeEquivalentTo(8))
+
+		It("should not panic and change job status to stopped if bad csv", func() {
+			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "tfg-push-notifications/test/jobs/obj2.csv",
+			})
+			m := map[string]interface{}{
+				"jid":  2,
+				"args": []string{j.ID.String()},
+			}
+			smsg, err := json.Marshal(m)
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(smsg))
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
+			updatedJob := &model.Job{
+				ID: j.ID,
+			}
+			err = createBatchesWorker.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(updatedJob.Status).To(Equal("stopped"))
+		})
 	})
 
 	Describe("Read CSV from S3", func() {

@@ -30,14 +30,16 @@ import (
 	"sync"
 	"time"
 
+	"math/rand"
+
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
-	"math/rand"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -46,16 +48,17 @@ import (
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
+	BatchSize                 int
+	Config                    *viper.Viper
+	DBPageSize                int
 	Logger                    zap.Logger
 	MarathonDB                *extensions.PGClient
-	PushDB                    *extensions.PGClient
-	Workers                   *Worker
-	Config                    *viper.Viper
-	BatchSize                 int
-	DBPageSize                int
-	S3Client                  s3iface.S3API
 	PageProcessingConcurrency int
+	PushDB                    *extensions.PGClient
 	RedisClient               *redis.Client
+	S3Client                  s3iface.S3API
+	SendgridClient            *extensions.SendgridClient
+	Workers                   *Worker
 }
 
 // NewCreateBatchesWorker gets a new CreateBatchesWorker
@@ -76,6 +79,14 @@ func (b *CreateBatchesWorker) configure() {
 	b.configureDatabases()
 	b.configureS3Client()
 	b.configureRedisClient()
+	b.configureSendgridClient()
+}
+
+func (b *CreateBatchesWorker) configureSendgridClient() {
+	apiKey := b.Config.GetString("sendgrid.key")
+	if apiKey != "" {
+		b.SendgridClient = extensions.NewSendgridClient(b.Config, b.Logger, apiKey)
+	}
 }
 
 func (b *CreateBatchesWorker) configureS3Client() {
@@ -384,6 +395,20 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
 		checkErr(l, err)
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
+		updatedJob := &model.Job{
+			ID: id,
+		}
+		err = b.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
+		checkErr(l, err)
+		if updatedJob.TotalTokens == 0 {
+			_, err := b.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
+			checkErr(l, err)
+			if b.SendgridClient != nil {
+				msg := "Your job was automatically stopped because no tokens were found matching the user ids given in the CSV file. Please verify the uploaded CSV and create a new job."
+				err = email.SendStoppedJobEmail(b.SendgridClient, updatedJob, job.App.Name, msg)
+				checkErr(l, err)
+			}
+		}
 		log.I(l, "finished create_batches_worker")
 	} else {
 		log.I(l, "panicked create_batches_worker")

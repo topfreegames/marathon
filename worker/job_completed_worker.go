@@ -26,6 +26,7 @@ import (
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -88,7 +89,7 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	checkErr(l, err)
 
 	if b.SendgridClient != nil {
-		err = SendJobCompletedEmail(b.SendgridClient, job, job.App.Name)
+		err = email.SendJobCompletedEmail(b.SendgridClient, job, job.App.Name)
 		checkErr(l, err)
 	}
 

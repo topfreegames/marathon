@@ -28,22 +28,18 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	pg "gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
 	raven "github.com/getsentry/raven-go"
 	uuid "github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 	"github.com/valyala/fasttemplate"
 )
 
-const apns = "apns"
-const gcm = "gcm"
 const stoppedJobStatus = "stopped"
 
 // User is the struct that will keep users before sending them to send batches worker
@@ -263,97 +259,4 @@ func BuildMessageFromTemplate(template model.Template, context map[string]interf
 func RandomElementFromSlice(elements []string) string {
 	element := elements[rand.Intn(len(elements))]
 	return element
-}
-
-//SendCircuitBreakJobEmail builds a circuit break job email message and sends it with sendgrid
-func SendCircuitBreakJobEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName string, expireAt int64) error {
-	subject := "Push job entered circuit break state"
-
-	var platform string
-	if job.Service == apns {
-		platform = "iOS"
-	} else if job.Service == gcm {
-		platform = "Android"
-	} else {
-		platform = fmt.Sprintf("Unknown platform for service %s", job.Service)
-	}
-
-	expireAtDate := fmt.Sprintf("(%s)", time.Unix(0, expireAt).UTC().Format(time.RFC1123))
-
-	message := fmt.Sprintf(`
-Hello, your push job status has changed to circuit break.
-
-App: %s
-Template: %s
-Platform: %s
-JobID: %s
-CreatedBy: %s
-
-This job will be removed from the paused queue on %s. After this date the job will no longer be available.
-Please fix the issues causing the circuit break and resume or stop it before then.
-`, appName, job.TemplateName, platform, job.ID, job.CreatedBy, expireAtDate)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
-}
-
-//SendJobCompletedEmail builds a job complete email message and sends it with sendgrid
-func SendJobCompletedEmail(sendgridClient *extensions.SendgridClient, job *model.Job, appName string) error {
-	subject := "Push job completed"
-
-	var platform string
-	if job.Service == apns {
-		platform = "iOS"
-	} else if job.Service == gcm {
-		platform = "Android"
-	} else {
-		platform = fmt.Sprintf("Unknown platform for service %s", job.Service)
-	}
-
-	var ack int
-	if val, ok := job.Feedbacks["ack"]; ok {
-		ack = int(val.(float64))
-	}
-	feedbacks := make([]string, len(job.Feedbacks))
-	idx := 0
-	for key, val := range job.Feedbacks {
-		intVal := int(val.(float64))
-		feedbacks[idx] = fmt.Sprintf("- %s: %.2f%% (%d)\n", key, float64(100*intVal)/float64(job.TotalTokens), intVal)
-		idx++
-	}
-
-	stats := fmt.Sprintf(`
-  Messages sent to Kafka:
-    Batches: %.2f%% (%d/%d)
-    Users: %.2f%% (%d/%d)
-
-  %s Feedbacks
-    Success/Total Users: %.2f%% (%d)
-
-Feedbacks:
-%s
-`,
-		float64(100*job.CompletedBatches)/float64(job.TotalBatches),
-		job.CompletedBatches,
-		job.TotalBatches,
-		float64(100*job.CompletedTokens)/float64(job.TotalTokens),
-		job.CompletedTokens,
-		job.TotalTokens,
-		strings.ToUpper(job.Service),
-		float64(100*ack)/float64(job.TotalTokens),
-		ack,
-		strings.Join(feedbacks, ""),
-	)
-
-	message := fmt.Sprintf(`
-Hello, your push job is complete.
-
-App: %s
-Template: %s
-Platform: %s
-JobID: %s
-CreatedBy: %s
-
-Stats:
-%s
-`, appName, job.TemplateName, platform, job.ID, job.CreatedBy, stats)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
 }
