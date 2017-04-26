@@ -76,7 +76,7 @@ func NewKafkaConsumer(
 
 func (q *KafkaConsumer) loadConfigurationDefaults() {
 	q.Config.SetDefault("feedbackListener.kafka.topics", []string{"com.games.test"})
-	q.Config.SetDefault("feedbackListener.kafka.brokers", "localhost:9092")
+	q.Config.SetDefault("kafka.bootstrapServers", "localhost:9092")
 	q.Config.SetDefault("feedbackListener.kafka.group", "test")
 	q.Config.SetDefault("feedbackListener.kafka.sessionTimeout", 6000)
 	q.Config.SetDefault("feedbackListener.kafka.offsetResetStrategy", "latest")
@@ -86,7 +86,7 @@ func (q *KafkaConsumer) loadConfigurationDefaults() {
 func (q *KafkaConsumer) configure(client interfaces.KafkaConsumerClient) error {
 	q.loadConfigurationDefaults()
 	q.OffsetResetStrategy = q.Config.GetString("feedbackListener.kafka.offsetResetStrategy")
-	q.Brokers = q.Config.GetString("feedbackListener.kafka.brokers")
+	q.Brokers = q.Config.GetString("kafka.bootstrapServers")
 	q.ConsumerGroup = q.Config.GetString("feedbackListener.kafka.group")
 	q.SessionTimeout = q.Config.GetInt("feedbackListener.kafka.sessionTimeout")
 	q.Topics = q.Config.GetStringSlice("feedbackListener.kafka.topics")

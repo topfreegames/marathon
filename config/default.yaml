@@ -24,6 +24,8 @@ s3:
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
+kafka:
+  bootstrapServers: localhost:9940
 workers:
   statsPort: 8081
   createBatches:
@@ -41,9 +43,6 @@ workers:
     concurrency: 10
     maxBatchFailure: 0.05
     maxUserFailureInBatch: 0.05
-  zookeeper:
-    hosts:
-      - localhost:9930
   redis:
     poolSize: 10
     host: localhost
@@ -63,7 +62,6 @@ feedbackListener:
   kafka:
     topics:
       - "^.*-feedbacks$"
-    brokers: localhost:9940
     group: marathon-consumer-group
     sessionTimeout: 6000
     handleAllMessagesBeforeExiting: true

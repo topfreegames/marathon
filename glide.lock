@@ -149,10 +149,6 @@ imports:
   version: 5c9560bfa9ace2bf86080bf40d46b34ae44604df
 - name: github.com/pressly/goose
   version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
-- name: github.com/samuel/go-zookeeper
-  version: 1d7be4effb13d2d908342d349d71a284a7542693
-  subpackages:
-  - zk
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/sendgrid/rest

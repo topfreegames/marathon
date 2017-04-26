@@ -55,9 +55,6 @@ workers:
     port: 6333
     db: 0
     pass:
-  zookeeper:
-    hosts:
-      - localhost:9930
   topicTemplate: "%s-%s-c"
 feedbackListener:
   flushInterval: 5000

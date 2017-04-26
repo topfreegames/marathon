@@ -103,20 +103,18 @@ var _ = Describe("Kafka Extension", func() {
 
 	Describe("Creating new client", func() {
 		It("should return connected client", func() {
-			client := getConnectedZookeeper(logger)
-			kafka, err := extensions.NewKafkaProducer(client, config, logger)
+			kafka, err := extensions.NewKafkaProducer(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
-			Expect(kafka.KafkaBootstrapBrokers).NotTo(BeNil())
+			Expect(kafka.BootstrapBrokers).NotTo(BeNil())
 			Expect(kafka.Producer).NotTo(BeNil())
 		})
 	})
 
 	Describe("Send GCM Message", func() {
 		It("should send GCM message", func() {
-			client := getConnectedZookeeper(logger)
-			kafka, err := extensions.NewKafkaProducer(client, client.Config, logger)
+			kafka, err := extensions.NewKafkaProducer(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
@@ -140,8 +138,7 @@ var _ = Describe("Kafka Extension", func() {
 
 	Describe("Send APNS Message", func() {
 		It("should send APNS message", func() {
-			client := getConnectedZookeeper(logger)
-			kafka, err := extensions.NewKafkaProducer(client, client.Config, logger)
+			kafka, err := extensions.NewKafkaProducer(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 

@@ -51,7 +51,6 @@ type ProcessBatchWorker struct {
 	RedisClient    *redis.Client
 	SendgridClient *extensions.SendgridClient
 	Workers        *Worker
-	Zookeeper      *extensions.ZookeeperClient
 }
 
 // NewProcessBatchWorker gets a new ProcessBatchWorker
@@ -60,14 +59,12 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "NewProcessBatchWorker"),
 	)
-	zookeeper, err := extensions.NewZookeeperClient(config, logger)
-	checkErr(l, err)
 	//Wait 10s at max for a connection
-	zookeeper.WaitForConnection(10)
 	k := kafkaClient
 	if k == nil {
 		var kafka *extensions.KafkaProducer
-		kafka, err = extensions.NewKafkaProducer(zookeeper, config, logger)
+		var err error
+		kafka, err = extensions.NewKafkaProducer(config, logger)
 		checkErr(l, err)
 		k = kafka
 	}
@@ -80,7 +77,6 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 		Config:      config,
 		Logger:      logger,
 		Kafka:       k,
-		Zookeeper:   zookeeper,
 		MarathonDB:  marathonDB,
 		RedisClient: redisClient,
 		Workers:     workers,

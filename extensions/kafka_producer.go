@@ -23,11 +23,7 @@
 package extensions
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/messages"
@@ -36,32 +32,27 @@ import (
 
 // KafkaProducer is the struct that connects to Kafka
 type KafkaProducer struct {
-	ZookeeperClient       *ZookeeperClient
-	Config                *viper.Viper
-	ConfigPath            string
-	Conn                  *zk.Conn
-	Logger                zap.Logger
-	KafkaBootstrapBrokers string
-	Producer              *kafka.Producer
+	Config           *viper.Viper
+	ConfigPath       string
+	Logger           zap.Logger
+	BootstrapBrokers string
+	Producer         *kafka.Producer
 }
 
 // NewKafkaProducer creates a new kafka producer
-func NewKafkaProducer(zookeeperClient *ZookeeperClient, config *viper.Viper, logger zap.Logger) (*KafkaProducer, error) {
+func NewKafkaProducer(config *viper.Viper, logger zap.Logger) (*KafkaProducer, error) {
 	l := logger.With(
 		zap.String("source", "KafkaExtension"),
 	)
 	client := &KafkaProducer{
-		ZookeeperClient: zookeeperClient,
-		Config:          config,
-		Logger:          l,
+		Config: config,
+		Logger: l,
 	}
 
-	err := client.loadKafkaBrokers()
-	if err != nil {
-		return nil, err
-	}
+	client.loadConfigurationDefaults()
+	client.configure()
 
-	err = client.connectToKafka()
+	err := client.connectToKafka()
 	if err != nil {
 		return nil, err
 	}
@@ -71,24 +62,18 @@ func NewKafkaProducer(zookeeperClient *ZookeeperClient, config *viper.Viper, log
 	return client, nil
 }
 
-//LoadKafkaBrokers from Zookeeper
-func (c *KafkaProducer) loadKafkaBrokers() error {
-	if c.ZookeeperClient == nil || !c.ZookeeperClient.IsConnected() {
-		return fmt.Errorf("Failed to start kafka extension due to zookeeper not being connected.")
-	}
+func (c *KafkaProducer) loadConfigurationDefaults() {
+	c.Config.SetDefault("kafka.bootstrapServers", "localhost:9940")
+}
 
-	brokers, err := c.ZookeeperClient.GetKafkaBrokers()
-	if err != nil {
-		return err
-	}
-	c.KafkaBootstrapBrokers = strings.Join(brokers, ",")
-	return nil
+func (c *KafkaProducer) configure() {
+	c.BootstrapBrokers = c.Config.GetString("kafka.bootstrapServers")
 }
 
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaProducer) connectToKafka() error {
 	cfg := &kafka.ConfigMap{
-		"bootstrap.servers": c.KafkaBootstrapBrokers,
+		"bootstrap.servers": c.BootstrapBrokers,
 	}
 	p, err := kafka.NewProducer(cfg)
 	if err != nil {
@@ -99,15 +84,9 @@ func (c *KafkaProducer) connectToKafka() error {
 	return nil
 }
 
-//Close the connections to kafka and zookeeper
-func (c *KafkaProducer) Close() error {
+//Close the connections to kafka
+func (c *KafkaProducer) Close() {
 	c.Producer.Close()
-
-	err := c.ZookeeperClient.Close()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 //SendAPNSPush notification to Kafka
