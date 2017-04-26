@@ -24,6 +24,7 @@ package extensions
 
 import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/messages"
@@ -57,8 +58,8 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger) (*KafkaProducer, e
 		return nil, err
 	}
 
+	go client.listenForKafkaResponses()
 	l.Info("configured kafka producer")
-
 	return client, nil
 }
 
@@ -82,6 +83,27 @@ func (c *KafkaProducer) connectToKafka() error {
 
 	c.Producer = p
 	return nil
+}
+
+func (c KafkaProducer) listenForKafkaResponses() {
+	l := c.Logger.With(
+		zap.String("source", "KafkaExtension"),
+		zap.String("method", "listenForKafkaResponses"),
+	)
+	for e := range c.Producer.Events() {
+		switch ev := e.(type) {
+		case *kafka.Message:
+			m := ev
+			if m.TopicPartition.Error != nil {
+				raven.CaptureError(m.TopicPartition.Error, map[string]string{
+					"extension": "kafka-producer",
+				})
+				log.E(l, "Kafka producer error", func(cm log.CM) {
+					cm.Write(zap.Error(m.TopicPartition.Error))
+				})
+			}
+		}
+	}
 }
 
 //Close the connections to kafka

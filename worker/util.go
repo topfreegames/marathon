@@ -50,6 +50,9 @@ type User struct {
 	Locale    string      `json:"locale" sql:"locale"`
 	Region    string      `json:"region" sql:"region"`
 	Tz        string      `json:"tz" sql:"tz"`
+	Fiu       string      `json:"fiu" sql:"fiu"`
+	Adid      string      `json:"adid" sql:"adid"`
+	VendorID  string      `json:"vendor_id" sql:"vendor_id"`
 }
 
 // Batch is a struct that helps tracking processes pages

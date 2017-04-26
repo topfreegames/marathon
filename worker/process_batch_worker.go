@@ -289,6 +289,9 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		checkErr(l, err)
 		pushMetadata := map[string]interface{}{
 			"userId":       user.UserID,
+			"fiu":          user.Fiu,
+			"adid":         user.Adid,
+			"vendorId":     user.VendorID,
 			"templateName": job.TemplateName,
 			"jobId":        job.ID.String(),
 			"pushType":     "massive",

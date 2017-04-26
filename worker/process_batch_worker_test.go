@@ -494,6 +494,9 @@ var _ = Describe("ProcessBatch Worker", func() {
 				UserID:    userID,
 				Token:     token,
 				Locale:    "pt",
+				Adid:      "adid",
+				Fiu:       "fiu",
+				VendorID:  "vendorID",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
 			messageObj := []interface{}{
@@ -517,6 +520,9 @@ var _ = Describe("ProcessBatch Worker", func() {
 				"templateName":   job.TemplateName,
 				"pushType":       "massive",
 				"tokenCreatedAt": createdAt.Unix(),
+				"adid":           user.Adid,
+				"fiu":            user.Fiu,
+				"vendorId":       user.VendorID,
 			}
 
 			m := mockKafkaProducer.APNSMessages[0]
