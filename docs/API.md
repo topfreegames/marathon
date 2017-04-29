@@ -540,52 +540,58 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
       ```
       [
         {  
-          id:               [uuid],
-          totalBatches:     [null|int], // if null the total batches that will be sent was not calculated yet
-          completedBatches: [int],
-          totalUsers:       [null|int], // if null the total users that will receive the push was not calculated yet
-          completedTokens:   [int],
-          dbPageSize:       [int],    // page size that will be used for retrieving tokens from the database
-          localized:        [boolean],
-          completedAt:      [int64],  // nanoseconds since epoch,
-          expiresAt:        [int64],  // nanoseconds since epoch, optional but if > 0 push will no longer be sent after this timestamp,
-          startsAt:         [int64],  // nanoseconds since epoch, optional but if > 0 job was scheduled,
-          context:          [json],   // optional
-          service:          [gcm|apns],
-          filters:          [json],   // optional
-          metadata:         [json],   // optional
-          csvPath:          [string], // full path of the S3 file with the csv containing users ids for this job,
-          templateName:     [string],
-          pastTimeStrategy: [null|string], // null if job is not localized or one of [skip, nextDay]
-          status:           [null|string], // null if job is running or one of [paused, stopped, circuitbreak]
-          appId:            [uuid],
-          createdBy:        [string], // email
-          createdAt:        [int64],  // nanoseconds since epoch
-          updatedAt:        [int64]   // nanoseconds since epoch
+          id:                  [uuid],
+          totalBatches:        [null|int], // if null the total batches that will be sent was not calculated yet
+          completedBatches:    [int],
+          totalUsers:          [null|int], // if null the total users that will receive the push was not calculated yet
+          totalTokens:         [null|int], // if null the total tokens that will receive the push was not calculated yet
+          completedTokens:     [int],
+          dbPageSize:          [int],    // page size that will be used for retrieving tokens from the database
+          localized:           [boolean],
+          completedAt:         [int64],  // nanoseconds since epoch,
+          expiresAt:           [int64],  // nanoseconds since epoch, optional but if > 0 push will no longer be sent after this timestamp,
+          startsAt:            [int64],  // nanoseconds since epoch, optional but if > 0 job was scheduled,
+          context:             [json],   // optional
+          service:             [gcm|apns],
+          filters:             [json],   // optional
+          metadata:            [json],   // optional
+          csvPath:             [string], // full path of the S3 file with the csv containing users ids for this job,
+          templateName:        [string], // can also be several strings separated by commas
+          pastTimeStrategy:    [null|string], // null if job is not localized or one of [skip, nextDay]
+          status:              [null|string], // null if job is running or one of [paused, stopped, circuitbreak]
+          appId:               [uuid],
+          createdBy:           [string], // email
+          createdAt:           [int64],  // nanoseconds since epoch
+          updatedAt:           [int64],  // nanoseconds since epoch
+          controlGroup:        [float],  // float between 0-1, represents the % of users that won't receive notifications
+          controlGroupCsvPath: [string]  // full path of the S3 file with the csv containing users ids of users in the control group
         },
         {  
-          id:               [uuid],
-          totalBatches:     [null|int],
-          completedBatches: [int],
-          totalUsers:       [null|int],
-          completedTokens:   [int],
-          dbPageSize:       [int],   
-          localized:        [boolean],
-          completedAt:      [int64],
-          expiresAt:        [int64],
-          startsAt:         [int64],
-          context:          [json],  
-          service:          [gcm|apns],
-          filters:          [json],  
-          metadata:         [json],  
-          csvPath:          [string],
-          templateName:     [string],
-          pastTimeStrategy: [null|string],
-          status:           [null|string],
-          appId:            [uuid],
-          createdBy:        [string],
-          createdAt:        [int64],
-          updatedAt:        [int64]  
+          id:                  [uuid],
+          totalBatches:        [null|int],
+          completedBatches:    [int],
+          totalUsers:          [null|int],
+          totalTokens:         [null|int],
+          completedTokens:     [int],
+          dbPageSize:          [int],   
+          localized:           [boolean],
+          completedAt:         [int64],
+          expiresAt:           [int64],
+          startsAt:            [int64],
+          context:             [json],  
+          service:             [gcm|apns],
+          filters:             [json],  
+          metadata:            [json],  
+          csvPath:             [string],
+          templateName:        [string],
+          pastTimeStrategy:    [null|string],
+          status:              [null|string],
+          appId:               [uuid],
+          createdBy:           [string],
+          createdAt:           [int64],
+          updatedAt:           [int64],
+          controlGroup:        [float],
+          controlGroupCsvPath: [string]
         },
         ...
       ]
@@ -608,7 +614,7 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
   ### Create Job
   `POST /apps/:appId/jobs?template=<mandatory-template-name>`
 
-  Creates a new job with the given parameters and template name.
+  Creates a new job with the given parameters and template name. The template name can be composed of several template names separated by commas. Example `POST /apps/:appId/jobs?template=tpl1,tpl2,tpl3,tpl4`. In this case the template messages will be randomly chosen for each user using a uniform distribution.
 
   * Payload
 
@@ -623,6 +629,7 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
       metadata:         [json],   // optional
       csvPath:          [string], // full path of the S3 file with the csv containing users ids for this job,
       pastTimeStrategy: [null|string], // null if job is not localized or one of [skip, nextDay]
+      controlGroup:     [float]   // float between 0-1, represents the % of users that won't receive notifications
     }
     ```
 
@@ -635,7 +642,8 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         totalBatches:     [null|int],
         completedBatches: [int],
         totalUsers:       [null|int],
-        completedTokens:   [int],
+        completedUsers:   [int],
+        completedTokens:  [int],
         dbPageSize:       [int],   
         localized:        [boolean],
         completedAt:      [int64],
@@ -652,7 +660,9 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         appId:            [uuid],
         createdBy:        [string],
         createdAt:        [int64],
-        updatedAt:        [int64]  
+        updatedAt:        [int64],
+        controlGroup:        [float],
+        controlGroupCsvPath: [string]
       }
       ```
 
@@ -694,7 +704,8 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         totalBatches:     [null|int],
         completedBatches: [int],
         totalUsers:       [null|int],
-        completedTokens:   [int],
+        completedUsers:   [int],
+        completedTokens:  [int],
         dbPageSize:       [int],   
         localized:        [boolean],
         completedAt:      [int64],
@@ -711,7 +722,9 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         appId:            [uuid],
         createdBy:        [string],
         createdAt:        [int64],
-        updatedAt:        [int64]  
+        updatedAt:        [int64],
+        controlGroup:        [float],
+        controlGroupCsvPath: [string]
       }
       ```
 
@@ -749,7 +762,8 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         totalBatches:     [null|int],
         completedBatches: [int],
         totalUsers:       [null|int],
-        completedTokens:   [int],
+        completedUsers:   [int],
+        completedTokens:  [int],
         dbPageSize:       [int],   
         localized:        [boolean],
         completedAt:      [int64],
@@ -766,7 +780,9 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         appId:            [uuid],
         createdBy:        [string],
         createdAt:        [int64],
-        updatedAt:        [int64]
+        updatedAt:        [int64],
+        controlGroup:        [float],
+        controlGroupCsvPath: [string]
       }
       ```
 
@@ -814,7 +830,8 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         totalBatches:     [null|int],
         completedBatches: [int],
         totalUsers:       [null|int],
-        completedTokens:   [int],
+        completedUsers:   [int],
+        completedTokens:  [int],
         dbPageSize:       [int],   
         localized:        [boolean],
         completedAt:      [int64],
@@ -831,7 +848,9 @@ Every request other than GET /healthcheck must pass a `x-forwarded-email` header
         appId:            [uuid],
         createdBy:        [string],
         createdAt:        [int64],
-        updatedAt:        [int64]
+        updatedAt:        [int64],
+        controlGroup:        [float],
+        controlGroupCsvPath: [string]
       }
       ```
 
@@ -879,7 +898,8 @@ Resumes the job that has id `jobId`.
       totalBatches:     [null|int],
       completedBatches: [int],
       totalUsers:       [null|int],
-      completedTokens:   [int],
+      completedUsers:   [int],
+      completedTokens:  [int],
       dbPageSize:       [int],   
       localized:        [boolean],
       completedAt:      [int64],
@@ -896,7 +916,9 @@ Resumes the job that has id `jobId`.
       appId:            [uuid],
       createdBy:        [string],
       createdAt:        [int64],
-      updatedAt:        [int64]
+      updatedAt:        [int64],
+      controlGroup:        [float],
+      controlGroupCsvPath: [string]
     }
     ```
 

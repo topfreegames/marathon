@@ -27,6 +27,7 @@ For uploading and reading CSV files Marathon uses AWS S3, so you'll need to spec
 * `MARATHON_S3_FOLDER` - AWS S3 folder containing the csv files;
 * `MARATHON_S3_ACCESSKEY` - AWS S3 access key;
 * `MARATHON_S3_SECRETACCESSKEY` - AWS S3 secret;
+* `MARATHON_S3_CONTROLGROUPFOLDER` - AWS S3 folder containing the control group csv files;
 
 The workers use redis for queueing:
 
@@ -34,11 +35,12 @@ The workers use redis for queueing:
 * `MARATHON_WORKERS_REDIS_PORT` - Redis port to connect to;
 * `MARATHON_WORKERS_REDIS_PASS` - Password of the redis server to connect to;
 
-The workers use kafka and zookeper for sending push notifications:
+Marathon uses kafka to send push notifications:
+* `MARATHON_KAFKA_BOOTSTRAPSERVERS` - Kafka servers to connect to (comma separated, without spaces);
 
-* `MARATHON_WORKERS_ZOOKEEPER_HOSTS` - Zookeeper hosts to connect to;
+The workers need a template for sending push notifications:
+
 * `MARATHON_WORKERS_TOPICTEMPLATE` - Kafka topic template;
-* `MARATHON_WORKERS_ZOOKEEPER_PREFIX` - The prefix that contains kafka brokers info; e.g. /prefix for accessing brokers node at /prefix/brokers
 
 Finally, the feedback listener uses kafka for receiving the push notifications' feedbacks from APNS or GCM:
 
