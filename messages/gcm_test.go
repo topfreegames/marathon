@@ -32,10 +32,11 @@ var _ = Describe("GCM Message", func() {
 	Describe("Creating new message", func() {
 		It("should return message", func() {
 			data := map[string]interface{}{"x": 1}
-			msg := messages.NewGCMMessage("to", data, nil, nil, 357)
+			msg := messages.NewGCMMessage("to", data, nil, nil, 357, "my-template")
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
-			Expect(msg.Data).To(BeEquivalentTo(data))
+			fullData := map[string]interface{}{"x": 1, "templateName": "my-template"}
+			Expect(msg.Data).To(BeEquivalentTo(fullData))
 			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
 			Expect(msg.DryRun).To(Equal(false))
 			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
@@ -44,10 +45,10 @@ var _ = Describe("GCM Message", func() {
 		})
 
 		It("should return message if data is nil", func() {
-			msg := messages.NewGCMMessage("to", nil, nil, nil, 357)
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 357, "my-template")
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
-			Expect(msg.Data).To(BeEquivalentTo(map[string]interface{}{}))
+			Expect(msg.Data).To(BeEquivalentTo(map[string]interface{}{"templateName": "my-template"}))
 			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
 			Expect(msg.DryRun).To(Equal(false))
 			Expect(msg.DeliveryReceiptRequest).To(Equal(false))
@@ -57,7 +58,7 @@ var _ = Describe("GCM Message", func() {
 
 		It("should return message if metadata is not nil", func() {
 			mtd := map[string]interface{}{"a": 1, "b": 2}
-			msg := messages.NewGCMMessage("to", nil, mtd, nil, 357)
+			msg := messages.NewGCMMessage("to", nil, mtd, nil, 357, "my-template")
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Data["m"].(map[string]interface{})).To(BeEquivalentTo(mtd))
@@ -70,7 +71,7 @@ var _ = Describe("GCM Message", func() {
 
 		It("should return message if pushMetadata is not nil", func() {
 			mtd := map[string]interface{}{"a": 1, "b": 2}
-			msg := messages.NewGCMMessage("to", nil, nil, mtd, 357)
+			msg := messages.NewGCMMessage("to", nil, nil, mtd, 357, "my-template")
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.Metadata).To(BeEquivalentTo(mtd))
@@ -82,7 +83,7 @@ var _ = Describe("GCM Message", func() {
 		})
 
 		It("should return message if pushMetadata is nil", func() {
-			msg := messages.NewGCMMessage("to", nil, nil, nil, 357)
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 357, "my-template")
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.To).To(Equal("to"))
 			Expect(msg.TimeToLive).To(BeEquivalentTo(357))
@@ -93,7 +94,7 @@ var _ = Describe("GCM Message", func() {
 		})
 
 		It("should contain ttl in json message if ttl is greater than 0", func() {
-			msg := messages.NewGCMMessage("to", nil, nil, nil, 357)
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 357, "my-template")
 			Expect(msg).NotTo(BeNil())
 			msgStr, err := msg.ToJSON()
 			Expect(err).NotTo(HaveOccurred())
@@ -101,7 +102,7 @@ var _ = Describe("GCM Message", func() {
 		})
 
 		It("should not contain ttl in json message if ttl is equal to 0", func() {
-			msg := messages.NewGCMMessage("to", nil, nil, nil, 0)
+			msg := messages.NewGCMMessage("to", nil, nil, nil, 0, "my-template")
 			Expect(msg).NotTo(BeNil())
 			msgStr, err := msg.ToJSON()
 			Expect(err).NotTo(HaveOccurred())

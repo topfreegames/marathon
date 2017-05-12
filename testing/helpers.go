@@ -62,13 +62,14 @@ func NewFakeKafkaProducer() *FakeKafkaProducer {
 }
 
 // SendAPNSPush for testing
-func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error {
 	msg := messages.NewAPNSMessage(
 		deviceToken,
 		pushExpiry,
 		payload,
 		messageMetadata,
 		pushMetadata,
+		templateName,
 	)
 
 	message, err := msg.ToJSON()
@@ -82,13 +83,14 @@ func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, mes
 }
 
 // SendGCMPush for testing
-func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error {
 	msg := messages.NewGCMMessage(
 		deviceToken,
 		payload,
 		messageMetadata,
 		pushMetadata,
 		pushExpiry,
+		templateName,
 	)
 
 	message, err := msg.ToJSON()

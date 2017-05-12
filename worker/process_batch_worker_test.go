@@ -246,6 +246,10 @@ var _ = Describe("ProcessBatch Worker", func() {
 					Equal("Everyone just disliked your village!"),
 				))
 				Expect(apnsMessage.Payload.M["meta"]).To(Equal(jobWithManyTemplates.Metadata["meta"]))
+				Expect(apnsMessage.Payload.TemplateName).To(Or(
+					Equal(template.Name),
+					Equal(template2.Name),
+				))
 				Expect(apnsMessage.Metadata["templateName"]).To(Or(
 					Equal(template.Name),
 					Equal(template2.Name),

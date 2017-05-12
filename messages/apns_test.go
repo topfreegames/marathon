@@ -36,7 +36,7 @@ var _ = Describe("APNS Message", func() {
 			pushMetadata := map[string]interface{}{
 				"a": "b",
 			}
-			msg := messages.NewAPNSMessage("deviceToken", 357, aps, m, pushMetadata)
+			msg := messages.NewAPNSMessage("deviceToken", 357, aps, m, pushMetadata, "tplname")
 
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.DeviceToken).To(Equal("deviceToken"))
@@ -44,12 +44,13 @@ var _ = Describe("APNS Message", func() {
 			Expect(msg.Payload).NotTo(BeNil())
 			Expect(msg.Payload.Aps).To(BeEquivalentTo(aps))
 			Expect(msg.Payload.M).To(BeEquivalentTo(m))
+			Expect(msg.Payload.TemplateName).To(Equal("tplname"))
 			Expect(msg.Metadata).To(BeEquivalentTo(pushMetadata))
 		})
 
 		It("should return message with nil maps", func() {
 			empty := map[string]interface{}{}
-			msg := messages.NewAPNSMessage("deviceToken", 357, nil, nil, nil)
+			msg := messages.NewAPNSMessage("deviceToken", 357, nil, nil, nil, "tplname")
 
 			Expect(msg).NotTo(BeNil())
 			Expect(msg.DeviceToken).To(Equal("deviceToken"))
@@ -57,6 +58,7 @@ var _ = Describe("APNS Message", func() {
 			Expect(msg.Payload).NotTo(BeNil())
 			Expect(msg.Payload.Aps).To(BeEquivalentTo(empty))
 			Expect(msg.Payload.M).To(BeEquivalentTo(empty))
+			Expect(msg.Payload.TemplateName).To(Equal("tplname"))
 			Expect(msg.Metadata).To(BeEquivalentTo(empty))
 		})
 	})

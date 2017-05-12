@@ -22,7 +22,9 @@
 
 package messages
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // APNSMessage might need to update the json encoding if we change to snake case
 // For more info on APNS payload building, refer to this document:
@@ -36,12 +38,13 @@ type APNSMessage struct {
 
 // APNSPayloadContent stores payload content of apns message
 type APNSPayloadContent struct {
-	Aps map[string]interface{} `json:"aps"`
-	M   map[string]interface{} `json:"m,omitempty"`
+	Aps          map[string]interface{} `json:"aps"`
+	M            map[string]interface{} `json:"m,omitempty"`
+	TemplateName string                 `json:"templateName"`
 }
 
 // NewAPNSMessage builds an APNSMessage
-func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}) *APNSMessage {
+func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, templateName string) *APNSMessage {
 	if pushMetadata == nil {
 		pushMetadata = map[string]interface{}{}
 	}
@@ -59,8 +62,9 @@ func NewAPNSMessage(deviceToken string, pushExpiry int64, aps, messageMetadata m
 	}
 
 	msg.Payload = APNSPayloadContent{
-		Aps: aps,
-		M:   messageMetadata,
+		Aps:          aps,
+		M:            messageMetadata,
+		TemplateName: templateName,
 	}
 	return msg
 }

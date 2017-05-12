@@ -121,7 +121,7 @@ var _ = Describe("Kafka Extension", func() {
 			payload := map[string]interface{}{"x": 1}
 			meta := map[string]interface{}{"a": 1}
 			expiry := time.Now().Unix()
-			kafka.SendGCMPush("consumer", "device-token", payload, meta, nil, expiry)
+			kafka.SendGCMPush("consumer", "device-token", payload, meta, nil, expiry, "template")
 			msg, err := getNextMessageFrom(testConsumer)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(msg).NotTo(BeNil())
@@ -145,7 +145,7 @@ var _ = Describe("Kafka Extension", func() {
 			payload := map[string]interface{}{"x": 1}
 			meta := map[string]interface{}{"a": 1}
 			expiry := time.Now().Unix()
-			kafka.SendAPNSPush("consumer", "device-token", payload, meta, nil, expiry)
+			kafka.SendAPNSPush("consumer", "device-token", payload, meta, nil, expiry, "template")
 
 			msg, err := getNextMessageFrom(testConsumer)
 			Expect(err).NotTo(HaveOccurred())

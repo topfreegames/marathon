@@ -112,13 +112,14 @@ func (c *KafkaProducer) Close() {
 }
 
 //SendAPNSPush notification to Kafka
-func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error {
 	msg := messages.NewAPNSMessage(
 		deviceToken,
 		pushExpiry,
 		payload,
 		messageMetadata,
 		pushMetadata,
+		templateName,
 	)
 
 	message, err := msg.ToJSON()
@@ -130,13 +131,14 @@ func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, message
 }
 
 //SendGCMPush notification to Kafka
-func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64) error {
+func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error {
 	msg := messages.NewGCMMessage(
 		deviceToken,
 		payload,
 		messageMetadata,
 		pushMetadata,
 		pushExpiry,
+		templateName,
 	)
 
 	message, err := msg.ToJSON()

@@ -22,7 +22,9 @@
 
 package messages
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // GCMMessage is the struct to store a gcm message
 // For more info on the GCM Message Data attribute refer to:
@@ -39,11 +41,12 @@ type GCMMessage struct {
 }
 
 // NewGCMMessage builds a new GCM Message
-func NewGCMMessage(to string, data, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, timeToLive int64) *GCMMessage {
+func NewGCMMessage(to string, data, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, timeToLive int64, templateName string) *GCMMessage {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
 
+	data["templateName"] = templateName
 	if messageMetadata != nil && len(messageMetadata) > 0 {
 		data["m"] = messageMetadata
 	}
@@ -58,6 +61,7 @@ func NewGCMMessage(to string, data, messageMetadata map[string]interface{}, push
 		MessageID:              "",
 		Metadata:               pushMetadata,
 	}
+
 	return msg
 }
 
