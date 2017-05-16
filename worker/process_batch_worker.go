@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	pg "gopkg.in/pg.v5"
 	redis "gopkg.in/redis.v5"
 
 	workers "github.com/jrallison/go-workers"
@@ -142,15 +143,34 @@ func (batchWorker *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, erro
 	return &job, err
 }
 
-func (batchWorker *ProcessBatchWorker) getJobTemplatesByLocale(appID uuid.UUID, templateName string) (map[string]model.Template, error) {
-	templateByLocale := make(map[string]model.Template)
+func (batchWorker *ProcessBatchWorker) getJobTemplatesByNameAndLocale(appID uuid.UUID, templateName string) (map[string]map[string]model.Template, error) {
 	var templates []model.Template
-	err := batchWorker.MarathonDB.DB.Model(&templates).Where("app_id = ? AND name = ?", appID, templateName).Select()
+	var err error
+	if len(strings.Split(templateName, ",")) > 1 {
+		err = batchWorker.MarathonDB.DB.Model(&templates).Where(
+			"app_id = ? AND name IN (?)",
+			appID,
+			pg.In(strings.Split(templateName, ",")),
+		).Select()
+	} else {
+		err = batchWorker.MarathonDB.DB.Model(&templates).Where(
+			"app_id = ? AND name = ?",
+			appID,
+			templateName,
+		).Select()
+	}
 	if err != nil {
 		return nil, err
 	}
+	templateByLocale := make(map[string]map[string]model.Template)
 	for _, tpl := range templates {
-		templateByLocale[tpl.Locale] = tpl
+		if templateByLocale[tpl.Name] != nil {
+			templateByLocale[tpl.Name][tpl.Locale] = tpl
+		} else {
+			templateByLocale[tpl.Name] = map[string]model.Template{
+				tpl.Locale: tpl,
+			}
+		}
 	}
 
 	if len(templateByLocale) == 0 {
@@ -245,19 +265,13 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		log.D(l, "valid process_batch_worker")
 	}
 
-	templateNames := strings.Split(job.TemplateName, ",")
-
-	if templateNames != nil && len(templateNames) > 1 {
-		job.TemplateName = RandomElementFromSlice(templateNames)
-	}
-
-	templatesByLocale, err := batchWorker.getJobTemplatesByLocale(job.AppID, job.TemplateName)
+	templatesByNameAndLocale, err := batchWorker.getJobTemplatesByNameAndLocale(job.AppID, job.TemplateName)
 	if err != nil {
 		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 	}
 	batchWorker.checkErrWithReEnqueue(parsed, l, err)
-	log.D(l, "Retrieved templatesByLocale successfully.", func(cm log.CM) {
-		cm.Write(zap.Object("templatesByLocale", templatesByLocale))
+	log.D(l, "Retrieved templatesByNameAndLocale successfully.", func(cm log.CM) {
+		cm.Write(zap.Object("templatesByNameAndLocale", templatesByNameAndLocale))
 	})
 
 	topicTemplate := batchWorker.Config.GetString("workers.topicTemplate")
@@ -266,6 +280,17 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		cm.Write(zap.String("topic", topic))
 	})
 	for _, user := range parsed.Users {
+		templateName := job.TemplateName
+		templateNames := strings.Split(job.TemplateName, ",")
+
+		if templateNames != nil && len(templateNames) > 1 {
+			templateName = RandomElementFromSlice(templateNames)
+			log.D(l, "selected template", func(cm log.CM) {
+				cm.Write(zap.Object("name", templateName))
+			})
+		}
+
+		templatesByLocale := templatesByNameAndLocale[templateName]
 		var template model.Template
 		if val, ok := templatesByLocale[strings.ToLower(user.Locale)]; ok {
 			template = val
@@ -292,14 +317,14 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			"fiu":          user.Fiu,
 			"adid":         user.Adid,
 			"vendorId":     user.VendorID,
-			"templateName": job.TemplateName,
+			"templateName": templateName,
 			"jobId":        job.ID.String(),
 			"pushType":     "massive",
 		}
 		if user.CreatedAt.Unix() > 0 {
 			pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
 		}
-		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, job.TemplateName)
+		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, templateName)
 		if err != nil {
 			batchErrorCounter = batchErrorCounter + 1
 			log.E(l, "Failed to send message to Kafka.", func(cm log.CM) {
