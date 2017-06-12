@@ -59,11 +59,17 @@ func (c *SendgridClient) LoadDefaults() {
 }
 
 // SendgridSendEmail sends an email with the given message and addressee
-func (c *SendgridClient) SendgridSendEmail(addressee, subject, message string) error {
+func (c *SendgridClient) SendgridSendEmail(addressee, subject, message string, skipBlacklist bool) error {
 	l := c.Logger.With(
 		zap.String("source", "sendgridExtension"),
 		zap.String("operation", "SendgridSendEmail"),
 	)
+
+	blacklist := c.Config.GetString("sendgrid.blacklist")
+	if !skipBlacklist && strings.Contains(blacklist, addressee) {
+		log.D(l, "Email is in blacklist, exiting early")
+		return nil
+	}
 
 	from := mail.NewEmail(c.Config.GetString("sendgrid.sender.name"), c.Config.GetString("sendgrid.sender.email"))
 	content := mail.NewContent("text/plain", message)

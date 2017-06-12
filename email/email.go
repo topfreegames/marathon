@@ -90,7 +90,7 @@ Localized: %t %s
 
 %s
 `, action, app.Name, job.TemplateName, platform, job.ID, job.CreatedBy, job.StartsAt != 0, scheduledInfo, job.Localized, strategy, extraInfo)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message, false)
 }
 
 //SendPausedJobEmail builds a paused job email message and sends it with sendgrid
@@ -111,7 +111,7 @@ CreatedBy: %s
 This job will be removed from the paused queue on %s. After this date the job will no longer be available.
 Please resume or stop it before then.
 `, appName, job.TemplateName, platform, job.ID, job.CreatedBy, expireAtDate)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message, false)
 }
 
 //SendStoppedJobEmail builds a stopped job email message and sends it with sendgrid
@@ -132,7 +132,9 @@ CreatedBy: %s
 
 This action is irreversible and this job's push notifications will no longer be sent.
 `, stoppedBy, appName, job.TemplateName, platform, job.ID, job.CreatedBy)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
+
+	skipBlacklist := strings.Contains(stoppedBy, "automatically")
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message, skipBlacklist)
 }
 
 //SendCircuitBreakJobEmail builds a circuit break job email message and sends it with sendgrid
@@ -153,7 +155,7 @@ CreatedBy: %s
 This job will be removed from the paused queue on %s. After this date the job will no longer be available.
 Please fix the issues causing the circuit break and resume or stop it before then.
 `, appName, job.TemplateName, platform, job.ID, job.CreatedBy, expireAtDate)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message, true)
 }
 
 //SendJobCompletedEmail builds a job complete email message and sends it with sendgrid
@@ -208,5 +210,5 @@ CreatedBy: %s
 Stats:
 %s
 `, appName, job.TemplateName, platform, job.ID, job.CreatedBy, stats)
-	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message)
+	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message, false)
 }
