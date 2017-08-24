@@ -48,12 +48,14 @@ type KafkaConsumer struct {
 	Topics                         []string
 	pendingMessagesWG              *sync.WaitGroup
 	HandleAllMessagesBeforeExiting bool
+	stopChannel                    chan struct{}
 }
 
 // NewKafkaConsumer for creating a new KafkaConsumer instance
 func NewKafkaConsumer(
 	config *viper.Viper,
 	logger zap.Logger,
+	stopChannel *chan struct{},
 	clientOrNil ...interfaces.KafkaConsumerClient,
 ) (*KafkaConsumer, error) {
 	q := &KafkaConsumer{
@@ -62,6 +64,7 @@ func NewKafkaConsumer(
 		messagesReceived:  0,
 		msgChan:           make(chan []byte),
 		pendingMessagesWG: nil,
+		stopChannel:       *stopChannel,
 	}
 	var client interfaces.KafkaConsumerClient
 	if len(clientOrNil) == 1 {
@@ -200,6 +203,7 @@ func (q *KafkaConsumer) ConsumeLoop() error {
 			case kafka.Error:
 				q.handleError(ev)
 				q.StopConsuming()
+				close(q.stopChannel)
 				return e
 			default:
 				q.handleUnrecognized(e)

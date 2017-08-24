@@ -47,13 +47,15 @@ type Listener struct {
 	FeedbackHandler         *Handler
 	GracefulShutdownTimeout int
 	run                     bool
+	stopChannel             chan struct{}
 }
 
 // NewListener creates and return a new instance of feedback.Listener
 func NewListener(configFile string, logger zap.Logger) (*Listener, error) {
 	l := &Listener{
-		ConfigFile: configFile,
-		Logger:     logger,
+		ConfigFile:  configFile,
+		Logger:      logger,
+		stopChannel: make(chan struct{}),
 	}
 	err := l.configure()
 	if err != nil {
@@ -79,7 +81,10 @@ func (l *Listener) configure() error {
 	l.loadConfigurationDefaults()
 	l.configureSentry()
 	l.GracefulShutdownTimeout = l.Config.GetInt("feedbackListener.gracefulShutdownTimeout")
-	q, err := extensions.NewKafkaConsumer(l.Config, l.Logger, nil)
+	q, err := extensions.NewKafkaConsumer(
+		l.Config, l.Logger,
+		&l.stopChannel, nil,
+	)
 	if err != nil {
 		return err
 	}
@@ -117,6 +122,9 @@ func (l *Listener) Start() {
 		select {
 		case sig := <-sigchan:
 			log.Warn("terminading due to caught signal", zap.String("signal", sig.String()))
+			l.run = false
+		case <-l.stopChannel:
+			log.Warn("Stop channel closed\n")
 			l.run = false
 		}
 	}
