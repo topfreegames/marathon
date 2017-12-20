@@ -327,6 +327,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			"templateName": templateName,
 			"jobId":        job.ID.String(),
 			"pushType":     "massive",
+			"muid":         uuid.NewV4().String(),
 		}
 		if user.CreatedAt.Unix() > 0 {
 			pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
