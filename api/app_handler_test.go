@@ -46,6 +46,8 @@ var _ = Describe("App Handler", func() {
 	faultyDb := GetFaultyTestDB(app)
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
+		app.DB.Exec("DELETE FROM users;")
+		CreateTestUser(app.DB, map[string]interface{}{"email": "test@test.com", "isAdmin": true})
 	})
 
 	Describe("Get /apps", func() {
@@ -85,7 +87,7 @@ var _ = Describe("App Handler", func() {
 			})
 		})
 
-		Describe("Unsucesfully", func() {
+		Describe("Unsuccessfully", func() {
 			It("should return 401 if no authenticated user", func() {
 				status, _ := Get(app, "/apps", "")
 
@@ -108,7 +110,7 @@ var _ = Describe("App Handler", func() {
 			It("should return 201 and the created app", func() {
 				payload := GetAppPayload()
 				pl, _ := json.Marshal(payload)
-				status, body := Post(app, "/apps", string(pl), "success@test.com")
+				status, body := Post(app, "/apps", string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusCreated))
 
 				var response map[string]interface{}
@@ -118,7 +120,7 @@ var _ = Describe("App Handler", func() {
 				Expect(response["id"]).ToNot(BeNil())
 				Expect(response["name"]).To(Equal(payload["name"]))
 				Expect(response["bundleId"]).To(Equal(payload["bundleId"]))
-				Expect(response["createdBy"]).To(Equal("success@test.com"))
+				Expect(response["createdBy"]).To(Equal("test@test.com"))
 				Expect(response["createdAt"]).ToNot(BeNil())
 				Expect(response["createdAt"]).ToNot(Equal(0))
 				Expect(response["updatedAt"]).ToNot(BeNil())
@@ -134,11 +136,11 @@ var _ = Describe("App Handler", func() {
 				Expect(dbApp).NotTo(BeNil())
 				Expect(dbApp.Name).To(Equal(payload["name"]))
 				Expect(dbApp.BundleID).To(Equal(payload["bundleId"]))
-				Expect(dbApp.CreatedBy).To(Equal("success@test.com"))
+				Expect(dbApp.CreatedBy).To(Equal("test@test.com"))
 			})
 		})
 
-		Describe("Unsucesfully", func() {
+		Describe("Unsuccessfully", func() {
 			It("should return 401 if no authenticated user", func() {
 				status, _ := Post(app, "/apps", "", "")
 
@@ -195,18 +197,6 @@ var _ = Describe("App Handler", func() {
 				Expect(response["reason"]).To(Equal("invalid bundleId"))
 			})
 
-			It("should return 422 if invalid auth header", func() {
-				payload := GetAppPayload()
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, "/apps", string(pl), "not-a-valid-email")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid createdBy"))
-			})
-
 			It("should return 422 if invalid name", func() {
 				payload := GetAppPayload()
 				payload["name"] = strings.Repeat("a", 256)
@@ -236,8 +226,8 @@ var _ = Describe("App Handler", func() {
 	})
 
 	Describe("Get /apps/:id", func() {
-		Describe("Sucesfully", func() {
-			It("should return 200 and the requested app", func() {
+		Describe("Successfully", func() {
+			It("should return 200 and the requested app if admin", func() {
 				existingApp := CreateTestApp(app.DB)
 				status, body := Get(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test@test.com")
 				Expect(status).To(Equal(http.StatusOK))
@@ -255,10 +245,37 @@ var _ = Describe("App Handler", func() {
 				Expect(response["updatedAt"]).ToNot(BeNil())
 				Expect(response["updatedAt"]).ToNot(Equal(0))
 			})
+
+			It("should return 200 and the requested app if not admin but allowed", func() {
+				existingApp := CreateTestApp(app.DB)
+				CreateTestUser(app.DB, map[string]interface{}{"email": "test2@test.com", "isAdmin": false, "allowedApps": []uuid.UUID{existingApp.ID}})
+				status, body := Get(app, fmt.Sprintf("/apps/%s", existingApp.ID), "test2@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(response["id"]).To(Equal(existingApp.ID.String()))
+				Expect(response["name"]).To(Equal(existingApp.Name))
+				Expect(response["bundleId"]).To(Equal(existingApp.BundleID))
+				Expect(response["createdBy"]).To(Equal(existingApp.CreatedBy))
+				Expect(response["createdAt"]).ToNot(BeNil())
+				Expect(response["createdAt"]).ToNot(Equal(0))
+				Expect(response["updatedAt"]).ToNot(BeNil())
+				Expect(response["updatedAt"]).ToNot(Equal(0))
+			})
 		})
 
-		Describe("Unsucesfully", func() {
+		Describe("Unsuccessfully", func() {
 			It("should return 401 if no authenticated user", func() {
+				CreateTestUser(app.DB, map[string]interface{}{"email": "test2@test.com", "isAdmin": false})
+				status, _ := Get(app, fmt.Sprintf("/apps/%s", uuid.NewV4()), "test2@test.com")
+
+				Expect(status).To(Equal(http.StatusForbidden))
+			})
+
+			It("should return 401 if player not allowed for app", func() {
 				status, _ := Get(app, "/apps/1234", "")
 
 				Expect(status).To(Equal(http.StatusUnauthorized))
@@ -295,6 +312,7 @@ var _ = Describe("App Handler", func() {
 	Describe("Put /apps/:id", func() {
 		Describe("Sucesfully", func() {
 			It("should return 200 and the updated app without updating createdBy", func() {
+				CreateTestUser(app.DB, map[string]interface{}{"email": "update@test.com", "isAdmin": true})
 				existingApp := CreateTestApp(app.DB)
 				payload := GetAppPayload()
 				pl, _ := json.Marshal(payload)
@@ -325,7 +343,7 @@ var _ = Describe("App Handler", func() {
 			})
 		})
 
-		Describe("Unsucesfully", func() {
+		Describe("Unsuccessfully", func() {
 			It("should return 401 if no authenticated user", func() {
 				existingApp := CreateTestApp(app.DB)
 				status, _ := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), "", "")
@@ -349,7 +367,7 @@ var _ = Describe("App Handler", func() {
 				payload := GetAppPayload()
 				pl, _ := json.Marshal(payload)
 
-				status, body := Put(app, "/apps/not-uuid", string(pl), "update@test.com")
+				status, body := Put(app, "/apps/not-uuid", string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -363,7 +381,7 @@ var _ = Describe("App Handler", func() {
 				existingApp2 := CreateTestApp(app.DB)
 				payload := GetAppPayload(map[string]interface{}{"bundleId": existingApp1.BundleID})
 				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp2.ID), string(pl), "update@test.com")
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp2.ID), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusConflict))
 
 				var response map[string]interface{}
@@ -377,7 +395,7 @@ var _ = Describe("App Handler", func() {
 				payload := GetAppPayload()
 				delete(payload, "name")
 				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -391,7 +409,7 @@ var _ = Describe("App Handler", func() {
 				payload := GetAppPayload()
 				delete(payload, "bundleId")
 				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -405,7 +423,7 @@ var _ = Describe("App Handler", func() {
 				payload := GetAppPayload()
 				payload["name"] = strings.Repeat("a", 256)
 				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}
@@ -419,7 +437,7 @@ var _ = Describe("App Handler", func() {
 				payload := GetAppPayload()
 				payload["bundleId"] = "invalidformat"
 				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "update@test.com")
+				status, body := Put(app, fmt.Sprintf("/apps/%s", existingApp.ID), string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}

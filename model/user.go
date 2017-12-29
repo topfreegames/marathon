@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 TFG Co <backend@tfgco.com>
+ * Copyright (c) 2017 TFG Co <backend@tfgco.com>
  * Author: TFG Co <backend@tfgco.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -20,7 +20,34 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package api
+package model
 
-// VERSION identifies marathon's current version
-var VERSION = "3.0.0"
+import (
+	"github.com/asaskevich/govalidator"
+	"github.com/labstack/echo"
+	"github.com/satori/go.uuid"
+)
+
+// User is the user model struct
+type User struct {
+	ID          uuid.UUID   `sql:",pk" json:"id"`
+	Email       string      `json:"email"`
+	IsAdmin     bool        `sql:",notnull" json:"isAdmin"`
+	AllowedApps []uuid.UUID `pg:",array" json:"allowedApps"`
+	CreatedBy   string      `json:"createdBy"`
+	CreatedAt   int64       `json:"createdAt"`
+	UpdatedAt   int64       `json:"updatedAt"`
+}
+
+// Validate implementation of the InputValidation interface
+func (u *User) Validate(c echo.Context) error {
+	valid := govalidator.IsEmail(u.Email)
+	if !valid {
+		return InvalidField("email")
+	}
+	valid = govalidator.IsEmail(u.CreatedBy)
+	if !valid {
+		return InvalidField("createdBy")
+	}
+	return nil
+}

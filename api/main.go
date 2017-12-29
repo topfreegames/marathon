@@ -31,9 +31,9 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	newrelic "github.com/newrelic/go-agent"
+	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/log"
@@ -164,44 +164,70 @@ func (a *Application) configureApplication() {
 	e := echo.New()
 	_, w, _ := os.Pipe()
 	e.Logger.SetOutput(w)
-
-	// AuthMiddleware MUST be the first middleware
-	e.Use(NewAuthMiddleware(a).Serve)
-
 	e.Pre(middleware.RemoveTrailingSlash())
-	e.Use(NewLoggerMiddleware(a.Logger).Serve)
-	e.Use(NewRecoveryMiddleware(a.OnErrorHandler).Serve)
-	e.Use(NewVersionMiddleware().Serve)
-	e.Use(NewSentryMiddleware(a).Serve)
-	e.Use(NewNewRelicMiddleware(a, a.Logger).Serve)
 
 	// Base Routes
 	e.GET("/healthcheck", a.HealthcheckHandler)
 
+	uploadGroup := e.Group("/uploadurl")
+	// AuthMiddleware MUST be the first middleware
+	uploadGroup.Use(NewUploadAuthMiddleware(a).Serve)
+	uploadGroup.Use(NewLoggerMiddleware(a.Logger).Serve)
+	uploadGroup.Use(NewRecoveryMiddleware(a.OnErrorHandler).Serve)
+	uploadGroup.Use(NewVersionMiddleware().Serve)
+	uploadGroup.Use(NewSentryMiddleware(a).Serve)
+	uploadGroup.Use(NewNewRelicMiddleware(a, a.Logger).Serve)
+
 	// Upload Routes
-	e.GET("/uploadurl", a.GetUploadURL)
+	uploadGroup.GET("", a.GetUploadURL)
+
+	appGroup := e.Group("/apps")
+	// AuthMiddleware MUST be the first middleware
+	appGroup.Use(NewAppAuthMiddleware(a).Serve)
+	appGroup.Use(NewLoggerMiddleware(a.Logger).Serve)
+	appGroup.Use(NewRecoveryMiddleware(a.OnErrorHandler).Serve)
+	appGroup.Use(NewVersionMiddleware().Serve)
+	appGroup.Use(NewSentryMiddleware(a).Serve)
+	appGroup.Use(NewNewRelicMiddleware(a, a.Logger).Serve)
 
 	// Apps Routes
-	e.POST("/apps", a.PostAppHandler)
-	e.GET("/apps", a.ListAppsHandler)
-	e.GET("/apps/:id", a.GetAppHandler)
-	e.PUT("/apps/:id", a.PutAppHandler)
-	e.DELETE("/apps/:id", a.DeleteAppHandler)
+	appGroup.POST("", a.PostAppHandler)
+	appGroup.GET("", a.ListAppsHandler)
+	appGroup.GET("/:aid", a.GetAppHandler)
+	appGroup.PUT("/:aid", a.PutAppHandler)
+	appGroup.DELETE("/:aid", a.DeleteAppHandler)
 
 	// Templates Routes
-	e.POST("/apps/:aid/templates", a.PostTemplateHandler)
-	e.GET("/apps/:aid/templates", a.ListTemplatesHandler)
-	e.GET("/apps/:aid/templates/:tid", a.GetTemplateHandler)
-	e.PUT("/apps/:aid/templates/:tid", a.PutTemplateHandler)
-	e.DELETE("/apps/:aid/templates/:tid", a.DeleteTemplateHandler)
+	appGroup.POST("/:aid/templates", a.PostTemplateHandler)
+	appGroup.GET("/:aid/templates", a.ListTemplatesHandler)
+	appGroup.GET("/:aid/templates/:tid", a.GetTemplateHandler)
+	appGroup.PUT("/:aid/templates/:tid", a.PutTemplateHandler)
+	appGroup.DELETE("/:aid/templates/:tid", a.DeleteTemplateHandler)
 
 	// Jobs Routes
-	e.POST("/apps/:aid/jobs", a.PostJobHandler)
-	e.GET("/apps/:aid/jobs", a.ListJobsHandler)
-	e.GET("/apps/:aid/jobs/:jid", a.GetJobHandler)
-	e.PUT("/apps/:aid/jobs/:jid/pause", a.PauseJobHandler)
-	e.PUT("/apps/:aid/jobs/:jid/stop", a.StopJobHandler)
-	e.PUT("/apps/:aid/jobs/:jid/resume", a.ResumeJobHandler)
+	appGroup.POST("/:aid/jobs", a.PostJobHandler)
+	appGroup.GET("/:aid/jobs", a.ListJobsHandler)
+	appGroup.GET("/:aid/jobs/:jid", a.GetJobHandler)
+	appGroup.PUT("/:aid/jobs/:jid/pause", a.PauseJobHandler)
+	appGroup.PUT("/:aid/jobs/:jid/stop", a.StopJobHandler)
+	appGroup.PUT("/:aid/jobs/:jid/resume", a.ResumeJobHandler)
+
+	userGroup := e.Group("/users")
+	// AuthMiddleware MUST be the first middleware
+	userGroup.Use(NewUserAuthMiddleware(a).Serve)
+	userGroup.Use(NewLoggerMiddleware(a.Logger).Serve)
+	userGroup.Use(NewRecoveryMiddleware(a.OnErrorHandler).Serve)
+	userGroup.Use(NewVersionMiddleware().Serve)
+	userGroup.Use(NewSentryMiddleware(a).Serve)
+	userGroup.Use(NewNewRelicMiddleware(a, a.Logger).Serve)
+
+	// User Routes
+	userGroup.GET("", a.ListUsersHandler)
+	userGroup.POST("", a.CreateUserHandler)
+	userGroup.GET("/:uid", a.GetUserHandler)
+	userGroup.PUT("/:uid", a.UpdateUserHandler)
+	userGroup.DELETE("/:uid", a.DeleteUserHandler)
+
 	a.API = e
 }
 

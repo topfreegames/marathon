@@ -71,6 +71,36 @@ func CreateTestApps(db interfaces.DB, n int, options ...map[string]interface{}) 
 	return apps
 }
 
+//CreateTestUser with specified optional values
+func CreateTestUser(db interfaces.DB, options ...map[string]interface{}) *model.User {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+
+	user := &model.User{}
+	user.ID = getOpt(opts, "id", uuid.NewV4()).(uuid.UUID)
+	user.Email = getOpt(opts, "email", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
+	user.IsAdmin = getOpt(opts, "isAdmin", true).(bool)
+	user.AllowedApps = getOpt(opts, "allowedApps", []uuid.UUID{uuid.NewV4()}).([]uuid.UUID)
+	user.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
+
+	err := db.Insert(&user)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	return user
+}
+
+//CreateTestUsers for n users
+func CreateTestUsers(db interfaces.DB, n int, options ...map[string]interface{}) []*model.User {
+	users := make([]*model.User, n)
+	for i := 0; i < n; i++ {
+		user := CreateTestUser(db, options...)
+		users[i] = user
+	}
+
+	return users
+}
+
 //GetAppPayload with specified optional values
 func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
 	opts := map[string]interface{}{}
@@ -87,6 +117,24 @@ func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
 		"bundleId": bundleID,
 	}
 	return app
+}
+
+//GetUserPayload with specified optional values
+func GetUserPayload(options ...map[string]interface{}) map[string]interface{} {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+	}
+	email := getOpt(opts, "email", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
+	isAdmin := getOpt(opts, "isAdmin", true).(bool)
+	allowedApps := getOpt(opts, "allowedApps", []uuid.UUID{uuid.NewV4()}).([]uuid.UUID)
+
+	user := map[string]interface{}{
+		"email":       email,
+		"isAdmin":     isAdmin,
+		"allowedApps": allowedApps,
+	}
+	return user
 }
 
 //CreateTestTemplate with specified optional values

@@ -56,6 +56,9 @@ var _ = Describe("Job Handler", func() {
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
 		app.DB.Exec("DELETE FROM templates;")
+		app.DB.Exec("DELETE FROM users;")
+		CreateTestUser(app.DB, map[string]interface{}{"email": "test@test.com", "isAdmin": true})
+		CreateTestUser(app.DB, map[string]interface{}{"email": "success@test.com", "isAdmin": true})
 		createBatchesWorker.RedisClient.FlushAll()
 
 		existingApp = CreateTestApp(app.DB)
@@ -815,18 +818,6 @@ var _ = Describe("Job Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid service"))
-			})
-
-			It("should return 422 if invalid auth header", func() {
-				payload := GetJobPayload()
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, baseRoute, string(pl), "not-a-valid-email")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid createdBy"))
 			})
 
 			It("should return 422 if invalid context", func() {

@@ -25,14 +25,17 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/getsentry/raven-go"
 	"github.com/labstack/echo"
+	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
+
+	"github.com/topfreegames/marathon/model"
 )
 
 //NewVersionMiddleware with API version
@@ -254,32 +257,127 @@ func (nr *NewRelicMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// AuthMiddleware automatically adds a version header to response
-type AuthMiddleware struct {
+//AppAuthMiddleware automatically adds a version header to response
+type AppAuthMiddleware struct {
 	App *Application
 }
 
-// Serve Validate that a user exists
-func (a AuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
+//Serve Validate that a user exists
+func (a AppAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		path := c.Path()
-		// healthcheck should not need authenticated user
-		if strings.HasPrefix(path, "/healthcheck") {
-			c.Set("user-email", "")
-			return next(c)
-		}
 		userEmail := c.Request().Header.Get("x-forwarded-email")
 		if userEmail == "" {
-			return c.String(401, "Authentication failed.")
+			return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
 		}
 		c.Set("user-email", userEmail)
+		user := &model.User{}
+		err := WithSegment("db-select", c, func() error {
+			return a.App.DB.Model(&user).Column("*").Where("email = ?", userEmail).Select()
+		})
+		if err != nil {
+			if err.Error() == RecordNotFoundString {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
+			}
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
+		}
+		path := c.Path()
+		if path == "/apps" {
+			return next(c)
+		}
+		if user.IsAdmin {
+			return next(c)
+		}
+		aid, err := uuid.FromString(c.Param("aid"))
+		if err != nil {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+		}
+		for _, appID := range user.AllowedApps {
+			if appID == aid {
+				return next(c)
+			}
+		}
+		return c.JSON(http.StatusForbidden, map[string]string{"status": "Forbidden."})
+	}
+}
+
+//NewAppAuthMiddleware returns a configured auth middleware
+func NewAppAuthMiddleware(app *Application) *AppAuthMiddleware {
+	return &AppAuthMiddleware{
+		App: app,
+	}
+}
+
+//UserAuthMiddleware automatically adds a version header to response
+type UserAuthMiddleware struct {
+	App *Application
+}
+
+//Serve Validate that a user exists
+func (a UserAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userEmail := c.Request().Header.Get("x-forwarded-email")
+		if userEmail == "" {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
+		}
+		c.Set("user-email", userEmail)
+		user := &model.User{}
+		err := WithSegment("db-select", c, func() error {
+			return a.App.DB.Model(&user).Column("*").Where("email = ?", userEmail).Select()
+		})
+		if err != nil {
+			if err.Error() == RecordNotFoundString {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
+			}
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
+		}
+		path := c.Path()
+		if path == "/users" {
+			return next(c)
+		}
+		if user.IsAdmin {
+			return next(c)
+		}
+		return c.JSON(http.StatusForbidden, map[string]string{"status": "Forbidden."})
+	}
+}
+
+//NewUserAuthMiddleware returns a configured auth middleware
+func NewUserAuthMiddleware(app *Application) *UserAuthMiddleware {
+	return &UserAuthMiddleware{
+		App: app,
+	}
+}
+
+//UploadAuthMiddleware automatically adds a version header to response
+type UploadAuthMiddleware struct {
+	App *Application
+}
+
+//Serve Validate that a user exists
+func (a UploadAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userEmail := c.Request().Header.Get("x-forwarded-email")
+		if userEmail == "" {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
+		}
+		c.Set("user-email", userEmail)
+		user := &model.User{}
+		err := WithSegment("db-select", c, func() error {
+			return a.App.DB.Model(&user).Column("*").Where("email = ?", userEmail).Select()
+		})
+		if err != nil {
+			if err.Error() == RecordNotFoundString {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
+			}
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
+		}
 		return next(c)
 	}
 }
 
-// NewAuthMiddleware returns a configured auth middleware
-func NewAuthMiddleware(app *Application) *AuthMiddleware {
-	return &AuthMiddleware{
+//NewUploadAuthMiddleware returns a configured auth middleware
+func NewUploadAuthMiddleware(app *Application) *UploadAuthMiddleware {
+	return &UploadAuthMiddleware{
 		App: app,
 	}
 }

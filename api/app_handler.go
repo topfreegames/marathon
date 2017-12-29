@@ -94,14 +94,14 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, app)
 }
 
-// GetAppHandler is the method called when a get to /apps/:id is called
+// GetAppHandler is the method called when a get to /apps/:aid is called
 func (a *Application) GetAppHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "appHandler"),
 		zap.String("operation", "getApp"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	id, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -124,12 +124,12 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, app)
 }
 
-// PutAppHandler is the method called when a put to /apps/:id is called
+// PutAppHandler is the method called when a put to /apps/:aid is called
 func (a *Application) PutAppHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "appHandler"),
 		zap.String("operation", "putApp"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 	)
 	app := &model.App{}
 	email := c.Get("user-email").(string)
@@ -141,7 +141,7 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
 	}
-	id, err := uuid.FromString(c.Param("id"))
+	id, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
@@ -165,14 +165,14 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, app)
 }
 
-// DeleteAppHandler is the method called when a delete to /apps/:id is called
+// DeleteAppHandler is the method called when a delete to /apps/:aid is called
 func (a *Application) DeleteAppHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "appHandler"),
 		zap.String("operation", "deleteApp"),
-		zap.String("appId", c.Param("id")),
+		zap.String("appId", c.Param("aid")),
 	)
-	id, err := uuid.FromString(c.Param("id"))
+	id, err := uuid.FromString(c.Param("aid"))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}

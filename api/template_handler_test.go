@@ -49,6 +49,9 @@ var _ = Describe("Template Handler", func() {
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
 		app.DB.Delete("DELETE FROM templates;")
+		app.DB.Exec("DELETE FROM users;")
+		CreateTestUser(app.DB, map[string]interface{}{"email": "test@test.com", "isAdmin": true})
+		CreateTestUser(app.DB, map[string]interface{}{"email": "success@test.com", "isAdmin": true})
 		existingApp = CreateTestApp(app.DB)
 		baseRoute = fmt.Sprintf("/apps/%s/templates", existingApp.ID)
 	})
@@ -299,18 +302,6 @@ var _ = Describe("Template Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid body"))
-			})
-
-			It("should return 422 if invalid auth header", func() {
-				payload := GetTemplatePayload()
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, baseRoute, string(pl), "not-a-valid-email")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid createdBy"))
 			})
 
 			It("should return 422 if invalid name", func() {
@@ -628,19 +619,6 @@ var _ = Describe("Template Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid body"))
-			})
-
-			It("should return 422 if invalid auth header", func() {
-				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
-				payload := GetTemplatePayload()
-				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), string(pl), "not-a-valid-email")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid createdBy"))
 			})
 
 			It("should return 422 if invalid name", func() {
