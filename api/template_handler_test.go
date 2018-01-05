@@ -194,7 +194,7 @@ var _ = Describe("Template Handler", func() {
 			})
 		})
 
-		Describe("Unsucesfully", func() {
+		Describe("Unsuccessfully", func() {
 			It("should return 401 if no authenticated user", func() {
 				status, _ := Post(app, baseRoute, "", "")
 
@@ -276,19 +276,6 @@ var _ = Describe("Template Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid locale"))
-			})
-
-			It("should return 422 if missing defaults", func() {
-				payload := GetTemplatePayload()
-				delete(payload, "defaults")
-				pl, _ := json.Marshal(payload)
-				status, body := Post(app, baseRoute, string(pl), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid defaults"))
 			})
 
 			It("should return 422 if missing body", func() {
@@ -438,7 +425,7 @@ var _ = Describe("Template Handler", func() {
 	})
 
 	Describe("Put /apps/:id/templates/:tid", func() {
-		Describe("Sucesfully", func() {
+		Describe("Successfully", func() {
 			It("should return 200 and the updated template", func() {
 				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
 				payload := GetTemplatePayload()
@@ -492,7 +479,19 @@ var _ = Describe("Template Handler", func() {
 				for key := range plDefaults {
 					Expect(dbTemplate.Defaults[key]).To(Equal(plDefaults[key]))
 				}
+			})
 
+			It("should return 200 if missing defaults", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				payload := GetTemplatePayload()
+				delete(payload, "defaults")
+				pl, _ := json.Marshal(payload)
+				status, body := Put(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusOK))
+
+				var template map[string]interface{}
+				err := json.Unmarshal([]byte(body), &template)
+				Expect(err).NotTo(HaveOccurred())
 			})
 		})
 
@@ -591,20 +590,6 @@ var _ = Describe("Template Handler", func() {
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid locale"))
-			})
-
-			It("should return 422 if missing defaults", func() {
-				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
-				payload := GetTemplatePayload()
-				delete(payload, "defaults")
-				pl, _ := json.Marshal(payload)
-				status, body := Put(app, fmt.Sprintf("%s/%s", baseRoute, existingTemplate.ID), string(pl), "test@test.com")
-				Expect(status).To(Equal(http.StatusUnprocessableEntity))
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(body), &response)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid defaults"))
 			})
 
 			It("should return 422 if missing body", func() {

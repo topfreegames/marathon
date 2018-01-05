@@ -174,7 +174,11 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	template.AppID = aid
 	var values *types.Result
 	err = WithSegment("db-update", c, func() error {
-		values, err = a.DB.Model(&template).Column("name").Column("locale").Column("defaults").Column("body").Column("updated_at").Returning("*").Update()
+		updating := a.DB.Model(&template).Column("name").Column("locale").Column("body").Column("updated_at")
+		if template.Defaults != nil && len(template.Defaults) > 0 {
+			updating = updating.Column("defaults")
+		}
+		values, err = updating.Returning("*").Update()
 		return err
 	})
 	if err != nil {

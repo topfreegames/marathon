@@ -52,10 +52,6 @@ func (t *Template) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("locale")
 	}
-	valid = len(t.Defaults) > 0
-	if !valid {
-		return InvalidField("defaults")
-	}
 	valid = len(t.Body) > 0
 	if !valid {
 		return InvalidField("body")
