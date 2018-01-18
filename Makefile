@@ -70,6 +70,8 @@ setup-ci-deps:
 
 setup-ci: glide setup-ci-deps
 
+prepare-dev: deps create-db migrate
+
 run:
 	@go run main.go start-api -d -c ./config/default.yaml
 

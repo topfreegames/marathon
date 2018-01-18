@@ -25,6 +25,7 @@ package email
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -198,6 +199,10 @@ Feedbacks:
 		strings.Join(feedbacks, ""),
 	)
 
+	host, err := os.Hostname()
+	if err != nil {
+		host = "failed to retrieve hostname"
+	}
 	message := fmt.Sprintf(`
 Hello, your push job is complete.
 
@@ -209,6 +214,8 @@ CreatedBy: %s
 
 Stats:
 %s
-`, appName, job.TemplateName, platform, job.ID, job.CreatedBy, stats)
+
+Sent from: %s
+`, appName, job.TemplateName, platform, job.ID, job.CreatedBy, stats, host)
 	return sendgridClient.SendgridSendEmail(job.CreatedBy, subject, message, false)
 }

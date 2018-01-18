@@ -115,7 +115,6 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, job)
 	})
-
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}

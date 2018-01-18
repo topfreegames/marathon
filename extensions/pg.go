@@ -101,7 +101,7 @@ func (c *PGClient) Close() error {
 	return nil
 }
 
-//WaitForConnection loops until kafka is connected
+//WaitForConnection loops until postgres is connected
 func (c *PGClient) WaitForConnection(timeout int) error {
 	start := time.Now().Unix()
 	for !c.IsConnected() || time.Now().Unix()-start > int64(timeout) {
@@ -109,7 +109,7 @@ func (c *PGClient) WaitForConnection(timeout int) error {
 	}
 
 	if time.Now().Unix()-start > int64(timeout) {
-		return fmt.Errorf("Timed out waiting for Zookeeper to connect.")
+		return fmt.Errorf("Timed out waiting for Postgres to connect")
 	}
 	return nil
 }

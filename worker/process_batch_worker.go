@@ -340,7 +340,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			})
 		}
 	}
-	log.D(l, "Sent push to aguia for batch users.")
+	log.D(l, "Sent push to pusher for batch users.")
 	err = batchWorker.updateJobBatchesInfo(parsed.JobID)
 	checkErr(l, err)
 	log.D(l, "Updated job batches info successfully.")
