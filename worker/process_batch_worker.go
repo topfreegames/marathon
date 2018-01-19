@@ -181,7 +181,7 @@ func (batchWorker *ProcessBatchWorker) getJobTemplatesByNameAndLocale(appID uuid
 
 func (batchWorker *ProcessBatchWorker) updateJobUsersInfo(jobID uuid.UUID, numUsers int) error {
 	job := model.Job{}
-	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_tokens = completed_tokens + ?", numUsers).Where("id = ?", jobID).Returning("*").Update()
+	_, err := batchWorker.MarathonDB.DB.Model(&job).Set("completed_tokens = completed_tokens + ?", numUsers).Where("id = ?", jobID).Update()
 	return err
 }
 
@@ -192,6 +192,13 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 		return err
 	}
 	if job.TotalBatches != 0 && job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
+		l := batchWorker.Logger.With(
+			zap.String("source", "processBatchWorker"),
+			zap.String("operation", "updateJobBatchesInfo"),
+			zap.Int("totalBatches", job.TotalBatches),
+			zap.Int("completedBatches", job.CompletedBatches),
+		)
+		log.I(l, "Finished all batches")
 		job.CompletedAt = time.Now().UnixNano()
 		_, err = batchWorker.MarathonDB.DB.Model(&job).Column("completed_at").Update()
 		if err != nil {
