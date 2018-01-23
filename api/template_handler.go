@@ -75,6 +75,38 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	email := c.Get("user-email").(string)
+	if c.QueryParam("multiple") == "true" {
+		var templates []*model.Template
+		err = WithSegment("decodeAndValidate", c, func() error {
+			return decodeAndValidateTemplatesArray(c, &templates)
+		})
+		if err != nil {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+		}
+		for _, t := range templates {
+			t.ID = uuid.NewV4()
+			t.AppID = aid
+			t.CreatedBy = email
+			t.CreatedAt = time.Now().UnixNano()
+			t.UpdatedAt = time.Now().UnixNano()
+		}
+		err = WithSegment("db-insert", c, func() error {
+			return a.DB.Insert(&templates)
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key") {
+				return c.JSON(http.StatusConflict, &Error{Reason: err.Error()})
+			}
+			if strings.Contains(err.Error(), "violates foreign key constraint") {
+				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
+			}
+			log.E(l, "Failed to create template.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
+		}
+		return c.JSON(http.StatusCreated, templates)
+	}
 	template := &model.Template{
 		ID:        uuid.NewV4(),
 		AppID:     aid,
@@ -103,9 +135,6 @@ func (a *Application) PostTemplateHandler(c echo.Context) error {
 		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: template})
 	}
-	log.D(l, "Created template successfully.", func(cm log.CM) {
-		cm.Write(zap.Object("template", template))
-	})
 	return c.JSON(http.StatusCreated, template)
 }
 

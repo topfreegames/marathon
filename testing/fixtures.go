@@ -196,6 +196,21 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 	return template
 }
 
+//GetTemplatePayloads with specified optional values
+func GetTemplatePayloads(amount int, options ...map[string]interface{}) []map[string]interface{} {
+	opts := map[string]interface{}{}
+	if len(options) == 1 {
+		opts = options[0]
+		opts["id"] = getOpt(opts, "id", uuid.NewV4())
+	}
+
+	templates := make([]map[string]interface{}, amount)
+	for i := 0; i < amount; i++ {
+		templates[i] = GetTemplatePayload(opts)
+	}
+	return templates
+}
+
 //CreateTestJob with specified optional values
 func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
 	opts := map[string]interface{}{}

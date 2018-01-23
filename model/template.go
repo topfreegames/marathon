@@ -56,9 +56,5 @@ func (t *Template) Validate(c echo.Context) error {
 	if !valid {
 		return InvalidField("body")
 	}
-	valid = govalidator.IsEmail(t.CreatedBy)
-	if !valid {
-		return InvalidField("createdBy")
-	}
 	return nil
 }

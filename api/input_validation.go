@@ -24,7 +24,10 @@ package api
 
 import (
 	"encoding/json"
+
 	"github.com/labstack/echo"
+
+	"github.com/topfreegames/marathon/model"
 )
 
 // InputValidation is an interface for all "input submission" structs used for deserialization
@@ -32,10 +35,24 @@ type InputValidation interface {
 	Validate(echo.Context) error
 }
 
-func decodeAndValidate(c echo.Context, v InputValidation) error {
+func decodeAndValidateTemplatesArray(c echo.Context, v *[]*model.Template) error {
+	defer c.Request().Body.Close()
 	if err := json.NewDecoder(c.Request().Body).Decode(v); err != nil {
 		return err
 	}
+
+	for _, e := range *v {
+		if err := e.Validate(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func decodeAndValidate(c echo.Context, v InputValidation) error {
 	defer c.Request().Body.Close()
+	if err := json.NewDecoder(c.Request().Body).Decode(v); err != nil {
+		return err
+	}
 	return v.Validate(c)
 }

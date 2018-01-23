@@ -46,6 +46,7 @@ var _ = Describe("Template Handler", func() {
 	faultyDb := GetFaultyTestDB(app)
 	var existingApp *model.App
 	var baseRoute string
+	var multipleRoute string
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
 		app.DB.Delete("DELETE FROM templates;")
@@ -54,6 +55,7 @@ var _ = Describe("Template Handler", func() {
 		CreateTestUser(app.DB, map[string]interface{}{"email": "success@test.com", "isAdmin": true})
 		existingApp = CreateTestApp(app.DB)
 		baseRoute = fmt.Sprintf("/apps/%s/templates", existingApp.ID)
+		multipleRoute = fmt.Sprintf("%s?multiple=true", baseRoute)
 	})
 
 	Describe("Get /apps/:id/templates", func() {
@@ -135,7 +137,7 @@ var _ = Describe("Template Handler", func() {
 	})
 
 	Describe("Post /apps/:id/templates", func() {
-		Describe("Sucesfully", func() {
+		Describe("Successfully", func() {
 			It("should return 201 and the created template", func() {
 				payload := GetTemplatePayload()
 				pl, _ := json.Marshal(payload)
@@ -190,7 +192,62 @@ var _ = Describe("Template Handler", func() {
 				for key := range plDefaults {
 					Expect(dbTemplate.Defaults[key]).To(Equal(plDefaults[key]))
 				}
+			})
 
+			It("should return 201 and the created templates when with flag multiple", func() {
+				payload := GetTemplatePayloads(3)
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, multipleRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var templates []map[string]interface{}
+				err := json.Unmarshal([]byte(body), &templates)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(templates[0]["id"]).ToNot(BeNil())
+				Expect(templates[0]["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(templates[0]["name"]).To(Equal(payload[0]["name"]))
+				Expect(templates[0]["locale"]).To(Equal(payload[0]["locale"]))
+				Expect(templates[0]["createdBy"]).To(Equal("success@test.com"))
+				Expect(templates[0]["createdAt"]).ToNot(BeNil())
+				Expect(templates[0]["createdAt"]).ToNot(Equal(0))
+				Expect(templates[0]["updatedAt"]).ToNot(BeNil())
+				Expect(templates[0]["updatedAt"]).ToNot(Equal(0))
+
+				Expect(templates[1]["id"]).ToNot(BeNil())
+				Expect(templates[1]["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(templates[1]["name"]).To(Equal(payload[1]["name"]))
+				Expect(templates[1]["locale"]).To(Equal(payload[1]["locale"]))
+				Expect(templates[1]["createdBy"]).To(Equal("success@test.com"))
+				Expect(templates[1]["createdAt"]).ToNot(BeNil())
+				Expect(templates[1]["createdAt"]).ToNot(Equal(0))
+				Expect(templates[1]["updatedAt"]).ToNot(BeNil())
+				Expect(templates[1]["updatedAt"]).ToNot(Equal(0))
+
+				Expect(templates[2]["id"]).ToNot(BeNil())
+				Expect(templates[2]["appId"]).To(Equal(existingApp.ID.String()))
+				Expect(templates[2]["name"]).To(Equal(payload[2]["name"]))
+				Expect(templates[2]["locale"]).To(Equal(payload[2]["locale"]))
+				Expect(templates[2]["createdBy"]).To(Equal("success@test.com"))
+				Expect(templates[2]["createdAt"]).ToNot(BeNil())
+				Expect(templates[2]["createdAt"]).ToNot(Equal(0))
+				Expect(templates[2]["updatedAt"]).ToNot(BeNil())
+				Expect(templates[2]["updatedAt"]).ToNot(Equal(0))
+
+				id, err := uuid.FromString(templates[0]["id"].(string))
+				Expect(err).NotTo(HaveOccurred())
+				dbTemplate := &model.Template{
+					ID: id,
+				}
+				err = app.DB.Select(&dbTemplate)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dbTemplate.ID).ToNot(BeNil())
+				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
+				Expect(dbTemplate.Name).To(Equal(payload[0]["name"]))
+				Expect(dbTemplate.Locale).To(Equal(payload[0]["locale"]))
+				Expect(dbTemplate.CreatedBy).To(Equal("success@test.com"))
+				Expect(dbTemplate.CreatedAt).ToNot(BeNil())
+				Expect(dbTemplate.UpdatedAt).ToNot(BeNil())
 			})
 		})
 
@@ -232,6 +289,23 @@ var _ = Describe("Template Handler", func() {
 				})
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusConflict))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(ContainSubstring("violates unique constraint \"name_locale_app\""))
+			})
+
+			It("should return 409 if template with same appId, name and locale already exists with multiple templates", func() {
+				existingTemplate := CreateTestTemplate(app.DB, existingApp.ID)
+				payload := []map[string]interface{}{GetTemplatePayload(map[string]interface{}{
+					"name":   existingTemplate.Name,
+					"locale": existingTemplate.Locale,
+				})}
+				payload = append(payload, GetTemplatePayloads(2)...)
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, multipleRoute, string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusConflict))
 
 				var response map[string]interface{}
@@ -296,6 +370,19 @@ var _ = Describe("Template Handler", func() {
 				payload["name"] = strings.Repeat("a", 256)
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid name"))
+			})
+
+			It("should return 422 if invalid name with multiple templates", func() {
+				payload := GetTemplatePayloads(3)
+				payload[0]["name"] = strings.Repeat("a", 256)
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, multipleRoute, string(pl), "test@test.com")
 				Expect(status).To(Equal(http.StatusUnprocessableEntity))
 
 				var response map[string]interface{}

@@ -794,7 +794,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(response["reason"]).To(Equal("invalid controlGroup"))
 			})
 
-			It("should return 422 if controlGroup is > 0", func() {
+			It("should return 422 if controlGroup is > 1", func() {
 				payload := GetJobPayload()
 				payload["controlGroup"] = 1.10
 				pl, _ := json.Marshal(payload)
