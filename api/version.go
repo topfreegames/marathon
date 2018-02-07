@@ -23,4 +23,4 @@
 package api
 
 // VERSION identifies marathon's current version
-var VERSION = "3.0.0"
+var VERSION = "2.2.0"
