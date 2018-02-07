@@ -183,7 +183,7 @@ var _ = Describe("Worker Util", func() {
 			arr := []interface{}{"some-string", appName, usersObj}
 			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("uuid: UUID string too short"))
+			Expect(err.Error()).To(ContainSubstring("uuid: incorrect UUID length: some-string"))
 		})
 
 		It("should fail if users is not array", func() {

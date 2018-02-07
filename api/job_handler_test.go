@@ -176,7 +176,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})
@@ -716,7 +716,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 422 if app with given id does not exist", func() {
@@ -974,7 +974,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 422 if job id is not UUID", func() {
@@ -984,7 +984,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})

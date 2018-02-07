@@ -304,7 +304,7 @@ var _ = Describe("App Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})
@@ -373,7 +373,7 @@ var _ = Describe("App Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 409 if app with same bundleId already exists", func() {
@@ -494,7 +494,7 @@ var _ = Describe("App Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})

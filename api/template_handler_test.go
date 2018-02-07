@@ -131,7 +131,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})
@@ -278,7 +278,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 409 if template with same appId, name and locale already exists", func() {
@@ -496,7 +496,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 422 if template id is not UUID", func() {
@@ -506,7 +506,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})
@@ -612,7 +612,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 422 if template id is not UUID", func() {
@@ -624,7 +624,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 409 if template with same appId, name and locale already exists", func() {
@@ -805,7 +805,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 
 			It("should return 422 if template id is not UUID", func() {
@@ -815,7 +815,7 @@ var _ = Describe("Template Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(ContainSubstring("uuid: UUID string too short"))
+				Expect(response["reason"]).To(ContainSubstring("uuid: incorrect UUID length: not-uuid"))
 			})
 		})
 	})

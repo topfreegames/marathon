@@ -1,10 +1,10 @@
-hash: 27ad89ba50c6bacadff60c219b686f90464913370d859793b8f006591829616a
-updated: 2017-04-24T18:43:21.359654498-03:00
+hash: e2cd1d3c5abb7e4710a80e63c082f3870aa297f48921e403d13fa5a3c021f216
+updated: 2018-02-07T10:20:10.313244-02:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/aws/aws-sdk-go
-  version: f6ea558f30e0a983d529b32c741e4caed17c7df0
+  version: 586c9ba6027a527800564282bb843d7e6e7985c9
   subpackages:
   - aws
   - aws/awserr
@@ -22,6 +22,7 @@ imports:
   - aws/request
   - aws/session
   - aws/signer/v4
+  - internal/shareddefaults
   - private/protocol
   - private/protocol/query
   - private/protocol/query/queryutil
@@ -36,7 +37,7 @@ imports:
 - name: github.com/certifi/gocertifi
   version: a61bf5eafa3aee233ec8043e9da052447e5463dd
 - name: github.com/confluentinc/confluent-kafka-go
-  version: a9b5c269c66e9a2eb5f195563b2f01e65a84c527
+  version: f696f02dcbb04d95b103c5b848bb15f749a996f7
   subpackages:
   - kafka
 - name: github.com/davecgh/go-spew
@@ -76,7 +77,7 @@ imports:
 - name: github.com/jrallison/go-workers
   version: d60d79dbbfbb83f849d2430013a59152845fa598
 - name: github.com/labstack/echo
-  version: 8d504c1b699c757b267255c53b3e5219f9974abc
+  version: b338075a0fc6e1a0683dbf03d09b4957a289e26f
   subpackages:
   - middleware
 - name: github.com/labstack/gommon
@@ -99,15 +100,16 @@ imports:
 - name: github.com/mitchellh/mapstructure
   version: 5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
 - name: github.com/newrelic/go-agent
-  version: 29ec3cd1bb2f21d21d36da37dae52695cb2c3a17
+  version: f5bce3387232559bcbe6a5f8227c4bf508dac1ba
   subpackages:
   - internal
+  - internal/cat
   - internal/jsonx
   - internal/logger
   - internal/sysinfo
   - internal/utilization
 - name: github.com/onsi/ginkgo
-  version: 77a8c1e5c40d6bb6c5eb4dd4bdce9763564f6298
+  version: 9eda700730cba42af70d53180f9dcce9266bc2bc
   subpackages:
   - config
   - ginkgo
@@ -150,13 +152,15 @@ imports:
 - name: github.com/pressly/goose
   version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
 - name: github.com/satori/go.uuid
-  version: 879c5887cd475cd7864858769793b2ceb0d44feb
+  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/sendgrid/rest
   version: 80b39aaf5a30edab5bf2f99d56052abe01a0d41d
 - name: github.com/sendgrid/sendgrid-go
-  version: aae62ebbdabd46754b041a12b9f74d2ffdfc49d7
+  version: 8caf17aa96b4a98bae8bd216878dd50ff12897b5
   subpackages:
   - helpers/mail
+- name: github.com/spaolacci/murmur3
+  version: f09979ecbc725b9e6d41a297405f65e7e8804acc
 - name: github.com/spf13/afero
   version: 06b7e5f50606ecd49148a01a6008942d9b669217
   subpackages:
@@ -171,10 +175,8 @@ imports:
   version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - name: github.com/spf13/viper
   version: 651d9d916abc3c3d6a91a12549495caba5edffd2
-- name: github.com/tylerb/graceful
-  version: 4df1190835320af7076dfcf27b3d071fd3612caf
 - name: github.com/uber-go/atomic
-  version: 4e336646b2ef9fc6e47be8e21594178f98e5ebcf
+  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
 - name: github.com/uber-go/zap
   version: d11d2851fcabcf03421c4dbdbc3146fc74eb1035
 - name: github.com/valyala/fasttemplate
@@ -182,7 +184,7 @@ imports:
 - name: github.com/willf/bitset
   version: 5c3c0fce48842b2c0bbaa99b4e61b0175d84b47c
 - name: github.com/willf/bloom
-  version: 73320a6e73f3e139842058d7e4886e09ca83ac9b
+  version: 54e3b963ee1652b06c4562cb9b6020ebc6e36e59
 - name: golang.org/x/crypto
   version: 3f77d695175f990a2967385c493939f380ee40a3
   subpackages:
