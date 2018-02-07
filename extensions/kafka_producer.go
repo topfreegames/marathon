@@ -37,6 +37,8 @@ type KafkaProducer struct {
 	ConfigPath       string
 	Logger           zap.Logger
 	BootstrapBrokers string
+	BatchSize        int
+	LingerMS         int
 	Producer         *kafka.Producer
 }
 
@@ -65,16 +67,22 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger) (*KafkaProducer, e
 
 func (c *KafkaProducer) loadConfigurationDefaults() {
 	c.Config.SetDefault("kafka.bootstrapServers", "localhost:9940")
+	c.Config.SetDefault("kafka.batch.size", 100)
+	c.Config.SetDefault("kafka.linger.ms", 10)
 }
 
 func (c *KafkaProducer) configure() {
 	c.BootstrapBrokers = c.Config.GetString("kafka.bootstrapServers")
+	c.BatchSize = c.Config.GetInt("kafka.batch.size")
+	c.LingerMS = c.Config.GetInt("kafka.linger.ms")
 }
 
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaProducer) connectToKafka() error {
 	cfg := &kafka.ConfigMap{
-		"bootstrap.servers": c.BootstrapBrokers,
+		"bootstrap.servers":      c.BootstrapBrokers,
+		"batch.num.messages":     c.BatchSize,
+		"queue.buffering.max.ms": c.LingerMS,
 	}
 	p, err := kafka.NewProducer(cfg)
 	if err != nil {
