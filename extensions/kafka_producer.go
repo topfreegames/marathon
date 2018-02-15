@@ -80,9 +80,9 @@ func (c *KafkaProducer) configure() {
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaProducer) connectToKafka() error {
 	cfg := &kafka.ConfigMap{
-		"bootstrap.servers":      c.BootstrapBrokers,
-		"batch.num.messages":     c.BatchSize,
-		"queue.buffering.max.ms": c.LingerMS,
+		"bootstrap.servers":          c.BootstrapBrokers,
+		"queue.buffering.max.kbytes": c.BatchSize,
+		"queue.buffering.max.ms":     c.LingerMS,
 	}
 	p, err := kafka.NewProducer(cfg)
 	if err != nil {

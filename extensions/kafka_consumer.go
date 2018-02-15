@@ -41,6 +41,8 @@ type KafkaConsumer struct {
 	ConsumerGroup                  string
 	Logger                         zap.Logger
 	messagesReceived               int64
+	FetchWaitMaxMs                 int
+	FetchMinBytes                  int
 	msgChan                        chan []byte
 	OffsetResetStrategy            string
 	run                            bool
@@ -81,6 +83,8 @@ func (q *KafkaConsumer) loadConfigurationDefaults() {
 	q.Config.SetDefault("feedbackListener.kafka.topics", []string{"com.games.test"})
 	q.Config.SetDefault("kafka.bootstrapServers", "localhost:9092")
 	q.Config.SetDefault("feedbackListener.kafka.group", "test")
+	q.Config.SetDefault("feedbackListener.kafka.fetch.wait.max.ms", 100)
+	q.Config.SetDefault("feedbackListener.kafka.fetch.min.bytes", 1)
 	q.Config.SetDefault("feedbackListener.kafka.sessionTimeout", 6000)
 	q.Config.SetDefault("feedbackListener.kafka.offsetResetStrategy", "latest")
 	q.Config.SetDefault("feedbackListener.kafka.handleAllMessagesBeforeExiting", true)
@@ -91,6 +95,8 @@ func (q *KafkaConsumer) configure(client interfaces.KafkaConsumerClient) error {
 	q.OffsetResetStrategy = q.Config.GetString("feedbackListener.kafka.offsetResetStrategy")
 	q.Brokers = q.Config.GetString("kafka.bootstrapServers")
 	q.ConsumerGroup = q.Config.GetString("feedbackListener.kafka.group")
+	q.FetchMinBytes = q.Config.GetInt("feedbackListener.kafka.fetch.min.bytes")
+	q.FetchWaitMaxMs = q.Config.GetInt("feedbackListener.kafka.fetch.wait.max.ms")
 	q.SessionTimeout = q.Config.GetInt("feedbackListener.kafka.sessionTimeout")
 	q.Topics = q.Config.GetStringSlice("feedbackListener.kafka.topics")
 	q.HandleAllMessagesBeforeExiting = q.Config.GetBool("feedbackListener.kafka.handleAllMessagesBeforeExiting")
@@ -113,6 +119,8 @@ func (q *KafkaConsumer) configureConsumer(client interfaces.KafkaConsumerClient)
 		zap.String("bootstrap.servers", q.Brokers),
 		zap.String("group.id", q.ConsumerGroup),
 		zap.Int("session.timeout.ms", q.SessionTimeout),
+		zap.Int("fetch.wait.max.ms", q.FetchWaitMaxMs),
+		zap.Int("fetch.min.bytes", q.FetchMinBytes),
 		zap.Bool("go.events.channel.enable", true),
 		zap.Bool("go.application.rebalance.enable", true),
 		zap.Bool("enable.auto.commit", true),
@@ -130,6 +138,8 @@ func (q *KafkaConsumer) configureConsumer(client interfaces.KafkaConsumerClient)
 			"group.id":                        q.ConsumerGroup,
 			"session.timeout.ms":              q.SessionTimeout,
 			"go.events.channel.enable":        true,
+			"fetch.wait.max.ms":               q.FetchWaitMaxMs,
+			"fetch.min.bytes":                 q.FetchMinBytes,
 			"go.application.rebalance.enable": true,
 			"enable.auto.commit":              true,
 			"default.topic.config": kafka.ConfigMap{
