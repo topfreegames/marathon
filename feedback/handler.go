@@ -191,19 +191,21 @@ func (h *Handler) generatePGIncrJSON(jobID string, values map[string]int) string
 	}
 	joinedModifiers := strings.Join(m, ",")
 	endQ := fmt.Sprintf(`}')::jsonb WHERE id = '%s';`, jobID)
-	return fmt.Sprintf("%s%s%s", q, joinedModifiers, endQ)
+	query := fmt.Sprintf("%s%s%s", q, joinedModifiers, endQ)
+	h.Logger.Debug("will run query", zap.String("query", query))
+	return query
 }
 
 func (h *Handler) flushFeedbacks() {
 	ticker := time.NewTicker(h.FlushInterval)
 	for range ticker.C {
+		feedbackCacheMutex.Lock()
 		numFeedbacks := len(h.FeedbackCache)
 		if numFeedbacks > 0 {
 			h.Logger.Info("flushing feedbacks", zap.Int("feedbacks", numFeedbacks))
 		} else {
 			h.Logger.Debug("no feedbacks to flush")
 		}
-		feedbackCacheMutex.Lock()
 		for k, v := range h.FeedbackCache {
 			query := h.generatePGIncrJSON(k, v)
 			results, err := h.MarathonDB.DB.ExecOne(query)
