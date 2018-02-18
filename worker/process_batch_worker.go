@@ -323,6 +323,7 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 			"userId":       user.UserID,
 			"fiu":          user.Fiu,
 			"adid":         user.Adid,
+			"pushTime":     time.Now().Unix(),
 			"vendorId":     user.VendorID,
 			"templateName": templateName,
 			"jobId":        job.ID.String(),
