@@ -19,14 +19,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-FROM golang:1.8.1-alpine
+FROM golang:1.10-alpine
 
 MAINTAINER TFG Co <backend@tfgco.com>
 
 RUN apk update
 RUN apk add make git g++ bash python wget
 
-ENV LIBRDKAFKA_VERSION 0.11.3
+ENV LIBRDKAFKA_VERSION 0.11.4
 RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
     tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
     cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
