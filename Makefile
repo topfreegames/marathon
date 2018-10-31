@@ -19,7 +19,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 MY_IP=`ifconfig | grep --color=none -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep --color=none -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
-PACKAGES = $(shell glide novendor)
 BIN_PATH = "./bin"
 BIN_NAME = "marathon"
 GODIRS = $(shell go list ../... | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
@@ -31,10 +30,10 @@ clear-hooks:
 	@cd .git/hooks && rm pre-commit
 
 setup: setup-hooks
-	@go get -u github.com/Masterminds/glide/...
+	@go get -u github.com/golang/dep/cmd/dep
 	@go get -u github.com/onsi/ginkgo/ginkgo
 	@go get github.com/gordonklaus/ineffassign
-	@glide install
+	@dep ensure
 
 assets:
 	@for pkg in $(GODIRS) ; do \
@@ -43,7 +42,7 @@ assets:
 
 build:
 	@mkdir -p ${BIN_PATH}
-	@go build $(PACKAGES)
+	@go build $(GODIRS)
 	@go build -o ${BIN_PATH}/${BIN_NAME} main.go
 
 cross: assets
@@ -58,17 +57,11 @@ cross: assets
 	@env GOOS=darwin GOARCH=amd64 go build -o ${BIN_PATH}/${BIN_NAME}-darwin-x86_64
 	@chmod +x bin/*
 
-glide:
-	@wget https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-linux-amd64.tar.gz
-	@tar -zxvf glide-v0.12.3-linux-amd64.tar.gz
-	@chmod +x linux-amd64/glide && mv linux-amd64/glide ${GOPATH}/bin/glide
-
-setup-ci-deps:
+setup-ci:
+	@go get -u github.com/golang/dep/cmd/dep
 	@go get github.com/mattn/goveralls
 	@go get github.com/onsi/ginkgo/ginkgo
-	@glide install
-
-setup-ci: glide setup-ci-deps
+	@dep ensure
 
 prepare-dev: deps create-db migrate
 
@@ -148,7 +141,7 @@ test-db-drop:
 test-db-create:
 	@psql -U postgres -h localhost -p 8585 -f db/create-test.sql > /dev/null
 
-test-db-migrate: 
+test-db-migrate:
 	@go run main.go migrations up -c ./config/test.yaml
 	@go run main.go migrations up -m test_migrations -c ./config/test.yaml
 
@@ -156,4 +149,3 @@ rtfd:
 	@rm -rf docs/_build
 	@sphinx-build -b html -d ./docs/_build/doctrees ./docs/ docs/_build/html
 	@open docs/_build/html/index.html
-
