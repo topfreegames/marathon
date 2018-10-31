@@ -897,6 +897,20 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response["reason"]).To(Equal("invalid startsAt"))
 			})
+
+			It("should return 422 if s3 protocol in csvPath", func() {
+				payload := GetJobPayload()
+				delete(payload, "filters")
+				payload["csvPath"] = "s3://my-bucket/production/jobs/123123.csv"
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "test@test.com")
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+
+				var response map[string]interface{}
+				err := json.Unmarshal([]byte(body), &response)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response["reason"]).To(Equal("invalid csvPath: cannot contain s3 protocol, just the bucket path"))
+			})
 		})
 	})
 
