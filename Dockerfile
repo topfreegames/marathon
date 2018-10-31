@@ -30,20 +30,15 @@ ENV LIBRDKAFKA_VERSION 0.11.4
 RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
     tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
     cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
-    ./configure && make && make install && make clean && ./configure --clean
-
-RUN wget https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-linux-amd64.tar.gz
-RUN tar -zxvf glide-v0.12.3-linux-amd64.tar.gz
-RUN chmod +x linux-amd64/glide && mv linux-amd64/glide /usr/local/bin/glide
+    ./configure && make && make install && make clean && ./configure --clean && \
+    go get -u github.com/golang/dep/cmd/dep
 
 RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
 
-ADD glide.yaml /go/src/github.com/topfreegames/marathon/glide.yaml
-ADD glide.lock /go/src/github.com/topfreegames/marathon/glide.lock
-RUN glide install
-
 ADD . /go/src/github.com/topfreegames/marathon
+RUN dep ensure
+
 
 ENV CPLUS_INCLUDE_PATH /usr/local/include
 ENV LIBRARY_PATH /usr/local/lib
