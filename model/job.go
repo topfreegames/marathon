@@ -93,5 +93,8 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("filters or csvPath must exist, not both")
 	}
 
+	if !govalidator.IsNull(j.CSVPath) && govalidator.Contains(j.CSVPath, "s3://") {
+		return InvalidField("csvPath: cannot contain s3 protocol, just the bucket path")
+	}
 	return nil
 }
