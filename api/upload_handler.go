@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo"
+	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
@@ -42,7 +43,7 @@ func (a *Application) GetUploadURL(c echo.Context) error {
 		zap.String("operation", "getUploadUrl"),
 	)
 
-	u, err := extensions.S3PutObjectRequest(a.Config, a.S3Client, fmt.Sprintf("job%v.csv", start.Unix()))
+	u, err := extensions.S3PutObjectRequest(a.Config, a.S3Client, fmt.Sprintf("job-%v-%s.csv", start.Unix(), uuid.NewV4().String()))
 	if err != nil {
 		log.E(l, "Failed to create presigned PUT policy.", func(cm log.CM) {
 			cm.Write(
