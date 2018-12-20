@@ -22,8 +22,12 @@
 package worker
 
 import (
+	"bytes"
+	"compress/zlib"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -142,6 +146,7 @@ func SplitUsersInBucketsByTZ(users *[]User) map[string]*[]User {
 
 func checkErr(l zap.Logger, err error) {
 	if err != nil {
+		fmt.Println("CAMILA", err)
 		raven.CaptureErrorAndWait(err, nil)
 		log.P(l, "Worker panic.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
@@ -199,11 +204,34 @@ type BatchWorkerMessage struct {
 	Users   []User
 }
 
+// TODO test this function
+// CompressUsers compresses users payload for enqueuing the message
+func CompressUsers(users *[]User) (string, error) {
+	usersBytes, err := json.Marshal(*users)
+	if err != nil {
+		return "", err
+	}
+
+	var b bytes.Buffer
+	writer := zlib.NewWriter(&b)
+	if _, err := writer.Write(usersBytes); err != nil {
+		return "", err
+	}
+	if err := writer.Flush(); err != nil {
+		return "", err
+	}
+	if err := writer.Close(); err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(b.Bytes()), nil
+}
+
 // ParseProcessBatchWorkerMessageArray parses the message array of the process batch worker
 func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage, error) {
 	// arr is of the following format
 	// [jobId, appName, users]
-	// users is an array of jsons { user_id: uuid, token: string, locale: string }
+	// users is an array of jsons { user_id: uuid, token: string, locale: string } compressed with zlib
 	if len(arr) != 3 {
 		return nil, fmt.Errorf(InvalidMessageArray)
 	}
@@ -214,13 +242,20 @@ func ParseProcessBatchWorkerMessageArray(arr []interface{}) (*BatchWorkerMessage
 		return nil, err
 	}
 
-	usersObj := arr[2].([]interface{})
-	tmp, err := json.Marshal(usersObj)
+	usersCompressed, err := base64.StdEncoding.DecodeString(arr[2].(string))
+	if err != nil {
+		return nil, err
+	}
+	usersBytesReader, err := zlib.NewReader(bytes.NewReader(usersCompressed))
+	if err != nil {
+		return nil, err
+	}
+	usersBytes, err := ioutil.ReadAll(usersBytesReader)
 	if err != nil {
 		return nil, err
 	}
 	users := []User{}
-	err = json.Unmarshal([]byte(string(tmp)), &users)
+	err = json.Unmarshal(usersBytes, &users)
 	if err != nil {
 		return nil, err
 	}

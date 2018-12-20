@@ -156,10 +156,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should process when service is gcm and increment job completed batches", func() {
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				gcmJob.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -188,10 +190,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = apns").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -200,7 +204,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
-
 			processBatchWorker.Process(message)
 
 			for idx := range users {
@@ -219,11 +222,14 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should choose a random template and put it in push metadata when many are passed to the job", func() {
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				jobWithManyTemplates.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
+
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
 			})
@@ -263,10 +269,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -304,10 +312,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -337,10 +347,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -368,11 +380,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should increment job completed users", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("service = gcm").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
-
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -396,10 +409,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("expires_at = ?", time.Now().UnixNano()-50000).Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -425,11 +440,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 		It("should not process batch if job is stopped", func() {
 			_, err := processBatchWorker.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("status = 'stopped'").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
-
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -462,10 +478,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 				}
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -503,10 +521,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 				VendorID:  "vendorID",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&[]worker.User{user})
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				&[]worker.User{user},
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -550,10 +570,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Locale:    "pt",
 			}
 			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&[]worker.User{user})
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				gcmJob.ID,
 				appName,
-				&[]worker.User{user},
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -589,10 +611,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -630,10 +654,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -672,10 +698,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			processBatchWorker.MarathonDB.DB.Exec("DELETE FROM jobs;")
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -708,10 +736,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -743,10 +773,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -777,10 +809,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 			appName := strings.Split(app.BundleID, ".")[2]
 
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				users,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,

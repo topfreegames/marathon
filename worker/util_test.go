@@ -139,10 +139,12 @@ var _ = Describe("Worker Util", func() {
 
 	Describe("Parse ProcessBatchWorker message array", func() {
 		It("should succeed if all params are correct", func() {
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				jobID,
 				appName,
-				usersObj,
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
@@ -188,15 +190,16 @@ var _ = Describe("Worker Util", func() {
 
 		It("should fail if users is not array", func() {
 			arr := []interface{}{jobID, appName, "some-string"}
-			Expect(func() { worker.ParseProcessBatchWorkerMessageArray(arr) }).Should(Panic())
+			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("illegal base64 data at input byte 4"))
 		})
 
 		It("should fail if users is an empty array", func() {
 			emptyUsers := []interface{}{}
 			arr := []interface{}{jobID, appName, emptyUsers}
-			_, err := worker.ParseProcessBatchWorkerMessageArray(arr)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal("there must be at least one user"))
+			Expect(func() { worker.ParseProcessBatchWorkerMessageArray(arr) }).Should(Panic())
+
 		})
 	})
 

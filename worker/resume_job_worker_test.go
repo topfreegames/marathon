@@ -70,10 +70,12 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Locale: "en",
 			}
 			users[index] = user
+			compressedUsers, err := worker.CompressUsers(&[]worker.User{user})
+			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
 				appName,
-				[]worker.User{user},
+				compressedUsers,
 			}
 			msgB, err := json.Marshal(map[string][]interface{}{
 				"args": messageObj,
