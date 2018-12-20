@@ -213,11 +213,7 @@ func CompressUsers(users *[]User) (string, error) {
 	}
 
 	var b bytes.Buffer
-	writer, err := zlib.NewWriterLevel(&b, zlib.BestCompression)
-	if err != nil {
-		return "", err
-	}
-
+	writer := zlib.NewWriter(&b)
 	if _, err := writer.Write(usersBytes); err != nil {
 		return "", err
 	}
