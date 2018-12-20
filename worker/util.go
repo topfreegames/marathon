@@ -48,15 +48,15 @@ const stoppedJobStatus = "stopped"
 
 // User is the struct that will keep users before sending them to send batches worker
 type User struct {
-	CreatedAt pg.NullTime `json:"created_at" sql:"created_at"`
-	UserID    string      `json:"user_id" sql:"user_id"`
-	Token     string      `json:"token" sql:"token"`
-	Locale    string      `json:"locale" sql:"locale"`
-	Region    string      `json:"region" sql:"region"`
-	Tz        string      `json:"tz" sql:"tz"`
-	Fiu       string      `json:"fiu" sql:"fiu"`
-	Adid      string      `json:"adid" sql:"adid"`
-	VendorID  string      `json:"vendor_id" sql:"vendor_id"`
+	CreatedAt pg.NullTime `json:"created_at,omitempty" sql:"created_at"`
+	UserID    string      `json:"user_id,omitempty" sql:"user_id"`
+	Token     string      `json:"token,omitempty" sql:"token"`
+	Locale    string      `json:"locale,omitempty" sql:"locale"`
+	Region    string      `json:"region,omitempty" sql:"region"`
+	Tz        string      `json:"tz,omitempty" sql:"tz"`
+	Fiu       string      `json:"fiu,omitempty" sql:"fiu"`
+	Adid      string      `json:"adid,omitempty" sql:"adid"`
+	VendorID  string      `json:"vendor_id,omitempty" sql:"vendor_id"`
 }
 
 // Batch is a struct that helps tracking processes pages
@@ -146,7 +146,6 @@ func SplitUsersInBucketsByTZ(users *[]User) map[string]*[]User {
 
 func checkErr(l zap.Logger, err error) {
 	if err != nil {
-		fmt.Println("CAMILA", err)
 		raven.CaptureErrorAndWait(err, nil)
 		log.P(l, "Worker panic.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
@@ -204,9 +203,22 @@ type BatchWorkerMessage struct {
 	Users   []User
 }
 
+// TODO remove this hacky code
+func cleanUpUserInfo(user *User) *User {
+	return &User{
+		UserID: user.UserID,
+		Token:  user.Token,
+		Locale: user.Locale,
+	}
+}
+
 // TODO test this function
 // CompressUsers compresses users payload for enqueuing the message
 func CompressUsers(users *[]User) (string, error) {
+	cleanUsers := make([]*User, len(*users))
+	for idx, u := range *users {
+		cleanUsers[idx] = cleanUpUserInfo(&u)
+	}
 	usersBytes, err := json.Marshal(*users)
 	if err != nil {
 		return "", err

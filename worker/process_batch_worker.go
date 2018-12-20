@@ -320,19 +320,19 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		}
 		checkErr(l, err)
 		pushMetadata := map[string]interface{}{
-			"userId":       user.UserID,
-			"fiu":          user.Fiu,
-			"adid":         user.Adid,
-			"pushTime":     time.Now().Unix(),
-			"vendorId":     user.VendorID,
+			"userId": user.UserID,
+			// "fiu":          user.Fiu,
+			// "adid":         user.Adid,
+			"pushTime": time.Now().Unix(),
+			// "vendorId":     user.VendorID,
 			"templateName": templateName,
 			"jobId":        job.ID.String(),
 			"pushType":     "massive",
 			"muid":         uuid.NewV4().String(),
 		}
-		if user.CreatedAt.Unix() > 0 {
-			pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
-		}
+		// if user.CreatedAt.Unix() > 0 {
+		// 	pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
+		// }
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, templateName)
 		if err != nil {
 			batchErrorCounter = batchErrorCounter + 1
