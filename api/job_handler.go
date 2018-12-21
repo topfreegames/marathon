@@ -229,11 +229,22 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	log.D(l, "job successfully created! creating job in create_batches_worker")
 	var wJobID string
 	err = WithSegment("create-job", c, func() error {
+		scheduleJob := int64(0)
 		if job.StartsAt != 0 && !job.Localized {
+			scheduleJob = job.StartsAt
+		} else if job.StartsAt != 0 {
+			// it will be at most 12h relative to UTC but
+			// we'll use 14 hours to have some marging when creating the jobs
+			localizedAt := time.Unix(0, job.StartsAt).Add(-14 * time.Hour)
+			if localizedAt.After(time.Now()) {
+				scheduleJob = localizedAt.UnixNano()
+			}
+		}
+		if scheduleJob != 0 {
 			if len(job.CSVPath) > 0 {
-				wJobID, err = a.Worker.ScheduleCreateBatchesJob(&[]string{job.ID.String()}, job.StartsAt)
+				wJobID, err = a.Worker.ScheduleCreateBatchesJob(&[]string{job.ID.String()}, scheduleJob)
 			} else {
-				wJobID, err = a.Worker.ScheduleCreateBatchesFromFiltersJob(&[]string{job.ID.String()}, job.StartsAt)
+				wJobID, err = a.Worker.ScheduleCreateBatchesFromFiltersJob(&[]string{job.ID.String()}, scheduleJob)
 			}
 		} else {
 			if len(job.CSVPath) > 0 {
