@@ -64,6 +64,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 	var template *model.Template
 	var template2 *model.Template
 	var job *model.Job
+	var context map[string]interface{}
 	var jobWithManyTemplates *model.Job
 	var gcmJob *model.Job
 	var users []worker.User
@@ -126,7 +127,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			"locale": "fr",
 			"name":   templateName1,
 		})
-		context := map[string]interface{}{
+		context = map[string]interface{}{
 			"user_name": "Everyone",
 		}
 		job = CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, templateName1, map[string]interface{}{
@@ -183,6 +184,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Expect(gcmMessage.TimeToLive).To(BeEquivalentTo(gcmJob.ExpiresAt / 1000000000))
 				Expect(gcmMessage.Data["alert"]).To(Equal("Everyone just liked your village!"))
 				Expect(gcmMessage.Data["m"].(map[string]interface{})["meta"]).To(Equal(gcmJob.Metadata["meta"]))
+				Expect(gcmMessage.DryRun).To(Equal(false))
 			}
 		})
 
@@ -837,6 +839,128 @@ var _ = Describe("ProcessBatch Worker", func() {
 			pausedMsg, err := processBatchWorker.RedisClient.LPop(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pausedMsg).To(Equal(message.ToJson()))
+		})
+
+		It("should create a dry run message with a fake device token if apns push", func() {
+			metadata := map[string]interface{}{
+				"dryRun": true,
+			}
+			dryRunJob := CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name,
+				map[string]interface{}{
+					"context":  context,
+					"metadata": metadata,
+				})
+
+			userID := uuid.NewV4().String()
+			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			createdAt := time.Now()
+			user := worker.User{
+				CreatedAt: pg.NullTime{createdAt},
+				UserID:    userID,
+				Token:     token,
+				Locale:    "pt",
+				Adid:      "adid",
+				Fiu:       "fiu",
+				VendorID:  "vendorID",
+			}
+			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&[]worker.User{user})
+			Expect(err).NotTo(HaveOccurred())
+			messageObj := []interface{}{
+				dryRunJob.ID,
+				appName,
+				compressedUsers,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			expectedPushMetadata := map[string]interface{}{
+				"jobId":        dryRunJob.ID.String(),
+				"userId":       userID,
+				"templateName": dryRunJob.TemplateName,
+				"pushType":     "massive",
+				"dryRun":       true,
+				// "tokenCreatedAt": createdAt.Unix(),
+				// "adid":           user.Adid,
+				// "fiu":            user.Fiu,
+				// "vendorId":       user.VendorID,
+			}
+
+			m := mockKafkaProducer.APNSMessages[0]
+			var apnsMessage messages.APNSMessage
+			err = json.Unmarshal([]byte(m), &apnsMessage)
+
+			Expect(err).NotTo(HaveOccurred())
+			for k, v := range expectedPushMetadata {
+				Expect(apnsMessage.Metadata[k]).To(BeEquivalentTo(v))
+			}
+			Expect(apnsMessage.DeviceToken).NotTo(BeEquivalentTo(user.Token))
+		})
+
+		It("should create a dry run message with a fake device token if gcm push", func() {
+			metadata := map[string]interface{}{
+				"dryRun": true,
+			}
+			dryRunJob := CreateTestJob(processBatchWorker.MarathonDB.DB, app.ID, template.Name,
+				map[string]interface{}{
+					"context":  context,
+					"metadata": metadata,
+					"service":  "gcm",
+				})
+
+			userID := uuid.NewV4().String()
+			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			createdAt := time.Now()
+			user := worker.User{
+				CreatedAt: pg.NullTime{createdAt},
+				UserID:    userID,
+				Token:     token,
+				Locale:    "pt",
+			}
+			appName := strings.Split(app.BundleID, ".")[2]
+			compressedUsers, err := worker.CompressUsers(&[]worker.User{user})
+			Expect(err).NotTo(HaveOccurred())
+			messageObj := []interface{}{
+				dryRunJob.ID,
+				appName,
+				compressedUsers,
+			}
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": messageObj,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			message, err := workers.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			expectedPushMetadata := map[string]interface{}{
+				"jobId":        dryRunJob.ID.String(),
+				"userId":       userID,
+				"templateName": job.TemplateName,
+				"pushType":     "massive",
+				"dryRun":       true,
+				// "tokenCreatedAt": createdAt.Unix(),
+			}
+
+			m := mockKafkaProducer.GCMMessages[0]
+			var gcmMessage messages.GCMMessage
+			err = json.Unmarshal([]byte(m), &gcmMessage)
+
+			Expect(err).NotTo(HaveOccurred())
+			for k, v := range expectedPushMetadata {
+				Expect(gcmMessage.Metadata[k]).To(BeEquivalentTo(v))
+			}
+			Expect(gcmMessage.To).NotTo(BeEquivalentTo(user.Token))
+			Expect(gcmMessage.DryRun).To(Equal(true))
 		})
 	})
 })
