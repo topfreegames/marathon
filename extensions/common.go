@@ -9,7 +9,8 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func IdGenerator(size int) string {
+// GenerateID generates a fake id with the given size
+func GenerateID(size int) string {
 	charset := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	id := make([]byte, size)
 	for i := range id {
