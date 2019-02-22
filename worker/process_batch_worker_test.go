@@ -902,6 +902,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Expect(apnsMessage.Metadata[k]).To(BeEquivalentTo(v))
 			}
 			Expect(apnsMessage.DeviceToken).NotTo(BeEquivalentTo(user.Token))
+			Expect(apnsMessage.DeviceToken).To(HavePrefix("FAKE-"))
 		})
 
 		It("should create a dry run message with a fake device token if gcm push", func() {
@@ -960,6 +961,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 				Expect(gcmMessage.Metadata[k]).To(BeEquivalentTo(v))
 			}
 			Expect(gcmMessage.To).NotTo(BeEquivalentTo(user.Token))
+			Expect(gcmMessage.To).To(HavePrefix("FAKE-"))
 			Expect(gcmMessage.DryRun).To(Equal(true))
 		})
 	})

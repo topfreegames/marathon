@@ -132,7 +132,7 @@ func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, message
 
 	if val, ok := pushMetadata["dryRun"]; ok {
 		if dryRun, _ := val.(bool); dryRun {
-			msg.DeviceToken = GenerateID(64)
+			msg.DeviceToken = GenerateFakeID(64)
 		}
 	}
 
@@ -157,7 +157,7 @@ func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageM
 
 	if val, ok := pushMetadata["dryRun"]; ok {
 		if dryRun, _ := val.(bool); dryRun {
-			msg.To = GenerateID(152)
+			msg.To = GenerateFakeID(152)
 			msg.DryRun = true
 		}
 	}
