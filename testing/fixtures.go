@@ -220,7 +220,7 @@ func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, optio
 
 	filters := getOpt(opts, "filters", map[string]interface{}{"locale": strings.Split(uuid.NewV4().String(), "-")[0]}).(map[string]interface{})
 	context := getOpt(opts, "context", map[string]interface{}{"value": uuid.NewV4().String()}).(map[string]interface{})
-	metadata := getOpt(opts, "filters", map[string]interface{}{"meta": uuid.NewV4().String()}).(map[string]interface{})
+	metadata := getOpt(opts, "metadata", map[string]interface{}{"meta": uuid.NewV4().String()}).(map[string]interface{})
 
 	job := &model.Job{}
 	job.AppID = appID

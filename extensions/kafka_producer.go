@@ -130,6 +130,12 @@ func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, message
 		templateName,
 	)
 
+	if val, ok := pushMetadata["dryRun"]; ok {
+		if dryRun, _ := val.(bool); dryRun {
+			msg.DeviceToken = GenerateFakeID(64)
+		}
+	}
+
 	message, err := msg.ToJSON()
 	if err != nil {
 		return err
@@ -148,6 +154,13 @@ func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageM
 		pushExpiry,
 		templateName,
 	)
+
+	if val, ok := pushMetadata["dryRun"]; ok {
+		if dryRun, _ := val.(bool); dryRun {
+			msg.To = GenerateFakeID(152)
+			msg.DryRun = true
+		}
+	}
 
 	message, err := msg.ToJSON()
 	if err != nil {

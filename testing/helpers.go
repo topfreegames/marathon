@@ -34,7 +34,7 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/pg.v5"
+	pg "gopkg.in/pg.v5"
 	"gopkg.in/pg.v5/orm"
 	"gopkg.in/pg.v5/types"
 
@@ -43,6 +43,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/api"
+	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
@@ -72,6 +73,12 @@ func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, mes
 		templateName,
 	)
 
+	if val, ok := pushMetadata["dryRun"]; ok {
+		if dryRun, _ := val.(bool); dryRun {
+			msg.DeviceToken = extensions.GenerateFakeID(64)
+		}
+	}
+
 	message, err := msg.ToJSON()
 	if err != nil {
 		return err
@@ -92,6 +99,13 @@ func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, mess
 		pushExpiry,
 		templateName,
 	)
+
+	if val, ok := pushMetadata["dryRun"]; ok {
+		if dryRun, _ := val.(bool); dryRun {
+			msg.To = extensions.GenerateFakeID(152)
+			msg.DryRun = true
+		}
+	}
 
 	message, err := msg.ToJSON()
 

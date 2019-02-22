@@ -33,7 +33,7 @@ import (
 	redis "gopkg.in/redis.v5"
 
 	workers "github.com/jrallison/go-workers"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/extensions"
@@ -333,6 +333,14 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		// if user.CreatedAt.Unix() > 0 {
 		// 	pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
 		// }
+
+		dryRun := false
+		if val, ok := job.Metadata["dryRun"]; ok {
+			if dryRun, ok = val.(bool); ok {
+				pushMetadata["dryRun"] = dryRun
+			}
+		}
+
 		err = batchWorker.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, templateName)
 		if err != nil {
 			batchErrorCounter = batchErrorCounter + 1
