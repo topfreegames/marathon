@@ -46,7 +46,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 	})
 
-	Describe("stage status should be report to redis", func() {
+	Describe("stage status should report to redis", func() {
 		It("about a stage progress", func() {
 			stage := "1"
 			description := "first stage"
@@ -124,6 +124,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(jobStages).To(HaveKey("1.1.2"))
 			Expect(jobStages).To(HaveKey("1.2"))
 			Expect(jobStages).To(HaveKey("2"))
+
 			Expect(jobStages["1"]).To(Equal("job1-1"))
 			Expect(jobStages["1.1"]).To(Equal("job1-1.1"))
 			Expect(jobStages["1.1.1"]).To(Equal("job1-1.1.1"))
@@ -206,7 +207,6 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err.Error()).To(BeEquivalentTo("stage is already finished"))
 			stageStats = redisClient.HGetAll("job1-1").Val()
 			Expect(stageStats["current"]).To(BeEquivalentTo("1"))
-
 		})
 	})
 })

@@ -7,7 +7,7 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
-// StageStatus holds information about a stag in a worker pipeline on Redis
+// StageStatus holds information about a stage from a worker pipeline in Redis
 type StageStatus struct {
 	JobID       string
 	Stage       string
@@ -22,7 +22,7 @@ type StageStatus struct {
 	SubStageStatus []*StageStatus
 }
 
-// NewStageStatus returns a new JobStage instance
+// NewStageStatus returns a new StageStatus instance
 func NewStageStatus(client *redis.Client,
 	jobID, stage, description string,
 	maxProgress int) (*StageStatus, error) {
@@ -31,7 +31,7 @@ func NewStageStatus(client *redis.Client,
 		return nil, errors.New("can't create a stage with 0 maxProgress")
 	}
 
-	job := &StageStatus{
+	ss := &StageStatus{
 		JobID:       jobID,
 		Stage:       stage,
 		StageKey:    fmt.Sprintf("%s-%s", jobID, stage),
@@ -45,12 +45,12 @@ func NewStageStatus(client *redis.Client,
 		SubStageStatus: make([]*StageStatus, 0),
 	}
 
-	job.Client.HSet(job.JobID, job.Stage, job.StageKey)
-	job.Client.HSet(job.StageKey, "description", description)
-	job.Client.HSet(job.StageKey, "max", maxProgress)
-	job.Client.HSet(job.StageKey, "current", 0)
+	ss.Client.HSet(ss.StageKey, "description", description)
+	ss.Client.HSet(ss.JobID, ss.Stage, ss.StageKey)
+	ss.Client.HSet(ss.StageKey, "max", maxProgress)
+	ss.Client.HSet(ss.StageKey, "current", 0)
 
-	return job, nil
+	return ss, nil
 }
 
 // NewSubStage creates a new StageStatus from a previous one and add it to its SubStages list
@@ -58,7 +58,6 @@ func (s *StageStatus) NewSubStage(
 	description string,
 	maxProgress int,
 ) (*StageStatus, error) {
-
 	ss, err := NewStageStatus(
 		s.Client,
 		s.JobID, fmt.Sprintf("%s.%d", s.Stage, len(s.SubStageStatus)+1), description,

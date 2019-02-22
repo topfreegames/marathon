@@ -164,7 +164,6 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageSt
 		_, err := b.PushDB.DB.Query(&nextPageOffset, query)
 		checkErr(b.Logger, err)
 
-		// Update current pag
 		preProcessStats.IncrProgress()
 	}
 	return pages, pageCount, count
