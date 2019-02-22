@@ -29,16 +29,15 @@ import (
 	"math"
 	"sync"
 
-	"gopkg.in/redis.v5"
-
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/jrallison/go-workers"
-	"github.com/satori/go.uuid"
+	workers "github.com/jrallison/go-workers"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 	"github.com/willf/bloom"
+	redis "gopkg.in/redis.v5"
 )
 
 // CreateBatchesFromFiltersWorker is the CreateBatchesUsingFiltersWorker struct
@@ -129,7 +128,7 @@ func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job
 	return &users
 }
 
-func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int, int) {
+func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageStatus *StageStatus) ([]DBPage, int, int) {
 	filters := job.Filters
 	var count int
 	whereClause := GetWhereClauseFromFilters(filters)
@@ -147,6 +146,10 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	checkErr(b.Logger, err)
 	pages := []DBPage{}
 	nextPageOffset := 0
+
+	preProcessStats, err := stageStatus.NewSubStage("pre processing pages", pageCount)
+	checkErr(b.Logger, err)
+
 	for page := 0; page < pageCount; page++ {
 		pages = append(pages, DBPage{
 			Page:   page,
@@ -160,21 +163,27 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 		b.Logger.Info("Querying database", zap.String("query", query))
 		_, err := b.PushDB.DB.Query(&nextPageOffset, query)
 		checkErr(b.Logger, err)
+
+		// Update current pag
+		preProcessStats.IncrProgress()
 	}
 	return pages, pageCount, count
 }
 
-func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup) {
+func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	for page := range c {
 		users := b.getPageFromDBWithFilters(job, page)
 		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)))
 		wgCSV.Add(1)
 		writeToCSVCH <- users
 		wg.Done()
+
+		err := stageStatus.IncrProgress()
+		checkErr(b.Logger, err)
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup) {
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
 		for _, user := range *users {
@@ -184,29 +193,44 @@ func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, 
 			}
 		}
 		wgCSV.Done()
+
+		err := stageStatus.IncrProgress()
+		checkErr(b.Logger, err)
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, csvWriter *io.Writer) error {
-	pages, pageCount, usersCount := b.preprocessPages(job)
+func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, csvWriter *io.Writer, stageStatus *StageStatus) error {
+	pages, pageCount, usersCount := b.preprocessPages(job, stageStatus)
 	var wg sync.WaitGroup
 	var wgCSV sync.WaitGroup
 	pageCH := make(chan DBPage, pageCount)
 	csvWriterCH := make(chan *[]User)
 	wg.Add(pageCount)
 
+	processPageStatus, err := stageStatus.NewSubStage(
+		"processing pages", pageCount)
+	checkErr(b.Logger, err)
+
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV)
+		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV, processPageStatus)
 	}
 	rate := 1E-8
 	bFilter := bloom.NewWithEstimates(uint(usersCount), rate)
-	go b.writeUserPageIntoCSV(csvWriterCH, bFilter, csvWriter, &wgCSV)
+
+	writeCSVStats, err := stageStatus.NewSubStage(
+		"writing to csv", pageCount)
+	checkErr(b.Logger, err)
+
+	go b.writeUserPageIntoCSV(csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
 	for i := 0; i < pageCount; i++ {
 		pageCH <- DBPage{
 			Page:   pages[i].Page,
 			Offset: pages[i].Offset,
 		}
 	}
+
+	checkErr(b.Logger, err)
+
 	wg.Wait()
 	wgCSV.Wait()
 	close(pageCH)
@@ -254,11 +278,30 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 		l.Info("stopped job create_batches_using_filters_worker")
 		return
 	}
+
+	processStats, err := NewStageStatus(b.RedisClient, job.ID.String(),
+		"1", "create batches from filter worker", 1)
+	checkErr(b.Logger, err)
+
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
-	err = b.createBatchesFromFilters(job, &csvWriter)
+
+	createBatchStats, err := processStats.NewSubStage(
+		"creating batches from filters", 1)
+	checkErr(b.Logger, err)
+
+	err = b.createBatchesFromFilters(job, &csvWriter, createBatchStats)
 	checkErr(l, err)
+	createBatchStats.IncrProgress()
+
+	uploadCSVStats, err := processStats.NewSubStage("uploading csv to s3", 1)
+	checkErr(b.Logger, err)
+
 	csvBytes := csvBuffer.Bytes()
 	b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
 	l.Info("finished create_batches_using_filters_worker")
+	err = uploadCSVStats.IncrProgress()
+	checkErr(l, err)
+
+	processStats.IncrProgress()
 }
