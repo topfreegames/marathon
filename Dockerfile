@@ -24,7 +24,7 @@ FROM golang:1.10-alpine
 MAINTAINER TFG Co <backend@tfgco.com>
 
 RUN apk update
-RUN apk add make git g++ bash python wget
+RUN apk add make git g++ bash python wget pkgconfig
 
 ENV LIBRDKAFKA_VERSION 0.11.4
 RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \

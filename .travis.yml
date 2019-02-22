@@ -21,5 +21,4 @@ before_install:
 before_script: make setup-ci
 script: make test
 after_success:
-- "./push_to_docker.sh"
-- "./success_webhook.sh"
+- "./push_to_docker.sh && ./success_webhook.sh"
