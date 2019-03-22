@@ -28,7 +28,7 @@ import (
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -515,5 +515,64 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 		Expect(err).NotTo(HaveOccurred())
 		lines := ReadLinesFromIOReader(generatedCSV.Body)
 		Expect(len(lines)).To(Equal(4))
+	})
+
+	It("should corretly report the stage status", func() {
+		a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			"filters": map[string]interface{}{
+				"locale": "en",
+			},
+		})
+		fakeS3 := NewFakeS3()
+		createBatchesFromFiltersWorker.S3Client = fakeS3
+		m := map[string]interface{}{
+			"jid":  6,
+			"args": []string{j.ID.String()},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
+
+		redisClient := createBatchesFromFiltersWorker.RedisClient
+		jobStages := redisClient.HGetAll(j.ID.String()).Val()
+
+		Expect(jobStages).To(HaveKey("1"))
+		Expect(jobStages).To(HaveKey("1.1"))
+		Expect(jobStages).To(HaveKey("1.1.1"))
+		Expect(jobStages).To(HaveKey("1.1.2"))
+		Expect(jobStages).To(HaveKey("1.1.3"))
+		Expect(jobStages).To(HaveKey("1.2"))
+
+		s1 := redisClient.HGetAll(j.ID.String() + "-1").Val()
+		s1_1 := redisClient.HGetAll(j.ID.String() + "-1.1").Val()
+		s1_1_1 := redisClient.HGetAll(j.ID.String() + "-1.1.1").Val()
+		s1_1_2 := redisClient.HGetAll(j.ID.String() + "-1.1.2").Val()
+		s1_1_3 := redisClient.HGetAll(j.ID.String() + "-1.1.3").Val()
+		s1_2 := redisClient.HGetAll(j.ID.String() + "-1.2").Val()
+
+		Expect(s1["description"]).To(Equal("create batches from filter worker"))
+		Expect(s1_1["description"]).To(Equal("creating batches from filters"))
+		Expect(s1_1_1["description"]).To(Equal("pre processing pages"))
+		Expect(s1_1_2["description"]).To(Equal("processing pages"))
+		Expect(s1_1_3["description"]).To(Equal("writing to csv"))
+		Expect(s1_2["description"]).To(Equal("uploading csv to s3"))
+
+		Expect(s1["max"]).To(Equal("1"))
+		Expect(s1_1["max"]).To(Equal("1"))
+		Expect(s1_1_1["max"]).To(Equal("2"))
+		Expect(s1_1_2["max"]).To(Equal("2"))
+		Expect(s1_1_3["max"]).To(Equal("2"))
+		Expect(s1_2["max"]).To(Equal("1"))
+
+		Expect(s1["current"]).To(Equal("1"))
+		Expect(s1_1["current"]).To(Equal("1"))
+		Expect(s1_1_1["current"]).To(Equal("2"))
+		Expect(s1_1_2["current"]).To(Equal("2"))
+		Expect(s1_1_3["current"]).To(Equal("2"))
+		Expect(s1_2["current"]).To(Equal("1"))
+
 	})
 })
