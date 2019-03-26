@@ -191,6 +191,9 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 	if err != nil {
 		return err
 	}
+	if job.TotalBatches != 0 && job.CompletedBatches == 1 && job.CompletedAt == 0 {
+		job.TagRunning(batchWorker.MarathonDB, "process_batche_worker", "starting")
+	}
 	if job.TotalBatches != 0 && job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
 		l := batchWorker.Logger.With(
 			zap.String("source", "processBatchWorker"),
@@ -198,13 +201,15 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 			zap.Int("totalBatches", job.TotalBatches),
 			zap.Int("completedBatches", job.CompletedBatches),
 		)
+
 		log.I(l, "Finished all batches")
+		job.TagSuccess(batchWorker.MarathonDB, "process_batche_worker", "Finished all batches")
 		job.CompletedAt = time.Now().UnixNano()
 		_, err = batchWorker.MarathonDB.DB.Model(&job).Column("completed_at").Update()
 		if err != nil {
 			return err
 		}
-		at := time.Now().Add(10 * time.Minute).UnixNano()
+		at := time.Now().Add(5 * time.Second).UnixNano()
 		_, err = batchWorker.Workers.ScheduleJobCompletedJob(jobID.String(), at)
 	}
 	return err
@@ -240,7 +245,8 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "process"),
 	)
-	log.I(l, "starting process_batch_worker")
+	log.I(l, "starting_process_batch_worker")
+	batchWorker.Workers.Statsd.Incr("starting_process_batch_worker", []string{}, 1)
 	arr, err := message.Args().Array()
 	checkErr(l, err)
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)

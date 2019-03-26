@@ -202,7 +202,7 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
-		b.Workers.Statsd.Incr("writeUserPageIntoCSV", make([]string, 0), 1)
+		b.Workers.Statsd.Incr("writeUserPageIntoCSV", []string{}, 1)
 		for _, user := range *users {
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))

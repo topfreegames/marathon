@@ -113,7 +113,7 @@ func (j *Job) tag(db *extensions.PGClient, name, menssage, state string) {
 		panic(err)
 	}
 	status = &Status{}
-	err = db.DB.Model(status).Where("job_id = ?", j.ID).First()
+	err = db.DB.Model(status).Where("job_id = ? AND name = ?", j.ID, name).First()
 	if err != nil {
 		panic(err)
 	}

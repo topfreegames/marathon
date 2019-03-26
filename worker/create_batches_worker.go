@@ -376,6 +376,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
+	job.TagRunning(b.MarathonDB, "create_batches_worker", "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
@@ -393,25 +394,39 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	}
 	if len(job.CSVPath) > 0 {
 		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
-		checkErr(l, err)
+		if err != nil {
+			job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+			checkErr(l, err)
+		}
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
 		updatedJob := &model.Job{
 			ID: id,
 		}
 		err = b.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
-		checkErr(l, err)
+		if err != nil {
+			job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+			checkErr(l, err)
+		}
 		if updatedJob.TotalTokens == 0 {
 			_, err := b.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
-			checkErr(l, err)
+			if err != nil {
+				job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+				checkErr(l, err)
+			}
 			if b.SendgridClient != nil {
 				msg := "Your job was automatically stopped because no tokens were found matching the user ids given in the CSV file. Please verify the uploaded CSV and create a new job."
 				err = email.SendStoppedJobEmail(b.SendgridClient, updatedJob, job.App.Name, msg)
-				checkErr(l, err)
+				if err != nil {
+					job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+					checkErr(l, err)
+				}
 			}
 		}
 		log.I(l, "finished create_batches_worker")
+		job.TagSuccess(b.MarathonDB, "create_batches_worker", "finished")
 	} else {
 		log.I(l, "panicked create_batches_worker")
 		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
+		job.TagError(b.MarathonDB, "create_batches_worker", "no csvPath passed to worker")
 	}
 }
