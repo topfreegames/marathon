@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:bd285ec20a7450d2272631284de698f2d76e923a458fee90e99cc1db4b97708d"
+  name = "github.com/DataDog/datadog-go"
+  packages = ["statsd"]
+  pruneopts = "UT"
+  revision = "e67964b4021ad3a334e748e8811eb3cd6becbc6e"
+  version = "2.1.0"
+
+[[projects]]
   digest = "1:b7b1c24379c90ec2173a90d17adab8b28c3e94f0e31b1143185d32f289796bdb"
   name = "github.com/Shopify/sarama"
   packages = ["."]
@@ -154,12 +162,13 @@
   revision = "d9eb7a3d35ec988b8585d4a0068e462c27d28380"
 
 [[projects]]
-  digest = "1:3dd1939bb7cf68cdfeb9cd91b278a0d73a8e64e0ed03a40d4a237894e514297b"
+  digest = "1:940e9fb2a4c62bffda44aaf42738cd2d6b80e0f042dd027ba60d49709196aaf1"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
     "hcl/ast",
     "hcl/parser",
+    "hcl/printer",
     "hcl/scanner",
     "hcl/strconv",
     "hcl/token",
@@ -424,11 +433,12 @@
   revision = "06b7e5f50606ecd49148a01a6008942d9b669217"
 
 [[projects]]
-  digest = "1:90da38765d91cc183b71ca69f9fcceb68df945c695d6c9421a36045b57efb6b5"
+  digest = "1:08d65904057412fc0270fc4812a1c90c594186819243160dc779a402d4b6d0bc"
   name = "github.com/spf13/cast"
   packages = ["."]
   pruneopts = "UT"
-  revision = "24b6558033ffe202bf42f0f3b870dcc798dd2ba8"
+  revision = "8c9545af88b134710ab1cd196795e7f2388358d7"
+  version = "v1.3.0"
 
 [[projects]]
   digest = "1:466208cd4f78e2a453d92381511c0fa7bba694a3b42e5bed4a59f3ecbe1bb567"
@@ -452,11 +462,23 @@
   revision = "5ccb023bc27df288a957c5e994cd44fd19619465"
 
 [[projects]]
-  digest = "1:a3e23d8d7624858fb5b8b6b948f28f42539b1a8f4ee2ecb0b6e4df4d1d3347fb"
+  digest = "1:1b773526998f3dbde3a51a4a5881680c4d237d3600f570d900f97ac93c7ba0a8"
   name = "github.com/spf13/viper"
   packages = ["."]
   pruneopts = "UT"
-  revision = "651d9d916abc3c3d6a91a12549495caba5edffd2"
+  revision = "9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9"
+  version = "v1.3.2"
+
+[[projects]]
+  digest = "1:8f022e184bc0de65f00036b49e0ff5585e6df3eca6675ca95cc4c0878190f436"
+  name = "github.com/topfreegames/extensions"
+  packages = [
+    "s3",
+    "s3/interfaces",
+  ]
+  pruneopts = "UT"
+  revision = "b915720a3f4b5f0b27627c575f43088bd76dbdbc"
+  version = "v8.0.5"
 
 [[projects]]
   digest = "1:9d5cf6f23377cc24f00ba9a7b0c83fe070171c094e42eece262c6252a392ec33"
@@ -577,11 +599,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/DataDog/datadog-go/statsd",
     "github.com/Shopify/sarama",
     "github.com/asaskevich/govalidator",
-    "github.com/aws/aws-sdk-go/aws",
-    "github.com/aws/aws-sdk-go/aws/credentials",
-    "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3iface",
     "github.com/confluentinc/confluent-kafka-go/kafka",
@@ -600,6 +620,8 @@
     "github.com/sendgrid/sendgrid-go/helpers/mail",
     "github.com/spf13/cobra",
     "github.com/spf13/viper",
+    "github.com/topfreegames/extensions/s3",
+    "github.com/topfreegames/extensions/s3/interfaces",
     "github.com/uber-go/zap",
     "github.com/valyala/fasttemplate",
     "github.com/willf/bloom",

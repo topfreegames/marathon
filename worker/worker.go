@@ -27,6 +27,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"
 	"github.com/jrallison/go-workers"
 	"github.com/spf13/viper"
@@ -39,6 +40,7 @@ type Worker struct {
 	Logger     zap.Logger
 	ConfigPath string
 	Config     *viper.Viper
+	Statsd     *statsd.Client
 }
 
 // NewWorker returns a configured worker
@@ -69,7 +71,9 @@ func (w *Worker) configure() {
 	w.loadConfigurationDefaults()
 	w.configureSentry()
 	w.configureRedis()
+	w.configureStatsd()
 	w.configureWorkers()
+	w.configureStatsd()
 }
 
 func (w *Worker) loadConfigurationDefaults() {
@@ -79,6 +83,20 @@ func (w *Worker) loadConfigurationDefaults() {
 	w.Config.SetDefault("workers.statsPort", 8081)
 	w.Config.SetDefault("workers.concurrency", 10)
 	w.Config.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
+	w.Config.SetDefault("workers.statsd.host", "127.0.0.1:8125")
+	w.Config.SetDefault("workers.statsd.prefix", "marathon.")
+}
+
+func (w *Worker) configureStatsd() {
+	host := w.Config.GetString("workers.statsd.host")
+	prefix := w.Config.GetString("workers.statsd.prefix")
+
+	client, err := statsd.New(host)
+	if err != nil {
+		return
+	}
+	client.Namespace = prefix
+	w.Statsd = client
 }
 
 func (w *Worker) configureRedis() {

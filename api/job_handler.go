@@ -307,6 +307,7 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 	err = WithSegment("db-select", c, func() error {
 		return a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	})
+	a.DB.Model(&job.StatusEvents).Where("job_id = ?", job.ID).Column("status.*", "Events").Select()
 	if err != nil {
 		if err.Error() == RecordNotFoundString {
 			return c.JSON(http.StatusNotFound, job)

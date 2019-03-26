@@ -10,12 +10,12 @@ db:
 push:
   db:
     host: localhost
-    port: 8558
-    user: marathon_user
+    port: 8585
+    user: postgres
     pass: ""
     poolSize: 20
     maxRetries: 3
-    database: push
+    database: marathon
 s3:
   bucket: "tfg-push-notifications"
   region: "us-east-1"
@@ -26,12 +26,12 @@ s3:
   secretAccessKey: "SECRET-ACCESS-KEY"
 kafka:
   bootstrapServers: localhost:9940
-workers:
+workers: 
   statsPort: 8081
   createBatches:
     batchSize: 20000
     dbPageSize: 20000
-    pageProcessingConcurrency: 20
+    pageProcessingConcurrency: 10
     concurrency: 10
     maxRetries: 5
   createBatchesFromFilters:
@@ -40,7 +40,7 @@ workers:
     concurrency: 10
     maxRetries: 5
   processBatch:
-    concurrency: 10
+    concurrency: 1
     maxBatchFailure: 0.05
     maxUserFailureInBatch: 0.05
   redis:
