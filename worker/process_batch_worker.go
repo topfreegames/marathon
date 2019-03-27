@@ -209,7 +209,7 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 		if err != nil {
 			return err
 		}
-		at := time.Now().Add(5 * time.Second).UnixNano()
+		at := time.Now().Add(batchWorker.Config.GetDuration("workers.processBatch.intervalToSendCompletedJob")).UnixNano()
 		_, err = batchWorker.Workers.ScheduleJobCompletedJob(jobID.String(), at)
 	}
 	return err
