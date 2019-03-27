@@ -43,6 +43,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
+const nameProcessBatchWorker = "process_batch_worker"
+
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
 	Config         *viper.Viper
@@ -244,8 +246,9 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	l := batchWorker.Logger.With(
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "process"),
+		zap.String("worker", nameProcessBatchWorker),
 	)
-	log.I(l, "starting_process_batch_worker")
+	log.I(l, "starting")
 	batchWorker.Workers.Statsd.Incr("starting_process_batch_worker", []string{}, 1)
 	arr, err := message.Args().Array()
 	checkErr(l, err)
@@ -258,24 +261,24 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	log.D(l, "Retrieved job successfully.")
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
-		log.I(l, "expired process_batch_worker")
+		log.I(l, "expired")
 		return
 	}
 
 	switch job.Status {
 	case "circuitbreak":
-		log.I(l, "circuit break process_batch_worker")
+		log.I(l, "circuit break")
 		batchWorker.moveJobToPausedQueue(job.ID, message)
 		return
 	case "paused":
-		log.I(l, "paused process_batch_worker")
+		log.I(l, "paused")
 		batchWorker.moveJobToPausedQueue(job.ID, message)
 		return
 	case "stopped":
-		log.I(l, "stopped process_batch_worker")
+		log.I(l, "stopped")
 		return
 	default:
-		log.D(l, "valid process_batch_worker")
+		log.D(l, "valid")
 	}
 
 	templatesByNameAndLocale, err := batchWorker.getJobTemplatesByNameAndLocale(job.AppID, job.TemplateName)
@@ -374,5 +377,5 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 		checkErr(l, fmt.Errorf("failed to send message to several users, considering batch as failed"))
 	}
-	log.I(l, "finished process_batch_worker")
+	log.I(l, "finished")
 }

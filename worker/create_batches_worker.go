@@ -46,6 +46,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
+const nameCreateBatches = "create_batches_worker"
+
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
 	BatchSize                 int
@@ -371,16 +373,17 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
 		zap.Bool("isReexecution", isReexecution),
+		zap.String("worker", nameCreateBatches),
 	)
-	log.I(l, "starting create_batches_worker")
+	log.I(l, "starting")
 	job := &model.Job{
 		ID: id,
 	}
-	job.TagRunning(b.MarathonDB, "create_batches_worker", "starting")
+	job.TagRunning(b.MarathonDB, nameCreateBatches, "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
-		l.Info("stopped job create_batches_worker")
+		l.Info("stopped job")
 		return
 	}
 	dbPageSize := b.DBPageSize
@@ -395,7 +398,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if len(job.CSVPath) > 0 {
 		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
 		if err != nil {
-			job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+			job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
 			checkErr(l, err)
 		}
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
@@ -404,7 +407,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		}
 		err = b.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
 		if err != nil {
-			job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+			job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
 			checkErr(l, err)
 		}
 		if updatedJob.TotalTokens == 0 {
@@ -418,10 +421,10 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
 			}
 		}
-		log.I(l, "finished create_batches_worker")
-		job.TagSuccess(b.MarathonDB, "create_batches_worker", "finished")
+		log.I(l, "finished")
+		job.TagSuccess(b.MarathonDB, nameCreateBatches, "finished")
 	} else {
-		log.I(l, "panicked create_batches_worker")
+		log.I(l, "panicked")
 		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
 		b.checkErr(job, err)
 	}
@@ -429,7 +432,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
 func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+		job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
 		checkErr(b.Logger, err)
 	}
 }

@@ -40,6 +40,8 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
+const nameCreateBatchesFromFilters = "create_batches_using_filters_worker"
+
 // CreateBatchesFromFiltersWorker is the CreateBatchesUsingFiltersWorker struct
 type CreateBatchesFromFiltersWorker struct {
 	Logger                    zap.Logger
@@ -273,20 +275,21 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	l := b.Logger.With(
 		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
+		zap.String("worker", nameCreateBatchesFromFilters),
 	)
-	l.Info("starting create_batches_using_filters_worker")
+	l.Info("starting")
 
 	job := &model.Job{
 		ID: id,
 	}
-	job.TagRunning(b.MarathonDB, "create_batches_using_filters_worker", "starting")
+	job.TagRunning(b.MarathonDB, nameCreateBatchesFromFilters, "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
+		job.TagError(b.MarathonDB, nameCreateBatchesFromFilters, err.Error())
 		return
 	}
 	if job.Status == stoppedJobStatus {
-		l.Info("stopped job create_batches_using_filters_worker")
+		l.Info("stopped job")
 		return
 	}
 
@@ -312,17 +315,17 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	err = b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
 	b.checkErr(job, err)
 
-	l.Info("finished create_batches_using_filters_worker")
+	l.Info("finished")
 	err = uploadCSVStats.IncrProgress()
 	b.checkErr(job, err)
 
-	job.TagSuccess(b.MarathonDB, "create_batches_using_filters_worker", "finished")
+	job.TagSuccess(b.MarathonDB, nameCreateBatchesFromFilters, "finished")
 	processStats.IncrProgress()
 }
 
 func (b *CreateBatchesFromFiltersWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
+		job.TagError(b.MarathonDB, nameCreateBatchesFromFilters, err.Error())
 		checkErr(b.Logger, err)
 	}
 }
