@@ -65,7 +65,7 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 	if k == nil {
 		var kafka *extensions.KafkaProducer
 		var err error
-		kafka, err = extensions.NewKafkaProducer(config, logger)
+		kafka, err = extensions.NewKafkaProducer(config, logger, workers.Statsd)
 		checkErr(l, err)
 		k = kafka
 	}
