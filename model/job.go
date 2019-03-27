@@ -108,12 +108,7 @@ func (j *Job) tag(db *extensions.PGClient, name, message, state string) {
 		ID:        uuid.NewV4(),
 		CreatedAt: time.Now().UnixNano(),
 	}
-	_, err := db.DB.Model(status).OnConflict("DO NOTHING").Insert()
-	if err != nil {
-		panic(err)
-	}
-	status = &Status{}
-	err = db.DB.Model(status).Where("job_id = ? AND name = ?", j.ID, name).First()
+	_, err := db.DB.Model(status).OnConflict("(name, job_id) DO UPDATE").Set("name = EXCLUDED.name").Returning("id").Insert()
 	if err != nil {
 		panic(err)
 	}
