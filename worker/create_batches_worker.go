@@ -409,17 +409,13 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		}
 		if updatedJob.TotalTokens == 0 {
 			_, err := b.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
-			if err != nil {
-				job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
-				checkErr(l, err)
-			}
+			checkErr(l, err)
+
 			if b.SendgridClient != nil {
 				msg := "Your job was automatically stopped because no tokens were found matching the user ids given in the CSV file. Please verify the uploaded CSV and create a new job."
 				err = email.SendStoppedJobEmail(b.SendgridClient, updatedJob, job.App.Name, msg)
-				if err != nil {
-					job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
-					checkErr(l, err)
-				}
+				b.checkErr(job, err)
+
 			}
 		}
 		log.I(l, "finished create_batches_worker")
@@ -427,6 +423,13 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	} else {
 		log.I(l, "panicked create_batches_worker")
 		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
-		job.TagError(b.MarathonDB, "create_batches_worker", "no csvPath passed to worker")
+		b.checkErr(job, err)
+	}
+}
+
+func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.MarathonDB, "create_batches_worker", err.Error())
+		checkErr(b.Logger, err)
 	}
 }

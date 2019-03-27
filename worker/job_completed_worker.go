@@ -92,18 +92,19 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	}
 	job.TagRunning(b.MarathonDB, "job_completed_worker", "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	if err != nil {
-		job.TagError(b.MarathonDB, "job_completed_worker", err.Error())
-		checkErr(l, err)
-	}
+	b.checkErr(job, err)
 
 	if b.SendgridClient != nil {
 		err = email.SendJobCompletedEmail(b.SendgridClient, job, job.App.Name)
-		if err != nil {
-			job.TagError(b.MarathonDB, "job_completed_worker", err.Error())
-			checkErr(l, err)
-		}
+		b.checkErr(job, err)
 	}
 	job.TagSuccess(b.MarathonDB, "job_completed_worker", "finished")
 	log.I(l, "finished job_completed_worker")
+}
+
+func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.MarathonDB, "job_completed_worker", err.Error())
+		checkErr(b.Logger, err)
+	}
 }

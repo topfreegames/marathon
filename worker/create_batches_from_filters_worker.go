@@ -292,48 +292,37 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 
 	processStats, err := NewStageStatus(b.RedisClient, job.ID.String(),
 		"1", "create batches from filter worker", 1)
-	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
-		checkErr(b.Logger, err)
-	}
+	b.checkErr(job, err)
 
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
 
 	createBatchStats, err := processStats.NewSubStage(
 		"creating batches from filters", 1)
-	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
-		checkErr(b.Logger, err)
-	}
+	b.checkErr(job, err)
 
 	err = b.createBatchesFromFilters(job, &csvWriter, createBatchStats)
-	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
-		checkErr(b.Logger, err)
-	}
+	b.checkErr(job, err)
 	createBatchStats.IncrProgress()
 
 	uploadCSVStats, err := processStats.NewSubStage("uploading csv to s3", 1)
-	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
-		checkErr(b.Logger, err)
-	}
+	b.checkErr(job, err)
 
 	csvBytes := csvBuffer.Bytes()
 	err = b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
-	if err != nil {
-		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
-		checkErr(b.Logger, err)
-	}
+	b.checkErr(job, err)
 
 	l.Info("finished create_batches_using_filters_worker")
 	err = uploadCSVStats.IncrProgress()
+	b.checkErr(job, err)
+
+	job.TagSuccess(b.MarathonDB, "create_batches_using_filters_worker", "finished")
+	processStats.IncrProgress()
+}
+
+func (b *CreateBatchesFromFiltersWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.MarathonDB, "create_batches_using_filters_worker", err.Error())
 		checkErr(b.Logger, err)
 	}
-
-	job.TagSuccess(b.MarathonDB, "create_batches_using_filters_worker", "finished")
-	processStats.IncrProgress()
 }
