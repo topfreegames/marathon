@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"runtime"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
@@ -52,20 +51,6 @@ type CreateBatchesFromFiltersWorker struct {
 	S3Client                  s3iface.S3API
 	PageProcessingConcurrency int
 	RedisClient               *redis.Client
-}
-
-// PrintMemUsage ...
-func PrintMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
 
 // NewCreateBatchesFromFiltersWorker gets a new CreateBatchesFromFiltersWorker
@@ -186,10 +171,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageSt
 
 func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	for page := range c {
-		PrintMemUsage()
 		users := b.getPageFromDBWithFilters(job, page)
 		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)))
-		b.Workers.Statsd.Incr("processPages", []string{GetPushDBTableName(job.App.Name, job.Service)}, 1)
+		b.Workers.Statsd.Incr("process_pages", []string{GetPushDBTableName(job.App.Name, job.Service)}, 1)
 		wgCSV.Add(1)
 		writeToCSVCH <- users
 		wg.Done()
@@ -202,7 +186,7 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
-		b.Workers.Statsd.Incr("writeUserPageIntoCSV", []string{}, 1)
+		b.Workers.Statsd.Incr("write_user_page_into_csv", []string{}, 1)
 		for _, user := range *users {
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))

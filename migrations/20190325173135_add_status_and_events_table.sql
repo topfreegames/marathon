@@ -23,7 +23,7 @@ CREATE TYPE events_status AS ENUM ('fail', 'running', 'success');
 CREATE TABLE "events" (
   "id" uuid DEFAULT uuid_generate_v4() UNIQUE,
   "state" events_status NOT NULL,
-  "menssage" text NOT NULL,
+  "message" text NOT NULL,
   "status_id" uuid NOT NULL,
   "created_at" bigint,
   PRIMARY KEY ("id")

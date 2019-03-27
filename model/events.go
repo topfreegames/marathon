@@ -29,7 +29,7 @@ import (
 // Events is the events model struct
 type Events struct {
 	ID        uuid.UUID `sql:",pk" json:"id"`
-	Menssage  string    `json:"menssage"`
+	Message   string    `json:"message"`
 	StatusID  uuid.UUID `sql:",notnull" json:"statusID"`
 	State     string    `json:"state"`
 	CreatedAt int64     `json:"createdAt"`

@@ -101,7 +101,7 @@ func (j *Job) Validate(c echo.Context) error {
 	return nil
 }
 
-func (j *Job) tag(db *extensions.PGClient, name, menssage, state string) {
+func (j *Job) tag(db *extensions.PGClient, name, message, state string) {
 	status := &Status{
 		Name:      name,
 		JobID:     j.ID,
@@ -118,7 +118,7 @@ func (j *Job) tag(db *extensions.PGClient, name, menssage, state string) {
 		panic(err)
 	}
 	event := &Events{
-		Menssage:  menssage,
+		Message:   message,
 		StatusID:  status.ID,
 		State:     state,
 		ID:        uuid.NewV4(),
@@ -131,16 +131,16 @@ func (j *Job) tag(db *extensions.PGClient, name, menssage, state string) {
 }
 
 // TagSuccess create a status in one job
-func (j *Job) TagSuccess(db *extensions.PGClient, name, menssage string) {
-	j.tag(db, name, menssage, "success")
+func (j *Job) TagSuccess(db *extensions.PGClient, name, message string) {
+	j.tag(db, name, message, "success")
 }
 
 // TagError create a status in one job
-func (j *Job) TagError(db *extensions.PGClient, name, menssage string) {
-	j.tag(db, name, menssage, "fail")
+func (j *Job) TagError(db *extensions.PGClient, name, message string) {
+	j.tag(db, name, message, "fail")
 }
 
 // TagRunning create a status in one job
-func (j *Job) TagRunning(db *extensions.PGClient, name, menssage string) {
-	j.tag(db, name, menssage, "running")
+func (j *Job) TagRunning(db *extensions.PGClient, name, message string) {
+	j.tag(db, name, message, "running")
 }
