@@ -191,10 +191,11 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
-		b.Workers.Statsd.Incr("write_user_page_into_csv", []string{}, 1)
+		labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+		b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
 		for _, user := range *users {
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
@@ -230,7 +231,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 		"writing to csv", pageCount)
 	checkErr(b.Logger, err)
 
-	go b.writeUserPageIntoCSV(csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
+	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
 	for i := 0; i < pageCount; i++ {
 		pageCH <- DBPage{
 			Page:   pages[i].Page,
