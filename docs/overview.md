@@ -27,10 +27,17 @@ Marathon is based on some premises:
 Marathon is composed of three main modules:
   - An API responsible for CRUD of apps, templates and jobs;
   - A worker composed of several sub-workers:
-    - A sub-worker responsible for creating a CSV file with all user ids matching the filters given in the job;
+    - A sub-worker responsible for getting the information from the database, building the message and sending to Kafka.
+    - A sub-worker responsible for splitting a CSV and creating small devices ID batches.
     - A sub-worker responsible for scheduling push notifiction for users in a CSV file using each user timezone;
     - A sub-worker responsible for building a message given a template and a context and sending it to the app and service corresponding kafka topic;
   - A feedback listener responsible for processing feedbacks of the notifications sent to apns or gcm;
+
+## Marathon and Pusher
+
+Marathon can be used with [Pusher](https://github.com/topfreegames/pusher/). In the following image, you can see a full example of the integration of marathon and pusher. Note that this example doesn't include any routes to send individual messages or to register device tokens (this information must be present the push database, as said in the premises section).
+
+![example](img/PushSystem.png)
 
 ## The Stack
 
