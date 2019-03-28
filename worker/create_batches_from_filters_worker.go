@@ -157,22 +157,32 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageSt
 	preProcessStats, err := stageStatus.NewSubStage("pre processing pages", pageCount)
 	checkErr(b.Logger, err)
 
+	tx, err := b.PushDB.DB.Begin()
+	checkErr(b.Logger, err)
+
+	defer tx.Rollback()
+
+	if (whereClause) != "" {
+		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+	} else {
+		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s;", GetPushDBTableName(job.App.Name, job.Service))
+	}
+	tx.Query(nil, query)
+
 	for page := 0; page < pageCount; page++ {
 		pages = append(pages, DBPage{
 			Page:   page,
 			Offset: nextPageOffset,
 		})
-		if (whereClause) != "" {
-			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d AND %s ORDER BY seq_id ASC LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, whereClause, b.DBPageSize)
-		} else {
-			query = fmt.Sprintf("SELECT max(q.seq_id) FROM (SELECT seq_id FROM %s WHERE seq_id > %d ORDER BY seq_id ASC LIMIT %d) AS q;", GetPushDBTableName(job.App.Name, job.Service), nextPageOffset, b.DBPageSize)
-		}
-		b.Logger.Info("Querying database", zap.String("query", query))
-		_, err := b.PushDB.DB.Query(&nextPageOffset, query)
+		_, err := tx.Query(&nextPageOffset, fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", b.DBPageSize))
 		checkErr(b.Logger, err)
-
 		preProcessStats.IncrProgress()
 	}
+	tx.Commit()
+
+	_, err = b.MarathonDB.DB.Model(job).Set("total_tokens = ?", count).Where("id = ?", job.ID).Update()
+	checkErr(b.Logger, err)
+
 	return pages, pageCount, count
 }
 
