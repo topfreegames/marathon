@@ -33,6 +33,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
+const nameJobCompleted = "job_completed_worker"
+
 // JobCompletedWorker is the JobCompletedWorker struct
 type JobCompletedWorker struct {
 	Logger         zap.Logger
@@ -79,19 +81,33 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	checkErr(b.Logger, err)
 	l := b.Logger.With(
 		zap.String("jobID", id.String()),
+		zap.String("worker", nameJobCompleted),
 	)
-	log.I(l, "starting job_completed_worker")
+	log.I(l, "starting")
 
 	job := &model.Job{
 		ID: id,
 	}
+	err = b.MarathonDB.DB.Model(job).Where("job.id = ?", job.ID).Select()
+	if err != nil {
+		job.TagError(b.MarathonDB, nameJobCompleted, "finished")
+		checkErr(l, err)
+	}
+	job.TagRunning(b.MarathonDB, nameJobCompleted, "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	checkErr(l, err)
+	b.checkErr(job, err)
 
 	if b.SendgridClient != nil {
 		err = email.SendJobCompletedEmail(b.SendgridClient, job, job.App.Name)
-		checkErr(l, err)
+		b.checkErr(job, err)
 	}
+	job.TagSuccess(b.MarathonDB, nameJobCompleted, "finished")
+	log.I(l, "finished")
+}
 
-	log.I(l, "finished job_completed_worker")
+func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.MarathonDB, nameJobCompleted, err.Error())
+		checkErr(b.Logger, err)
+	}
 }

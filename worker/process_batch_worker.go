@@ -43,6 +43,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
+const nameProcessBatchWorker = "process_batch_worker"
+
 // ProcessBatchWorker is the ProcessBatchWorker struct
 type ProcessBatchWorker struct {
 	Config         *viper.Viper
@@ -65,7 +67,7 @@ func NewProcessBatchWorker(config *viper.Viper, logger zap.Logger, kafkaClient i
 	if k == nil {
 		var kafka *extensions.KafkaProducer
 		var err error
-		kafka, err = extensions.NewKafkaProducer(config, logger)
+		kafka, err = extensions.NewKafkaProducer(config, logger, workers.Statsd)
 		checkErr(l, err)
 		k = kafka
 	}
@@ -191,6 +193,9 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 	if err != nil {
 		return err
 	}
+	if job.TotalBatches != 0 && job.CompletedBatches == 1 && job.CompletedAt == 0 {
+		job.TagRunning(batchWorker.MarathonDB, "process_batche_worker", "starting")
+	}
 	if job.TotalBatches != 0 && job.CompletedBatches >= job.TotalBatches && job.CompletedAt == 0 {
 		l := batchWorker.Logger.With(
 			zap.String("source", "processBatchWorker"),
@@ -198,13 +203,15 @@ func (batchWorker *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) err
 			zap.Int("totalBatches", job.TotalBatches),
 			zap.Int("completedBatches", job.CompletedBatches),
 		)
+
 		log.I(l, "Finished all batches")
+		job.TagSuccess(batchWorker.MarathonDB, "process_batche_worker", "Finished all batches")
 		job.CompletedAt = time.Now().UnixNano()
 		_, err = batchWorker.MarathonDB.DB.Model(&job).Column("completed_at").Update()
 		if err != nil {
 			return err
 		}
-		at := time.Now().Add(10 * time.Minute).UnixNano()
+		at := time.Now().Add(batchWorker.Config.GetDuration("workers.processBatch.intervalToSendCompletedJob")).UnixNano()
 		_, err = batchWorker.Workers.ScheduleJobCompletedJob(jobID.String(), at)
 	}
 	return err
@@ -239,8 +246,10 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	l := batchWorker.Logger.With(
 		zap.String("source", "processBatchWorker"),
 		zap.String("operation", "process"),
+		zap.String("worker", nameProcessBatchWorker),
 	)
-	log.I(l, "starting process_batch_worker")
+	log.I(l, "starting")
+	batchWorker.Workers.Statsd.Incr("starting_process_batch_worker", []string{}, 1)
 	arr, err := message.Args().Array()
 	checkErr(l, err)
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
@@ -252,24 +261,24 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	log.D(l, "Retrieved job successfully.")
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
-		log.I(l, "expired process_batch_worker")
+		log.I(l, "expired")
 		return
 	}
 
 	switch job.Status {
 	case "circuitbreak":
-		log.I(l, "circuit break process_batch_worker")
+		log.I(l, "circuit break")
 		batchWorker.moveJobToPausedQueue(job.ID, message)
 		return
 	case "paused":
-		log.I(l, "paused process_batch_worker")
+		log.I(l, "paused")
 		batchWorker.moveJobToPausedQueue(job.ID, message)
 		return
 	case "stopped":
-		log.I(l, "stopped process_batch_worker")
+		log.I(l, "stopped")
 		return
 	default:
-		log.D(l, "valid process_batch_worker")
+		log.D(l, "valid")
 	}
 
 	templatesByNameAndLocale, err := batchWorker.getJobTemplatesByNameAndLocale(job.AppID, job.TemplateName)
@@ -368,5 +377,5 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		batchWorker.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 		checkErr(l, fmt.Errorf("failed to send message to several users, considering batch as failed"))
 	}
-	log.I(l, "finished process_batch_worker")
+	log.I(l, "finished")
 }

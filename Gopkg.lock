@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:bd285ec20a7450d2272631284de698f2d76e923a458fee90e99cc1db4b97708d"
+  name = "github.com/DataDog/datadog-go"
+  packages = ["statsd"]
+  pruneopts = "UT"
+  revision = "e67964b4021ad3a334e748e8811eb3cd6becbc6e"
+  version = "2.1.0"
+
+[[projects]]
   digest = "1:b7b1c24379c90ec2173a90d17adab8b28c3e94f0e31b1143185d32f289796bdb"
   name = "github.com/Shopify/sarama"
   packages = ["."]
@@ -69,12 +77,12 @@
   version = "2016.09.26"
 
 [[projects]]
-  digest = "1:a878821c51a2390c0c958d179e7e19ec42cf55a9cce6d4bdbc61d7421b209014"
+  digest = "1:ad9bac31f001ab730600bf9e80c4da7552cb9cb47c505f3fa0fe80de81682bbe"
   name = "github.com/confluentinc/confluent-kafka-go"
   packages = ["kafka"]
   pruneopts = "UT"
-  revision = "5e4d04e05fc319ce5996a867aafef29059f26862"
-  version = "v0.11.4"
+  revision = "460e8e43b282a1a68219df600ef63442b81faf5f"
+  version = "v0.11.6"
 
 [[projects]]
   digest = "1:a2c1d0e43bd3baaa071d1b9ed72c27d78169b2b269f71c105ac4ba34b1be4a39"
@@ -154,12 +162,13 @@
   revision = "d9eb7a3d35ec988b8585d4a0068e462c27d28380"
 
 [[projects]]
-  digest = "1:3dd1939bb7cf68cdfeb9cd91b278a0d73a8e64e0ed03a40d4a237894e514297b"
+  digest = "1:940e9fb2a4c62bffda44aaf42738cd2d6b80e0f042dd027ba60d49709196aaf1"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
     "hcl/ast",
     "hcl/parser",
+    "hcl/printer",
     "hcl/scanner",
     "hcl/strconv",
     "hcl/token",
@@ -334,19 +343,12 @@
   revision = "e85f63af4302dc0e4277c6008ecf803f1d80e4f0"
 
 [[projects]]
-  digest = "1:c416b52f6afb8f40cd1ca987ca53c38e65bd169d3de6d89d729880ddf91670f0"
-  name = "github.com/pelletier/go-buffruneio"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d"
-  version = "v0.1.0"
-
-[[projects]]
-  digest = "1:792350a6cbc71638911a877ba8f56945f250bc56f5a9e68e9ccf4ca9e16bdc9d"
+  digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
   name = "github.com/pelletier/go-toml"
   packages = ["."]
   pruneopts = "UT"
-  revision = "ce7be745f09fe4ff89af8e3ea744e1deabf20ee3"
+  revision = "c01d1270ff3e442a8a57cddc1c92dc1138598194"
+  version = "v1.2.0"
 
 [[projects]]
   digest = "1:ebd2bb79267396620eff93dde528cbf483c315c6121d309ad160690091460bc2"
@@ -424,11 +426,12 @@
   revision = "06b7e5f50606ecd49148a01a6008942d9b669217"
 
 [[projects]]
-  digest = "1:90da38765d91cc183b71ca69f9fcceb68df945c695d6c9421a36045b57efb6b5"
+  digest = "1:08d65904057412fc0270fc4812a1c90c594186819243160dc779a402d4b6d0bc"
   name = "github.com/spf13/cast"
   packages = ["."]
   pruneopts = "UT"
-  revision = "24b6558033ffe202bf42f0f3b870dcc798dd2ba8"
+  revision = "8c9545af88b134710ab1cd196795e7f2388358d7"
+  version = "v1.3.0"
 
 [[projects]]
   digest = "1:466208cd4f78e2a453d92381511c0fa7bba694a3b42e5bed4a59f3ecbe1bb567"
@@ -452,11 +455,12 @@
   revision = "5ccb023bc27df288a957c5e994cd44fd19619465"
 
 [[projects]]
-  digest = "1:a3e23d8d7624858fb5b8b6b948f28f42539b1a8f4ee2ecb0b6e4df4d1d3347fb"
+  digest = "1:1b773526998f3dbde3a51a4a5881680c4d237d3600f570d900f97ac93c7ba0a8"
   name = "github.com/spf13/viper"
   packages = ["."]
   pruneopts = "UT"
-  revision = "651d9d916abc3c3d6a91a12549495caba5edffd2"
+  revision = "9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9"
+  version = "v1.3.2"
 
 [[projects]]
   digest = "1:9d5cf6f23377cc24f00ba9a7b0c83fe070171c094e42eece262c6252a392ec33"
@@ -577,6 +581,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/DataDog/datadog-go/statsd",
     "github.com/Shopify/sarama",
     "github.com/asaskevich/govalidator",
     "github.com/aws/aws-sdk-go/aws",

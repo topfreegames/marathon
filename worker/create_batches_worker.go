@@ -46,6 +46,8 @@ import (
 	"github.com/uber-go/zap"
 )
 
+const nameCreateBatches = "create_batches_worker"
+
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
 	BatchSize                 int
@@ -371,15 +373,17 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
 		zap.Bool("isReexecution", isReexecution),
+		zap.String("worker", nameCreateBatches),
 	)
-	log.I(l, "starting create_batches_worker")
+	log.I(l, "starting")
 	job := &model.Job{
 		ID: id,
 	}
+	job.TagRunning(b.MarathonDB, nameCreateBatches, "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
-		l.Info("stopped job create_batches_worker")
+		l.Info("stopped job")
 		return
 	}
 	dbPageSize := b.DBPageSize
@@ -393,25 +397,42 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	}
 	if len(job.CSVPath) > 0 {
 		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
-		checkErr(l, err)
+		if err != nil {
+			job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
+			checkErr(l, err)
+		}
 		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
 		updatedJob := &model.Job{
 			ID: id,
 		}
 		err = b.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
-		checkErr(l, err)
+		if err != nil {
+			job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
+			checkErr(l, err)
+		}
 		if updatedJob.TotalTokens == 0 {
 			_, err := b.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
 			checkErr(l, err)
+
 			if b.SendgridClient != nil {
 				msg := "Your job was automatically stopped because no tokens were found matching the user ids given in the CSV file. Please verify the uploaded CSV and create a new job."
 				err = email.SendStoppedJobEmail(b.SendgridClient, updatedJob, job.App.Name, msg)
-				checkErr(l, err)
+				b.checkErr(job, err)
+
 			}
 		}
-		log.I(l, "finished create_batches_worker")
+		log.I(l, "finished")
+		job.TagSuccess(b.MarathonDB, nameCreateBatches, "finished")
 	} else {
-		log.I(l, "panicked create_batches_worker")
+		log.I(l, "panicked")
 		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
+		b.checkErr(job, err)
+	}
+}
+
+func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
+		checkErr(b.Logger, err)
 	}
 }

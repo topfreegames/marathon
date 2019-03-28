@@ -36,9 +36,11 @@ RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/ede
 RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
 
-ADD . /go/src/github.com/topfreegames/marathon
-RUN dep ensure
+ADD Gopkg.lock /go/src/github.com/topfreegames/marathon
+ADD Gopkg.toml /go/src/github.com/topfreegames/marathon
+RUN dep ensure -vendor-only
 
+ADD . /go/src/github.com/topfreegames/marathon
 
 ENV CPLUS_INCLUDE_PATH /usr/local/include
 ENV LIBRARY_PATH /usr/local/lib

@@ -23,6 +23,7 @@
 package extensions
 
 import (
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
@@ -40,16 +41,18 @@ type KafkaProducer struct {
 	BatchSize        int
 	LingerMS         int
 	Producer         *kafka.Producer
+	Statsd           *statsd.Client
 }
 
 // NewKafkaProducer creates a new kafka producer
-func NewKafkaProducer(config *viper.Viper, logger zap.Logger) (*KafkaProducer, error) {
+func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Client) (*KafkaProducer, error) {
 	l := logger.With(
 		zap.String("source", "KafkaExtension"),
 	)
 	client := &KafkaProducer{
 		Config: config,
 		Logger: l,
+		Statsd: statsd,
 	}
 
 	client.loadConfigurationDefaults()
@@ -109,6 +112,9 @@ func (c KafkaProducer) listenForKafkaResponses() {
 				log.E(l, "Kafka producer error", func(cm log.CM) {
 					cm.Write(zap.Error(m.TopicPartition.Error))
 				})
+				c.Statsd.Incr("send_message_return", []string{"error:true"}, 1)
+			} else {
+				c.Statsd.Incr("send_message_return", []string{"error:false"}, 1)
 			}
 		}
 	}

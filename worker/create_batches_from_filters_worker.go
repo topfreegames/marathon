@@ -40,6 +40,8 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
+const nameCreateBatchesFromFilters = "create_batches_using_filters_worker"
+
 // CreateBatchesFromFiltersWorker is the CreateBatchesUsingFiltersWorker struct
 type CreateBatchesFromFiltersWorker struct {
 	Logger                    zap.Logger
@@ -173,6 +175,7 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 	for page := range c {
 		users := b.getPageFromDBWithFilters(job, page)
 		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)))
+		b.Workers.Statsd.Incr("process_pages", []string{GetPushDBTableName(job.App.Name, job.Service)}, 1)
 		wgCSV.Add(1)
 		writeToCSVCH <- users
 		wg.Done()
@@ -185,6 +188,7 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
+		b.Workers.Statsd.Incr("write_user_page_into_csv", []string{}, 1)
 		for _, user := range *users {
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
@@ -243,17 +247,22 @@ func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPat
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) {
+func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) error {
 	folder := b.Config.GetString("s3.folder")
 	bucket := b.Config.GetString("s3.bucket")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	b.Logger.Info("uploading file to s3", zap.String("path", writePath))
 	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, csvBytes)
-	checkErr(b.Logger, err)
+	if err != nil {
+		return err
+	}
 	b.updateJobCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
 	jid, err := b.Workers.CreateBatchesJob(&[]string{job.ID.String()})
-	checkErr(b.Logger, err)
+	if err != nil {
+		return err
+	}
 	b.Logger.Info("created create batches job", zap.String("jid", jid))
+	return nil
 }
 
 // Process processes the messages sent to worker queue
@@ -266,41 +275,57 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	l := b.Logger.With(
 		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
+		zap.String("worker", nameCreateBatchesFromFilters),
 	)
-	l.Info("starting create_batches_using_filters_worker")
+	l.Info("starting")
+
 	job := &model.Job{
 		ID: id,
 	}
+	job.TagRunning(b.MarathonDB, nameCreateBatchesFromFilters, "starting")
 	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	checkErr(l, err)
+	if err != nil {
+		job.TagError(b.MarathonDB, nameCreateBatchesFromFilters, err.Error())
+		return
+	}
 	if job.Status == stoppedJobStatus {
-		l.Info("stopped job create_batches_using_filters_worker")
+		l.Info("stopped job")
 		return
 	}
 
 	processStats, err := NewStageStatus(b.RedisClient, job.ID.String(),
 		"1", "create batches from filter worker", 1)
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
 
 	createBatchStats, err := processStats.NewSubStage(
 		"creating batches from filters", 1)
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 
 	err = b.createBatchesFromFilters(job, &csvWriter, createBatchStats)
-	checkErr(l, err)
+	b.checkErr(job, err)
 	createBatchStats.IncrProgress()
 
 	uploadCSVStats, err := processStats.NewSubStage("uploading csv to s3", 1)
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 
 	csvBytes := csvBuffer.Bytes()
-	b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
-	l.Info("finished create_batches_using_filters_worker")
-	err = uploadCSVStats.IncrProgress()
-	checkErr(l, err)
+	err = b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
+	b.checkErr(job, err)
 
+	l.Info("finished")
+	err = uploadCSVStats.IncrProgress()
+	b.checkErr(job, err)
+
+	job.TagSuccess(b.MarathonDB, nameCreateBatchesFromFilters, "finished")
 	processStats.IncrProgress()
+}
+
+func (b *CreateBatchesFromFiltersWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.MarathonDB, nameCreateBatchesFromFilters, err.Error())
+		checkErr(b.Logger, err)
+	}
 }
