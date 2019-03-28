@@ -28,6 +28,7 @@ import (
 	"io"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	workers "github.com/jrallison/go-workers"
@@ -125,7 +126,11 @@ func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job
 		query = fmt.Sprintf("SELECT user_id FROM %s WHERE seq_id > %d ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.Offset, limit)
 	}
 	var users []User
+	start := time.Now()
 	_, err := b.PushDB.DB.Query(&users, query)
+	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+	b.Workers.Statsd.Timing("get_page_with_filters", time.Now().Sub(start), labels, 1)
+
 	checkErr(b.Logger, err)
 	return &users
 }
@@ -174,8 +179,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageSt
 func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	for page := range c {
 		users := b.getPageFromDBWithFilters(job, page)
-		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)))
-		b.Workers.Statsd.Incr("process_pages", []string{GetPushDBTableName(job.App.Name, job.Service)}, 1)
+		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)), zap.Int("Offset", page.Offset))
+		labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+		b.Workers.Statsd.Incr("process_pages", labels, 1)
 		wgCSV.Add(1)
 		writeToCSVCH <- users
 		wg.Done()
@@ -185,10 +191,11 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
 	(*csvWriter).Write([]byte("userIds\n"))
 	for users := range c {
-		b.Workers.Statsd.Incr("write_user_page_into_csv", []string{}, 1)
+		labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+		b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
 		for _, user := range *users {
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
@@ -224,7 +231,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 		"writing to csv", pageCount)
 	checkErr(b.Logger, err)
 
-	go b.writeUserPageIntoCSV(csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
+	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
 	for i := 0; i < pageCount; i++ {
 		pageCH <- DBPage{
 			Page:   pages[i].Page,
