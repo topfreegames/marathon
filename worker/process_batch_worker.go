@@ -141,7 +141,7 @@ func (batchWorker *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, erro
 	job := model.Job{
 		ID: jobID,
 	}
-	err := batchWorker.MarathonDB.DB.Select(&job)
+	err := batchWorker.MarathonDB.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	return &job, err
 }
 
@@ -249,7 +249,6 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 		zap.String("worker", nameProcessBatchWorker),
 	)
 	log.I(l, "starting")
-	batchWorker.Workers.Statsd.Incr("starting_process_batch_worker", []string{}, 1)
 	arr, err := message.Args().Array()
 	checkErr(l, err)
 	parsed, err := ParseProcessBatchWorkerMessageArray(arr)
@@ -259,6 +258,8 @@ func (batchWorker *ProcessBatchWorker) Process(message *workers.Msg) {
 	job, err := batchWorker.getJob(parsed.JobID)
 	batchWorker.checkErrWithReEnqueue(parsed, l, err)
 	log.D(l, "Retrieved job successfully.")
+	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+	batchWorker.Workers.Statsd.Incr("starting_process_batch_worker", labels, 1)
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")

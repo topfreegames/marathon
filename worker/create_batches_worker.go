@@ -178,7 +178,10 @@ func (b *CreateBatchesWorker) computeTotalTokensAndBatchesSent(c <-chan *SentBat
 
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
 	var users []User
+	start := time.Now()
 	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz, fiu, adid, vendor_id FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
+	labels := []string{fmt.Sprintf("game:%s", appName), fmt.Sprintf("platform:%s", service)}
+	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), labels, 1)
 	checkErr(b.Logger, err)
 	return &users
 }
