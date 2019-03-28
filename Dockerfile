@@ -26,7 +26,7 @@ MAINTAINER TFG Co <backend@tfgco.com>
 RUN apk update
 RUN apk add make git g++ bash python wget pkgconfig
 
-ENV LIBRDKAFKA_VERSION 0.11.4
+ENV LIBRDKAFKA_VERSION 0.11.6
 RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
     tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
     cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
