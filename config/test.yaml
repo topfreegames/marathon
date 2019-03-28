@@ -49,7 +49,7 @@ workers:
     concurrency: 10
     maxBatchFailure: 0.05
     maxUserFailureInBatch: 0.05
-    waitToScheduleJobCompletedJob: 10m
+    intervalToSendCompletedJob: 10m
   redis:
     poolSize: 10
     host: localhost
