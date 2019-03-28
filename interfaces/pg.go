@@ -23,6 +23,7 @@
 package interfaces
 
 import (
+	pg "gopkg.in/pg.v5"
 	"gopkg.in/pg.v5/orm"
 	"gopkg.in/pg.v5/types"
 )
@@ -38,5 +39,6 @@ type DB interface {
 	Exec(query interface{}, params ...interface{}) (*types.Result, error)
 	ExecOne(query interface{}, params ...interface{}) (*types.Result, error)
 	Query(coll, query interface{}, params ...interface{}) (*types.Result, error)
+	Begin() (*pg.Tx, error)
 	Close() error
 }
