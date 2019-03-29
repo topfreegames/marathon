@@ -20,18 +20,16 @@
 package worker_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -41,7 +39,6 @@ import (
 var _ = Describe("CreateBatches Worker", func() {
 	var app *model.App
 	var template *model.Template
-	var fakeS3 s3iface.S3API
 	var context map[string]interface{}
 
 	config := GetConf()
@@ -53,7 +50,7 @@ var _ = Describe("CreateBatches Worker", func() {
 	createBatchesWorker := worker.NewCreateBatchesWorker(config, logger, w)
 
 	BeforeEach(func() {
-		fakeS3 = NewFakeS3()
+		fakeS3 := NewFakeS3(createBatchesWorker.Config)
 		createBatchesWorker.S3Client = fakeS3
 		fakeData1 := []byte(`userids
 9e558649-9c23-469d-a11c-59b05813e3d5
@@ -70,7 +67,9 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 		fakeData3 := []byte(`userids
 e78431ca-69a8-4326-af1f-48f817a4a669
 ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
-		fakeData4 := []byte("remoteplayeridb00b2bf9-9999-4be9-bdbd-cf0dbbd82cb26ce8a64f-c888-48c4-a040-f24ca7a71714")
+		fakeData4 := []byte(`remoteplayerid
+b00b2bf9-9999-4be9-bdbd-cf0dbbd82cb2
+6ce8a64f-c888-48c4-a040-f24ca7a71714`)
 		fakeData5 := []byte(`userids
 7ae62ce6-94fb-4636-9484-05bae4398505
 9e3dfdf8-5991-4609-82ba-258ed2a78504
@@ -82,11 +81,11 @@ f57a0010-1318-4997-9a92-dcfb8ca0f24a
 a04087d6-4d95-4d99-901f-a1ff8578a2bf
 5146be6c-ffda-401c-8721-3c43c7370872
 dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
-		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj1.csv", &fakeData1)
-		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj2.csv", &fakeData2)
-		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj3.csv", &fakeData3)
-		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj4.csv", &fakeData4)
-		extensions.S3PutObject(createBatchesWorker.Config, createBatchesWorker.S3Client, "test/jobs/obj5.csv", &fakeData5)
+		fakeS3.PutObject("test/jobs/obj1.csv", &fakeData1)
+		fakeS3.PutObject("test/jobs/obj2.csv", &fakeData2)
+		fakeS3.PutObject("test/jobs/obj3.csv", &fakeData3)
+		fakeS3.PutObject("test/jobs/obj4.csv", &fakeData4)
+		fakeS3.PutObject("test/jobs/obj5.csv", &fakeData5)
 		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -153,7 +152,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj2.csv",
+				"csvPath": "test/jobs/obj2.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -163,16 +162,16 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
-			// Expect(func() {
-			createBatchesWorker.Process(msg)
-			//  }).ShouldNot(Panic())
+			Expect(func() {
+				createBatchesWorker.Process(msg)
+			}).ShouldNot(Panic())
 		})
 
 		It("should work if CSV is from Excel/Windows", func() {
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj4.csv",
+				"csvPath": "test/jobs/obj4.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -190,7 +189,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			_, err := createBatchesWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
@@ -212,7 +211,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -249,7 +248,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
-				"csvPath":      "tfg-push-notifications/test/jobs/obj5.csv",
+				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.2,
 			})
 			m := map[string]interface{}{
@@ -279,7 +278,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
-				"csvPath":      "tfg-push-notifications/test/jobs/obj5.csv",
+				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.4,
 			})
 			m := map[string]interface{}{
@@ -309,7 +308,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
-				"csvPath":      "tfg-push-notifications/test/jobs/obj5.csv",
+				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.4,
 			})
 			m := map[string]interface{}{
@@ -320,14 +319,10 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesWorker.Config.GetString("s3.bucket")
-			key := fmt.Sprintf("%s/job-%s.csv", createBatchesWorker.Config.GetString("s3.controlGroupFolder"), j.ID)
-			controlGroupCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			key := fmt.Sprintf("%s/job-%s.csv", createBatchesWorker.Config.GetString("s3.controlGroupFolder"), j.ID.String())
+			controlGroupCSV, err := createBatchesWorker.S3Client.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(controlGroupCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(controlGroupCSV))
 			Expect(len(lines)).To(Equal(5)) //5 -> header + 4 control group userIds
 
 			dbJob := &model.Job{
@@ -335,7 +330,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			}
 			err = createBatchesWorker.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dbJob.ControlGroupCSVPath).To(Equal(fmt.Sprintf("%s/%s", bucket, key)))
+			Expect(dbJob.ControlGroupCSVPath).To(Equal(fmt.Sprintf("%s/%s", createBatchesWorker.Config.GetString("s3.bucket"), key)))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if numPushes < dbPageSize", func() {
@@ -344,7 +339,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -382,7 +377,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":          context,
 				"filters":          map[string]interface{}{},
-				"csvPath":          "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath":          "test/jobs/obj1.csv",
 				"localized":        true,
 				"startsAt":         time.Now().UTC().Add(-12 * time.Hour).UnixNano(),
 				"pastTimeStrategy": "skip",
@@ -405,7 +400,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":          context,
 				"filters":          map[string]interface{}{},
-				"csvPath":          "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath":          "test/jobs/obj1.csv",
 				"localized":        true,
 				"startsAt":         time.Now().UTC().Add(time.Duration(-6) * time.Hour).UnixNano(),
 				"pastTimeStrategy": "nextDay",
@@ -435,7 +430,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":   context,
 				"filters":   map[string]interface{}{},
-				"csvPath":   "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath":   "test/jobs/obj1.csv",
 				"localized": true,
 				"startsAt":  time.Now().UTC().Add(12 * time.Hour).UnixNano(),
 			})
@@ -466,7 +461,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{
 					"locale": "pt,en",
 				},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -503,7 +498,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 				"service": "gcm",
 			})
 			m := map[string]interface{}{
@@ -541,7 +536,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 				"service": "gcm",
 			})
 			m := map[string]interface{}{
@@ -581,7 +576,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -601,7 +596,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			createBatchesWorker.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
 			m := map[string]interface{}{
@@ -622,7 +617,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -643,7 +638,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
@@ -666,7 +661,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -688,7 +683,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj1.csv",
+				"csvPath": "test/jobs/obj1.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -709,7 +704,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+				"csvPath": "test/jobs/obj3.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  3,
@@ -731,7 +726,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj3.csv",
+				"csvPath": "test/jobs/obj3.csv",
 			})
 			_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
@@ -754,7 +749,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
-				"csvPath": "tfg-push-notifications/test/jobs/obj2.csv",
+				"csvPath": "test/jobs/obj2.csv",
 			})
 			m := map[string]interface{}{
 				"jid":  2,
@@ -776,12 +771,12 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 	Describe("Read CSV from S3", func() {
 		It("should return correct array from Unix csv data", func() {
-			res := createBatchesWorker.ReadCSVFromS3("tfg-push-notifications/test/jobs/obj3.csv")
+			res := createBatchesWorker.ReadCSVFromS3("test/jobs/obj3.csv")
 			Expect(res).To(HaveLen(2))
 		})
 
 		It("should return correct array from DOS csv data", func() {
-			res := createBatchesWorker.ReadCSVFromS3("tfg-push-notifications/test/jobs/obj4.csv")
+			res := createBatchesWorker.ReadCSVFromS3("test/jobs/obj4.csv")
 			Expect(res).To(HaveLen(2))
 		})
 	})

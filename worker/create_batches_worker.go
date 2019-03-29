@@ -35,12 +35,12 @@ import (
 	"gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -58,7 +58,7 @@ type CreateBatchesWorker struct {
 	PageProcessingConcurrency int
 	PushDB                    *extensions.PGClient
 	RedisClient               *redis.Client
-	S3Client                  s3iface.S3API
+	S3Client                  interfaces.S3
 	SendgridClient            *extensions.SendgridClient
 	Workers                   *Worker
 }
@@ -134,7 +134,7 @@ func (b *CreateBatchesWorker) configureDatabases() {
 
 // ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
 func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
-	csvFileBytes, err := extensions.S3GetObject(b.S3Client, csvPath)
+	csvFileBytes, err := b.S3Client.GetObject(csvPath)
 	checkErr(b.Logger, err)
 	for i, b := range csvFileBytes {
 		if b == 0x0D {
@@ -252,8 +252,8 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 }
 
 func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup []string) {
-	bucket := b.Config.GetString("s3.bucket")
 	folder := b.Config.GetString("s3.controlGroupFolder")
+	bucket := b.Config.GetString("s3.bucket")
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
 	csvWriter.Write([]byte("controlGroupUserIds\n"))
@@ -262,7 +262,7 @@ func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup 
 	}
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	csvBytes := csvBuffer.Bytes()
-	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, &csvBytes)
+	_, err := b.S3Client.PutObject(writePath, &csvBytes)
 	checkErr(b.Logger, err)
 	b.updateJobControlGroupCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
 }

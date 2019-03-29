@@ -30,11 +30,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 	"github.com/willf/bloom"
@@ -51,7 +51,7 @@ type CreateBatchesFromFiltersWorker struct {
 	Workers                   *Worker
 	Config                    *viper.Viper
 	DBPageSize                int
-	S3Client                  s3iface.S3API
+	S3Client                  interfaces.S3
 	PageProcessingConcurrency int
 	RedisClient               *redis.Client
 }
@@ -266,14 +266,13 @@ func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPat
 
 func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) error {
 	folder := b.Config.GetString("s3.folder")
-	bucket := b.Config.GetString("s3.bucket")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	b.Logger.Info("uploading file to s3", zap.String("path", writePath))
-	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, csvBytes)
+	_, err := b.S3Client.PutObject(writePath, csvBytes)
 	if err != nil {
 		return err
 	}
-	b.updateJobCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
+	b.updateJobCSVPath(job, writePath)
 	jid, err := b.Workers.CreateBatchesJob(&[]string{job.ID.String()})
 	if err != nil {
 		return err

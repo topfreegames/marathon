@@ -20,11 +20,11 @@
 package worker_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/s3"
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -103,13 +103,9 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			fakeS3 := NewFakeS3()
-			_, err = fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
+			_, err = fakeS3.GetObject(key)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("NoSuchKey: The specified key does not exist. status code: 404"))
 		})
@@ -123,7 +119,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 				template.Name,
 				map[string]interface{}{"filters": map[string]interface{}{"locale": "en"}},
 			)
-			createBatchesFromFiltersWorker.S3Client = NewFakeS3()
+			createBatchesFromFiltersWorker.S3Client = NewFakeS3(createBatchesFromFiltersWorker.Config)
 			m := map[string]interface{}{
 				"jid":  4,
 				"args": []string{j.ID.String()},
@@ -137,7 +133,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 
 		It("should not panic if job.ID is valid and filters are not empty", func() {
 			a := CreateTestApp(createBatchesFromFiltersWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			createBatchesFromFiltersWorker.S3Client = NewFakeS3()
+			createBatchesFromFiltersWorker.S3Client = NewFakeS3(createBatchesFromFiltersWorker.Config)
 			j := CreateTestJob(createBatchesFromFiltersWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
@@ -162,7 +158,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"locale": "n",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -182,7 +178,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"locale": "en",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -193,14 +189,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(5))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("57be9009-e616-42c6-9cfe-505508ede2d0"))
@@ -216,7 +208,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"locale": "en,pt",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -227,14 +219,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(11))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("57be9009-e616-42c6-9cfe-505508ede2d0"))
@@ -257,7 +245,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"tz": "-0500,-0800",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -268,14 +256,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(10))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("5c3033c0-24ad-487a-a80d-68432464c8de"))
@@ -295,7 +279,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"locale": "pt",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -306,14 +290,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(7))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("9e558649-9c23-469d-a11c-59b05813e3d5"))
@@ -331,7 +311,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"locale": "au",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -342,14 +322,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(2))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("843a61f8-45b3-44f9-9ab7-8becb3365653"))
@@ -363,7 +339,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 					"tz":     "-0300",
 				},
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -374,14 +350,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(5))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("9e558649-9c23-469d-a11c-59b05813e3d5"))
@@ -399,7 +371,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 				},
 				"service": "gcm",
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -410,14 +382,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-			generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-				Bucket: &bucket,
-				Key:    &key,
-			})
+			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(generatedCSV.Body)
+			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 			Expect(len(lines)).To(Equal(5))
 			Expect(lines).To(ContainElement("userIds"))
 			Expect(lines).To(ContainElement("9e558649-9c23-469d-a11c-59b05000e3d5"))
@@ -435,7 +403,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 				},
 				"service": "gcm",
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -446,14 +414,13 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
 			dbJob := &model.Job{
 				ID: j.ID,
 			}
 			err = createBatchesFromFiltersWorker.MarathonDB.DB.Model(&dbJob).Column("csv_path").Where("id = ?", j.ID.String()).Select()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dbJob.CSVPath).To(Equal(fmt.Sprintf("%s/%s", bucket, key)))
+			Expect(dbJob.CSVPath).To(Equal(key))
 		})
 
 		It("should enqueue a createBatchesWorker with the right jobID", func() {
@@ -465,7 +432,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 				},
 				"service": "gcm",
 			})
-			fakeS3 := NewFakeS3()
+			fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 			createBatchesFromFiltersWorker.S3Client = fakeS3
 			m := map[string]interface{}{
 				"jid":  6,
@@ -495,7 +462,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			},
 			"service": "apns",
 		})
-		fakeS3 := NewFakeS3()
+		fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 		createBatchesFromFiltersWorker.S3Client = fakeS3
 		m := map[string]interface{}{
 			"jid":  7,
@@ -506,14 +473,10 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 		msg, err := workers.NewMsg(string(smsg))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-		bucket := createBatchesFromFiltersWorker.Config.GetString("s3.bucket")
 		key := fmt.Sprintf("%s/job-%s.csv", createBatchesFromFiltersWorker.Config.GetString("s3.folder"), j.ID)
-		generatedCSV, err := fakeS3.GetObject(&s3.GetObjectInput{
-			Bucket: &bucket,
-			Key:    &key,
-		})
+		generatedCSV, err := fakeS3.GetObject(key)
 		Expect(err).NotTo(HaveOccurred())
-		lines := ReadLinesFromIOReader(generatedCSV.Body)
+		lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
 		Expect(len(lines)).To(Equal(4))
 	})
 
@@ -524,7 +487,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 				"locale": "en",
 			},
 		})
-		fakeS3 := NewFakeS3()
+		fakeS3 := NewFakeS3(createBatchesFromFiltersWorker.Config)
 		createBatchesFromFiltersWorker.S3Client = fakeS3
 		m := map[string]interface{}{
 			"jid":  6,

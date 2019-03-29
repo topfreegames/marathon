@@ -39,7 +39,6 @@ import (
 	"gopkg.in/pg.v5/types"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/onsi/gomega"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/api"
@@ -235,8 +234,8 @@ func (m *PGMock) Delete(params interface{}) error {
 
 // FakeS3 for usage in tests
 type FakeS3 struct {
-	s3iface.S3API
-	FakeStorage *map[string][]byte
+	fakeStorage map[string][]byte
+	conf        *viper.Viper
 }
 
 // MyReaderCloser for usage in tests
@@ -265,32 +264,46 @@ func RedisReplyToBytes(reply interface{}, err error) ([]byte, error) {
 	return nil, fmt.Errorf("unexpected type for Bytes, got type %T", reply)
 }
 
-// GetObject for usage in tests
-func (s *FakeS3) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
-	if val, ok := (*s.FakeStorage)[fmt.Sprintf("%s/%s", *input.Bucket, *input.Key)]; ok {
-		reader := bytes.NewReader(val)
-		return &s3.GetObjectOutput{
-			Body: MyReaderCloser{reader},
-		}, nil
+// NewFakeS3 creates a new FakeS3
+func NewFakeS3(conf *viper.Viper) *FakeS3 {
+	return &FakeS3{
+		fakeStorage: map[string][]byte{},
+		conf:        conf,
+	}
+}
+
+// InitMultipartUpload ...
+func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
+	return nil, nil
+}
+
+// PutObject ...
+func (s *FakeS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
+	bucket := s.conf.GetString("s3.bucket")
+	fullPath := fmt.Sprintf("%s/%s", bucket, path)
+	s.fakeStorage[fullPath] = *body
+	return &s3.PutObjectOutput{}, nil
+}
+
+// GetObject ...
+func (s *FakeS3) GetObject(path string) ([]byte, error) {
+	bucket := s.conf.GetString("s3.bucket")
+	fullPath := fmt.Sprintf("%s/%s", bucket, path)
+	if val, ok := s.fakeStorage[fullPath]; ok {
+		return val, nil
 	}
 	return nil, fmt.Errorf("NoSuchKey: The specified key does not exist. status code: 404, request id: 000000000000TEST")
 }
 
-// NewFakeS3 creates a new FakeS3
-func NewFakeS3() *FakeS3 {
-	return &FakeS3{
-		FakeStorage: &map[string][]byte{},
-	}
+// UploadPart ...
+func (s *FakeS3) UploadPart(stream io.Reader, multipartUpload *s3.CreateMultipartUploadOutput,
+	partNumber int64) (*s3.UploadPartOutput, error) {
+	return nil, nil
 }
 
-// PutObject for using in tests
-func (s *FakeS3) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-	b, err := ioutil.ReadAll(input.Body)
-	if err != nil {
-		return nil, err
-	}
-	(*s.FakeStorage)[fmt.Sprintf("%s/%s", *input.Bucket, *input.Key)] = b
-	return &s3.PutObjectOutput{}, nil
+// PutObjectRequest ...
+func (s *FakeS3) PutObjectRequest(path string) (string, error) {
+	return "", nil
 }
 
 // ReadLinesFromIOReader for testing

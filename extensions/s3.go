@@ -24,9 +24,7 @@ package extensions
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,11 +33,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
 )
 
+// AmazonS3 ...
+type AmazonS3 struct {
+	client *s3.S3
+	logger zap.Logger
+	conf   *viper.Viper
+}
+
 //NewS3 client with the specified configuration
-func NewS3(conf *viper.Viper, logger zap.Logger) (s3iface.S3API, error) {
+func NewS3(conf *viper.Viper, logger zap.Logger) (interfaces.S3, error) {
 	region := conf.GetString("s3.region")
 	accessKey := conf.GetString("s3.accessKey")
 	secretAccessKey := conf.GetString("s3.secretAccessKey")
@@ -52,39 +58,40 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (s3iface.S3API, error) {
 		return nil, err
 	}
 	logger.Debug("configured s3 extensions", zap.String("region", region))
-	svc := s3.New(sess)
-	s3 := s3iface.S3API(svc)
-	return s3, nil
+	return &AmazonS3{
+		client: s3.New(sess),
+		logger: logger,
+		conf:   conf,
+	}, nil
 }
 
-func streamToByte(stream *io.ReadCloser) []byte {
+func streamToByte(stream io.Reader) []byte {
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(*stream)
+	buf.ReadFrom(stream)
 	return buf.Bytes()
 }
 
-//S3GetObject gets an object from s3
-func S3GetObject(client s3iface.S3API, path string) ([]byte, error) {
-	splittedString := strings.SplitN(path, "/", 2)
-	if len(splittedString) < 2 {
-		return nil, fmt.Errorf("Invalid path")
-	}
-	bucket := splittedString[0]
-	objKey := splittedString[1]
+// GetObject gets an object from s3
+//
+func (am *AmazonS3) GetObject(path string) ([]byte, error) {
+	client := s3iface.S3API(am.client)
+	bucket := am.conf.GetString("s3.bucket")
+
 	params := &s3.GetObjectInput{
 		Bucket: &bucket,
-		Key:    &objKey,
+		Key:    &path,
 	}
 	resp, err := client.GetObject(params)
 	if err != nil {
 		return nil, err
 	}
-	return streamToByte(&resp.Body), nil
+	return streamToByte(resp.Body), nil
 }
 
-//S3PutObject puts an object into s3
-func S3PutObject(conf *viper.Viper, client s3iface.S3API, path string, body *[]byte) error {
-	bucket := conf.GetString("s3.bucket")
+// PutObject puts an object into s3.
+func (am *AmazonS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
+	client := s3iface.S3API(am.client)
+	bucket := am.conf.GetString("s3.bucket")
 	//b := aws.ReadSeekCloser(*body)
 	b := bytes.NewReader(*body)
 	params := &s3.PutObjectInput{
@@ -92,21 +99,16 @@ func S3PutObject(conf *viper.Viper, client s3iface.S3API, path string, body *[]b
 		Key:    &path,
 		Body:   b,
 	}
-	_, err := client.PutObject(params)
-	if err != nil {
-		return err
-	}
-	return nil
+	return client.PutObject(params)
 }
 
-// S3PutObjectRequest return a presigned url for uploading a file to s3
-func S3PutObjectRequest(conf *viper.Viper, client s3iface.S3API, key string) (string, error) {
-	bucket := conf.GetString("s3.bucket")
-	folder := conf.GetString("s3.folder")
-	objKey := fmt.Sprintf("%s/%s", folder, key)
+// PutObjectRequest return a presigned url for uploading a file to s3
+func (am *AmazonS3) PutObjectRequest(path string) (string, error) {
+	client := s3iface.S3API(am.client)
+	bucket := am.conf.GetString("s3.bucket")
 	params := &s3.PutObjectInput{
 		Bucket: &bucket,
-		Key:    &objKey,
+		Key:    &path,
 	}
 	req, _ := client.PutObjectRequest(params)
 	url, err := req.Presign(300 * time.Second)
@@ -114,4 +116,35 @@ func S3PutObjectRequest(conf *viper.Viper, client s3iface.S3API, key string) (st
 		return "", err
 	}
 	return url, nil
+}
+
+// InitMultipartUpload build obeject to send multipart
+func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
+	bucket := am.conf.GetString("s3.bucket")
+
+	multiUpInput := &s3.CreateMultipartUploadInput{
+		Bucket: &bucket,
+		Key:    &path,
+	}
+	return am.client.CreateMultipartUpload(multiUpInput)
+}
+
+// UploadPart ...
+func (am *AmazonS3) UploadPart(stream io.Reader, multipartUpload *s3.CreateMultipartUploadOutput,
+	partNumber int64) (*s3.UploadPartOutput, error) {
+	bucket := am.conf.GetString("s3.bucket")
+
+	bytess := streamToByte(stream)
+	var partNumberTemp, lenTemp int64
+	partNumber = int64(partNumber)
+	lenTemp = int64(len(bytess))
+	upPartInput := &s3.UploadPartInput{
+		Body:          bytes.NewReader(bytess),
+		Bucket:        &bucket,
+		Key:           multipartUpload.Key,
+		PartNumber:    &partNumberTemp,
+		UploadId:      multipartUpload.UploadId,
+		ContentLength: &lenTemp,
+	}
+	return am.client.UploadPart(upPartInput)
 }
