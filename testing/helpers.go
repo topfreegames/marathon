@@ -158,6 +158,11 @@ func (m *PGMock) Close() error {
 	return nil
 }
 
+// Begin trasaction mock
+func (m *PGMock) Begin() (*pg.Tx, error) {
+	return nil, nil
+}
+
 //Exec stores executed params
 func (m *PGMock) Exec(obj interface{}, params ...interface{}) (*types.Result, error) {
 	op := []interface{}{
