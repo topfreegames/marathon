@@ -23,8 +23,8 @@
 package interfaces
 
 import (
+	"bytes"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"io"
 )
 
 // S3 represents the contract for a amazom S3
@@ -32,7 +32,8 @@ type S3 interface {
 	InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error)
 	PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error)
 	GetObject(path string) ([]byte, error)
-	UploadPart(stream io.Reader, multipartUpload *s3.CreateMultipartUploadOutput,
+	UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 		partNumber int64) (*s3.UploadPartOutput, error)
 	PutObjectRequest(path string) (string, error)
+	CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error
 }

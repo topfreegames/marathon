@@ -25,11 +25,11 @@ package worker
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"math"
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
@@ -38,6 +38,7 @@ import (
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 	"github.com/willf/bloom"
+
 	redis "gopkg.in/redis.v5"
 )
 
@@ -201,15 +202,38 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
-	(*csvWriter).Write([]byte("userIds\n"))
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
+	part := int64(1)
+	folder := b.Config.GetString("s3.folder")
+	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
+	uploader, err := b.S3Client.InitMultipartUpload(writePath)
+	checkErr(b.Logger, err)
+
+	var buffer *bytes.Buffer
+	buffer = bytes.NewBufferString("userIds\n")
+	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+
+	var completeParts []*s3.CompletedPart
+
 	for users := range c {
-		labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-		b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
+
 		for _, user := range *users {
+
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
-				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
+				buffer.WriteString(fmt.Sprintf("%s\n", user.UserID))
 				bFilter.AddString(user.UserID)
+			}
+			if buffer.Len() >= 1024*1024*50 { // 50 mb
+				tmpPart := int64(part)
+				b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
+				completePart, err := b.S3Client.UploadPart(buffer, uploader, tmpPart)
+				checkErr(b.Logger, err)
+				completeParts = append(completeParts, &s3.CompletedPart{
+					ETag:       completePart.ETag,
+					PartNumber: &tmpPart,
+				})
+				buffer = bytes.NewBufferString("")
+				part++
 			}
 		}
 		wgCSV.Done()
@@ -217,9 +241,21 @@ func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c 
 		err := stageStatus.IncrProgress()
 		checkErr(b.Logger, err)
 	}
+	if buffer.Len() > 0 {
+		tmpPart := int64(part)
+		completePart, err := b.S3Client.UploadPart(buffer, uploader, tmpPart)
+		checkErr(b.Logger, err)
+		completeParts = append(completeParts, &s3.CompletedPart{
+			ETag:       completePart.ETag,
+			PartNumber: &tmpPart,
+		})
+	}
+
+	err = b.S3Client.CompleteMultipartUpload(uploader, completeParts)
+	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, csvWriter *io.Writer, stageStatus *StageStatus) error {
+func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, stageStatus *StageStatus) error {
 	pages, pageCount, usersCount := b.preprocessPages(job, stageStatus)
 	var wg sync.WaitGroup
 	var wgCSV sync.WaitGroup
@@ -241,7 +277,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 		"writing to csv", pageCount)
 	checkErr(b.Logger, err)
 
-	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
+	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, &wgCSV, writeCSVStats)
 	for i := 0; i < pageCount; i++ {
 		pageCH <- DBPage{
 			Page:   pages[i].Page,
@@ -264,14 +300,9 @@ func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPat
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) error {
+func (b *CreateBatchesFromFiltersWorker) createCreateBatchesJob(job *model.Job) error {
 	folder := b.Config.GetString("s3.folder")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
-	b.Logger.Info("uploading file to s3", zap.String("path", writePath))
-	_, err := b.S3Client.PutObject(writePath, csvBytes)
-	if err != nil {
-		return err
-	}
 	b.updateJobCSVPath(job, writePath)
 	jid, err := b.Workers.CreateBatchesJob(&[]string{job.ID.String()})
 	if err != nil {
@@ -313,22 +344,18 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 		"1", "create batches from filter worker", 1)
 	b.checkErr(job, err)
 
-	csvBuffer := &bytes.Buffer{}
-	csvWriter := io.Writer(csvBuffer)
-
 	createBatchStats, err := processStats.NewSubStage(
 		"creating batches from filters", 1)
 	b.checkErr(job, err)
 
-	err = b.createBatchesFromFilters(job, &csvWriter, createBatchStats)
+	err = b.createBatchesFromFilters(job, createBatchStats)
 	b.checkErr(job, err)
 	createBatchStats.IncrProgress()
 
 	uploadCSVStats, err := processStats.NewSubStage("uploading csv to s3", 1)
 	b.checkErr(job, err)
 
-	csvBytes := csvBuffer.Bytes()
-	err = b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
+	err = b.createCreateBatchesJob(job)
 	b.checkErr(job, err)
 
 	l.Info("finished")

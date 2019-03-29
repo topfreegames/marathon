@@ -121,7 +121,6 @@ func (am *AmazonS3) PutObjectRequest(path string) (string, error) {
 // InitMultipartUpload build obeject to send multipart
 func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
 	bucket := am.conf.GetString("s3.bucket")
-
 	multiUpInput := &s3.CreateMultipartUploadInput{
 		Bucket: &bucket,
 		Key:    &path,
@@ -130,16 +129,15 @@ func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadO
 }
 
 // UploadPart ...
-func (am *AmazonS3) UploadPart(stream io.Reader, multipartUpload *s3.CreateMultipartUploadOutput,
+func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
 	bucket := am.conf.GetString("s3.bucket")
 
-	bytess := streamToByte(stream)
 	var partNumberTemp, lenTemp int64
-	partNumber = int64(partNumber)
-	lenTemp = int64(len(bytess))
+	partNumberTemp = int64(partNumber)
+	lenTemp = int64(input.Len())
 	upPartInput := &s3.UploadPartInput{
-		Body:          bytes.NewReader(bytess),
+		Body:          bytes.NewReader(input.Bytes()),
 		Bucket:        &bucket,
 		Key:           multipartUpload.Key,
 		PartNumber:    &partNumberTemp,
@@ -147,4 +145,20 @@ func (am *AmazonS3) UploadPart(stream io.Reader, multipartUpload *s3.CreateMulti
 		ContentLength: &lenTemp,
 	}
 	return am.client.UploadPart(upPartInput)
+}
+
+// CompleteMultipartUpload ...
+func (am *AmazonS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
+	bucket := am.conf.GetString("s3.bucket")
+
+	completeInput := &s3.CompleteMultipartUploadInput{
+		Bucket:   &bucket,
+		Key:      multipartUpload.Key,
+		UploadId: multipartUpload.UploadId,
+		MultipartUpload: &s3.CompletedMultipartUpload{
+			Parts: parts,
+		},
+	}
+	_, err := am.client.CompleteMultipartUpload(completeInput)
+	return err
 }

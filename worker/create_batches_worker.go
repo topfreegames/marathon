@@ -134,6 +134,7 @@ func (b *CreateBatchesWorker) configureDatabases() {
 
 // ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
 func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
+	fmt.Println(">>>>>>", csvPath)
 	csvFileBytes, err := b.S3Client.GetObject(csvPath)
 	checkErr(b.Logger, err)
 	for i, b := range csvFileBytes {
