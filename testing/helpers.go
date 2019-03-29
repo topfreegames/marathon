@@ -235,6 +235,7 @@ func (m *PGMock) Delete(params interface{}) error {
 // FakeS3 for usage in tests
 type FakeS3 struct {
 	fakeStorage map[string][]byte
+	multipart   map[string]map[int64][]byte
 	conf        *viper.Viper
 }
 
@@ -269,12 +270,16 @@ func NewFakeS3(conf *viper.Viper) *FakeS3 {
 	return &FakeS3{
 		fakeStorage: map[string][]byte{},
 		conf:        conf,
+		multipart:   map[string]map[int64][]byte{},
 	}
 }
 
 // InitMultipartUpload ...
 func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
-	return nil, nil
+	tempPath := path
+	return &s3.CreateMultipartUploadOutput{
+		Key: &tempPath,
+	}, nil
 }
 
 // PutObject ...
@@ -296,14 +301,39 @@ func (s *FakeS3) GetObject(path string) ([]byte, error) {
 }
 
 // UploadPart ...
-func (s *FakeS3) UploadPart(stream io.Reader, multipartUpload *s3.CreateMultipartUploadOutput,
+func (s *FakeS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
-	return nil, nil
+
+	bucket := s.conf.GetString("s3.bucket")
+	fullPath := fmt.Sprintf("%s/%s", bucket, multipartUpload.Key)
+	if s.multipart[fullPath] == nil {
+		s.multipart[fullPath] = make(map[int64][]byte, 0)
+	}
+	s.multipart[fullPath][partNumber-1] = input.Bytes()
+
+	tempTag := "test"
+	return &s3.UploadPartOutput{
+		ETag: &tempTag,
+	}, nil
 }
 
 // PutObjectRequest ...
 func (s *FakeS3) PutObjectRequest(path string) (string, error) {
 	return "", nil
+}
+
+// CompleteMultipartUpload ...
+func (s *FakeS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
+	bucket := s.conf.GetString("s3.bucket")
+	fullPath := fmt.Sprintf("%s/%s", bucket, multipartUpload.Key)
+	buffer := bytes.NewBufferString("")
+
+	for _, b := range s.multipart[fullPath] {
+		buffer.Write(b)
+	}
+	bytesTemp := buffer.Bytes()
+	s.PutObject(*multipartUpload.Key, &bytesTemp)
+	return nil
 }
 
 // ReadLinesFromIOReader for testing

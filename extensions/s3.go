@@ -133,16 +133,14 @@ func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMu
 	partNumber int64) (*s3.UploadPartOutput, error) {
 	bucket := am.conf.GetString("s3.bucket")
 
-	var partNumberTemp, lenTemp int64
+	var partNumberTemp int64
 	partNumberTemp = int64(partNumber)
-	lenTemp = int64(input.Len())
 	upPartInput := &s3.UploadPartInput{
-		Body:          bytes.NewReader(input.Bytes()),
-		Bucket:        &bucket,
-		Key:           multipartUpload.Key,
-		PartNumber:    &partNumberTemp,
-		UploadId:      multipartUpload.UploadId,
-		ContentLength: &lenTemp,
+		Body:       bytes.NewReader(input.Bytes()),
+		Bucket:     &bucket,
+		Key:        multipartUpload.Key,
+		PartNumber: &partNumberTemp,
+		UploadId:   multipartUpload.UploadId,
 	}
 	return am.client.UploadPart(upPartInput)
 }

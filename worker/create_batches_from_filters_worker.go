@@ -26,6 +26,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sort"
 	"sync"
 	"time"
 
@@ -43,6 +44,12 @@ import (
 )
 
 const nameCreateBatchesFromFilters = "create_batches_using_filters_worker"
+
+type completedParts []*s3.CompletedPart
+
+func (a completedParts) Len() int           { return len(a) }
+func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a completedParts) Less(i, j int) bool { return *a[i].PartNumber < *a[j].PartNumber }
 
 // CreateBatchesFromFiltersWorker is the CreateBatchesUsingFiltersWorker struct
 type CreateBatchesFromFiltersWorker struct {
@@ -164,9 +171,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageSt
 	defer tx.Rollback()
 
 	if (whereClause) != "" {
-		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s WHERE %s ORDER BY seq_id;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
 	} else {
-		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s;", GetPushDBTableName(job.App.Name, job.Service))
+		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s ORDER BY seq_id;", GetPushDBTableName(job.App.Name, job.Service))
 	}
 	tx.Query(nil, query)
 
@@ -180,9 +187,6 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageSt
 		preProcessStats.IncrProgress()
 	}
 	tx.Commit()
-
-	_, err = b.MarathonDB.DB.Model(job).Set("total_tokens = ?", count).Where("id = ?", job.ID).Update()
-	checkErr(b.Logger, err)
 
 	return pages, pageCount, count
 }
@@ -202,7 +206,23 @@ func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCS
 	}
 }
 
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
+func (b *CreateBatchesFromFiltersWorker) uploadPart(completeParts *completedParts, uploader *s3.CreateMultipartUploadOutput,
+	part int64, mutex *sync.Mutex, buffer *bytes.Buffer, partsWait *sync.WaitGroup, labels []string) {
+	b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
+	tmpPart := int64(part)
+	completePart, err := b.S3Client.UploadPart(buffer, uploader, part)
+	checkErr(b.Logger, err)
+	mutex.Lock()
+	*completeParts = append(*completeParts, &s3.CompletedPart{
+		ETag:       completePart.ETag,
+		PartNumber: &tmpPart,
+	})
+	mutex.Unlock()
+	partsWait.Done()
+}
+
+func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter,
+	wgCSV *sync.WaitGroup, stageStatus *StageStatus, sendSync *sync.WaitGroup) {
 	part := int64(1)
 	folder := b.Config.GetString("s3.folder")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
@@ -213,27 +233,21 @@ func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c 
 	buffer = bytes.NewBufferString("userIds\n")
 	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
 
-	var completeParts []*s3.CompletedPart
+	var completeParts completedParts
+	var partsWait sync.WaitGroup
+	var mutex = &sync.Mutex{}
 
 	for users := range c {
-
 		for _, user := range *users {
-
 			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
 				buffer.WriteString(fmt.Sprintf("%s\n", user.UserID))
 				bFilter.AddString(user.UserID)
-			}
-			if buffer.Len() >= 1024*1024*50 { // 50 mb
-				tmpPart := int64(part)
-				b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
-				completePart, err := b.S3Client.UploadPart(buffer, uploader, tmpPart)
-				checkErr(b.Logger, err)
-				completeParts = append(completeParts, &s3.CompletedPart{
-					ETag:       completePart.ETag,
-					PartNumber: &tmpPart,
-				})
-				buffer = bytes.NewBufferString("")
-				part++
+				if buffer.Len() >= 1024*1024*10 { // 10 mb
+					partsWait.Add(1)
+					go b.uploadPart(&completeParts, uploader, part, mutex, buffer, &partsWait, labels)
+					buffer = bytes.NewBufferString("")
+					part++
+				}
 			}
 		}
 		wgCSV.Done()
@@ -242,23 +256,25 @@ func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c 
 		checkErr(b.Logger, err)
 	}
 	if buffer.Len() > 0 {
-		tmpPart := int64(part)
-		completePart, err := b.S3Client.UploadPart(buffer, uploader, tmpPart)
-		checkErr(b.Logger, err)
-		completeParts = append(completeParts, &s3.CompletedPart{
-			ETag:       completePart.ETag,
-			PartNumber: &tmpPart,
-		})
+		partsWait.Add(1)
+		go b.uploadPart(&completeParts, uploader, part, mutex, buffer, &partsWait, labels)
 	}
+
+	partsWait.Wait()
+
+	// Parts must be sorted in PartNumber order.
+	sort.Sort(completeParts)
 
 	err = b.S3Client.CompleteMultipartUpload(uploader, completeParts)
 	checkErr(b.Logger, err)
+	sendSync.Done()
 }
 
 func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, stageStatus *StageStatus) error {
 	pages, pageCount, usersCount := b.preprocessPages(job, stageStatus)
 	var wg sync.WaitGroup
 	var wgCSV sync.WaitGroup
+	var sendSync sync.WaitGroup
 	pageCH := make(chan DBPage, pageCount)
 	csvWriterCH := make(chan *[]User)
 	wg.Add(pageCount)
@@ -268,7 +284,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 	checkErr(b.Logger, err)
 
 	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV, processPageStatus)
+		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV, processPageStatus, pendingSends)
 	}
 	rate := 1E-8
 	bFilter := bloom.NewWithEstimates(uint(usersCount), rate)
@@ -277,7 +293,8 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 		"writing to csv", pageCount)
 	checkErr(b.Logger, err)
 
-	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, &wgCSV, writeCSVStats)
+	sendSync.Add(1)
+	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, &wgCSV, writeCSVStats, &sendSync)
 	for i := 0; i < pageCount; i++ {
 		pageCH <- DBPage{
 			Page:   pages[i].Page,
@@ -291,6 +308,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 	wgCSV.Wait()
 	close(pageCH)
 	close(csvWriterCH)
+	sendSync.Wait()
 	return nil
 }
 
@@ -300,7 +318,7 @@ func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPat
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesFromFiltersWorker) createCreateBatchesJob(job *model.Job) error {
+func (b *CreateBatchesFromFiltersWorker) createBatchesJob(job *model.Job) error {
 	folder := b.Config.GetString("s3.folder")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	b.updateJobCSVPath(job, writePath)
@@ -355,7 +373,7 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	uploadCSVStats, err := processStats.NewSubStage("uploading csv to s3", 1)
 	b.checkErr(job, err)
 
-	err = b.createCreateBatchesJob(job)
+	err = b.createBatchesJob(job)
 	b.checkErr(job, err)
 
 	l.Info("finished")
@@ -364,6 +382,7 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 
 	job.TagSuccess(b.MarathonDB, nameCreateBatchesFromFilters, "finished")
 	processStats.IncrProgress()
+
 }
 
 func (b *CreateBatchesFromFiltersWorker) checkErr(job *model.Job, err error) {

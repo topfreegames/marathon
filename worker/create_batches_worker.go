@@ -134,7 +134,6 @@ func (b *CreateBatchesWorker) configureDatabases() {
 
 // ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
 func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
-	fmt.Println(">>>>>>", csvPath)
 	csvFileBytes, err := b.S3Client.GetObject(csvPath)
 	checkErr(b.Logger, err)
 	for i, b := range csvFileBytes {
@@ -321,9 +320,10 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	if numPushes == 0 {
 		pages = 0
 	}
-	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages))
+	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages), zap.Int("numPushes", numPushes))
 	var wg sync.WaitGroup
 	var wgBatchesSent sync.WaitGroup
+
 	pgCH := make(chan *Batch, pages)
 	batchesSentCH := make(chan *SentBatches)
 	wg.Add(pages)
