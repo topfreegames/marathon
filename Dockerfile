@@ -19,7 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-FROM golang:1.10-alpine
+FROM golang:1.12-alpine
 
 MAINTAINER TFG Co <backend@tfgco.com>
 
