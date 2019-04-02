@@ -42,7 +42,8 @@ type JobCompletedWorker struct {
 // NewJobCompletedWorker gets a new JobCompletedWorker
 func NewJobCompletedWorker(workers *Worker) *JobCompletedWorker {
 	b := &JobCompletedWorker{
-		Logger: workers.Logger.With(zap.String("worker", "JobCompletedWorker")),
+		Logger:  workers.Logger.With(zap.String("worker", "JobCompletedWorker")),
+		Workers: workers,
 	}
 	b.Logger.Debug("Configured JobCompletedWorker successfully.")
 	return b

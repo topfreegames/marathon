@@ -35,19 +35,18 @@ import (
 )
 
 var _ = Describe("JobCompleted Worker", func() {
-	var logger zap.Logger
 	var jobCompletedWorker *worker.JobCompletedWorker
 	var app *model.App
 	var template *model.Template
 	var job *model.Job
-	var w *worker.Worker
+
+	logger := zap.New(
+		zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
+		zap.FatalLevel,
+	)
+	w := worker.NewWorker(logger, GetConfPath())
 
 	BeforeEach(func() {
-		logger = zap.New(
-			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
-			zap.FatalLevel,
-		)
-		w = worker.NewWorker(logger, GetConfPath())
 		jobCompletedWorker = worker.NewJobCompletedWorker(w)
 
 		app = CreateTestApp(w.MarathonDB.DB)
@@ -66,7 +65,9 @@ var _ = Describe("JobCompleted Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(func() { jobCompletedWorker.Process(message) }).ShouldNot(Panic())
+			// Expect(func() {
+			jobCompletedWorker.Process(message)
+			// }).ShouldNot(Panic())
 		})
 
 		It("should not process when job is not found in db", func() {
