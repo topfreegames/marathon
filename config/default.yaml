@@ -27,6 +27,7 @@ s3:
 kafka:
   bootstrapServers: localhost:9940
 workers:
+  amazonPartSize: 5 # mb, min 5
   statsPort: 8081
   createBatches:
     batchSize: 20000
@@ -34,9 +35,10 @@ workers:
     pageProcessingConcurrency: 20
     concurrency: 10
     maxRetries: 5
+  dbToCsv:
+    concurrency: 10
+    maxRetries: 5
   createBatchesFromFilters:
-    dbPageSize: 10000
-    pageProcessingConcurrency: 10
     concurrency: 10
     maxRetries: 5
   processBatch:

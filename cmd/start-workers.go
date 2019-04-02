@@ -35,10 +35,6 @@ var workerCmd = &cobra.Command{
 	Long:  "starts marathon workers",
 	Run: func(cmd *cobra.Command, args []string) {
 		ll := zap.InfoLevel
-		if debug {
-			ll = zap.DebugLevel
-		}
-
 		l := zap.New(
 			zap.NewJSONEncoder(),
 			ll,
@@ -51,7 +47,7 @@ var workerCmd = &cobra.Command{
 		)
 
 		logger.Debug("configuring workers...")
-		w := worker.NewWorker(debug, logger, cfgFile)
+		w := worker.NewWorker(logger, cfgFile)
 
 		logger.Debug("starting worker...")
 		w.Start()

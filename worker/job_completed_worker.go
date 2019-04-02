@@ -25,9 +25,7 @@ package worker
 import (
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/email"
-	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -37,39 +35,17 @@ const nameJobCompleted = "job_completed_worker"
 
 // JobCompletedWorker is the JobCompletedWorker struct
 type JobCompletedWorker struct {
-	Logger         zap.Logger
-	MarathonDB     *extensions.PGClient
-	Config         *viper.Viper
-	SendgridClient *extensions.SendgridClient
+	Workers *Worker
+	Logger  zap.Logger
 }
 
 // NewJobCompletedWorker gets a new JobCompletedWorker
-func NewJobCompletedWorker(config *viper.Viper, logger zap.Logger) *JobCompletedWorker {
+func NewJobCompletedWorker(workers *Worker) *JobCompletedWorker {
 	b := &JobCompletedWorker{
-		Config: config,
-		Logger: logger.With(zap.String("worker", "JobCompletedWorker")),
+		Logger: workers.Logger.With(zap.String("worker", "JobCompletedWorker")),
 	}
-	b.configure()
-	log.D(logger, "Configured JobCompletedWorker successfully.")
+	b.Logger.Debug("Configured JobCompletedWorker successfully.")
 	return b
-}
-
-func (b *JobCompletedWorker) configureMarathonDatabase() {
-	var err error
-	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
-
-func (b *JobCompletedWorker) configureSendgrid() {
-	apiKey := b.Config.GetString("sendgrid.key")
-	if apiKey != "" {
-		b.SendgridClient = extensions.NewSendgridClient(b.Config, b.Logger, apiKey)
-	}
-}
-
-func (b *JobCompletedWorker) configure() {
-	b.configureMarathonDatabase()
-	b.configureSendgrid()
 }
 
 // Process processes the messages sent to worker queue
@@ -88,26 +64,26 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	err = b.MarathonDB.DB.Model(job).Where("job.id = ?", job.ID).Select()
+	err = b.Workers.MarathonDB.DB.Model(job).Where("job.id = ?", job.ID).Select()
 	if err != nil {
-		job.TagError(b.MarathonDB, nameJobCompleted, "finished")
+		job.TagError(b.Workers.MarathonDB, nameJobCompleted, "finished")
 		checkErr(l, err)
 	}
-	job.TagRunning(b.MarathonDB, nameJobCompleted, "starting")
-	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
+	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	b.checkErr(job, err)
 
-	if b.SendgridClient != nil {
-		err = email.SendJobCompletedEmail(b.SendgridClient, job, job.App.Name)
+	if b.Workers.SendgridClient != nil {
+		err = email.SendJobCompletedEmail(b.Workers.SendgridClient, job, job.App.Name)
 		b.checkErr(job, err)
 	}
-	job.TagSuccess(b.MarathonDB, nameJobCompleted, "finished")
+	job.TagSuccess(b.Workers.MarathonDB, nameJobCompleted, "finished")
 	log.I(l, "finished")
 }
 
 func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.MarathonDB, nameJobCompleted, err.Error())
+		job.TagError(b.Workers.MarathonDB, nameJobCompleted, err.Error())
 		checkErr(b.Logger, err)
 	}
 }

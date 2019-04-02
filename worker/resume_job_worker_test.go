@@ -31,7 +31,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -39,29 +38,28 @@ import (
 )
 
 var _ = Describe("ProcessBatch Worker", func() {
-	var logger zap.Logger
-	var config *viper.Viper
 	var resumeJobWorker *worker.ResumeJobWorker
 	var app *model.App
 	var template *model.Template
 	var job *model.Job
 	var users []worker.User
-	BeforeEach(func() {
-		logger = zap.New(
-			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
-			zap.FatalLevel,
-		)
-		config = GetConf()
-		w := worker.NewWorker(false, logger, GetConfPath())
-		resumeJobWorker = worker.NewResumeJobWorker(config, logger, w)
-		resumeJobWorker.RedisClient.FlushAll()
 
-		app = CreateTestApp(resumeJobWorker.MarathonDB.DB)
+	logger := zap.New(
+		zap.NewJSONEncoder(zap.NoTime()),
+		zap.FatalLevel,
+	)
+	w := worker.NewWorker(logger, GetConfPath())
+
+	BeforeEach(func() {
+		resumeJobWorker = worker.NewResumeJobWorker(w)
+		w.RedisClient.FlushAll()
+
+		app = CreateTestApp(w.MarathonDB.DB)
 		appName := strings.Split(app.BundleID, ".")[2]
-		template = CreateTestTemplate(resumeJobWorker.MarathonDB.DB, app.ID)
-		job = CreateTestJob(resumeJobWorker.MarathonDB.DB, app.ID, template.Name)
+		template = CreateTestTemplate(w.MarathonDB.DB, app.ID)
+		job = CreateTestJob(w.MarathonDB.DB, app.ID, template.Name)
 		users = make([]worker.User, 10)
-		for index, _ := range users {
+		for index := range users {
 			id := uuid.NewV4().String()
 			token := strings.Replace(uuid.NewV4().String(), "-", "", -1)
 			user := worker.User{
@@ -84,7 +82,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
-			_, err = resumeJobWorker.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", job.ID.String()), message.ToJson()).Result()
+			_, err = w.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", job.ID.String()), message.ToJson()).Result()
 			Expect(err).NotTo(HaveOccurred())
 		}
 	})
@@ -103,17 +101,17 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			resumeJobWorker.Process(message)
 
-			res, err := resumeJobWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(len(users)))
 
-			remainingJobsLen, err := resumeJobWorker.RedisClient.LLen(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
+			remainingJobsLen, err := w.RedisClient.LLen(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(remainingJobsLen).To(Equal(int64(0)))
 		})
 
 		It("should remove the paused jobs list and not enqueue to process_batch_worker if job status is stopped", func() {
-			_, err := resumeJobWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
@@ -127,11 +125,11 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			resumeJobWorker.Process(message)
 
-			res, err := resumeJobWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(0))
 
-			exists, err := resumeJobWorker.RedisClient.Exists(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
+			exists, err := w.RedisClient.Exists(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(exists).To(BeFalse())
 		})

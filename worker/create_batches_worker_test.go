@@ -46,12 +46,12 @@ var _ = Describe("CreateBatches Worker", func() {
 		zap.NewJSONEncoder(zap.NoTime()),
 		zap.FatalLevel,
 	)
-	w := worker.NewWorker(false, logger, GetConfPath())
-	createBatchesWorker := worker.NewCreateBatchesWorker(config, logger, w)
+	w := worker.NewWorker(logger, GetConfPath())
+	createBatchesWorker := worker.NewCreateBatchesWorker(w)
 
 	BeforeEach(func() {
-		fakeS3 := NewFakeS3(createBatchesWorker.Config)
-		createBatchesWorker.S3Client = fakeS3
+		fakeS3 := NewFakeS3(w.Config)
+		w.S3Client = fakeS3
 		fakeData1 := []byte(`userids
 9e558649-9c23-469d-a11c-59b05813e3d5
 57be9009-e616-42c6-9cfe-505508ede2d0
@@ -86,7 +86,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		fakeS3.PutObject("test/jobs/obj3.csv", &fakeData3)
 		fakeS3.PutObject("test/jobs/obj4.csv", &fakeData4)
 		fakeS3.PutObject("test/jobs/obj5.csv", &fakeData5)
-		app = CreateTestApp(createBatchesWorker.MarathonDB.DB)
+		app = CreateTestApp(w.MarathonDB.DB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
 			"object_name": "village",
@@ -94,7 +94,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		body := map[string]interface{}{
 			"alert": "{{user_name}} just liked your {{object_name}}!",
 		}
-		template = CreateTestTemplate(createBatchesWorker.MarathonDB.DB, app.ID, map[string]interface{}{
+		template = CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
 			"defaults": defaults,
 			"body":     body,
 			"locale":   "en",
@@ -102,7 +102,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		context = map[string]interface{}{
 			"user_name": "Everyone",
 		}
-		CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+		CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 			"context": context,
 		})
 		users := make([]worker.User, 2)
@@ -115,7 +115,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				Locale: "en",
 			}
 		}
-		createBatchesWorker.RedisClient.FlushAll()
+		w.RedisClient.FlushAll()
 	})
 
 	Describe("Process", func() {
@@ -132,7 +132,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should panic if csvPath is invalid", func() {
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "algum",
@@ -149,7 +149,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should not panic if csvPath and jobID are valid", func() {
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj2.csv",
@@ -168,7 +168,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should work if CSV is from Excel/Windows", func() {
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj4.csv",
@@ -185,13 +185,13 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should do nothing if job status is stopped", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			_, err := createBatchesWorker.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			m := map[string]interface{}{
 				"jid":  2,
@@ -201,14 +201,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(0))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -221,12 +221,12 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			j2 := map[string]interface{}{}
@@ -244,8 +244,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should create batches with the right number of tokens if a controlGroup is specified", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
 				"csvPath":      "test/jobs/obj5.csv",
@@ -259,10 +259,10 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(1))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
@@ -274,8 +274,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should create batches with the right number of tokens if a controlGroup is specified", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
 				"csvPath":      "test/jobs/obj5.csv",
@@ -289,10 +289,10 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(1))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
@@ -304,8 +304,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should put control group in s3 and also update job with controlGroupCSVPath", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
 				"csvPath":      "test/jobs/obj5.csv",
@@ -319,8 +319,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			key := fmt.Sprintf("%s/job-%s.csv", createBatchesWorker.Config.GetString("s3.controlGroupFolder"), j.ID.String())
-			controlGroupCSV, err := createBatchesWorker.S3Client.GetObject(key)
+			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.controlGroupFolder"), j.ID.String())
+			controlGroupCSV, err := w.S3Client.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(controlGroupCSV))
 			Expect(len(lines)).To(Equal(5)) //5 -> header + 4 control group userIds
@@ -328,15 +328,15 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			dbJob := &model.Job{
 				ID: j.ID,
 			}
-			err = createBatchesWorker.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
+			err = w.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dbJob.ControlGroupCSVPath).To(Equal(fmt.Sprintf("%s/%s", createBatchesWorker.Config.GetString("s3.bucket"), key)))
+			Expect(dbJob.ControlGroupCSVPath).To(Equal(fmt.Sprintf("%s/%s", w.Config.GetString("s3.bucket"), key)))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if numPushes < dbPageSize", func() {
-			createBatchesWorker.DBPageSize = 500
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			w.DBPageSize = 500
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -350,12 +350,12 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			createBatchesWorker.Process(msg)
 			//Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			j2 := map[string]interface{}{}
@@ -373,8 +373,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should skip batches if startsAt is past and pastTimeStrategy is skip", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":          context,
 				"filters":          map[string]interface{}{},
 				"csvPath":          "test/jobs/obj1.csv",
@@ -390,14 +390,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.ZCard("schedule").Result()
+			res, err := w.RedisClient.ZCard("schedule").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(0))
 		})
 
 		It("should delay batches to next day if startsAt is past and pastTimeStrategy is nextDay", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":          context,
 				"filters":          map[string]interface{}{},
 				"csvPath":          "test/jobs/obj1.csv",
@@ -413,11 +413,11 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.ZCard("schedule").Result()
+			res, err := w.RedisClient.ZCard("schedule").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
 			var data workers.EnqueueData
-			jobs, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, 2).Result()
+			jobs, err := w.RedisClient.ZRange("schedule", 0, 2).Result()
 			bytes, err := RedisReplyToBytes(jobs[0], err)
 			Expect(err).NotTo(HaveOccurred())
 			json.Unmarshal(bytes, &data)
@@ -426,8 +426,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should schedule process_batches_worker if push is localized and starts in future", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context":   context,
 				"filters":   map[string]interface{}{},
 				"csvPath":   "test/jobs/obj1.csv",
@@ -442,11 +442,11 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.ZCard("schedule").Result()
+			res, err := w.RedisClient.ZCard("schedule").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
 			var data workers.EnqueueData
-			jobs, err := createBatchesWorker.RedisClient.ZRange("schedule", 0, 2).Result()
+			jobs, err := w.RedisClient.ZRange("schedule", 0, 2).Result()
 			bytes, err := RedisReplyToBytes(jobs[0], err)
 			Expect(err).NotTo(HaveOccurred())
 			json.Unmarshal(bytes, &data)
@@ -455,8 +455,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if a filter has multiple values separated bt comma", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{
 					"locale": "pt,en",
@@ -471,12 +471,12 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			j2 := map[string]interface{}{}
@@ -494,8 +494,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if service is gcm", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -509,12 +509,12 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			j2 := map[string]interface{}{}
@@ -532,8 +532,8 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should not panic if job is a reexecution", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -547,12 +547,12 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := createBatchesWorker.RedisClient.LLen("queue:process_batch_worker").Result()
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
-			job1, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := createBatchesWorker.RedisClient.LPop("queue:process_batch_worker").Result()
+			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
 			j2 := map[string]interface{}{}
@@ -571,9 +571,9 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should update job DBPageSize if no previous size", func() {
-			createBatchesWorker.DBPageSize = config.GetInt("workers.createBatches.dbPageSize")
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			w.DBPageSize = config.GetInt("workers.createBatches.dbPageSize")
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -586,19 +586,19 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
 		})
 
 		It("should use job DBPageSize if specified", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			createBatchesWorker.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
+			w.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
 			m := map[string]interface{}{
 				"jid":  2,
 				"args": []string{j.ID.String()},
@@ -607,14 +607,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			err = createBatchesWorker.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j.DBPageSize).To(Equal(500))
 		})
 
 		It("should increment job totalBatches when no previous totalBatches", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -628,19 +628,19 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalBatches).To(BeEquivalentTo(2))
 		})
 
 		It("should increment job totalBatches when previous totalBatches", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
+			_, err := w.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			m := map[string]interface{}{
 				"jid":  2,
@@ -651,14 +651,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalBatches).To(BeEquivalentTo(6))
 		})
 
 		It("should update totalTokens and totalUsers correctly", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -672,15 +672,15 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalUsers).To(BeEquivalentTo(10))
 			Expect(job.TotalTokens).To(BeEquivalentTo(10))
 		})
 
 		It("should increment job totalTokens when no previous totalTokens", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
@@ -694,14 +694,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(10))
 		})
 
 		It("should set totalTokens and totalUsers correctly", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj3.csv",
@@ -715,20 +715,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(4))
 			Expect(job.TotalUsers).To(BeEquivalentTo(2))
 		})
 
 		It("should increment job totalTokens when previous totalTokens", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj3.csv",
 			})
-			_, err := createBatchesWorker.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
+			_, err := w.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			m := map[string]interface{}{
 				"jid":  3,
@@ -739,14 +739,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = createBatchesWorker.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(8))
 		})
 
 		It("should not panic and change job status to stopped if bad csv", func() {
-			a := CreateTestApp(createBatchesWorker.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(createBatchesWorker.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj2.csv",
@@ -763,7 +763,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			updatedJob := &model.Job{
 				ID: j.ID,
 			}
-			err = createBatchesWorker.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
+			err = w.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(updatedJob.Status).To(Equal("stopped"))
 		})

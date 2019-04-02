@@ -33,14 +33,10 @@ import (
 	"math/rand"
 
 	"gopkg.in/pg.v5"
-	"gopkg.in/redis.v5"
 
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/email"
-	"github.com/topfreegames/marathon/extensions"
-	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -50,91 +46,23 @@ const nameCreateBatches = "create_batches_worker"
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
-	BatchSize                 int
-	Config                    *viper.Viper
-	DBPageSize                int
-	Logger                    zap.Logger
-	MarathonDB                *extensions.PGClient
-	PageProcessingConcurrency int
-	PushDB                    *extensions.PGClient
-	RedisClient               *redis.Client
-	S3Client                  interfaces.S3
-	SendgridClient            *extensions.SendgridClient
-	Workers                   *Worker
+	Workers *Worker
+	Logger  zap.Logger
 }
 
 // NewCreateBatchesWorker gets a new CreateBatchesWorker
-func NewCreateBatchesWorker(config *viper.Viper, logger zap.Logger, workers *Worker) *CreateBatchesWorker {
+func NewCreateBatchesWorker(workers *Worker) *CreateBatchesWorker {
 	b := &CreateBatchesWorker{
-		Config:  config,
-		Logger:  logger,
+		Logger:  workers.Logger.With(zap.String("worker", "CreateBatchesWorker")),
 		Workers: workers,
 	}
-	b.configure()
-	log.D(logger, "Configured CreateBatchesWorker successfully.")
+	b.Logger.Debug("Workers.Configured CreateBatchesWorker successfully.")
 	return b
-}
-
-func (b *CreateBatchesWorker) configure() {
-	b.loadConfigurationDefaults()
-	b.loadConfiguration()
-	b.configureDatabases()
-	b.configureS3Client()
-	b.configureRedisClient()
-	b.configureSendgridClient()
-}
-
-func (b *CreateBatchesWorker) configureSendgridClient() {
-	apiKey := b.Config.GetString("sendgrid.key")
-	if apiKey != "" {
-		b.SendgridClient = extensions.NewSendgridClient(b.Config, b.Logger, apiKey)
-	}
-}
-
-func (b *CreateBatchesWorker) configureS3Client() {
-	s3Client, err := extensions.NewS3(b.Config, b.Logger)
-	checkErr(b.Logger, err)
-	b.S3Client = s3Client
-}
-
-func (b *CreateBatchesWorker) configureRedisClient() {
-	r, err := extensions.NewRedis("workers", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-	b.RedisClient = r
-}
-
-func (b *CreateBatchesWorker) loadConfigurationDefaults() {
-	b.Config.SetDefault("workers.createBatches.batchSize", 1000)
-	b.Config.SetDefault("workers.createBatches.dbPageSize", 1000)
-	b.Config.SetDefault("workers.createBatches.pageProcessingConcurrency", 1)
-}
-
-func (b *CreateBatchesWorker) loadConfiguration() {
-	b.BatchSize = b.Config.GetInt("workers.createBatches.batchSize")
-	b.DBPageSize = b.Config.GetInt("workers.createBatches.dbPageSize")
-	b.PageProcessingConcurrency = b.Config.GetInt("workers.createBatches.pageProcessingConcurrency")
-}
-
-func (b *CreateBatchesWorker) configurePushDatabase() {
-	var err error
-	b.PushDB, err = extensions.NewPGClient("push.db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesWorker) configureMarathonDatabase() {
-	var err error
-	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesWorker) configureDatabases() {
-	b.configureMarathonDatabase()
-	b.configurePushDatabase()
 }
 
 // ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
 func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
-	csvFileBytes, err := b.S3Client.GetObject(csvPath)
+	csvFileBytes, err := b.Workers.S3Client.GetObject(csvPath)
 	checkErr(b.Logger, err)
 	for i, b := range csvFileBytes {
 		if b == 0x0D {
@@ -157,14 +85,14 @@ func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
 func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
 	job.TotalBatches = totalBatches
 	// coalesce is necessary since total_batches can be null
-	_, err := b.MarathonDB.DB.Model(job).Set("total_batches = coalesce(total_batches, 0) + ?", totalBatches).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_batches = coalesce(total_batches, 0) + ?", totalBatches).Where("id = ?", job.ID).Update()
 	checkErr(b.Logger, err)
 }
 
 func (b *CreateBatchesWorker) updateTotalTokens(totalTokens int, job *model.Job) {
 	job.TotalTokens = totalTokens
 	// coalesce is necessary since total_tokens can be null
-	_, err := b.MarathonDB.DB.Model(job).Set("total_tokens = coalesce(total_tokens, 0) + ?", totalTokens).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_tokens = coalesce(total_tokens, 0) + ?", totalTokens).Where("id = ?", job.ID).Update()
 	checkErr(b.Logger, err)
 }
 
@@ -179,7 +107,7 @@ func (b *CreateBatchesWorker) computeTotalTokensAndBatchesSent(c <-chan *SentBat
 func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
 	var users []User
 	start := time.Now()
-	_, err := b.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz, fiu, adid, vendor_id FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
+	_, err := b.Workers.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz, fiu, adid, vendor_id FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
 	labels := []string{fmt.Sprintf("game:%s", appName), fmt.Sprintf("platform:%s", service)}
 	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), labels, 1)
 	checkErr(b.Logger, err)
@@ -200,7 +128,7 @@ func (b *CreateBatchesWorker) processBatch(c <-chan *Batch, batchesSentCH chan<-
 				cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
 			})
 		}
-		markProcessedPage((*batch).PageID, job.ID, b.RedisClient)
+		markProcessedPage((*batch).PageID, job.ID, b.Workers.RedisClient)
 		if job.Localized {
 			b.sendLocalizedBatches(bucketsByTZ, job)
 		} else {
@@ -252,8 +180,8 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 }
 
 func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup []string) {
-	folder := b.Config.GetString("s3.controlGroupFolder")
-	bucket := b.Config.GetString("s3.bucket")
+	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
+	bucket := b.Workers.Config.GetString("s3.bucket")
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
 	csvWriter.Write([]byte("controlGroupUserIds\n"))
@@ -262,20 +190,20 @@ func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup 
 	}
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	csvBytes := csvBuffer.Bytes()
-	_, err := b.S3Client.PutObject(writePath, &csvBytes)
+	_, err := b.Workers.S3Client.PutObject(writePath, &csvBytes)
 	checkErr(b.Logger, err)
 	b.updateJobControlGroupCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
 }
 
 func (b *CreateBatchesWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
 	job.ControlGroupCSVPath = csvPath
-	_, err := b.MarathonDB.DB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
+	_, err := b.Workers.MarathonDB.DB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
 	checkErr(b.Logger, err)
 }
 
 func (b *CreateBatchesWorker) updateTotalUsers(job *model.Job, totalUsers int) {
 	job.TotalUsers = totalUsers
-	_, err := b.MarathonDB.DB.Model(job).Set("total_users = coalesce(?total_users,0)").Update()
+	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_users = coalesce(?total_users,0)").Update()
 	checkErr(b.Logger, err)
 }
 
@@ -327,12 +255,13 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 	pgCH := make(chan *Batch, pages)
 	batchesSentCH := make(chan *SentBatches)
 	wg.Add(pages)
-	for i := 0; i < b.PageProcessingConcurrency; i++ {
+	PageProcessingConcurrency := b.Workers.Config.GetInt("workers.createBatches.pageProcessingConcurrency")
+	for i := 0; i < PageProcessingConcurrency; i++ {
 		go b.processBatch(pgCH, batchesSentCH, job, &wg, &wgBatchesSent)
 	}
 	go b.computeTotalTokensAndBatchesSent(batchesSentCH, job, &wgBatchesSent)
 	for i := 0; i < pages; i++ {
-		if isReexecution && isPageProcessed(i, job.ID, b.RedisClient, b.Logger) {
+		if isReexecution && isPageProcessed(i, job.ID, b.Workers.RedisClient, b.Logger) {
 			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
 				cm.Write(zap.String("jobID", job.ID.String()), zap.Int("page", i))
 			})
@@ -371,10 +300,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	jobID := arr[0]
 	id, err := uuid.FromString(jobID.(string))
 	checkErr(b.Logger, err)
-	isReexecution := checkIsReexecution(id, b.RedisClient, b.Logger)
+	isReexecution := checkIsReexecution(id, b.Workers.RedisClient, b.Logger)
 	l := b.Logger.With(
-		zap.Int("batchSize", b.BatchSize),
-		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
 		zap.Bool("isReexecution", isReexecution),
 		zap.String("worker", nameCreateBatches),
@@ -383,17 +310,18 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	job.TagRunning(b.MarathonDB, nameCreateBatches, "starting")
-	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, "starting")
+	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job")
 		return
 	}
-	dbPageSize := b.DBPageSize
+	pageSize := b.Workers.Config.GetInt("workers.createBatches.dbPageSize")
+	dbPageSize := pageSize
 	if job.DBPageSize == 0 {
-		b.MarathonDB.DB.Model(job).Set("db_page_size = ?", b.DBPageSize).Returning("*").Update()
-	} else if job.DBPageSize != b.DBPageSize {
+		b.Workers.MarathonDB.DB.Model(job).Set("db_page_size = ?", pageSize).Returning("*").Update()
+	} else if job.DBPageSize != pageSize {
 		dbPageSize = job.DBPageSize
 		log.I(l, "Using job DBPageSize value", func(cm log.CM) {
 			cm.Write(zap.Int("dbPageSize", job.DBPageSize))
@@ -402,31 +330,31 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if len(job.CSVPath) > 0 {
 		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
 		if err != nil {
-			job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
+			job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
 			checkErr(l, err)
 		}
-		b.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
+		b.Workers.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
 		updatedJob := &model.Job{
 			ID: id,
 		}
-		err = b.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
+		err = b.Workers.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
 		if err != nil {
-			job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
+			job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
 			checkErr(l, err)
 		}
 		if updatedJob.TotalTokens == 0 {
-			_, err := b.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
+			_, err := b.Workers.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
 			checkErr(l, err)
 
-			if b.SendgridClient != nil {
+			if b.Workers.SendgridClient != nil {
 				msg := "Your job was automatically stopped because no tokens were found matching the user ids given in the CSV file. Please verify the uploaded CSV and create a new job."
-				err = email.SendStoppedJobEmail(b.SendgridClient, updatedJob, job.App.Name, msg)
+				err = email.SendStoppedJobEmail(b.Workers.SendgridClient, updatedJob, job.App.Name, msg)
 				b.checkErr(job, err)
 
 			}
 		}
 		log.I(l, "finished")
-		job.TagSuccess(b.MarathonDB, nameCreateBatches, "finished")
+		job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
 	} else {
 		log.I(l, "panicked")
 		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
@@ -436,7 +364,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
 func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.MarathonDB, nameCreateBatches, err.Error())
+		job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
 		checkErr(b.Logger, err)
 	}
 }

@@ -278,7 +278,8 @@ func NewFakeS3(conf *viper.Viper) *FakeS3 {
 func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
 	tempPath := path
 	return &s3.CreateMultipartUploadOutput{
-		Key: &tempPath,
+		Key:      &tempPath,
+		UploadId: &tempPath,
 	}, nil
 }
 

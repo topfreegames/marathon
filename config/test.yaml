@@ -33,6 +33,7 @@ s3:
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
 workers:
+  amazonPartSize: 1 # mb
   statsPort: 8081
   createBatches:
     batchSize: 10000
@@ -40,9 +41,10 @@ workers:
     pageProcessingConcurrency: 10
     concurrency: 10
     maxRetries: 5
+  dbToCsv:
+    concurrency: 10
+    maxRetries: 5
   createBatchesFromFilters:
-    dbPageSize: 2
-    pageProcessingConcurrency: 2
     concurrency: 10
     maxRetries: 5
   processBatch:

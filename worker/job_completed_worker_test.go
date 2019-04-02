@@ -28,7 +28,6 @@ import (
 	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -37,23 +36,23 @@ import (
 
 var _ = Describe("JobCompleted Worker", func() {
 	var logger zap.Logger
-	var config *viper.Viper
 	var jobCompletedWorker *worker.JobCompletedWorker
 	var app *model.App
 	var template *model.Template
 	var job *model.Job
+	var w *worker.Worker
 
 	BeforeEach(func() {
 		logger = zap.New(
 			zap.NewJSONEncoder(zap.NoTime()), // drop timestamps in tests
 			zap.FatalLevel,
 		)
-		config = GetConf()
-		jobCompletedWorker = worker.NewJobCompletedWorker(config, logger)
+		w = worker.NewWorker(logger, GetConfPath())
+		jobCompletedWorker = worker.NewJobCompletedWorker(w)
 
-		app = CreateTestApp(jobCompletedWorker.MarathonDB.DB)
-		template = CreateTestTemplate(jobCompletedWorker.MarathonDB.DB, app.ID)
-		job = CreateTestJob(jobCompletedWorker.MarathonDB.DB, app.ID, template.Name)
+		app = CreateTestApp(w.MarathonDB.DB)
+		template = CreateTestTemplate(w.MarathonDB.DB, app.ID)
+		job = CreateTestJob(w.MarathonDB.DB, app.ID, template.Name)
 	})
 
 	Describe("Process", func() {
@@ -71,7 +70,7 @@ var _ = Describe("JobCompleted Worker", func() {
 		})
 
 		It("should not process when job is not found in db", func() {
-			_, err := jobCompletedWorker.MarathonDB.DB.Exec("DELETE FROM jobs;")
+			_, err := w.MarathonDB.DB.Exec("DELETE FROM jobs;")
 			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{job.ID.String()}
 			msgB, err := json.Marshal(map[string][]interface{}{

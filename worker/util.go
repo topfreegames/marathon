@@ -67,8 +67,9 @@ type Batch struct {
 
 // DBPage is a struct that helps create batches from filters jobs
 type DBPage struct {
-	Page   int
-	Offset int
+	Page       int
+	SmallestID string
+	DBPageSize int
 }
 
 // SentBatches is a struct that helps tracking sent batches
@@ -213,6 +214,7 @@ func cleanUpUserInfo(user *User) *User {
 }
 
 // TODO test this function
+
 // CompressUsers compresses users payload for enqueuing the message
 func CompressUsers(users *[]User) (string, error) {
 	cleanUsers := make([]*User, len(*users))

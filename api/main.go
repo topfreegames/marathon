@@ -156,7 +156,7 @@ func (a *Application) OnErrorHandler(err error, stack []byte) {
 }
 
 func (a *Application) configureWorker() {
-	a.Worker = worker.NewWorker(a.Debug, a.Logger, a.ConfigPath)
+	a.Worker = worker.NewWorker(a.Logger, a.ConfigPath)
 }
 
 func (a *Application) configureApplication() {

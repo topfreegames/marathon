@@ -31,22 +31,31 @@ import (
 	raven "github.com/getsentry/raven-go"
 	"github.com/jrallison/go-workers"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
+	redis "gopkg.in/redis.v5"
 )
 
 // Worker is the struct that will configure workers
 type Worker struct {
-	Debug      bool
-	Logger     zap.Logger
-	ConfigPath string
-	Config     *viper.Viper
-	Statsd     *statsd.Client
+	Logger                    zap.Logger
+	PushDB                    *extensions.PGClient
+	MarathonDB                *extensions.PGClient
+	Config                    *viper.Viper
+	DBPageSize                int
+	S3Client                  interfaces.S3
+	PageProcessingConcurrency int
+	Statsd                    *statsd.Client
+	RedisClient               *redis.Client
+	ConfigPath                string
+	SendgridClient            *extensions.SendgridClient
+	Kafka                     interfaces.PushProducer
 }
 
 // NewWorker returns a configured worker
-func NewWorker(debug bool, l zap.Logger, configPath string) *Worker {
+func NewWorker(l zap.Logger, configPath string) *Worker {
 	worker := &Worker{
-		Debug:      debug,
 		Logger:     l,
 		ConfigPath: configPath,
 	}
@@ -74,6 +83,11 @@ func (w *Worker) configure() {
 	w.configureStatsd()
 	w.configureWorkers()
 	w.configureStatsd()
+	w.configurePushDatabase()
+	w.configureMarathonDatabase()
+	w.configureS3Client()
+	w.configureSendgrid()
+	w.configureKafkaProducer()
 }
 
 func (w *Worker) loadConfigurationDefaults() {
@@ -85,6 +99,25 @@ func (w *Worker) loadConfigurationDefaults() {
 	w.Config.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
 	w.Config.SetDefault("workers.statsd.host", "127.0.0.1:8125")
 	w.Config.SetDefault("workers.statsd.prefix", "marathon.")
+}
+
+func (w *Worker) configureSendgrid() {
+	apiKey := w.Config.GetString("sendgrid.key")
+	if apiKey != "" {
+		w.SendgridClient = extensions.NewSendgridClient(w.Config, w.Logger, apiKey)
+	}
+}
+
+func (w *Worker) configurePushDatabase() {
+	var err error
+	w.PushDB, err = extensions.NewPGClient("push.db", w.Config, w.Logger)
+	checkErr(w.Logger, err)
+}
+
+func (w *Worker) configureMarathonDatabase() {
+	var err error
+	w.MarathonDB, err = extensions.NewPGClient("db", w.Config, w.Logger)
+	checkErr(w.Logger, err)
 }
 
 func (w *Worker) configureStatsd() {
@@ -128,21 +161,35 @@ func (w *Worker) configureRedis() {
 		"process":  hostname,
 		"password": redisPassword,
 	})
+	r, err := extensions.NewRedis("workers", w.Config, w.Logger)
+	checkErr(w.Logger, err)
+	w.RedisClient = r
+}
 
+func (w *Worker) configureS3Client() {
+	s3Client, err := extensions.NewS3(w.Config, w.Logger)
+	checkErr(w.Logger, err)
+	w.S3Client = s3Client
 }
 
 func (w *Worker) configureWorkers() {
-	p := NewProcessBatchWorker(w.Config, w.Logger, nil, w)
-	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
-	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
-	r := NewResumeJobWorker(w.Config, w.Logger, w)
-	j := NewJobCompletedWorker(w.Config, w.Logger)
+	p := NewProcessBatchWorker(w)
+	d := NewDbToCsvWorker(w)
+	c := NewCreateBatchesWorker(w)
+	f := NewCreateBatchesFromFiltersWorker(w)
+	r := NewResumeJobWorker(w)
+	j := NewJobCompletedWorker(w)
+
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
+	createDbToCsvBatchesWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
 	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
+
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
+	workers.Process("db_to_csv_worker", d.Process, createDbToCsvBatchesWorkerConcurrency)
+
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
@@ -157,6 +204,23 @@ func (w *Worker) configureSentry() {
 	sentryURL := w.Config.GetString("sentry.url")
 	raven.SetDSN(sentryURL)
 	l.Info("Configured sentry successfully.")
+}
+
+func (w *Worker) configureKafkaProducer() {
+	var kafka *extensions.KafkaProducer
+	var err error
+	kafka, err = extensions.NewKafkaProducer(w.Config, w.Logger, w.Statsd)
+	checkErr(w.Logger, err)
+	w.Kafka = kafka
+}
+
+// DbToCsvJob creates a new DbToCsvWorker job
+func (w *Worker) DbToCsvJob(msg *ToCSVMenssage) (string, error) {
+	maxRetries := w.Config.GetInt("workers.dbToCsv.maxRetries")
+	return workers.EnqueueWithOptions("db_to_csv_worker", "Add", msg, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+	})
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
