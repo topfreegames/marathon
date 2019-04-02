@@ -69,7 +69,7 @@ type Batch struct {
 type DBPage struct {
 	Page       int
 	SmallestID string
-	DBPageSize int
+	BiggestID  string
 }
 
 // SentBatches is a struct that helps tracking sent batches

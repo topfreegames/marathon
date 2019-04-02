@@ -56,12 +56,11 @@ func (b *CreateBatchesFromFiltersWorker) createDbToCsvJob(job *model.Job, page D
 	uploader *s3.CreateMultipartUploadOutput, total int) {
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
-	limit := page.DBPageSize
 	var query string
 	if (whereClause) != "" {
-		query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND %s ORDER BY user_id LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, whereClause, limit)
+		query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' AND %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID, whereClause)
 	} else {
-		query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' ORDER BY user_id LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, limit)
+		query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID)
 	}
 	b.Workers.DbToCsvJob(&ToCSVMenssage{
 		Query:      query,
@@ -119,11 +118,16 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 		pages = append(pages, DBPage{
 			Page:       page + 1, // amazon page start at 1
 			SmallestID: nextPageOffset,
-			DBPageSize: DBPageSize,
 		})
-		_, err := tx.Query(&nextPageOffset, fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", DBPageSize))
+		query := fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", DBPageSize)
+		if page == pageCount-1 {
+			query = "FETCH FORWARD ALL FROM cursor;"
+		}
+		_, err := tx.Query(&nextPageOffset, query)
 		checkErr(b.Logger, err)
+		pages[page].BiggestID = nextPageOffset
 	}
+
 	tx.Commit()
 	b.Workers.Statsd.Timing("get_intervals_cursor", time.Now().Sub(start), labels, 1)
 
