@@ -70,10 +70,6 @@
   name = "github.com/valyala/fasttemplate"
 
 [[constraint]]
-  name = "github.com/willf/bloom"
-  version = "2.0.0"
-
-[[constraint]]
   name = "gopkg.in/pg.v5"
   version = "5.1.5"
 
