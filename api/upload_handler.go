@@ -41,8 +41,8 @@ func (a *Application) GetUploadURL(c echo.Context) error {
 		zap.String("source", "uploadHandler"),
 		zap.String("operation", "getUploadUrl"),
 	)
-
-	u, err := a.S3Client.PutObjectRequest(fmt.Sprintf("job-%v-%s.csv", start.Unix(), uuid.NewV4().String()))
+	folder := a.Config.GetString("s3.folder")
+	u, err := a.S3Client.PutObjectRequest(fmt.Sprintf("%s/job-%v-%s.csv", folder, start.Unix(), uuid.NewV4().String()))
 	if err != nil {
 		log.E(l, "Failed to create presigned PUT policy.", func(cm log.CM) {
 			cm.Write(

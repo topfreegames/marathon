@@ -330,7 +330,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			}
 			err = w.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dbJob.ControlGroupCSVPath).To(Equal(fmt.Sprintf("%s/%s", w.Config.GetString("s3.bucket"), key)))
+			Expect(dbJob.ControlGroupCSVPath).To(Equal(key))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if numPushes < dbPageSize", func() {

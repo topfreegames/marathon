@@ -181,7 +181,6 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 
 func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup []string) {
 	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
-	bucket := b.Workers.Config.GetString("s3.bucket")
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
 	csvWriter.Write([]byte("controlGroupUserIds\n"))
@@ -192,7 +191,7 @@ func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup 
 	csvBytes := csvBuffer.Bytes()
 	_, err := b.Workers.S3Client.PutObject(writePath, &csvBytes)
 	checkErr(b.Logger, err)
-	b.updateJobControlGroupCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
+	b.updateJobControlGroupCSVPath(job, writePath)
 }
 
 func (b *CreateBatchesWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {

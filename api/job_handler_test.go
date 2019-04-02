@@ -936,7 +936,7 @@ var _ = Describe("Job Handler", func() {
 				var response map[string]interface{}
 				err := json.Unmarshal([]byte(body), &response)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(response["reason"]).To(Equal("invalid csvPath: cannot contain s3 protocol, just the bucket path"))
+				Expect(response["reason"]).To(ContainSubstring("cannot contain s3 protocol"))
 			})
 		})
 	})
