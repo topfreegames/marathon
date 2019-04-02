@@ -25,6 +25,7 @@ package worker
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	workers "github.com/jrallison/go-workers"
@@ -81,10 +82,16 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	} else {
 		query = fmt.Sprintf("SELECT count(DISTINCT user_id) FROM %s", GetPushDBTableName(job.App.Name, job.Service))
 	}
+
+	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
+	start := time.Now()
+
 	_, err := b.Workers.PushDB.DB.Query(&count, query)
 	if count == 0 {
 		checkErr(b.Logger, fmt.Errorf("no users matching the filters"))
 	}
+	b.Workers.Statsd.Timing("count_total", time.Now().Sub(start), labels, 1)
+
 	// The maximum of ids to fill one multiupload part (in mb)
 	megaBytes := b.Workers.Config.GetInt("workers.amazonPartSize")
 	DBPageSize := int(math.Ceil((float64(megaBytes) * 1024.0 * 1024.0) / 37.0))
@@ -93,6 +100,8 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	checkErr(b.Logger, err)
 	pages := []DBPage{}
 	nextPageOffset := "00000000-0000-0000-0000-000000000000"
+
+	start = time.Now()
 
 	tx, err := b.Workers.PushDB.DB.Begin()
 	checkErr(b.Logger, err)
@@ -116,6 +125,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 		checkErr(b.Logger, err)
 	}
 	tx.Commit()
+	b.Workers.Statsd.Timing("get_intervals_cursor", time.Now().Sub(start), labels, 1)
 
 	return pages, pageCount, count
 }
