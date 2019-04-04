@@ -295,19 +295,13 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 		}
 		checkErr(l, err)
 		pushMetadata := map[string]interface{}{
-			// "userId": user.UserID,
-			// "fiu":          user.Fiu,
-			// "adid":         user.Adid,
-			"pushTime": time.Now().Unix(),
-			// "vendorId":     user.VendorID,
+			"userId":       user.UserID,
+			"pushTime":     time.Now().Unix(),
 			"templateName": templateName,
 			"jobId":        job.ID.String(),
 			"pushType":     "massive",
 			"muid":         uuid.NewV4().String(),
 		}
-		// if user.CreatedAt.Unix() > 0 {
-		// 	pushMetadata["tokenCreatedAt"] = user.CreatedAt.Unix()
-		// }
 
 		dryRun := false
 		if val, ok := job.Metadata["dryRun"]; ok {

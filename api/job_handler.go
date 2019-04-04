@@ -254,7 +254,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			}
 		} else {
 			if len(job.CSVPath) > 0 {
-				wJobID, err = a.Worker.CreateBatchesJob(&[]string{job.ID.String()})
+				wJobID, err = a.Worker.CSVSplitJob(job.ID.String())
 			} else {
 				wJobID, err = a.Worker.CreateBatchesFromFiltersJob(&[]string{job.ID.String()})
 			}

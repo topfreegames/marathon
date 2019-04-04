@@ -27,10 +27,10 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"runtime"
-	"sync"
 	"time"
 
 	"gopkg.in/pg.v5"
@@ -39,6 +39,7 @@ import (
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
+	redis "gopkg.in/redis.v5"
 )
 
 const nameCreateBatches = "create_batches_worker"
@@ -94,25 +95,21 @@ func (b *CreateBatchesWorker) updateTotalTokens(totalTokens int, job *model.Job)
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) computeTotalTokensAndBatchesSent(c <-chan *SentBatches, job *model.Job, wg *sync.WaitGroup) {
-	for sent := range c {
-		b.updateTotalBatches((*sent).NumBatches, job)
-		b.updateTotalTokens((*sent).TotalTokens, job)
-		wg.Done()
-	}
-}
-
 func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
 	var users []User
 	start := time.Now()
-	_, err := b.Workers.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz, fiu, adid, vendor_id FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
+	_, err := b.Workers.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
 	labels := []string{fmt.Sprintf("game:%s", appName), fmt.Sprintf("platform:%s", service)}
 	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), labels, 1)
+
 	checkErr(b.Logger, err)
 	return &users
 }
 
 func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
+	if len(*ids) == 0 {
+		return
+	}
 	l := b.Logger
 
 	usersFromBatch := b.getUserBatchFromPG(ids, job.App.Name, job.Service)
@@ -131,6 +128,8 @@ func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
 	} else {
 		b.sendBatches(bucketsByTZ, job)
 	}
+	b.updateTotalBatches(len(bucketsByTZ), job)
+	b.updateTotalTokens(numUsersFromBatch, job)
 }
 
 func (b *CreateBatchesWorker) sendLocalizedBatches(batches map[string]*[]User, job *model.Job) {
@@ -187,7 +186,7 @@ func (b *CreateBatchesWorker) updateJobControlGroupCSVPath(job *model.Job, csvPa
 
 func (b *CreateBatchesWorker) updateTotalUsers(job *model.Job, totalUsers int) {
 	job.TotalUsers = totalUsers
-	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_users = coalesce(?total_users,0)").Update()
+	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_users = coalesce(total_users, 0) + ?", totalUsers).Where("id = ?", job.ID).Update()
 	checkErr(b.Logger, err)
 }
 
@@ -223,8 +222,7 @@ func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 	}
 
 	// update total job info
-	// b.updateTotalBatches((*sent).NumBatches, job)
-	b.updateTotalTokens(len(userIds), &msg.Job)
+	b.updateTotalUsers(&msg.Job, len(userIds))
 
 	// pull from db and send to kafta
 	b.processBatch(&userIds, &msg.Job)
@@ -257,13 +255,19 @@ func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []str
 
 func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []string {
 	var ids []string
-	for i := 1; i < totalParts; i++ {
-		begin := fmt.Sprintf("%s-INI-%d", job.ID, i-1)
-		end := fmt.Sprintf("%s-END-%d", job.ID, i)
+	for i := 1; i < totalParts-1; i++ {
+		begin := fmt.Sprintf("%s-INI-%d", job.ID, i)
+		end := fmt.Sprintf("%s-END-%d", job.ID, i+1)
 
 		beginStr, err := b.Workers.RedisClient.Get(begin).Result()
+		if err == redis.Nil {
+			continue
+		}
 		checkErr(b.Logger, err)
 		endStr, err := b.Workers.RedisClient.Get(end).Result()
+		if err == redis.Nil {
+			continue
+		}
 		checkErr(b.Logger, err)
 
 		ids = append(ids, beginStr+endStr)
@@ -281,7 +285,11 @@ func (b *CreateBatchesWorker) setAsComplete(part int, job *model.Job) int {
 	return int(count)
 }
 
-func (b *CreateBatchesWorker) flushControlGroup(job *model.Job, controlGroup []string) {
+func (b *CreateBatchesWorker) flushControlGroup(job *model.Job) {
+	hash := job.ID.String()
+	controlGroup, err := b.Workers.RedisClient.LRange(hash, 0, -1).Result()
+	checkErr(b.Logger, err)
+
 	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
 	csvBuffer := &bytes.Buffer{}
 	csvWriter := io.Writer(csvBuffer)
@@ -291,9 +299,12 @@ func (b *CreateBatchesWorker) flushControlGroup(job *model.Job, controlGroup []s
 	}
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
 	csvBytes := csvBuffer.Bytes()
-	_, err := b.Workers.S3Client.PutObject(writePath, &csvBytes)
+	_, err = b.Workers.S3Client.PutObject(writePath, &csvBytes)
 	checkErr(b.Logger, err)
 	b.updateJobControlGroupCSVPath(job, writePath)
+
+	err = b.Workers.RedisClient.Del(hash).Err()
+	checkErr(b.Logger, err)
 }
 
 // Process processes the messages sent to batch worker queue
@@ -334,8 +345,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if completedParts == msg.TotalParts {
 		ids = b.getSplitedIds(msg.TotalParts, &msg.Job)
 		b.processIDs(ids, &msg)
-		msg.Job.TagSuccess(b.Workers.MarathonDB, nameDbToCsv, "finished")
-		go b.flushControlGroup()
+		msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
+		go b.flushControlGroup(&msg.Job)
 	} else {
 		str := fmt.Sprintf("complete part %d of %d", completedParts, msg.TotalParts)
 		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, str)

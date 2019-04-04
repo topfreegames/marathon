@@ -23,11 +23,13 @@
 package extensions
 
 import (
+	"errors"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	raven "github.com/getsentry/raven-go"
+	"time"
+	// raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/log"
+	// "github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
@@ -63,7 +65,7 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Cli
 		return nil, err
 	}
 
-	go client.listenForKafkaResponses()
+	// go client.listenForKafkaResponses()
 	l.Info("configured kafka producer")
 	return client, nil
 }
@@ -96,29 +98,29 @@ func (c *KafkaProducer) connectToKafka() error {
 	return nil
 }
 
-func (c KafkaProducer) listenForKafkaResponses() {
-	l := c.Logger.With(
-		zap.String("source", "KafkaExtension"),
-		zap.String("method", "listenForKafkaResponses"),
-	)
-	for e := range c.Producer.Events() {
-		switch ev := e.(type) {
-		case *kafka.Message:
-			m := ev
-			if m.TopicPartition.Error != nil {
-				raven.CaptureError(m.TopicPartition.Error, map[string]string{
-					"extension": "kafka-producer",
-				})
-				log.E(l, "Kafka producer error", func(cm log.CM) {
-					cm.Write(zap.Error(m.TopicPartition.Error))
-				})
-				c.Statsd.Incr("send_message_return", []string{"error:true"}, 1)
-			} else {
-				c.Statsd.Incr("send_message_return", []string{"error:false"}, 1)
-			}
-		}
-	}
-}
+// func (c KafkaProducer) listenForKafkaResponses() {
+// 	l := c.Logger.With(
+// 		zap.String("source", "KafkaExtension"),
+// 		zap.String("method", "listenForKafkaResponses"),
+// 	)
+// 	for e := range c.Producer.Events() {
+// 		switch ev := e.(type) {
+// 		case *kafka.Message:
+// 			m := ev
+// 			if m.TopicPartition.Error != nil {
+// 				raven.CaptureError(m.TopicPartition.Error, map[string]string{
+// 					"extension": "kafka-producer",
+// 				})
+// 				log.E(l, "Kafka producer error", func(cm log.CM) {
+// 					cm.Write(zap.Error(m.TopicPartition.Error))
+// 				})
+// 				c.Statsd.Incr("send_message_return", []string{"error:true"}, 1)
+// 			} else {
+// 				c.Statsd.Incr("send_message_return", []string{"error:false"}, 1)
+// 			}
+// 		}
+// 	}
+// }
 
 //Close the connections to kafka
 func (c *KafkaProducer) Close() {
@@ -146,8 +148,7 @@ func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, message
 	if err != nil {
 		return err
 	}
-	c.sendPush(messages.NewKafkaMessage(topic, message))
-	return nil
+	return c.sendPush(messages.NewKafkaMessage(topic, message), 5)
 }
 
 //SendGCMPush notification to Kafka
@@ -172,12 +173,11 @@ func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageM
 	if err != nil {
 		return err
 	}
-	c.sendPush(messages.NewKafkaMessage(topic, message))
-	return nil
+	return c.sendPush(messages.NewKafkaMessage(topic, message), 5)
 }
 
 //SendPush notification to Kafka
-func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage) {
+func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage, retries int) error {
 	message := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{
 			Topic:     &msg.Topic,
@@ -186,11 +186,16 @@ func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage) {
 		Value: []byte(msg.Message),
 	}
 
-	c.Producer.ProduceChannel() <- message
-	log.D(c.Logger, "Sent message", func(cm log.CM) {
-		cm.Write(
-			zap.Object("KafkaMessage", message),
-			zap.String("topic", msg.Topic),
-		)
-	})
+	// err := c.Producer.ProduceChannel() <- message
+	err := c.Producer.Produce(message, nil)
+	if err != nil {
+		if retries > 10 {
+			return errors.New("imposible to send menssage")
+		}
+		c.Statsd.Incr("send_message_return", []string{"error:true"}, 0.01)
+		time.Sleep(10 * time.Millisecond)
+		c.sendPush(msg, retries+1)
+	}
+	c.Statsd.Incr("send_message_return", []string{"error:false"}, 0.01)
+	return nil
 }
