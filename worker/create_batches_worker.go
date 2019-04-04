@@ -260,7 +260,16 @@ func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []st
 	for i := 1; i < totalParts; i++ {
 		begin := fmt.Sprintf("%s-INI-%d", job.ID, i-1)
 		end := fmt.Sprintf("%s-END-%d", job.ID, i)
-		ids = append(ids, begin+end)
+
+		beginStr, err := b.Workers.RedisClient.Get(begin).Result()
+		checkErr(b.Logger, err)
+		endStr, err := b.Workers.RedisClient.Get(end).Result()
+		checkErr(b.Logger, err)
+
+		ids = append(ids, beginStr+endStr)
+
+		b.Workers.RedisClient.Del(begin)
+		b.Workers.RedisClient.Del(end)
 	}
 	return ids
 }
@@ -270,6 +279,21 @@ func (b *CreateBatchesWorker) setAsComplete(part int, job *model.Job) int {
 	count, err := b.Workers.RedisClient.LPush(hash, part).Result()
 	checkErr(b.Logger, err)
 	return int(count)
+}
+
+func (b *CreateBatchesWorker) flushControlGroup(job *model.Job, controlGroup []string) {
+	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
+	csvBuffer := &bytes.Buffer{}
+	csvWriter := io.Writer(csvBuffer)
+	csvWriter.Write([]byte("controlGroupUserIds\n"))
+	for _, user := range controlGroup {
+		csvWriter.Write([]byte(fmt.Sprintf("%s\n", user)))
+	}
+	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
+	csvBytes := csvBuffer.Bytes()
+	_, err := b.Workers.S3Client.PutObject(writePath, &csvBytes)
+	checkErr(b.Logger, err)
+	b.updateJobControlGroupCSVPath(job, writePath)
 }
 
 // Process processes the messages sent to batch worker queue
@@ -311,6 +335,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		ids = b.getSplitedIds(msg.TotalParts, &msg.Job)
 		b.processIDs(ids, &msg)
 		msg.Job.TagSuccess(b.Workers.MarathonDB, nameDbToCsv, "finished")
+		go b.flushControlGroup()
 	} else {
 		str := fmt.Sprintf("complete part %d of %d", completedParts, msg.TotalParts)
 		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, str)
