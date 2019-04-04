@@ -26,7 +26,7 @@
   version = "v5"
 
 [[projects]]
-  digest = "1:7d84a41ded4bdc7003ed86414d782c36c340f6b9dbf263e43c7d6a9548dfddf8"
+  digest = "1:edc2044748ed8229907ff216cab2a12511b85b8c8d0c356d33d810aa01ef7161"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -54,6 +54,7 @@
     "private/protocol/xml/xmlutil",
     "service/s3",
     "service/s3/s3iface",
+    "service/s3/s3manager",
     "service/sts",
   ]
   pruneopts = "UT"
@@ -153,6 +154,24 @@
   pruneopts = "UT"
   revision = "9c8236e659b76e87bf02044d06fde8683008ff3e"
   version = "v1.39.0"
+
+[[projects]]
+  digest = "1:0235ea8e267dc7696e5e4f4fcd46dde5adb02acff8afc6ed8628a299f1ac00f7"
+  name = "github.com/go-pg/pg"
+  packages = [
+    ".",
+    "internal",
+    "internal/iszero",
+    "internal/parser",
+    "internal/pool",
+    "internal/struct_filter",
+    "internal/tag",
+    "orm",
+    "types",
+  ]
+  pruneopts = "UT"
+  revision = "8739ab22578066a7615d80bf38d823af75793002"
+  version = "v8.0.3"
 
 [[projects]]
   digest = "1:06c8168453decb3d6db47d2fcac0f58332a535631fae7e63238e481e827f5258"
@@ -487,11 +506,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:674a2405f77863f4f362e3e45078fd9caa647dc1c0e8b022e3b9dc1ae89fbc8f"
+  digest = "1:9607502b7199053c9294999ed9dce98d9c04e05d1b6610d3e979036f1dcad493"
   name = "golang.org/x/crypto"
   packages = [
     "acme",
     "acme/autocert",
+    "pbkdf2",
   ]
   pruneopts = "UT"
   revision = "4d3f4d9ffa16a13f451c3b2999e9c49e9750bf06"
@@ -554,6 +574,14 @@
   pruneopts = "UT"
   revision = "a5b47d31c556af34a302ce5d659e6fea44d90de0"
 
+[[projects]]
+  digest = "1:999d566ad1ae4303c456af5a155f7b42401cca4fd33552567ed9dd997b107a08"
+  name = "mellium.im/sasl"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e58e780e1378aa4df5dc705364ff5ae9a4dd1e04"
+  version = "v0.2.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -566,9 +594,11 @@
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3iface",
+    "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/confluentinc/confluent-kafka-go/kafka",
     "github.com/garyburd/redigo/redis",
     "github.com/getsentry/raven-go",
+    "github.com/go-pg/pg",
     "github.com/jrallison/go-workers",
     "github.com/labstack/echo",
     "github.com/labstack/echo/middleware",

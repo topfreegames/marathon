@@ -25,9 +25,11 @@ package worker
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/go-pg/pg"
 	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
@@ -48,7 +50,7 @@ func NewCreateBatchesFromFiltersWorker(workers *Worker) *CreateBatchesFromFilter
 		Logger:  workers.Logger.With(zap.String("worker", "CreateBatchesFromFiltersWorker")),
 		Workers: workers,
 	}
-	b.Logger.Debug("Configured CreateBatchesFromFiltersWorker successfully")
+	b.Logger.Info("Configured CreateBatchesFromFiltersWorker successfully")
 	return b
 }
 
@@ -57,10 +59,18 @@ func (b *CreateBatchesFromFiltersWorker) createDbToCsvJob(job *model.Job, page D
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
 	var query string
-	if (whereClause) != "" {
-		query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' AND %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID, whereClause)
+	if !page.Last {
+		if (whereClause) != "" {
+			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' AND %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID, whereClause)
+		} else {
+			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID)
+		}
 	} else {
-		query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID)
+		if (whereClause) != "" {
+			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, whereClause)
+		} else {
+			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID)
+		}
 	}
 	b.Workers.DbToCsvJob(&ToCSVMenssage{
 		Query:      query,
@@ -71,40 +81,32 @@ func (b *CreateBatchesFromFiltersWorker) createDbToCsvJob(job *model.Job, page D
 	})
 }
 
-func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int, int) {
+func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int) {
 	filters := job.Filters
-	var count int
 	whereClause := GetWhereClauseFromFilters(filters)
-	var query string
-	if (whereClause) != "" {
-		query = fmt.Sprintf("SELECT count(DISTINCT user_id) FROM %s WHERE %s", GetPushDBTableName(job.App.Name, job.Service), whereClause)
-	} else {
-		query = fmt.Sprintf("SELECT count(DISTINCT user_id) FROM %s", GetPushDBTableName(job.App.Name, job.Service))
-	}
 
 	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-	start := time.Now()
 
+	// test if exist any user
+	var query string
+	count := 0
+	if (whereClause) != "" {
+		query = fmt.Sprintf("SELECT count(*) FROM (SELECT * FROM %s WHERE %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+	} else {
+		query = fmt.Sprintf("SELECT count(*) FROM (SELECT * FROM %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service))
+	}
 	_, err := b.Workers.PushDB.DB.Query(&count, query)
 	if count == 0 {
 		checkErr(b.Logger, fmt.Errorf("no users matching the filters"))
 	}
-	b.Workers.Statsd.Timing("count_total", time.Now().Sub(start), labels, 1)
 
-	// The maximum of ids to fill one multiupload part (in mb)
-	megaBytes := b.Workers.Config.GetInt("workers.amazonPartSize")
-	DBPageSize := int(math.Ceil((float64(megaBytes) * 1024.0 * 1024.0) / 37.0))
+	DBPageSize := int(math.Ceil(10.0*1024.0*1024.0) / 30.0) // estimative
 
-	pageCount := int(math.Ceil(float64(count) / float64(DBPageSize)))
-	checkErr(b.Logger, err)
 	pages := []DBPage{}
-	nextPageOffset := "00000000-0000-0000-0000-000000000000"
-
-	start = time.Now()
+	start := time.Now()
 
 	tx, err := b.Workers.PushDB.DB.Begin()
 	checkErr(b.Logger, err)
-
 	defer tx.Rollback()
 
 	if (whereClause) != "" {
@@ -114,28 +116,39 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	}
 	tx.Query(nil, query)
 
-	for page := 0; page < pageCount; page++ {
+	pageCount := 0
+	userIDPageOffset := ""
+	for {
 		pages = append(pages, DBPage{
-			Page:       page + 1, // amazon page start at 1
-			SmallestID: nextPageOffset,
+			Page:       pageCount + 1, // amazon page start at 1
+			SmallestID: userIDPageOffset,
 		})
+		b.Workers.Statsd.Incr("get_interval_cursor_start", labels, 1)
+		startFetch := time.Now()
 		query := fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", DBPageSize)
-		if page == pageCount-1 {
-			query = "FETCH FORWARD ALL FROM cursor;"
+		_, err := tx.QueryOne(&userIDPageOffset, query)
+
+		if err != nil && strings.Compare(err.Error(), pg.ErrNoRows.Error()) == 0 {
+			pages[pageCount].Last = true
+			pageCount++
+			break
 		}
-		_, err := tx.Query(&nextPageOffset, query)
 		checkErr(b.Logger, err)
-		pages[page].BiggestID = nextPageOffset
+
+		pages[pageCount].BiggestID = userIDPageOffset
+		b.Workers.Statsd.Timing("get_interval_cursor", time.Now().Sub(startFetch), labels, 1)
+		pageCount++
 	}
 
 	tx.Commit()
 	b.Workers.Statsd.Timing("get_intervals_cursor", time.Now().Sub(start), labels, 1)
 
-	return pages, pageCount, count
+	return pages, pageCount
 }
 
 func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job) {
-	pages, pageCount, _ := b.preprocessPages(job)
+	pages, pageCount := b.preprocessPages(job)
+	b.Logger.Info(fmt.Sprintf("Total pages:%d", pageCount))
 
 	folder := b.Workers.Config.GetString("s3.folder")
 	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())

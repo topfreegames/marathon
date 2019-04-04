@@ -24,6 +24,7 @@ package extensions
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
@@ -39,9 +41,10 @@ import (
 
 // AmazonS3 ...
 type AmazonS3 struct {
-	client *s3.S3
-	logger zap.Logger
-	conf   *viper.Viper
+	client  *s3.S3
+	session *session.Session
+	logger  zap.Logger
+	conf    *viper.Viper
 }
 
 //NewS3 client with the specified configuration
@@ -59,9 +62,10 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (interfaces.S3, error) {
 	}
 	logger.Debug("configured s3 extensions", zap.String("region", region))
 	return &AmazonS3{
-		client: s3.New(sess),
-		logger: logger,
-		conf:   conf,
+		client:  s3.New(sess),
+		logger:  logger,
+		conf:    conf,
+		session: sess,
 	}, nil
 }
 
@@ -72,20 +76,17 @@ func streamToByte(stream io.Reader) []byte {
 }
 
 // GetObject gets an object from s3
-//
 func (am *AmazonS3) GetObject(path string) ([]byte, error) {
-	client := s3iface.S3API(am.client)
+	downloader := s3manager.NewDownloader(am.session, func(d *s3manager.Downloader) {
+		d.Concurrency = 15
+	})
 	bucket := am.conf.GetString("s3.bucket")
-
-	params := &s3.GetObjectInput{
+	buffer := &aws.WriteAtBuffer{}
+	_, err := downloader.Download(buffer, &s3.GetObjectInput{
 		Bucket: &bucket,
 		Key:    &path,
-	}
-	resp, err := client.GetObject(params)
-	if err != nil {
-		return nil, err
-	}
-	return streamToByte(resp.Body), nil
+	})
+	return buffer.Bytes(), err
 }
 
 // PutObject puts an object into s3.
@@ -159,4 +160,22 @@ func (am *AmazonS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartU
 	}
 	_, err := am.client.CompleteMultipartUpload(completeInput)
 	return err
+}
+
+func byteRange(start, size int64) string {
+	return fmt.Sprintf("bytes=%d-%d", start, start+size-1)
+}
+
+// DownloadChunk downloads the chunk from s3
+func (am *AmazonS3) DownloadChunk(start, size int64, path string) (*s3.GetObjectOutput, error) {
+	client := s3iface.S3API(am.client)
+	bucket := am.conf.GetString("s3.bucket")
+	in := &s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &path,
+	}
+
+	// Get the next byte range of data
+	in.Range = aws.String(byteRange(start, size))
+	return client.GetObject(in)
 }

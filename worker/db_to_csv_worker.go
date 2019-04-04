@@ -24,11 +24,12 @@ package worker
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"runtime"
 	"sort"
 	"time"
 
-	"encoding/json"
 	"github.com/aws/aws-sdk-go/service/s3"
 	workers "github.com/jrallison/go-workers"
 	"github.com/topfreegames/marathon/model"
@@ -75,8 +76,8 @@ func NewDbToCsvWorker(workers *Worker) *DbToCsvWorker {
 	return b
 }
 
-func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMenssage) *[]User {
-	var users []User
+func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMenssage) *[]string {
+	var users []string
 	start := time.Now()
 	_, err := b.Workers.PushDB.DB.Query(&users, message.Query)
 	labels := []string{fmt.Sprintf("game:%s", message.Job.App.Name), fmt.Sprintf("platform:%s", message.Job.Service)}
@@ -118,6 +119,7 @@ func (b *DbToCsvWorker) finishUploads(message *ToCSVMenssage) {
 
 	// Parts must be sorted in PartNumber order.
 	sort.Sort(completeParts)
+	b.Logger.Info(fmt.Sprint(completeParts))
 
 	err = b.Workers.S3Client.CompleteMultipartUpload(&message.Uploader, completeParts)
 	checkErr(b.Logger, err)
@@ -125,15 +127,14 @@ func (b *DbToCsvWorker) finishUploads(message *ToCSVMenssage) {
 }
 
 func (b *DbToCsvWorker) createBatchesJob(message *ToCSVMenssage) {
-	jid, err := b.Workers.CreateBatchesJob(&[]string{message.Job.ID.String()})
+	jid, err := b.Workers.CSVSplitJob(message.Job.ID.String())
 	checkErr(b.Logger, err)
 	b.Logger.Info("created create batches job", zap.String("jid", jid))
 }
 
-func (b *DbToCsvWorker) uploadPart(users *[]User, message *ToCSVMenssage) {
+func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMenssage) {
 	labels := []string{fmt.Sprintf("game:%s", message.Job.App.Name), fmt.Sprintf("platform:%s", message.Job.Service)}
-	b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
-
+	start := time.Now()
 	buffer := bytes.NewBufferString("")
 
 	// if is the first element
@@ -143,12 +144,17 @@ func (b *DbToCsvWorker) uploadPart(users *[]User, message *ToCSVMenssage) {
 	}
 
 	for _, user := range *users {
-		buffer.WriteString(fmt.Sprintf("%s\n", user.UserID))
+		if IsUserIDValid(user) {
+			buffer.WriteString(fmt.Sprintf("%s\n", user))
+		}
 	}
 
 	tmpPart := int64(message.PartNumber)
 	completePart, err := b.Workers.S3Client.UploadPart(buffer, &message.Uploader, tmpPart)
+	b.Workers.Statsd.Timing("write_user_page_into_csv", time.Now().Sub(start), labels, 1)
 	checkErr(b.Logger, err)
+
+	runtime.GC()
 
 	if b.redisSaveCompletedPart(message, *completePart.ETag) {
 		b.finishUploads(message)

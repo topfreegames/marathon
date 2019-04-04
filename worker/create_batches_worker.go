@@ -12,7 +12,8 @@
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
  * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
@@ -24,19 +25,17 @@ package worker
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
-	"io"
 	"math"
+	"math/rand"
+	"runtime"
 	"sync"
 	"time"
-
-	"math/rand"
 
 	"gopkg.in/pg.v5"
 
 	"github.com/jrallison/go-workers"
-	"github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -60,16 +59,15 @@ func NewCreateBatchesWorker(workers *Worker) *CreateBatchesWorker {
 	return b
 }
 
-// ReadCSVFromS3 reads CSV from S3 and return correspondent array of strings
-func (b *CreateBatchesWorker) ReadCSVFromS3(csvPath string) []string {
-	csvFileBytes, err := b.Workers.S3Client.GetObject(csvPath)
-	checkErr(b.Logger, err)
-	for i, b := range csvFileBytes {
+// ReadFromCSV reads CSV from S3 and return correspondent array of strings
+func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte) []string {
+	for i, b := range *buffer {
 		if b == 0x0D {
-			csvFileBytes[i] = 0x0A
+			(*buffer)[i] = 0x0A
 		}
 	}
-	r := csv.NewReader(bytes.NewReader(csvFileBytes))
+
+	r := csv.NewReader(bytes.NewReader(*buffer))
 	lines, err := r.ReadAll()
 	checkErr(b.Logger, err)
 	res := []string{}
@@ -104,7 +102,7 @@ func (b *CreateBatchesWorker) computeTotalTokensAndBatchesSent(c <-chan *SentBat
 	}
 }
 
-func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
+func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
 	var users []User
 	start := time.Now()
 	_, err := b.Workers.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz, fiu, adid, vendor_id FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
@@ -114,32 +112,24 @@ func (b *CreateBatchesWorker) getCSVUserBatchFromPG(userIds *[]string, appName, 
 	return &users
 }
 
-func (b *CreateBatchesWorker) processBatch(c <-chan *Batch, batchesSentCH chan<- *SentBatches, job *model.Job, wg *sync.WaitGroup, wgBatchesSent *sync.WaitGroup) {
+func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
 	l := b.Logger
-	for batch := range c {
-		usersFromBatch := b.getCSVUserBatchFromPG((*batch).UserIds, job.App.Name, job.Service)
-		numUsersFromBatch := len(*usersFromBatch)
-		log.I(l, "got users from db", func(cm log.CM) {
-			cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
+
+	usersFromBatch := b.getUserBatchFromPG(ids, job.App.Name, job.Service)
+	numUsersFromBatch := len(*usersFromBatch)
+	log.I(l, "got users from db", func(cm log.CM) {
+		cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
+	})
+	bucketsByTZ := SplitUsersInBucketsByTZ(usersFromBatch)
+	for tz, users := range bucketsByTZ {
+		log.D(l, "batch of users for tz", func(cm log.CM) {
+			cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
 		})
-		bucketsByTZ := SplitUsersInBucketsByTZ(usersFromBatch)
-		for tz, users := range bucketsByTZ {
-			log.D(l, "batch of users for tz", func(cm log.CM) {
-				cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
-			})
-		}
-		markProcessedPage((*batch).PageID, job.ID, b.Workers.RedisClient)
-		if job.Localized {
-			b.sendLocalizedBatches(bucketsByTZ, job)
-		} else {
-			b.sendBatches(bucketsByTZ, job)
-		}
-		wgBatchesSent.Add(1)
-		batchesSentCH <- &SentBatches{
-			NumBatches:  len(bucketsByTZ),
-			TotalTokens: numUsersFromBatch,
-		}
-		wg.Done()
+	}
+	if job.Localized {
+		b.sendLocalizedBatches(bucketsByTZ, job)
+	} else {
+		b.sendBatches(bucketsByTZ, job)
 	}
 }
 
@@ -179,19 +169,14 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 	}
 }
 
-func (b *CreateBatchesWorker) sendControlGroupToS3(job *model.Job, controlGroup []string) {
-	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
-	csvBuffer := &bytes.Buffer{}
-	csvWriter := io.Writer(csvBuffer)
-	csvWriter.Write([]byte("controlGroupUserIds\n"))
-	for _, user := range controlGroup {
-		csvWriter.Write([]byte(fmt.Sprintf("%s\n", user)))
+func (b *CreateBatchesWorker) sendControlGroupToRedis(job *model.Job, controlGroup []string) {
+	hash := job.ID.String()
+	var args []interface{}
+	for _, id := range controlGroup {
+		args = append(args, id)
 	}
-	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
-	csvBytes := csvBuffer.Bytes()
-	_, err := b.Workers.S3Client.PutObject(writePath, &csvBytes)
+	_, err := b.Workers.RedisClient.LPush(fmt.Sprintf("%s-CONTROL", hash), args...).Result()
 	checkErr(b.Logger, err)
-	b.updateJobControlGroupCSVPath(job, writePath)
 }
 
 func (b *CreateBatchesWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
@@ -206,10 +191,10 @@ func (b *CreateBatchesWorker) updateTotalUsers(job *model.Job, totalUsers int) {
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecution bool, dbPageSize int) error {
+func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 	l := b.Logger
-	userIds := b.ReadCSVFromS3(job.CSVPath)
-	controlGroupSize := int(math.Ceil(float64(len(userIds)) * job.ControlGroup))
+	// create a controll group if needed
+	controlGroupSize := int(math.Ceil(float64(len(userIds)) * msg.Job.ControlGroup))
 	if controlGroupSize > 0 {
 		if controlGroupSize >= len(userIds) {
 			panic("control group size cannot be higher than number of users")
@@ -217,7 +202,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 		log.I(l, "this job has a control group!", func(cm log.CM) {
 			cm.Write(
 				zap.Int("controlGroupSize", controlGroupSize),
-				zap.String("jobID", job.ID.String()),
+				zap.String("jobID", msg.Job.ID.String()),
 			)
 		})
 		// shuffle slice in place
@@ -227,7 +212,7 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 		}
 		// grab control group
 		controlGroup := userIds[len(userIds)-controlGroupSize:]
-		b.sendControlGroupToS3(job, controlGroup)
+		b.sendControlGroupToRedis(&msg.Job, controlGroup)
 		// cut control group from the slice
 		userIds = append(userIds[:len(userIds)-controlGroupSize], userIds[len(userIds):]...)
 		log.I(l, "control group cut from the users", func(cm log.CM) {
@@ -236,129 +221,104 @@ func (b *CreateBatchesWorker) createBatchesUsingCSV(job *model.Job, isReexecutio
 			)
 		})
 	}
-	numPushes := len(userIds)
-	log.D(l, "finished reading csv from s3", func(cm log.CM) {
-		cm.Write(zap.Int("numPushes", numPushes),
-			zap.Int("dbPageSize", dbPageSize),
-		)
-	})
-	b.updateTotalUsers(job, numPushes)
-	pages := int(math.Max(math.Ceil(float64(numPushes)/float64(dbPageSize)), 1))
-	if numPushes == 0 {
-		pages = 0
-	}
-	l.Info("grabing pages from pg", zap.Int("pagesToComplete", pages), zap.Int("numPushes", numPushes))
-	var wg sync.WaitGroup
-	var wgBatchesSent sync.WaitGroup
 
-	pgCH := make(chan *Batch, pages)
-	batchesSentCH := make(chan *SentBatches)
-	wg.Add(pages)
-	PageProcessingConcurrency := b.Workers.Config.GetInt("workers.createBatches.pageProcessingConcurrency")
-	for i := 0; i < PageProcessingConcurrency; i++ {
-		go b.processBatch(pgCH, batchesSentCH, job, &wg, &wgBatchesSent)
-	}
-	go b.computeTotalTokensAndBatchesSent(batchesSentCH, job, &wgBatchesSent)
-	for i := 0; i < pages; i++ {
-		if isReexecution && isPageProcessed(i, job.ID, b.Workers.RedisClient, b.Logger) {
-			log.I(l, "job is reexecution and page is already processed", func(cm log.CM) {
-				cm.Write(zap.String("jobID", job.ID.String()), zap.Int("page", i))
-			})
-			wg.Done()
-			continue
-		}
-		userBatch := b.getPage(i, dbPageSize, userIds)
-		pgCH <- &Batch{
-			UserIds: &userBatch,
-			PageID:  i,
-		}
-	}
-	wg.Wait()
-	wgBatchesSent.Wait()
-	close(pgCH)
-	close(batchesSentCH)
-	return nil
+	// update total job info
+	// b.updateTotalBatches((*sent).NumBatches, job)
+	b.updateTotalTokens(len(userIds), &msg.Job)
+
+	// pull from db and send to kafta
+	b.processBatch(&userIds, &msg.Job)
 }
 
-func (b *CreateBatchesWorker) getPage(page, dbPageSize int, users []string) []string {
-	start := page * dbPageSize
-	end := (page + 1) * dbPageSize
-	if start >= len(users) {
-		return nil
+// get the list of ids and send to redis the splited ids
+func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []string {
+	bBystes := buffer.Bytes()
+	lines := b.ReadFromCSV(&bBystes)
+	totalLines := len(lines)
+	start := 0
+	end := totalLines
+
+	// is not the fisrt part
+	if msg.Part != 0 && totalLines > 0 {
+		str := fmt.Sprintf("%s-INI-%d", msg.Job.ID, msg.Part)
+		b.Workers.RedisClient.Set(str, lines[0], 0)
+		start++
 	}
-	if end > len(users) {
-		end = len(users)
+
+	// is not the last part
+	if msg.Part != msg.TotalParts-1 {
+		str := fmt.Sprintf("%s-END-%d", msg.Job.ID, msg.Part)
+		b.Workers.RedisClient.Set(str, lines[totalLines-1], 0)
+		end--
 	}
-	return users[start:end]
+
+	return lines[start:end]
+}
+
+func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []string {
+	var ids []string
+	for i := 1; i < totalParts; i++ {
+		begin := fmt.Sprintf("%s-INI-%d", job.ID, i-1)
+		end := fmt.Sprintf("%s-END-%d", job.ID, i)
+		ids = append(ids, begin+end)
+	}
+	return ids
+}
+
+func (b *CreateBatchesWorker) setAsComplete(part int, job *model.Job) int {
+	hash := job.ID.String()
+	count, err := b.Workers.RedisClient.LPush(hash, part).Result()
+	checkErr(b.Logger, err)
+	return int(count)
 }
 
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
-	arr, err := message.Args().Array()
+
+	var msg BatchPart
+	data := message.Args().ToJson()
+	err := json.Unmarshal([]byte(data), &msg)
 	checkErr(b.Logger, err)
-	jobID := arr[0]
-	id, err := uuid.FromString(jobID.(string))
-	checkErr(b.Logger, err)
-	isReexecution := checkIsReexecution(id, b.Workers.RedisClient, b.Logger)
+
 	l := b.Logger.With(
-		zap.String("jobID", id.String()),
-		zap.Bool("isReexecution", isReexecution),
 		zap.String("worker", nameCreateBatches),
+		zap.Int("part", msg.Part),
+		zap.Int("totalParts", msg.TotalParts),
 	)
-	log.I(l, "starting")
-	job := &model.Job{
-		ID: id,
+	l.Info("starting")
+
+	// if is the first element
+	if msg.Part == 1 {
+		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, "starting")
 	}
-	job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, "starting")
-	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+
+	start := time.Now()
+	resp, err := b.Workers.S3Client.DownloadChunk(int64(msg.Start), int64(msg.Size), msg.Job.CSVPath)
+	labels := []string{fmt.Sprintf("game:%s", msg.Job.App.Name), fmt.Sprintf("platform:%s", msg.Job.Service)}
+	b.Workers.Statsd.Timing("get_csv_from_s3", time.Now().Sub(start), labels, 1)
 	checkErr(l, err)
-	if job.Status == stoppedJobStatus {
-		l.Info("stopped job")
-		return
-	}
-	pageSize := b.Workers.Config.GetInt("workers.createBatches.dbPageSize")
-	dbPageSize := pageSize
-	if job.DBPageSize == 0 {
-		b.Workers.MarathonDB.DB.Model(job).Set("db_page_size = ?", pageSize).Returning("*").Update()
-	} else if job.DBPageSize != pageSize {
-		dbPageSize = job.DBPageSize
-		log.I(l, "Using job DBPageSize value", func(cm log.CM) {
-			cm.Write(zap.Int("dbPageSize", job.DBPageSize))
-		})
-	}
-	if len(job.CSVPath) > 0 {
-		err = b.createBatchesUsingCSV(job, isReexecution, dbPageSize)
-		if err != nil {
-			job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
-			checkErr(l, err)
-		}
-		b.Workers.RedisClient.Expire(fmt.Sprintf("%s-processedpages", job.ID.String()), time.Second*3600)
-		updatedJob := &model.Job{
-			ID: id,
-		}
-		err = b.Workers.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
-		if err != nil {
-			job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
-			checkErr(l, err)
-		}
-		if updatedJob.TotalTokens == 0 {
-			_, err := b.Workers.MarathonDB.DB.Model(job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", updatedJob.ID).Update()
-			checkErr(l, err)
 
-			if b.Workers.SendgridClient != nil {
-				msg := "Your job was automatically stopped because no tokens were found matching the user ids given in the CSV file. Please verify the uploaded CSV and create a new job."
-				err = email.SendStoppedJobEmail(b.Workers.SendgridClient, updatedJob, job.App.Name, msg)
-				b.checkErr(job, err)
+	var buffer bytes.Buffer
+	buffer.ReadFrom(resp.Body)
 
-			}
-		}
-		log.I(l, "finished")
-		job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
+	ids := b.getIDs(&buffer, &msg)
+	// pull from db, send to control and send to kafta
+	b.processIDs(ids, &msg)
+
+	completedParts := b.setAsComplete(msg.Part, &msg.Job)
+
+	if completedParts == msg.TotalParts {
+		ids = b.getSplitedIds(msg.TotalParts, &msg.Job)
+		b.processIDs(ids, &msg)
+		msg.Job.TagSuccess(b.Workers.MarathonDB, nameDbToCsv, "finished")
 	} else {
-		log.I(l, "panicked")
-		checkErr(l, fmt.Errorf("no csvPath passed to worker"))
-		b.checkErr(job, err)
+		str := fmt.Sprintf("complete part %d of %d", completedParts, msg.TotalParts)
+		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, str)
 	}
+	ids = nil
+	runtime.GC()
+
+	l.Info("finished")
 }
 
 func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {

@@ -295,7 +295,7 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 		}
 		checkErr(l, err)
 		pushMetadata := map[string]interface{}{
-			"userId": user.UserID,
+			// "userId": user.UserID,
 			// "fiu":          user.Fiu,
 			// "adid":         user.Adid,
 			"pushTime": time.Now().Unix(),

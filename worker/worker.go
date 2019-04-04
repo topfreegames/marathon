@@ -175,25 +175,31 @@ func (w *Worker) configureS3Client() {
 func (w *Worker) configureWorkers() {
 	p := NewProcessBatchWorker(w)
 	d := NewDbToCsvWorker(w)
+	k := NewCSVSplitWorker(w)
 	c := NewCreateBatchesWorker(w)
 	f := NewCreateBatchesFromFiltersWorker(w)
 	r := NewResumeJobWorker(w)
 	j := NewJobCompletedWorker(w)
 
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
-	createDbToCsvBatchesWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
+	createDbToCsvWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
+	createCSVSplitWorkerConcurrency := w.Config.GetInt("workers.csvSplit.concurrency")
 	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
 
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
-	workers.Process("db_to_csv_worker", d.Process, createDbToCsvBatchesWorkerConcurrency)
+	workers.Process("db_to_csv_worker", d.Process, createDbToCsvWorkerConcurrency)
 
+	workers.Process("csv_split_worker", k.Process, createCSVSplitWorkerConcurrency)
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
 	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
+
+	// for test
+	w.CSVSplitJob("e86871ec-d7ff-4ed5-b135-80fb3edaf776")
 }
 
 func (w *Worker) configureSentry() {
@@ -214,6 +220,15 @@ func (w *Worker) configureKafkaProducer() {
 	w.Kafka = kafka
 }
 
+// CSVSplitJob creates a new CSVSplitWorker job
+func (w *Worker) CSVSplitJob(jobID string) (string, error) {
+	maxRetries := w.Config.GetInt("workers.dowloader.maxRetries")
+	return workers.EnqueueWithOptions("csv_split_worker", "Add", jobID, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+	})
+}
+
 // DbToCsvJob creates a new DbToCsvWorker job
 func (w *Worker) DbToCsvJob(msg *ToCSVMenssage) (string, error) {
 	maxRetries := w.Config.GetInt("workers.dbToCsv.maxRetries")
@@ -224,9 +239,9 @@ func (w *Worker) DbToCsvJob(msg *ToCSVMenssage) (string, error) {
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
-func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
+func (w *Worker) CreateBatchesJob(part *BatchPart) (string, error) {
 	maxRetries := w.Config.GetInt("workers.createBatches.maxRetries")
-	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{
+	return workers.EnqueueWithOptions("create_batches_worker", "Add", part, workers.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
