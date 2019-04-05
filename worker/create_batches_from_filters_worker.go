@@ -151,7 +151,8 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 	b.Logger.Info(fmt.Sprintf("Total pages:%d", pageCount))
 
 	folder := b.Workers.Config.GetString("s3.folder")
-	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
+	bucket := b.Workers.Config.GetString("s3.bucket")
+	writePath := fmt.Sprintf("%s/%s/job-%s.csv", bucket, folder, job.ID.String())
 	uploader, err := b.Workers.S3Client.InitMultipartUpload(writePath)
 	checkErr(b.Logger, err)
 	b.updateJobCSVPath(job, writePath)

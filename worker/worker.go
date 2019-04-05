@@ -197,8 +197,6 @@ func (w *Worker) configureWorkers() {
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
 	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
-
-	// w.CSVSplitJob("74a1cd8c-9385-4429-9542-7135c6442445")
 }
 
 func (w *Worker) configureSentry() {

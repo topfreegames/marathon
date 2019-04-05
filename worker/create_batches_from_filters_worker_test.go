@@ -217,7 +217,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			msg, err := workers.NewMsg(string(smsg))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createBatchesFromFiltersWorker.Process(msg) }).ShouldNot(Panic())
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			dbJob := &model.Job{
 				ID: j.ID,
 			}

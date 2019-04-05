@@ -99,7 +99,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -136,7 +136,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -179,7 +179,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -219,7 +219,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -257,7 +257,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -291,7 +291,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -329,7 +329,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+			key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 			generatedCSV, err := fakeS3.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
 			lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
@@ -403,7 +403,7 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-		key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.folder"), j.ID)
+		key := fmt.Sprintf("%s/%s/job-%s.csv", w.Config.GetString("s3.bucket"), w.Config.GetString("s3.folder"), j.ID)
 		generatedCSV, err := fakeS3.GetObject(key)
 		Expect(err).NotTo(HaveOccurred())
 		lines := ReadLinesFromIOReader(bytes.NewReader(generatedCSV))
