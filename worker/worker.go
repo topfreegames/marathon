@@ -183,7 +183,7 @@ func (w *Worker) configureWorkers() {
 
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
 	createDbToCsvWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
-	createCSVSplitWorkerConcurrency := w.Config.GetInt("workers.csvSplit.concurrency")
+	createCSVSplitWorkerConcurrency := w.Config.GetInt("workers.csvSplitWorker.concurrency")
 	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
@@ -221,7 +221,7 @@ func (w *Worker) configureKafkaProducer() {
 
 // CSVSplitJob creates a new CSVSplitWorker job
 func (w *Worker) CSVSplitJob(jobID string) (string, error) {
-	maxRetries := w.Config.GetInt("workers.dowloader.maxRetries")
+	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
 	return workers.EnqueueWithOptions("csv_split_worker", "Add", jobID, workers.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
