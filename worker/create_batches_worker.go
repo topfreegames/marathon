@@ -27,7 +27,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"math/rand"
 	"runtime"
@@ -178,12 +177,6 @@ func (b *CreateBatchesWorker) sendControlGroupToRedis(job *model.Job, controlGro
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
-	job.ControlGroupCSVPath = csvPath
-	_, err := b.Workers.MarathonDB.DB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
-	checkErr(b.Logger, err)
-}
-
 func (b *CreateBatchesWorker) updateTotalUsers(job *model.Job, totalUsers int) {
 	job.TotalUsers = totalUsers
 	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_users = coalesce(total_users, 0) + ?", totalUsers).Where("id = ?", job.ID).Update()
@@ -285,28 +278,6 @@ func (b *CreateBatchesWorker) setAsComplete(part int, job *model.Job) int {
 	return int(count)
 }
 
-func (b *CreateBatchesWorker) flushControlGroup(job *model.Job) {
-	hash := job.ID.String()
-	controlGroup, err := b.Workers.RedisClient.LRange(hash, 0, -1).Result()
-	checkErr(b.Logger, err)
-
-	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
-	csvBuffer := &bytes.Buffer{}
-	csvWriter := io.Writer(csvBuffer)
-	csvWriter.Write([]byte("controlGroupUserIds\n"))
-	for _, user := range controlGroup {
-		csvWriter.Write([]byte(fmt.Sprintf("%s\n", user)))
-	}
-	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
-	csvBytes := csvBuffer.Bytes()
-	_, err = b.Workers.S3Client.PutObject(writePath, &csvBytes)
-	checkErr(b.Logger, err)
-	b.updateJobControlGroupCSVPath(job, writePath)
-
-	err = b.Workers.RedisClient.Del(hash).Err()
-	checkErr(b.Logger, err)
-}
-
 // Process processes the messages sent to batch worker queue
 func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
@@ -356,7 +327,6 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		ids = b.getSplitedIds(msg.TotalParts, &msg.Job)
 		b.processIDs(ids, &msg)
 		msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
-		go b.flushControlGroup(&msg.Job)
 	} else {
 		str := fmt.Sprintf("complete part %d of %d", completedParts, msg.TotalParts)
 		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, str)

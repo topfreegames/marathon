@@ -20,9 +20,7 @@
 package worker_test
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -346,44 +344,6 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(wMessage1.Users)).To(BeEquivalentTo(6))
-		})
-
-		It("should put control group in s3 and also update job with controlGroupCSVPath", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-				"context":      context,
-				"filters":      map[string]interface{}{},
-				"csvPath":      "test/jobs/obj5.csv",
-				"controlGroup": 0.4,
-			})
-
-			_, err := w.CSVSplitJob(j.ID.String())
-			Expect(err).NotTo(HaveOccurred())
-
-			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(jobData))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
-
-			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
-			msg, err = workers.NewMsg(string(jobData))
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.controlGroupFolder"), j.ID.String())
-			controlGroupCSV, err := w.S3Client.GetObject(key)
-			Expect(err).NotTo(HaveOccurred())
-			lines := ReadLinesFromIOReader(bytes.NewReader(controlGroupCSV))
-			Expect(len(lines)).To(Equal(5)) //5 -> header + 4 control group userIds
-
-			dbJob := &model.Job{
-				ID: j.ID,
-			}
-			err = w.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(dbJob.ControlGroupCSVPath).To(Equal(key))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if numPushes < dbPageSize", func() {

@@ -285,15 +285,13 @@ func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutp
 
 // PutObject ...
 func (s *FakeS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
-	fullPath := path
-	s.fakeStorage[fullPath] = *body
+	s.fakeStorage[path] = *body
 	return &s3.PutObjectOutput{}, nil
 }
 
 // GetObject ...
 func (s *FakeS3) GetObject(path string) ([]byte, error) {
-	fullPath := path
-	if val, ok := s.fakeStorage[fullPath]; ok {
+	if val, ok := s.fakeStorage[path]; ok {
 		return val, nil
 	}
 	return nil, fmt.Errorf("NoSuchKey: The specified key does not exist. status code: 404, request id: 000000000000TEST")
@@ -302,7 +300,6 @@ func (s *FakeS3) GetObject(path string) ([]byte, error) {
 // UploadPart ...
 func (s *FakeS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
-
 	fullPath := *multipartUpload.Key
 	if s.multipart[fullPath] == nil {
 		s.multipart[fullPath] = make(map[int64][]byte, 0)

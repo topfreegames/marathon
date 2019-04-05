@@ -45,6 +45,8 @@ var _ = Describe("JobCompleted Worker", func() {
 		zap.FatalLevel,
 	)
 	w := worker.NewWorker(logger, GetConfPath())
+	fakeS3 := NewFakeS3(w.Config)
+	w.S3Client = fakeS3
 
 	BeforeEach(func() {
 		jobCompletedWorker = worker.NewJobCompletedWorker(w)
@@ -65,9 +67,9 @@ var _ = Describe("JobCompleted Worker", func() {
 			message, err := workers.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
-			// Expect(func() {
-			jobCompletedWorker.Process(message)
-			// }).ShouldNot(Panic())
+			Expect(func() {
+				jobCompletedWorker.Process(message)
+			}).ShouldNot(Panic())
 		})
 
 		It("should not process when job is not found in db", func() {

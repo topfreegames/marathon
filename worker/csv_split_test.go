@@ -45,11 +45,11 @@ var _ = Describe("CSVSplit Worker", func() {
 	createCSVSplitWorker := worker.NewCSVSplitWorker(w)
 
 	BeforeEach(func() {
+		w.S3Client = NewFakeS3(w.Config)
 		app = CreateTestApp(w.MarathonDB.DB)
 		template = CreateTestTemplate(w.MarathonDB.DB, app.ID)
+		w.RedisClient.FlushAll()
 	})
-	w.S3Client = NewFakeS3(w.Config)
-	rand.Seed(42)
 
 	Describe("Process", func() {
 		It("should create jobs for the next worker", func() {

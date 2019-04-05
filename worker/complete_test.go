@@ -20,7 +20,9 @@
 package worker_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 
 	workers "github.com/jrallison/go-workers"
@@ -42,10 +44,11 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
-var _ = Describe("CreateBatches Worker", func() {
+var _ = Describe("Complete Test Worker", func() {
 	var app *model.App
 	var template *model.Template
 	var producer *FakeKafkaProducer
+	config := GetConf()
 
 	logger := zap.New(
 		zap.NewJSONEncoder(zap.NoTime()),
@@ -59,8 +62,61 @@ var _ = Describe("CreateBatches Worker", func() {
 	createCSVSplitWorker := worker.NewCSVSplitWorker(w)
 	createBatchesWorker := worker.NewCreateBatchesWorker(w)
 	processBatchWorker := worker.NewProcessBatchWorker(w)
+	jobCompleteWorker := worker.NewJobCompletedWorker(w)
 
 	rand.Seed(42)
+
+	runAllSteps := func(jobID string) {
+		m := map[string]interface{}{
+			"jid":  1,
+			"args": []string{jobID},
+		}
+		smsg, err := json.Marshal(m)
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(smsg))
+		Expect(err).NotTo(HaveOccurred())
+		createBatchesFromFiltersWorker.Process(msg)
+
+		dataSlice, err := w.RedisClient.LRange("queue:db_to_csv_worker", 0, -1).Result()
+		Expect(err).NotTo(HaveOccurred())
+		for _, data := range dataSlice {
+			msg, err = workers.NewMsg(data)
+			Expect(err).NotTo(HaveOccurred())
+			createDbToCsvBatchesWorker.Process(msg)
+		}
+
+		dataSlice, err = w.RedisClient.LRange("queue:csv_split_worker", 0, -1).Result()
+		Expect(err).NotTo(HaveOccurred())
+		for _, data := range dataSlice {
+			msg, err = workers.NewMsg(data)
+			Expect(err).NotTo(HaveOccurred())
+			createCSVSplitWorker.Process(msg)
+		}
+
+		dataSlice, err = w.RedisClient.LRange("queue:create_batches_worker", 0, -1).Result()
+		Expect(err).NotTo(HaveOccurred())
+		for _, data := range dataSlice {
+			msg, err = workers.NewMsg(data)
+			Expect(err).NotTo(HaveOccurred())
+			createBatchesWorker.Process(msg)
+		}
+
+		dataSlice, err = w.RedisClient.LRange("queue:process_batch_worker", 0, -1).Result()
+		Expect(err).NotTo(HaveOccurred())
+		for _, data := range dataSlice {
+			msg, err = workers.NewMsg(data)
+			Expect(err).NotTo(HaveOccurred())
+			processBatchWorker.Process(msg)
+		}
+
+		dataSlice, err = w.RedisClient.ZRange("schedule", 0, -1).Result()
+		Expect(err).NotTo(HaveOccurred())
+		for _, data := range dataSlice {
+			msg, err = workers.NewMsg(data)
+			Expect(err).NotTo(HaveOccurred())
+			jobCompleteWorker.Process(msg)
+		}
+	}
 
 	BeforeEach(func() {
 		app = CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "myapp"})
@@ -105,53 +161,14 @@ var _ = Describe("CreateBatches Worker", func() {
 					'us' as region,
 					'+0000' as tz;
 			`)
+			Expect(err).NotTo(HaveOccurred())
 
 			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
 			})
-			m := map[string]interface{}{
-				"jid":  5,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
-			Expect(err).NotTo(HaveOccurred())
-			createBatchesFromFiltersWorker.Process(msg)
-
-			dataSlice, err := w.RedisClient.LRange("queue:db_to_csv_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				createDbToCsvBatchesWorker.Process(msg)
-			}
-
-			dataSlice, err = w.RedisClient.LRange("queue:csv_split_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				createCSVSplitWorker.Process(msg)
-			}
-
-			dataSlice, err = w.RedisClient.LRange("queue:create_batches_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				createBatchesWorker.Process(msg)
-			}
-
-			dataSlice, err = w.RedisClient.LRange("queue:process_batch_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				processBatchWorker.Process(msg)
-			}
+			runAllSteps(j.ID.String())
 
 			Expect(len(producer.APNSMessages)).To(Equal(10000))
 		})
@@ -167,55 +184,59 @@ var _ = Describe("CreateBatches Worker", func() {
 					'us' as region,
 					'+0000' as tz;
 			`)
+			Expect(err).NotTo(HaveOccurred())
 
 			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
 			})
-			m := map[string]interface{}{
-				"jid":  5,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
-			Expect(err).NotTo(HaveOccurred())
-			createBatchesFromFiltersWorker.Process(msg)
 
-			dataSlice, err := w.RedisClient.LRange("queue:db_to_csv_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				createDbToCsvBatchesWorker.Process(msg)
-			}
-
-			dataSlice, err = w.RedisClient.LRange("queue:csv_split_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				createCSVSplitWorker.Process(msg)
-			}
-
-			dataSlice, err = w.RedisClient.LRange("queue:create_batches_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				createBatchesWorker.Process(msg)
-			}
-
-			dataSlice, err = w.RedisClient.LRange("queue:process_batch_worker", 0, -1).Result()
-			Expect(err).NotTo(HaveOccurred())
-			for _, data := range dataSlice {
-				msg, err = workers.NewMsg(data)
-				Expect(err).NotTo(HaveOccurred())
-				processBatchWorker.Process(msg)
-			}
+			runAllSteps(j.ID.String())
 
 			Expect(len(producer.APNSMessages)).To(Equal(1000))
+		})
+
+		It("should put control group in s3 and also update job with controlGroupCSVPath", func() {
+			_, err := w.PushDB.DB.Query(nil, `
+				INSERT INTO myapp_apns (seq_id, user_id, token, locale, region, tz)
+				VALUES
+				(1, '1', '1', 'en', 'us', '+0000'),
+				(10, '10', '10', 'en', 'us', '+0000'),
+				(2, '2', '2', 'en', 'us', '+0000'),
+				(20, '20', '20', 'en', 'us', '+0000'),
+				(3, '3', '3', 'en', 'us', '+0000'),
+				(30, '30', '30', 'en', 'us', '+0000'),
+				(4, '4', '4', 'en', 'us', '+0000'),
+				(40, '40', '40', 'en', 'us', '+0000'),
+				(5, '5', '5', 'en', 'us', '+0000'),
+				(50, '50', '50', 'en', 'us', '+0000');
+			`)
+			Expect(err).NotTo(HaveOccurred())
+
+			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+				"filters": map[string]interface{}{
+					"locale": "en",
+				},
+				"csvPath":      "test/jobs/obj5.csv",
+				"controlGroup": 0.4,
+			})
+
+			runAllSteps(j.ID.String())
+
+			bucket := config.GetString("s3.bucket")
+			key := fmt.Sprintf("%s/%s/job-%s.csv", bucket, w.Config.GetString("s3.controlGroupFolder"), j.ID.String())
+			controlGroupCSV, err := w.S3Client.GetObject(key)
+			Expect(err).NotTo(HaveOccurred())
+			lines := ReadLinesFromIOReader(bytes.NewReader(controlGroupCSV))
+			Expect(len(lines)).To(Equal(5)) //5 -> header + 4 control group userIds
+
+			dbJob := &model.Job{
+				ID: j.ID,
+			}
+			err = w.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dbJob.ControlGroupCSVPath).To(Equal(key))
 		})
 	})
 
