@@ -36,5 +36,5 @@ type S3 interface {
 		partNumber int64) (*s3.UploadPartOutput, error)
 	PutObjectRequest(path string) (string, error)
 	CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error
-	DownloadChunk(start, size int64, path string) (*s3.GetObjectOutput, error)
+	DownloadChunk(start, size int64, path string) (int, *bytes.Buffer, error)
 }
