@@ -367,14 +367,14 @@ var _ = Describe("CreateBatchesFromFilters Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createDbToCsvBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
-			res, err := w.RedisClient.LLen("queue:create_batches_worker").Result()
+			res, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 			Expect(res).To(BeEquivalentTo(1))
 			j1 := map[string]interface{}{}
-			job1, err := w.RedisClient.LPop("queue:create_batches_worker").Result()
+			job1, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 			err = json.Unmarshal([]byte(job1), &j1)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(j1["queue"].(string)).To(Equal("create_batches_worker"))
-			Expect(j1["args"].([]interface{})[0]).To(Equal(j.ID.String()))
+			Expect(j1["queue"].(string)).To(Equal("csv_split_worker"))
+			Expect(j1["args"].(string)).To(Equal(j.ID.String()))
 		})
 	})
 

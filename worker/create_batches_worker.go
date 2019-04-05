@@ -320,6 +320,13 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		zap.Int("part", msg.Part),
 		zap.Int("totalParts", msg.TotalParts),
 	)
+
+	err = b.Workers.MarathonDB.DB.Model(&msg.Job).Column("job.status", "App").Where("job.id = ?", msg.Job.ID).Select()
+	checkErr(l, err)
+	if msg.Job.Status == stoppedJobStatus {
+		l.Info("stopped job")
+		return
+	}
 	l.Info("starting")
 
 	// if is the first element
@@ -328,15 +335,18 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	}
 
 	start := time.Now()
-	resp, err := b.Workers.S3Client.DownloadChunk(int64(msg.Start), int64(msg.Size), msg.Job.CSVPath)
+	_, buffer, err := b.Workers.S3Client.DownloadChunk(int64(msg.Start), int64(msg.Size), msg.Job.CSVPath)
 	labels := []string{fmt.Sprintf("game:%s", msg.Job.App.Name), fmt.Sprintf("platform:%s", msg.Job.Service)}
 	b.Workers.Statsd.Timing("get_csv_from_s3", time.Now().Sub(start), labels, 1)
 	checkErr(l, err)
 
-	var buffer bytes.Buffer
-	buffer.ReadFrom(resp.Body)
+	ids := b.getIDs(buffer, &msg)
 
-	ids := b.getIDs(&buffer, &msg)
+	if len(ids) == 0 {
+		_, err := b.Workers.MarathonDB.DB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
+		checkErr(l, err)
+	}
+
 	// pull from db, send to control and send to kafta
 	b.processIDs(ids, &msg)
 

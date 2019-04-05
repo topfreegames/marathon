@@ -41,13 +41,13 @@ var _ = Describe("CreateBatches Worker", func() {
 	var template *model.Template
 	var context map[string]interface{}
 
-	config := GetConf()
 	logger := zap.New(
 		zap.NewJSONEncoder(zap.NoTime()),
 		zap.FatalLevel,
 	)
 	w := worker.NewWorker(logger, GetConfPath())
 	createBatchesWorker := worker.NewCreateBatchesWorker(w)
+	createCSVSplitWorker := worker.NewCSVSplitWorker(w)
 
 	BeforeEach(func() {
 		fakeS3 := NewFakeS3(w.Config)
@@ -67,7 +67,7 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 		fakeData3 := []byte(`userids
 e78431ca-69a8-4326-af1f-48f817a4a669
 ee4455fe-8ff6-4878-8d7c-aec096bd68b4`)
-		fakeData4 := []byte(`remoteplayerid
+		fakeData4 := []byte(`userids
 b00b2bf9-9999-4be9-bdbd-cf0dbbd82cb2
 6ce8a64f-c888-48c4-a040-f24ca7a71714`)
 		fakeData5 := []byte(`userids
@@ -154,17 +154,22 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj2.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(func() {
-				createBatchesWorker.Process(msg)
-			}).ShouldNot(Panic())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
+			createBatchesWorker.Process(msg)
 		})
 
 		It("should work if CSV is from Excel/Windows", func() {
@@ -173,14 +178,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj4.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			createCSVSplitWorker.Process(msg)
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			createBatchesWorker.Process(msg)
 		})
 
@@ -191,15 +203,24 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			_, err = w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+			Expect(err).NotTo(HaveOccurred())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -213,14 +234,23 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
@@ -251,13 +281,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.2,
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -281,13 +318,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.4,
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -311,13 +356,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.4,
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			key := fmt.Sprintf("%s/job-%s.csv", w.Config.GetString("s3.controlGroupFolder"), j.ID.String())
 			controlGroupCSV, err := w.S3Client.GetObject(key)
@@ -341,15 +394,23 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
-			createBatchesWorker.Process(msg)
-			//Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(2))
@@ -382,14 +443,23 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"startsAt":         time.Now().UTC().Add(-12 * time.Hour).UnixNano(),
 				"pastTimeStrategy": "skip",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
 			res, err := w.RedisClient.ZCard("schedule").Result()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(0))
@@ -405,13 +475,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"startsAt":         time.Now().UTC().Add(time.Duration(-6) * time.Hour).UnixNano(),
 				"pastTimeStrategy": "nextDay",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.ZCard("schedule").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -434,13 +511,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"localized": true,
 				"startsAt":  time.Now().UTC().Add(12 * time.Hour).UnixNano(),
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.ZCard("schedule").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -463,13 +547,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -501,13 +593,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath": "test/jobs/obj1.csv",
 				"service": "gcm",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -539,13 +639,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath": "test/jobs/obj1.csv",
 				"service": "gcm",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -570,27 +678,6 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 		})
 
-		It("should update job DBPageSize if no previous size", func() {
-			w.DBPageSize = config.GetInt("workers.createBatches.dbPageSize")
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-				"context": context,
-				"filters": map[string]interface{}{},
-				"csvPath": "test/jobs/obj1.csv",
-			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
-			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			err = w.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(j.DBPageSize).To(Equal(config.GetInt("workers.createBatches.dbPageSize")))
-		})
-
 		It("should use job DBPageSize if specified", func() {
 			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
 			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
@@ -599,13 +686,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath": "test/jobs/obj1.csv",
 			})
 			w.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			err = w.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
@@ -619,13 +714,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
 			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
@@ -642,13 +745,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			})
 			_, err := w.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err = w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
 			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
@@ -663,13 +774,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
 			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
@@ -685,13 +804,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
 			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
@@ -706,13 +832,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj3.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  3,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
 			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
@@ -730,13 +864,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			})
 			_, err := w.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
-			m := map[string]interface{}{
-				"jid":  3,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err = w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
 			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
@@ -751,13 +893,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj2.csv",
 			})
-			m := map[string]interface{}{
-				"jid":  2,
-				"args": []string{j.ID.String()},
-			}
-			smsg, err := json.Marshal(m)
+
+			_, err := w.CSVSplitJob(j.ID.String())
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(smsg))
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 
 			updatedJob := &model.Job{
@@ -769,15 +919,15 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 	})
 
-	Describe("Read CSV from S3", func() {
-		It("should return correct array from Unix csv data", func() {
-			res := createBatchesWorker.ReadCSVFromS3("test/jobs/obj3.csv")
-			Expect(res).To(HaveLen(2))
-		})
+	// Describe("Read CSV from S3", func() {
+	// 	It("should return correct array from Unix csv data", func() {
+	// 		res := w.ReadCSVFromS3("test/jobs/obj3.csv")
+	// 		Expect(res).To(HaveLen(2))
+	// 	})
 
-		It("should return correct array from DOS csv data", func() {
-			res := createBatchesWorker.ReadCSVFromS3("test/jobs/obj4.csv")
-			Expect(res).To(HaveLen(2))
-		})
-	})
+	// 	It("should return correct array from DOS csv data", func() {
+	// 		res := w.ReadCSVFromS3("test/jobs/obj4.csv")
+	// 		Expect(res).To(HaveLen(2))
+	// 	})
+	// })
 })

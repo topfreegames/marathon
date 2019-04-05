@@ -189,12 +189,12 @@ func (w *Worker) configureWorkers() {
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
 
-	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
+	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("db_to_csv_worker", d.Process, createDbToCsvWorkerConcurrency)
 
 	workers.Process("csv_split_worker", k.Process, createCSVSplitWorkerConcurrency)
+	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
-	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
 	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
 

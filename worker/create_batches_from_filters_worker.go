@@ -91,9 +91,9 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	var query string
 	count := 0
 	if (whereClause) != "" {
-		query = fmt.Sprintf("SELECT count(*) FROM (SELECT * FROM %s WHERE %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+		query = fmt.Sprintf("SELECT count(1) FROM (SELECT * FROM %s WHERE %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
 	} else {
-		query = fmt.Sprintf("SELECT count(*) FROM (SELECT * FROM %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service))
+		query = fmt.Sprintf("SELECT count(1) FROM (SELECT * FROM %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service))
 	}
 	_, err := b.Workers.PushDB.DB.Query(&count, query)
 	if count == 0 {

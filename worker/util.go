@@ -48,15 +48,11 @@ const stoppedJobStatus = "stopped"
 
 // User is the struct that will keep users before sending them to send batches worker
 type User struct {
-	// CreatedAt pg.NullTime `json:"created_at,omitempty" sql:"created_at"`
 	UserID string `json:"user_id,omitempty" sql:"user_id"`
 	Token  string `json:"token,omitempty" sql:"token"`
 	Locale string `json:"locale,omitempty" sql:"locale"`
 	Region string `json:"region,omitempty" sql:"region"`
 	Tz     string `json:"tz,omitempty" sql:"tz"`
-	// Fiu       string      `json:"fiu,omitempty" sql:"fiu"`
-	// Adid      string      `json:"adid,omitempty" sql:"adid"`
-	// VendorID  string      `json:"vendor_id,omitempty" sql:"vendor_id"`
 }
 
 // Batch is a struct that helps tracking processes pages

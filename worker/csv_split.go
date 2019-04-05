@@ -19,15 +19,17 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/*** Description ***
+
+ */
+
 package worker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 
 	"github.com/jrallison/go-workers"
@@ -50,8 +52,6 @@ type BatchPart struct {
 const nameSCVSplit = "csv_split_worker"
 
 const partSize = 30 * 1024 * 1024
-
-// const partSize = 1024 * 5
 
 // CSVSplitWorker is the CSVSplitWorker struct
 type CSVSplitWorker struct {
@@ -94,17 +94,11 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	}
 
 	// get file information
-	resp, err := b.Workers.S3Client.DownloadChunk(0, 7, job.CSVPath)
+	totalSize, buf, err := b.Workers.S3Client.DownloadChunk(0, 7, job.CSVPath)
 	checkErr(l, err)
-	parts := strings.Split(*resp.ContentRange, "/")
-	totalSize, err := strconv.Atoi(parts[1])
-	checkErr(l, err)
-
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(resp.Body)
 	firtsBytes := buf.String()
 
-	if strings.Compare("userIds", firtsBytes) != 0 {
+	if !strings.EqualFold("userIds", firtsBytes) {
 		checkErr(l, errors.New("Invalid CSV - it does not contain column"))
 	}
 

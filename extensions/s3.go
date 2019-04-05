@@ -26,6 +26,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -69,6 +71,16 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (interfaces.S3, error) {
 	}, nil
 }
 
+func getInfo(path string) (string, string, error) {
+	splittedString := strings.SplitN(path, "/", 2)
+	if len(splittedString) < 2 {
+		return "", "", fmt.Errorf("Invalid path")
+	}
+	bucket := splittedString[0]
+	objKey := splittedString[1]
+	return bucket, objKey, nil
+}
+
 func streamToByte(stream io.Reader) []byte {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(stream)
@@ -80,11 +92,15 @@ func (am *AmazonS3) GetObject(path string) ([]byte, error) {
 	downloader := s3manager.NewDownloader(am.session, func(d *s3manager.Downloader) {
 		d.Concurrency = 15
 	})
-	bucket := am.conf.GetString("s3.bucket")
+	bucket, objKey, err := getInfo(path)
+	if err != nil {
+		return []byte{}, err
+	}
+
 	buffer := &aws.WriteAtBuffer{}
-	_, err := downloader.Download(buffer, &s3.GetObjectInput{
+	_, err = downloader.Download(buffer, &s3.GetObjectInput{
 		Bucket: &bucket,
-		Key:    &path,
+		Key:    &objKey,
 	})
 	return buffer.Bytes(), err
 }
@@ -92,12 +108,16 @@ func (am *AmazonS3) GetObject(path string) ([]byte, error) {
 // PutObject puts an object into s3.
 func (am *AmazonS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
 	client := s3iface.S3API(am.client)
-	bucket := am.conf.GetString("s3.bucket")
-	//b := aws.ReadSeekCloser(*body)
+
+	bucket, objKey, err := getInfo(path)
+	if err != nil {
+		return nil, err
+	}
+
 	b := bytes.NewReader(*body)
 	params := &s3.PutObjectInput{
 		Bucket: &bucket,
-		Key:    &path,
+		Key:    &objKey,
 		Body:   b,
 	}
 	return client.PutObject(params)
@@ -106,10 +126,15 @@ func (am *AmazonS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, e
 // PutObjectRequest return a presigned url for uploading a file to s3
 func (am *AmazonS3) PutObjectRequest(path string) (string, error) {
 	client := s3iface.S3API(am.client)
-	bucket := am.conf.GetString("s3.bucket")
+
+	bucket, objKey, err := getInfo(path)
+	if err != nil {
+		return "", err
+	}
+
 	params := &s3.PutObjectInput{
 		Bucket: &bucket,
-		Key:    &path,
+		Key:    &objKey,
 	}
 	req, _ := client.PutObjectRequest(params)
 	url, err := req.Presign(300 * time.Second)
@@ -121,10 +146,14 @@ func (am *AmazonS3) PutObjectRequest(path string) (string, error) {
 
 // InitMultipartUpload build obeject to send multipart
 func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
-	bucket := am.conf.GetString("s3.bucket")
+	bucket, objKey, err := getInfo(path)
+	if err != nil {
+		return nil, err
+	}
+
 	multiUpInput := &s3.CreateMultipartUploadInput{
 		Bucket: &bucket,
-		Key:    &path,
+		Key:    &objKey,
 	}
 	return am.client.CreateMultipartUpload(multiUpInput)
 }
@@ -132,13 +161,11 @@ func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadO
 // UploadPart ...
 func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
-	bucket := am.conf.GetString("s3.bucket")
-
 	var partNumberTemp int64
 	partNumberTemp = int64(partNumber)
 	upPartInput := &s3.UploadPartInput{
 		Body:       bytes.NewReader(input.Bytes()),
-		Bucket:     &bucket,
+		Bucket:     multipartUpload.Bucket,
 		Key:        multipartUpload.Key,
 		PartNumber: &partNumberTemp,
 		UploadId:   multipartUpload.UploadId,
@@ -148,10 +175,8 @@ func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMu
 
 // CompleteMultipartUpload ...
 func (am *AmazonS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
-	bucket := am.conf.GetString("s3.bucket")
-
 	completeInput := &s3.CompleteMultipartUploadInput{
-		Bucket:   &bucket,
+		Bucket:   multipartUpload.Bucket,
 		Key:      multipartUpload.Key,
 		UploadId: multipartUpload.UploadId,
 		MultipartUpload: &s3.CompletedMultipartUpload{
@@ -167,15 +192,35 @@ func byteRange(start, size int64) string {
 }
 
 // DownloadChunk downloads the chunk from s3
-func (am *AmazonS3) DownloadChunk(start, size int64, path string) (*s3.GetObjectOutput, error) {
+func (am *AmazonS3) DownloadChunk(start, size int64, path string) (int, *bytes.Buffer, error) {
+	buf := new(bytes.Buffer)
 	client := s3iface.S3API(am.client)
-	bucket := am.conf.GetString("s3.bucket")
+
+	bucket, objKey, err := getInfo(path)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	in := &s3.GetObjectInput{
 		Bucket: &bucket,
-		Key:    &path,
+		Key:    &objKey,
 	}
 
 	// Get the next byte range of data
 	in.Range = aws.String(byteRange(start, size))
-	return client.GetObject(in)
+
+	resp, err := client.GetObject(in)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	parts := strings.Split(*resp.ContentRange, "/")
+	totalSize, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, nil, err
+	}
+
+	buf.ReadFrom(resp.Body)
+
+	return totalSize, buf, nil
 }

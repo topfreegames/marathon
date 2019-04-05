@@ -24,13 +24,11 @@ package extensions
 
 import (
 	"fmt"
-	// "errors"
+	"time"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Shopify/sarama"
-	"time"
-	// raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
-	// "github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
@@ -62,7 +60,6 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Cli
 	client.configure()
 
 	client.connectToKafka()
-	// go client.listenForKafkaResponses()
 	l.Info("configured kafka producer")
 	return client, nil
 }
@@ -81,11 +78,6 @@ func (c *KafkaProducer) configure() {
 
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaProducer) connectToKafka() error {
-	// cfg := &kafka.ConfigMap{
-	// 	"bootstrap.servers":          c.BootstrapBrokers,
-	// 	"queue.buffering.max.kbytes": c.BatchSize,
-	// 	"queue.buffering.max.ms":     c.LingerMS,
-	// }
 	config := sarama.NewConfig()
 	config.Producer.Flush.Messages = c.BatchSize
 	config.Producer.Flush.MaxMessages = c.BatchSize

@@ -569,16 +569,16 @@ var _ = Describe("Job Handler", func() {
 				err := json.Unmarshal([]byte(body), &job)
 				Expect(err).NotTo(HaveOccurred())
 
-				res, err := w.RedisClient.LLen("queue:create_batches_worker").Result()
+				res, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(res).To(BeEquivalentTo(1))
-				job1, err := w.RedisClient.LPop("queue:create_batches_worker").Result()
+				job1, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				j1 := map[string]interface{}{}
 				err = json.Unmarshal([]byte(job1), &j1)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(j1["queue"].(string)).To(Equal("create_batches_worker"))
-				Expect(j1["args"].([]interface{})[0]).To(Equal(job["id"]))
+				Expect(j1["queue"].(string)).To(Equal("csv_split_worker"))
+				Expect(j1["args"].(string)).To(Equal(job["id"]))
 			})
 
 			It("should start the create batches from filters immediately if payload without startsAt", func() {
@@ -630,7 +630,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(result["args"].([]interface{})[0]).To(Equal(job["id"]))
 				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64)) / 1000000000.0))
 
-				res1, err := w.RedisClient.LLen("queue:create_batches_worker").Result()
+				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(res1).To(BeEquivalentTo(0))
 			})
@@ -652,7 +652,7 @@ var _ = Describe("Job Handler", func() {
 				res, err := w.RedisClient.ZRange("schedule", 0, -1).Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(res)).To(BeEquivalentTo(0))
-				res1, err := w.RedisClient.LLen("queue:create_batches_worker").Result()
+				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(res1).To(BeEquivalentTo(1))
 			})
@@ -681,7 +681,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(result["args"].([]interface{})[0]).To(Equal(job["id"]))
 				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64))/1000000000.0 - 14*60*60.0))
 
-				res1, err := w.RedisClient.LLen("queue:create_batches_worker").Result()
+				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(res1).To(BeEquivalentTo(0))
 			})

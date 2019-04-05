@@ -119,12 +119,6 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
 
-	// fix to treat the iu with bucket
-	bucket := a.Config.GetString("s3.bucket")
-	if strings.HasPrefix(job.CSVPath, bucket) && len(job.CSVPath) > len(bucket) {
-		job.CSVPath = job.CSVPath[len(bucket)+1 : len(job.CSVPath)]
-	}
-
 	if job.Filters["region"] != nil || job.Filters["NOTregion"] != nil || job.Filters["locale"] != nil || job.Filters["NOTlocale"] != nil {
 		var users []worker.User
 		query := fmt.Sprintf("SELECT locale, region FROM %s WHERE locale is not NULL AND region is not NULL LIMIT 1;", worker.GetPushDBTableName(app.Name, job.Service))

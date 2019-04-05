@@ -285,16 +285,14 @@ func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutp
 
 // PutObject ...
 func (s *FakeS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
-	bucket := s.conf.GetString("s3.bucket")
-	fullPath := fmt.Sprintf("%s/%s", bucket, path)
+	fullPath := path
 	s.fakeStorage[fullPath] = *body
 	return &s3.PutObjectOutput{}, nil
 }
 
 // GetObject ...
 func (s *FakeS3) GetObject(path string) ([]byte, error) {
-	bucket := s.conf.GetString("s3.bucket")
-	fullPath := fmt.Sprintf("%s/%s", bucket, path)
+	fullPath := path
 	if val, ok := s.fakeStorage[fullPath]; ok {
 		return val, nil
 	}
@@ -305,8 +303,7 @@ func (s *FakeS3) GetObject(path string) ([]byte, error) {
 func (s *FakeS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
 
-	bucket := s.conf.GetString("s3.bucket")
-	fullPath := fmt.Sprintf("%s/%s", bucket, multipartUpload.Key)
+	fullPath := *multipartUpload.Key
 	if s.multipart[fullPath] == nil {
 		s.multipart[fullPath] = make(map[int64][]byte, 0)
 	}
@@ -325,8 +322,7 @@ func (s *FakeS3) PutObjectRequest(path string) (string, error) {
 
 // CompleteMultipartUpload ...
 func (s *FakeS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
-	bucket := s.conf.GetString("s3.bucket")
-	fullPath := fmt.Sprintf("%s/%s", bucket, multipartUpload.Key)
+	fullPath := *multipartUpload.Key
 	buffer := bytes.NewBufferString("")
 
 	for _, b := range s.multipart[fullPath] {
@@ -335,6 +331,17 @@ func (s *FakeS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUplo
 	bytesTemp := buffer.Bytes()
 	s.PutObject(*multipartUpload.Key, &bytesTemp)
 	return nil
+}
+
+// DownloadChunk get part of the csv file
+func (s *FakeS3) DownloadChunk(start, size int64, path string) (int, *bytes.Buffer, error) {
+	fullPath := path
+	if val, ok := s.fakeStorage[fullPath]; ok {
+		len := len(val)
+		buf := bytes.NewBuffer(val[start : start+size])
+		return len, buf, nil
+	}
+	return 0, nil, fmt.Errorf("NoSuchKey: The specified key does not exist")
 }
 
 // ReadLinesFromIOReader for testing
