@@ -49,7 +49,7 @@ type BatchPart struct {
 
 const nameSCVSplit = "csv_split_worker"
 
-const partSize = 10 * 1024 * 1024
+const partSize = 30 * 1024 * 1024
 
 // const partSize = 1024 * 5
 

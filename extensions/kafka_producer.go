@@ -23,9 +23,10 @@
 package extensions
 
 import (
-	"errors"
+	"fmt"
+	// "errors"
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/Shopify/sarama"
 	"time"
 	// raven "github.com/getsentry/raven-go"
 	"github.com/spf13/viper"
@@ -42,7 +43,7 @@ type KafkaProducer struct {
 	BootstrapBrokers string
 	BatchSize        int
 	LingerMS         int
-	Producer         *kafka.Producer
+	Producer         sarama.AsyncProducer
 	Statsd           *statsd.Client
 }
 
@@ -60,11 +61,7 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Cli
 	client.loadConfigurationDefaults()
 	client.configure()
 
-	err := client.connectToKafka()
-	if err != nil {
-		return nil, err
-	}
-
+	client.connectToKafka()
 	// go client.listenForKafkaResponses()
 	l.Info("configured kafka producer")
 	return client, nil
@@ -72,7 +69,7 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Cli
 
 func (c *KafkaProducer) loadConfigurationDefaults() {
 	c.Config.SetDefault("kafka.bootstrapServers", "localhost:9940")
-	c.Config.SetDefault("kafka.batch.size", 100)
+	c.Config.SetDefault("kafka.batch.size", 10)
 	c.Config.SetDefault("kafka.linger.ms", 10)
 }
 
@@ -84,47 +81,48 @@ func (c *KafkaProducer) configure() {
 
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaProducer) connectToKafka() error {
-	cfg := &kafka.ConfigMap{
-		"bootstrap.servers":          c.BootstrapBrokers,
-		"queue.buffering.max.kbytes": c.BatchSize,
-		"queue.buffering.max.ms":     c.LingerMS,
-	}
-	p, err := kafka.NewProducer(cfg)
+	// cfg := &kafka.ConfigMap{
+	// 	"bootstrap.servers":          c.BootstrapBrokers,
+	// 	"queue.buffering.max.kbytes": c.BatchSize,
+	// 	"queue.buffering.max.ms":     c.LingerMS,
+	// }
+	config := sarama.NewConfig()
+	config.Producer.Flush.Messages = c.BatchSize
+	config.Producer.Flush.MaxMessages = c.BatchSize
+	config.Producer.Flush.Frequency = time.Duration(c.LingerMS) * time.Millisecond
+
+	config.Producer.RequiredAcks = sarama.WaitForLocal
+	config.Producer.Retry.Max = 10
+	config.Producer.Return.Errors = true
+	config.Producer.Return.Successes = true
+	config.Producer.MaxMessageBytes = 1000000
+	config.Producer.RequiredAcks = sarama.WaitForLocal
+
+	producer, err := sarama.NewAsyncProducer([]string{c.BootstrapBrokers}, config)
 	if err != nil {
 		return err
 	}
+	c.Producer = producer
 
-	c.Producer = p
+	go func() {
+		for range producer.Successes() {
+			c.Statsd.Incr("send_message_return", []string{"error:false"}, 0.01)
+		}
+	}()
+
+	go func() {
+		for err := range producer.Errors() {
+			fmt.Println(err)
+			c.Statsd.Incr("send_message_return", []string{"error:true"}, 0.01)
+		}
+	}()
+
 	return nil
 }
 
-// func (c KafkaProducer) listenForKafkaResponses() {
-// 	l := c.Logger.With(
-// 		zap.String("source", "KafkaExtension"),
-// 		zap.String("method", "listenForKafkaResponses"),
-// 	)
-// 	for e := range c.Producer.Events() {
-// 		switch ev := e.(type) {
-// 		case *kafka.Message:
-// 			m := ev
-// 			if m.TopicPartition.Error != nil {
-// 				raven.CaptureError(m.TopicPartition.Error, map[string]string{
-// 					"extension": "kafka-producer",
-// 				})
-// 				log.E(l, "Kafka producer error", func(cm log.CM) {
-// 					cm.Write(zap.Error(m.TopicPartition.Error))
-// 				})
-// 				c.Statsd.Incr("send_message_return", []string{"error:true"}, 1)
-// 			} else {
-// 				c.Statsd.Incr("send_message_return", []string{"error:false"}, 1)
-// 			}
-// 		}
-// 	}
-// }
-
 //Close the connections to kafka
 func (c *KafkaProducer) Close() {
-	c.Producer.Close()
+	c.Producer.AsyncClose()
 }
 
 //SendAPNSPush notification to Kafka
@@ -148,7 +146,8 @@ func (c *KafkaProducer) SendAPNSPush(topic, deviceToken string, payload, message
 	if err != nil {
 		return err
 	}
-	return c.sendPush(messages.NewKafkaMessage(topic, message), 5)
+	c.sendPush(messages.NewKafkaMessage(topic, message), 5)
+	return nil
 }
 
 //SendGCMPush notification to Kafka
@@ -173,29 +172,15 @@ func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageM
 	if err != nil {
 		return err
 	}
-	return c.sendPush(messages.NewKafkaMessage(topic, message), 5)
+	c.sendPush(messages.NewKafkaMessage(topic, message), 5)
+	return nil
 }
 
 //SendPush notification to Kafka
-func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage, retries int) error {
-	message := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{
-			Topic:     &msg.Topic,
-			Partition: kafka.PartitionAny,
-		},
-		Value: []byte(msg.Message),
+func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage, retries int) {
+	message := &sarama.ProducerMessage{
+		Topic: msg.Topic,
+		Value: sarama.StringEncoder(msg.Message),
 	}
-
-	// err := c.Producer.ProduceChannel() <- message
-	err := c.Producer.Produce(message, nil)
-	if err != nil {
-		if retries > 10 {
-			return errors.New("imposible to send menssage")
-		}
-		c.Statsd.Incr("send_message_return", []string{"error:true"}, 0.01)
-		time.Sleep(10 * time.Millisecond)
-		c.sendPush(msg, retries+1)
-	}
-	c.Statsd.Incr("send_message_return", []string{"error:false"}, 0.01)
-	return nil
+	c.Producer.Input() <- message
 }
