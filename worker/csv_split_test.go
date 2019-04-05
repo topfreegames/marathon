@@ -60,7 +60,7 @@ var _ = Describe("CSVSplit Worker", func() {
 				"csvPath": "test/test.csv",
 			})
 
-			randomData := make([]byte, 47000000)
+			randomData := make([]byte, 20000000)
 			rand.Read(randomData)
 			copy(randomData[:], "userIds\n")
 
@@ -90,9 +90,9 @@ var _ = Describe("CSVSplit Worker", func() {
 			err = json.Unmarshal([]byte(data), &msg)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(msg.TotalSize).To(Equal(47000000))
+			Expect(msg.TotalSize).To(Equal(20000000))
 			Expect(msg.TotalParts).To(Equal(2))
-			Expect(msg.Size).To(Equal(31457280))
+			Expect(msg.Size).To(Equal(10485760))
 			Expect(msg.Part).To(Equal(0))
 			Expect(msg.Job.ID).To(Equal(j.ID))
 
@@ -106,9 +106,9 @@ var _ = Describe("CSVSplit Worker", func() {
 			err = json.Unmarshal([]byte(data), &msg)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(msg.TotalSize).To(Equal(47000000))
+			Expect(msg.TotalSize).To(Equal(20000000))
 			Expect(msg.TotalParts).To(Equal(2))
-			Expect(msg.Size).To(Equal(47000000 - 31457280))
+			Expect(msg.Size).To(Equal(20000000 - 10485760))
 			Expect(msg.Part).To(Equal(1))
 			Expect(msg.Job.ID).To(Equal(j.ID))
 		})

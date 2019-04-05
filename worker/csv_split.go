@@ -51,7 +51,7 @@ type BatchPart struct {
 
 const nameSCVSplit = "csv_split_worker"
 
-const partSize = 30 * 1024 * 1024
+const partSize = 10 * 1024 * 1024
 
 // CSVSplitWorker is the CSVSplitWorker struct
 type CSVSplitWorker struct {
