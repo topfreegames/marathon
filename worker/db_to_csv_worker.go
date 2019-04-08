@@ -121,8 +121,18 @@ func (b *DbToCsvWorker) finishUploads(message *ToCSVMenssage) {
 	sort.Sort(completeParts)
 	b.Logger.Info(fmt.Sprint(completeParts))
 
-	err = b.Workers.S3Client.CompleteMultipartUpload(&message.Uploader, completeParts)
-	checkErr(b.Logger, err)
+	retries := 0
+	for {
+		err = b.Workers.S3Client.CompleteMultipartUpload(&message.Uploader, completeParts)
+		if err != nil && retries == 3 {
+			checkErr(b.Logger, err)
+		}
+		if err == nil {
+			return
+		}
+		time.Sleep(1 * time.Second)
+		retries++
+	}
 
 }
 
