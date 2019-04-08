@@ -227,7 +227,7 @@ func (w *Worker) CSVSplitJob(jobID string) (string, error) {
 }
 
 // DbToCsvJob creates a new DbToCsvWorker job
-func (w *Worker) DbToCsvJob(msg *ToCSVMenssage) (string, error) {
+func (w *Worker) DbToCsvJob(msg *ToCSVMessage) (string, error) {
 	maxRetries := w.Config.GetInt("workers.dbToCsv.maxRetries")
 	return workers.EnqueueWithOptions("db_to_csv_worker", "Add", msg, workers.EnqueueOptions{
 		Retry:      true,

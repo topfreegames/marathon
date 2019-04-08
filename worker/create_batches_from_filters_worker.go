@@ -72,7 +72,7 @@ func (b *CreateBatchesFromFiltersWorker) createDbToCsvJob(job *model.Job, page D
 			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID)
 		}
 	}
-	b.Workers.DbToCsvJob(&ToCSVMenssage{
+	b.Workers.DbToCsvJob(&ToCSVMessage{
 		Query:      query,
 		PartNumber: page.Page,
 		Uploader:   *uploader,

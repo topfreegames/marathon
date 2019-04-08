@@ -38,9 +38,9 @@ import (
 
 const nameDbToCsv = "db_to_csv_worker"
 
-// ToCSVMenssage store th information needed to retrive part of data from the db
+// ToCSVMessage store th information needed to retrive part of data from the db
 // and save it to the csv
-type ToCSVMenssage struct {
+type ToCSVMessage struct {
 	Query      string
 	Uploader   s3.CreateMultipartUploadOutput
 	PartNumber int
@@ -76,7 +76,7 @@ func NewDbToCsvWorker(workers *Worker) *DbToCsvWorker {
 	return b
 }
 
-func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMenssage) *[]string {
+func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMessage) *[]string {
 	var users []string
 	start := time.Now()
 	_, err := b.Workers.PushDB.DB.Query(&users, message.Query)
@@ -87,7 +87,7 @@ func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMenssage) *[]string {
 }
 
 // return if is the last element or not
-func (b *DbToCsvWorker) redisSaveCompletedPart(message *ToCSVMenssage, etag string) bool {
+func (b *DbToCsvWorker) redisSaveCompletedPart(message *ToCSVMessage, etag string) bool {
 	hash := message.Job.ID.String()
 	data, err := json.Marshal(CompletedPart{
 		PartNumber: int64(message.PartNumber),
@@ -99,7 +99,7 @@ func (b *DbToCsvWorker) redisSaveCompletedPart(message *ToCSVMenssage, etag stri
 	return queueLen == int64(message.TotalJobs)
 }
 
-func (b *DbToCsvWorker) finishUploads(message *ToCSVMenssage) {
+func (b *DbToCsvWorker) finishUploads(message *ToCSVMessage) {
 	hash := message.Job.ID.String()
 	strings, err := b.Workers.RedisClient.LRange(hash, 0, -1).Result()
 	checkErr(b.Logger, err)
@@ -136,13 +136,13 @@ func (b *DbToCsvWorker) finishUploads(message *ToCSVMenssage) {
 
 }
 
-func (b *DbToCsvWorker) createBatchesJob(message *ToCSVMenssage) {
+func (b *DbToCsvWorker) createBatchesJob(message *ToCSVMessage) {
 	jid, err := b.Workers.CSVSplitJob(message.Job.ID.String())
 	checkErr(b.Logger, err)
 	b.Logger.Info("created create batches job", zap.String("jid", jid))
 }
 
-func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMenssage) {
+func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMessage) {
 	labels := []string{fmt.Sprintf("game:%s", message.Job.App.Name), fmt.Sprintf("platform:%s", message.Job.Service)}
 	start := time.Now()
 	buffer := bytes.NewBufferString("")
@@ -180,7 +180,7 @@ func (b *DbToCsvWorker) Process(message *workers.Msg) {
 	)
 	l.Info("starting")
 
-	var msg ToCSVMenssage
+	var msg ToCSVMessage
 	data := message.Args().ToJson()
 	err := json.Unmarshal([]byte(data), &msg)
 	checkErr(b.Logger, err)

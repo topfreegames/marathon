@@ -161,8 +161,7 @@ func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadO
 // UploadPart ...
 func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
-	var partNumberTemp int64
-	partNumberTemp = int64(partNumber)
+	partNumberTemp := int64(partNumber)
 	upPartInput := &s3.UploadPartInput{
 		Body:       bytes.NewReader(input.Bytes()),
 		Bucket:     multipartUpload.Bucket,
