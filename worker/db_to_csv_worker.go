@@ -87,13 +87,19 @@ func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMessage) *[]string {
 // return if is the last element or not
 func (b *DbToCsvWorker) redisSaveCompletedPart(message *ToCSVMessage, etag string) bool {
 	hash := message.Job.ID.String()
+	var queueLen int64
+
 	data, err := json.Marshal(CompletedPart{
 		PartNumber: int64(message.PartNumber),
 		ETag:       etag,
 	})
-	queueLen, err := b.Workers.RedisClient.LPush(hash, data).Result()
-	checkErr(b.Logger, err)
 
+	if etag == "" {
+		queueLen, err = b.Workers.RedisClient.LLen(hash).Result()
+	} else {
+		queueLen, err = b.Workers.RedisClient.LPush(hash, data).Result()
+	}
+	checkErr(b.Logger, err)
 	return queueLen == int64(message.TotalJobs)
 }
 
@@ -119,19 +125,8 @@ func (b *DbToCsvWorker) finishUploads(message *ToCSVMessage) {
 	sort.Sort(completeParts)
 	b.Logger.Info("completed parts", zap.String("parts", fmt.Sprint(completeParts)))
 
-	retries := 0
-	for {
-		err = b.Workers.S3Client.CompleteMultipartUpload(&message.Uploader, completeParts)
-		if err != nil && retries == 3 {
-			checkErr(b.Logger, err)
-		}
-		if err == nil {
-			return
-		}
-		time.Sleep(1 * time.Second)
-		retries++
-	}
-
+	err = b.Workers.S3Client.CompleteMultipartUpload(&message.Uploader, completeParts)
+	checkErr(b.Logger, err)
 }
 
 func (b *DbToCsvWorker) createBatchesJob(message *ToCSVMessage) {
@@ -180,8 +175,13 @@ func (b *DbToCsvWorker) Process(message *workers.Msg) {
 	err := json.Unmarshal([]byte(data), &msg)
 	checkErr(b.Logger, err)
 
-	users := b.getPageFromDBWith(&msg)
-	b.uploadPart(users, &msg)
+	// check if all uploads parts are finished
+	if !b.redisSaveCompletedPart(&msg, "") {
+		users := b.getPageFromDBWith(&msg)
+		b.uploadPart(users, &msg)
+	} else {
+		b.finishUploads(&msg)
+	}
 
 	l.Info("finished")
 }
