@@ -327,6 +327,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		ids = b.getSplitedIds(msg.TotalParts, &msg.Job)
 		b.processIDs(ids, &msg)
 		msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
+		// TODO: schedule a job to run after send all messages. This job will check
+		// for errors and delete waste if a error happen
 	} else {
 		str := fmt.Sprintf("complete part %d of %d", completedParts, msg.TotalParts)
 		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, str)
