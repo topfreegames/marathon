@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"runtime"
 
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
@@ -77,7 +76,6 @@ func (b *JobCompletedWorker) flushControlGroup(job *model.Job) {
 
 	err = b.Workers.RedisClient.Del(hash).Err()
 	checkErr(b.Logger, err)
-	runtime.GC()
 }
 
 func (b *JobCompletedWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {

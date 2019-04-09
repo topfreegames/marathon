@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"sort"
 	"time"
 
@@ -118,7 +117,7 @@ func (b *DbToCsvWorker) finishUploads(message *ToCSVMessage) {
 
 	// Parts must be sorted in PartNumber order.
 	sort.Sort(completeParts)
-	b.Logger.Info(fmt.Sprint(completeParts))
+	b.Logger.Info("completed parts", zap.String("parts", fmt.Sprint(completeParts)))
 
 	retries := 0
 	for {
@@ -161,8 +160,6 @@ func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMessage) {
 	completePart, err := b.Workers.S3Client.UploadPart(buffer, &message.Uploader, tmpPart)
 	b.Workers.Statsd.Timing("write_user_page_into_csv", time.Now().Sub(start), message.Job.Labels(), 1)
 	checkErr(b.Logger, err)
-
-	runtime.GC()
 
 	if b.redisSaveCompletedPart(message, *completePart.ETag) {
 		b.finishUploads(message)

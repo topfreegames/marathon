@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"runtime"
 	"time"
 
 	"gopkg.in/pg.v5"
@@ -335,7 +334,6 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, str)
 	}
 	ids = nil
-	runtime.GC()
 
 	l.Info("finished")
 }
