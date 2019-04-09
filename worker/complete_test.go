@@ -34,16 +34,6 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var letterRunes = []rune("-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func RandStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
-
 var _ = Describe("Complete Test Worker", func() {
 	var app *model.App
 	var template *model.Template
