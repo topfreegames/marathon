@@ -58,20 +58,15 @@ func (b *CreateBatchesFromFiltersWorker) createDbToCsvJob(job *model.Job, page D
 	uploader *s3.CreateMultipartUploadOutput, total int) {
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
-	var query string
+	query := fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s'", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID)
 	if !page.Last {
-		if (whereClause) != "" {
-			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' AND %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID, whereClause)
-		} else {
-			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND user_id <= '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, page.BiggestID)
-		}
-	} else {
-		if (whereClause) != "" {
-			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' AND %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID, whereClause)
-		} else {
-			query = fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s' ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID)
-		}
+		query += fmt.Sprintf(" AND user_id <= '%s'", page.BiggestID)
 	}
+	if (whereClause) != "" {
+		query += fmt.Sprintf(" AND %s", whereClause)
+	}
+	query += fmt.Sprintf(" ORDER BY user_id;")
+
 	b.Workers.DbToCsvJob(&ToCSVMessage{
 		Query:      query,
 		PartNumber: page.Page,
