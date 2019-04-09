@@ -53,6 +53,10 @@ type User struct {
 	Locale string `json:"locale,omitempty" sql:"locale"`
 	Region string `json:"region,omitempty" sql:"region"`
 	Tz     string `json:"tz,omitempty" sql:"tz"`
+	// CreatedAt pg.NullTime `json:"created_at,omitempty" sql:"created_at"`
+	// Fiu       string      `json:"fiu,omitempty" sql:"fiu"`
+	// Adid      string      `json:"adid,omitempty" sql:"adid"`
+	// VendorID  string      `json:"vendor_id,omitempty" sql:"vendor_id"`
 }
 
 // Batch is a struct that helps tracking processes pages
