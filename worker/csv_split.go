@@ -28,7 +28,6 @@ package worker
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 
@@ -51,6 +50,9 @@ type BatchPart struct {
 
 const nameSCVSplit = "csv_split_worker"
 
+// Run batches of 10mb of data. This value is not configurable
+// to prevent memory overflow. If you want to reduce the maximum
+// memory use, reduce the number of workers and vice-versa.
 const partSize = 10 * 1024 * 1024
 
 // CSVSplitWorker is the CSVSplitWorker struct
@@ -96,15 +98,14 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	// get file information
 	totalSize, buf, err := b.Workers.S3Client.DownloadChunk(0, 7, job.CSVPath)
 	checkErr(l, err)
-	firtsBytes := buf.String()
+	firstBytes := buf.String()
 
-	if !strings.EqualFold("userIds", firtsBytes) {
+	if !strings.EqualFold("userIds", firstBytes) {
 		checkErr(l, errors.New("Invalid CSV - it does not contain column"))
 	}
 
 	start := 0
 	totalParts := int(math.Ceil(float64(totalSize) / float64(partSize)))
-	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
 
 	for i := 0; i < totalParts; i++ {
 		size := totalSize - start
@@ -121,7 +122,7 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 		})
 		checkErr(l, err)
 		start += size
-		b.Workers.Statsd.Incr("csv_job_part", labels, 1)
+		b.Workers.Statsd.Incr("csv_job_part", job.Labels(), 1)
 	}
 	job.TagSuccess(b.Workers.MarathonDB, nameSCVSplit, "finished")
 }

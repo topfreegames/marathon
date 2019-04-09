@@ -94,12 +94,12 @@ func (b *CreateBatchesWorker) updateTotalTokens(totalTokens int, job *model.Job)
 	checkErr(b.Logger, err)
 }
 
-func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, appName, service string) *[]User {
+func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.Job) *[]User {
 	var users []User
 	start := time.Now()
-	_, err := b.Workers.PushDB.DB.Query(&users, fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(appName, service)), pg.In(*userIds))
-	labels := []string{fmt.Sprintf("game:%s", appName), fmt.Sprintf("platform:%s", service)}
-	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), labels, 1)
+	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(job.App.Name, job.Service))
+	_, err := b.Workers.PushDB.DB.Query(&users, query, pg.In(*userIds))
+	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	checkErr(b.Logger, err)
 	return &users
@@ -111,7 +111,7 @@ func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
 	}
 	l := b.Logger
 
-	usersFromBatch := b.getUserBatchFromPG(ids, job.App.Name, job.Service)
+	usersFromBatch := b.getUserBatchFromPG(ids, job)
 	numUsersFromBatch := len(*usersFromBatch)
 	log.I(l, "got users from db", func(cm log.CM) {
 		cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
@@ -229,17 +229,17 @@ func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []str
 	start := 0
 	end := totalLines
 
-	// is not the fisrt part
+	// is not the first part
 	if msg.Part != 0 && totalLines > 0 {
 		str := fmt.Sprintf("%s-INI-%d", msg.Job.ID, msg.Part)
-		b.Workers.RedisClient.Set(str, lines[0], 0)
+		b.Workers.RedisClient.Set(str, lines[0], 90*24*time.Hour)
 		start++
 	}
 
 	// is not the last part
 	if msg.Part != msg.TotalParts-1 {
 		str := fmt.Sprintf("%s-END-%d", msg.Job.ID, msg.Part)
-		b.Workers.RedisClient.Set(str, lines[totalLines-1], 0)
+		b.Workers.RedisClient.Set(str, lines[totalLines-1], 90*24*time.Hour)
 		end--
 	}
 
@@ -307,7 +307,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
 	start := time.Now()
 	_, buffer, err := b.Workers.S3Client.DownloadChunk(int64(msg.Start), int64(msg.Size), msg.Job.CSVPath)
-	labels := []string{fmt.Sprintf("game:%s", msg.Job.App.Name), fmt.Sprintf("platform:%s", msg.Job.Service)}
+	labels := msg.Job.Labels()
+	labels = append(labels, fmt.Sprintf("error:%t", err != nil))
 	b.Workers.Statsd.Timing("get_csv_from_s3", time.Now().Sub(start), labels, 1)
 	checkErr(l, err)
 

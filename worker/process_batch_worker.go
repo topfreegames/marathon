@@ -223,8 +223,7 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	job, err := b.getJob(parsed.JobID)
 	b.checkErrWithReEnqueue(parsed, l, err)
 	log.D(l, "Retrieved job successfully.")
-	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-	b.Workers.Statsd.Incr("starting_process_batch_worker", labels, 1)
+	b.Workers.Statsd.Incr("starting_process_batch_worker", job.Labels(), 1)
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")

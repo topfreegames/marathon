@@ -80,8 +80,6 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
 
-	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-
 	// test if exist any user
 	var query string
 	count := 0
@@ -118,7 +116,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 			Page:       pageCount + 1, // amazon page start at 1
 			SmallestID: userIDPageOffset,
 		})
-		b.Workers.Statsd.Incr("get_interval_cursor_start", labels, 1)
+		b.Workers.Statsd.Incr("get_interval_cursor_start", job.Labels(), 1)
 		startFetch := time.Now()
 		query := fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", DBPageSize)
 		_, err := tx.QueryOne(&userIDPageOffset, query)
@@ -131,12 +129,12 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 		checkErr(b.Logger, err)
 
 		pages[pageCount].BiggestID = userIDPageOffset
-		b.Workers.Statsd.Timing("get_interval_cursor", time.Now().Sub(startFetch), labels, 1)
+		b.Workers.Statsd.Timing("get_interval_cursor", time.Now().Sub(startFetch), job.Labels(), 1)
 		pageCount++
 	}
 
 	tx.Commit()
-	b.Workers.Statsd.Timing("get_intervals_cursor", time.Now().Sub(start), labels, 1)
+	b.Workers.Statsd.Timing("get_intervals_cursor", time.Now().Sub(start), job.Labels(), 1)
 
 	return pages, pageCount
 }

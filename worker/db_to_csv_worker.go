@@ -80,8 +80,7 @@ func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMessage) *[]string {
 	var users []string
 	start := time.Now()
 	_, err := b.Workers.PushDB.DB.Query(&users, message.Query)
-	labels := []string{fmt.Sprintf("game:%s", message.Job.App.Name), fmt.Sprintf("platform:%s", message.Job.Service)}
-	b.Workers.Statsd.Timing("get_page_with_filters", time.Now().Sub(start), labels, 1)
+	b.Workers.Statsd.Timing("get_page_with_filters", time.Now().Sub(start), message.Job.Labels(), 1)
 	checkErr(b.Logger, err)
 	return &users
 }
@@ -143,7 +142,6 @@ func (b *DbToCsvWorker) createBatchesJob(message *ToCSVMessage) {
 }
 
 func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMessage) {
-	labels := []string{fmt.Sprintf("game:%s", message.Job.App.Name), fmt.Sprintf("platform:%s", message.Job.Service)}
 	start := time.Now()
 	buffer := bytes.NewBufferString("")
 
@@ -161,7 +159,7 @@ func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMessage) {
 
 	tmpPart := int64(message.PartNumber)
 	completePart, err := b.Workers.S3Client.UploadPart(buffer, &message.Uploader, tmpPart)
-	b.Workers.Statsd.Timing("write_user_page_into_csv", time.Now().Sub(start), labels, 1)
+	b.Workers.Statsd.Timing("write_user_page_into_csv", time.Now().Sub(start), message.Job.Labels(), 1)
 	checkErr(b.Logger, err)
 
 	runtime.GC()
