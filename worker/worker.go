@@ -182,7 +182,7 @@ func (w *Worker) configureWorkers() {
 	j := NewJobCompletedWorker(w)
 
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
-	createDbToCsvWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
+	dbToCsvWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
 	createCSVSplitWorkerConcurrency := w.Config.GetInt("workers.csvSplitWorker.concurrency")
 	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
@@ -190,7 +190,7 @@ func (w *Worker) configureWorkers() {
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
 
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
-	workers.Process("db_to_csv_worker", d.Process, createDbToCsvWorkerConcurrency)
+	workers.Process("db_to_csv_worker", d.Process, dbToCsvWorkerConcurrency)
 
 	workers.Process("csv_split_worker", k.Process, createCSVSplitWorkerConcurrency)
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
