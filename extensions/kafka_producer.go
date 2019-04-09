@@ -39,8 +39,8 @@ type KafkaProducer struct {
 	ConfigPath       string
 	Logger           zap.Logger
 	BootstrapBrokers string
-	BatchSize        int
-	LingerMS         int
+	FlushMaxMessages int
+	FlushFrequency   int // ms
 	Producer         sarama.AsyncProducer
 	Statsd           *statsd.Client
 	MaxMessageBytes  int
@@ -68,16 +68,16 @@ func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Cli
 
 func (c *KafkaProducer) loadConfigurationDefaults() {
 	c.Config.SetDefault("kafka.bootstrapServers", "localhost:9940")
-	c.Config.SetDefault("kafka.batch.size", 10)
-	c.Config.SetDefault("kafka.linger.ms", 10)
+	c.Config.SetDefault("kafka.flushMaxMessages", 10)
+	c.Config.SetDefault("kafka.flushFrequency", 10)
 	c.Config.SetDefault("kafka.maxMessageBytes", 1000000)
 	c.Config.SetDefault("kafka.retries", 10)
 }
 
 func (c *KafkaProducer) configure() {
 	c.BootstrapBrokers = c.Config.GetString("kafka.bootstrapServers")
-	c.BatchSize = c.Config.GetInt("kafka.batch.size")
-	c.LingerMS = c.Config.GetInt("kafka.linger.ms")
+	c.FlushMaxMessages = c.Config.GetInt("kafka.flushMaxMessages")
+	c.FlushFrequency = c.Config.GetInt("kafka.flushFrequency")
 	c.MaxMessageBytes = c.Config.GetInt("kafka.maxMessageBytes")
 	c.Retries = c.Config.GetInt("kafka.retries")
 }
@@ -85,9 +85,9 @@ func (c *KafkaProducer) configure() {
 //ConnectToKafka connects with the Kafka from the broker
 func (c *KafkaProducer) connectToKafka() error {
 	config := sarama.NewConfig()
-	config.Producer.Flush.Messages = c.BatchSize
-	config.Producer.Flush.MaxMessages = c.BatchSize
-	config.Producer.Flush.Frequency = time.Duration(c.LingerMS) * time.Millisecond
+	config.Producer.Flush.Messages = c.FlushMaxMessages
+	config.Producer.Flush.MaxMessages = c.FlushMaxMessages
+	config.Producer.Flush.Frequency = time.Duration(c.FlushFrequency) * time.Millisecond
 
 	config.Producer.RequiredAcks = sarama.WaitForLocal
 	config.Producer.Retry.Max = c.Retries
