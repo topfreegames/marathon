@@ -274,7 +274,7 @@ func NewFakeS3(conf *viper.Viper) *FakeS3 {
 	}
 }
 
-// InitMultipartUpload ...
+// InitMultipartUpload mock the real InitMultipartUpload
 func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
 	tempPath := path
 	return &s3.CreateMultipartUploadOutput{
@@ -283,13 +283,13 @@ func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutp
 	}, nil
 }
 
-// PutObject ...
+// PutObject mock the real PutObject
 func (s *FakeS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
 	s.fakeStorage[path] = *body
 	return &s3.PutObjectOutput{}, nil
 }
 
-// GetObject ...
+// GetObject mock the real GetObject
 func (s *FakeS3) GetObject(path string) ([]byte, error) {
 	if val, ok := s.fakeStorage[path]; ok {
 		return val, nil
@@ -297,7 +297,7 @@ func (s *FakeS3) GetObject(path string) ([]byte, error) {
 	return nil, fmt.Errorf("NoSuchKey: The specified key does not exist. status code: 404, request id: 000000000000TEST")
 }
 
-// UploadPart ...
+// UploadPart mock the real UploadPart function
 func (s *FakeS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
 	fullPath := *multipartUpload.Key
@@ -312,12 +312,12 @@ func (s *FakeS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMulti
 	}, nil
 }
 
-// PutObjectRequest ...
+// PutObjectRequest mock the real PutObjectRequest
 func (s *FakeS3) PutObjectRequest(path string) (string, error) {
 	return "", nil
 }
 
-// CompleteMultipartUpload ...
+// CompleteMultipartUpload  mock the real CompleteMultipartUpload
 func (s *FakeS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
 	fullPath := *multipartUpload.Key
 	buffer := bytes.NewBufferString("")

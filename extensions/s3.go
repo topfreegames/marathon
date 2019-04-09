@@ -41,7 +41,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// AmazonS3 ...
+// AmazonS3 contain information related to S3
 type AmazonS3 struct {
 	client  *s3.S3
 	session *session.Session
@@ -158,7 +158,9 @@ func (am *AmazonS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadO
 	return am.client.CreateMultipartUpload(multiUpInput)
 }
 
-// UploadPart ...
+// UploadPart get a piece of multipart and upload a buffer to this part.
+// The buffer must have at least 5mb and the maximum of 100mb. The last
+// part can be smaller than 5mb
 func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
 	partNumber int64) (*s3.UploadPartOutput, error) {
 	partNumberTemp := int64(partNumber)
@@ -172,7 +174,7 @@ func (am *AmazonS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMu
 	return am.client.UploadPart(upPartInput)
 }
 
-// CompleteMultipartUpload ...
+// CompleteMultipartUpload end a multipart upload
 func (am *AmazonS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
 	completeInput := &s3.CompleteMultipartUploadInput{
 		Bucket:   multipartUpload.Bucket,
