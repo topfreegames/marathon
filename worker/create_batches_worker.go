@@ -300,7 +300,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	l.Info("starting")
 
 	// if is the first element
-	if msg.Part == 1 {
+	if msg.Part == 0 {
 		msg.Job.TagRunning(b.Workers.MarathonDB, nameCreateBatches, "starting")
 	}
 
