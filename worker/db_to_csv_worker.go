@@ -85,7 +85,7 @@ func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMessage) *[]string {
 }
 
 // return if is the last element or not
-func (b *DbToCsvWorker) redisSaveCompletedPart(message *ToCSVMessage, etag string) bool {
+func (b *DbToCsvWorker) multiPartUploadCompleted(message *ToCSVMessage, etag string) bool {
 	hash := message.Job.ID.String()
 	var queueLen int64
 
@@ -156,7 +156,7 @@ func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMessage) {
 	b.Workers.Statsd.Timing("write_user_page_into_csv", time.Now().Sub(start), message.Job.Labels(), 1)
 	checkErr(b.Logger, err)
 
-	if b.redisSaveCompletedPart(message, *completePart.ETag) {
+	if b.multiPartUploadCompleted(message, *completePart.ETag) {
 		b.finishUploads(message)
 		b.createBatchesJob(message)
 		message.Job.TagSuccess(b.Workers.MarathonDB, nameDbToCsv, "finished")
@@ -176,7 +176,7 @@ func (b *DbToCsvWorker) Process(message *workers.Msg) {
 	checkErr(b.Logger, err)
 
 	// check if all uploads parts are finished
-	if !b.redisSaveCompletedPart(&msg, "") {
+	if !b.multiPartUploadCompleted(&msg, "") {
 		users := b.getPageFromDBWith(&msg)
 		b.uploadPart(users, &msg)
 	} else {
