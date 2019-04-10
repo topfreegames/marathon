@@ -80,7 +80,7 @@ func (b *DbToCsvWorker) getPageFromDBWith(message *ToCSVMessage) *[]string {
 	start := time.Now()
 	_, err := b.Workers.PushDB.DB.Query(&users, message.Query)
 	b.Workers.Statsd.Timing("get_page_with_filters", time.Now().Sub(start), message.Job.Labels(), 1)
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 	return &users
 }
 
@@ -99,39 +99,39 @@ func (b *DbToCsvWorker) multiPartUploadCompleted(message *ToCSVMessage, etag str
 	} else {
 		queueLen, err = b.Workers.RedisClient.LPush(hash, data).Result()
 	}
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 	return queueLen == int64(message.TotalJobs)
 }
 
 func (b *DbToCsvWorker) finishUploads(message *ToCSVMessage) {
 	hash := message.Job.ID.String()
 	strings, err := b.Workers.RedisClient.LRange(hash, 0, -1).Result()
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 
 	completeParts := make(completedParts, message.TotalJobs)
 	for i, string := range strings {
 		var tmpPart CompletedPart
 		err := json.Unmarshal([]byte(string), &tmpPart)
-		checkErr(b.Logger, err)
+		b.checkErr(&message.Job, err)
 		completeParts[i] = &s3.CompletedPart{
 			ETag:       &tmpPart.ETag,
 			PartNumber: &tmpPart.PartNumber,
 		}
 	}
 	err = b.Workers.RedisClient.Del(hash).Err()
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 
 	// Parts must be sorted in PartNumber order.
 	sort.Sort(completeParts)
 	b.Logger.Info("completed parts", zap.String("parts", fmt.Sprint(completeParts)))
 
 	err = b.Workers.S3Client.CompleteMultipartUpload(&message.Uploader, completeParts)
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 }
 
 func (b *DbToCsvWorker) createBatchesJob(message *ToCSVMessage) {
 	jid, err := b.Workers.CSVSplitJob(message.Job.ID.String())
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 	b.Logger.Info("created create batches job", zap.String("jid", jid))
 }
 
@@ -154,7 +154,7 @@ func (b *DbToCsvWorker) uploadPart(users *[]string, message *ToCSVMessage) {
 	tmpPart := int64(message.PartNumber)
 	completePart, err := b.Workers.S3Client.UploadPart(buffer, &message.Uploader, tmpPart)
 	b.Workers.Statsd.Timing("write_user_page_into_csv", time.Now().Sub(start), message.Job.Labels(), 1)
-	checkErr(b.Logger, err)
+	b.checkErr(&message.Job, err)
 
 	if b.multiPartUploadCompleted(message, *completePart.ETag) {
 		b.finishUploads(message)
@@ -173,7 +173,7 @@ func (b *DbToCsvWorker) Process(message *workers.Msg) {
 	var msg ToCSVMessage
 	data := message.Args().ToJson()
 	err := json.Unmarshal([]byte(data), &msg)
-	checkErr(b.Logger, err)
+	checkErr(l, err)
 
 	// check if all uploads parts are finished
 	if !b.multiPartUploadCompleted(&msg, "") {

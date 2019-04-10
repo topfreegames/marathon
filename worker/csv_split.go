@@ -97,11 +97,11 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 
 	// get file information
 	totalSize, buf, err := b.Workers.S3Client.DownloadChunk(0, 7, job.CSVPath)
-	checkErr(l, err)
+	b.checkErr(job, err)
 	firstBytes := buf.String()
 
 	if !strings.EqualFold("userIds", firstBytes) {
-		checkErr(l, errors.New("Invalid CSV - it does not contain column"))
+		b.checkErr(job, errors.New("Invalid CSV - it does not contain column"))
 	}
 
 	start := 0
@@ -120,7 +120,7 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 			Part:       i,
 			Job:        *job,
 		})
-		checkErr(l, err)
+		b.checkErr(job, err)
 		start += size
 		b.Workers.Statsd.Incr("csv_job_part", job.Labels(), 1)
 	}
