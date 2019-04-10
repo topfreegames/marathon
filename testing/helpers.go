@@ -39,7 +39,6 @@ import (
 	"gopkg.in/pg.v5/types"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/onsi/gomega"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/api"
@@ -235,8 +234,9 @@ func (m *PGMock) Delete(params interface{}) error {
 
 // FakeS3 for usage in tests
 type FakeS3 struct {
-	s3iface.S3API
-	FakeStorage *map[string][]byte
+	fakeStorage map[string][]byte
+	multipart   map[string]map[int64][]byte
+	conf        *viper.Viper
 }
 
 // MyReaderCloser for usage in tests
@@ -265,32 +265,80 @@ func RedisReplyToBytes(reply interface{}, err error) ([]byte, error) {
 	return nil, fmt.Errorf("unexpected type for Bytes, got type %T", reply)
 }
 
-// GetObject for usage in tests
-func (s *FakeS3) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
-	if val, ok := (*s.FakeStorage)[fmt.Sprintf("%s/%s", *input.Bucket, *input.Key)]; ok {
-		reader := bytes.NewReader(val)
-		return &s3.GetObjectOutput{
-			Body: MyReaderCloser{reader},
-		}, nil
+// NewFakeS3 creates a new FakeS3
+func NewFakeS3(conf *viper.Viper) *FakeS3 {
+	return &FakeS3{
+		fakeStorage: map[string][]byte{},
+		conf:        conf,
+		multipart:   map[string]map[int64][]byte{},
+	}
+}
+
+// InitMultipartUpload mock the real InitMultipartUpload
+func (s *FakeS3) InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error) {
+	tempPath := path
+	return &s3.CreateMultipartUploadOutput{
+		Key:      &tempPath,
+		UploadId: &tempPath,
+	}, nil
+}
+
+// PutObject mock the real PutObject
+func (s *FakeS3) PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error) {
+	s.fakeStorage[path] = *body
+	return &s3.PutObjectOutput{}, nil
+}
+
+// GetObject mock the real GetObject
+func (s *FakeS3) GetObject(path string) ([]byte, error) {
+	if val, ok := s.fakeStorage[path]; ok {
+		return val, nil
 	}
 	return nil, fmt.Errorf("NoSuchKey: The specified key does not exist. status code: 404, request id: 000000000000TEST")
 }
 
-// NewFakeS3 creates a new FakeS3
-func NewFakeS3() *FakeS3 {
-	return &FakeS3{
-		FakeStorage: &map[string][]byte{},
+// UploadPart mock the real UploadPart function
+func (s *FakeS3) UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
+	partNumber int64) (*s3.UploadPartOutput, error) {
+	fullPath := *multipartUpload.Key
+	if s.multipart[fullPath] == nil {
+		s.multipart[fullPath] = make(map[int64][]byte, 0)
 	}
+	s.multipart[fullPath][partNumber-1] = input.Bytes()
+
+	tempTag := "test"
+	return &s3.UploadPartOutput{
+		ETag: &tempTag,
+	}, nil
 }
 
-// PutObject for using in tests
-func (s *FakeS3) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-	b, err := ioutil.ReadAll(input.Body)
-	if err != nil {
-		return nil, err
+// PutObjectRequest mock the real PutObjectRequest
+func (s *FakeS3) PutObjectRequest(path string) (string, error) {
+	return "", nil
+}
+
+// CompleteMultipartUpload  mock the real CompleteMultipartUpload
+func (s *FakeS3) CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error {
+	fullPath := *multipartUpload.Key
+	buffer := bytes.NewBufferString("")
+
+	for _, b := range s.multipart[fullPath] {
+		buffer.Write(b)
 	}
-	(*s.FakeStorage)[fmt.Sprintf("%s/%s", *input.Bucket, *input.Key)] = b
-	return &s3.PutObjectOutput{}, nil
+	bytesTemp := buffer.Bytes()
+	s.PutObject(*multipartUpload.Key, &bytesTemp)
+	return nil
+}
+
+// DownloadChunk get part of the csv file
+func (s *FakeS3) DownloadChunk(start, size int64, path string) (int, *bytes.Buffer, error) {
+	fullPath := path
+	if val, ok := s.fakeStorage[fullPath]; ok {
+		len := len(val)
+		buf := bytes.NewBuffer(val[start : start+size])
+		return len, buf, nil
+	}
+	return 0, nil, fmt.Errorf("NoSuchKey: The specified key does not exist")
 }
 
 // ReadLinesFromIOReader for testing

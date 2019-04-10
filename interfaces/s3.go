@@ -20,63 +20,21 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package worker
+package interfaces
 
 import (
-	"fmt"
-	"github.com/garyburd/redigo/redis"
-	"github.com/jrallison/go-workers"
+	"bytes"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// BenchmarkWorker is a worker to benchmark go-workers performance
-type BenchmarkWorker struct {
-	RedisServer string
-	Database    string
-	PoolSize    string
-	ProcessID   string
-	RedisPool   *redis.Pool
-}
-
-// GetBenchmarkWorker is used to instantiate a new BenchmarkWorker
-func GetBenchmarkWorker(redisServer, database string) *BenchmarkWorker {
-	b := &BenchmarkWorker{
-		RedisServer: redisServer,
-		Database:    database,
-	}
-	b.configureRedis()
-	return b
-}
-
-func (b *BenchmarkWorker) configureRedis() {
-	r := &redis.Pool{
-		MaxIdle: 10,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", b.RedisServer)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return c, err
-		},
-	}
-	b.RedisPool = r
-}
-
-// Process is a worker for benchmarking go-workers
-func (b *BenchmarkWorker) Process(message *workers.Msg) {
-	args, err := message.Args().Array()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("hello %s\n", args[0].(string))
-
-	c := b.RedisPool.Get()
-	defer c.Close()
-
-	_, err = c.Do("incrby", "workers:bench:key", 1)
-
-	if err != nil {
-		panic(err)
-	}
+// S3 represents the contract for a amazom S3
+type S3 interface {
+	InitMultipartUpload(path string) (*s3.CreateMultipartUploadOutput, error)
+	PutObject(path string, body *[]byte) (*s3.PutObjectOutput, error)
+	GetObject(path string) ([]byte, error)
+	UploadPart(input *bytes.Buffer, multipartUpload *s3.CreateMultipartUploadOutput,
+		partNumber int64) (*s3.UploadPartOutput, error)
+	PutObjectRequest(path string) (string, error)
+	CompleteMultipartUpload(multipartUpload *s3.CreateMultipartUploadOutput, parts []*s3.CompletedPart) error
+	DownloadChunk(start, size int64, path string) (int, *bytes.Buffer, error)
 }

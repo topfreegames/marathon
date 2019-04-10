@@ -23,263 +23,142 @@
 package worker
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"math"
-	"sync"
+	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/go-pg/pg"
 	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
-	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
-	"github.com/willf/bloom"
-	redis "gopkg.in/redis.v5"
 )
 
 const nameCreateBatchesFromFilters = "create_batches_using_filters_worker"
 
 // CreateBatchesFromFiltersWorker is the CreateBatchesUsingFiltersWorker struct
 type CreateBatchesFromFiltersWorker struct {
-	Logger                    zap.Logger
-	PushDB                    *extensions.PGClient
-	MarathonDB                *extensions.PGClient
-	Workers                   *Worker
-	Config                    *viper.Viper
-	DBPageSize                int
-	S3Client                  s3iface.S3API
-	PageProcessingConcurrency int
-	RedisClient               *redis.Client
+	Workers *Worker
+	Logger  zap.Logger
 }
 
 // NewCreateBatchesFromFiltersWorker gets a new CreateBatchesFromFiltersWorker
-func NewCreateBatchesFromFiltersWorker(config *viper.Viper, logger zap.Logger, workers *Worker) *CreateBatchesFromFiltersWorker {
+func NewCreateBatchesFromFiltersWorker(workers *Worker) *CreateBatchesFromFiltersWorker {
 	b := &CreateBatchesFromFiltersWorker{
-		Config:  config,
-		Logger:  logger.With(zap.String("worker", "CreateBatchesFromFiltersWorker")),
+		Logger:  workers.Logger.With(zap.String("worker", "CreateBatchesFromFiltersWorker")),
 		Workers: workers,
 	}
-	b.configure()
-	b.Logger.Debug("Configured CreateBatchesFromFiltersWorker successfully")
+	b.Logger.Info("Configured CreateBatchesFromFiltersWorker successfully")
 	return b
 }
 
-func (b *CreateBatchesFromFiltersWorker) configurePushDatabase() {
-	var err error
-	b.PushDB, err = extensions.NewPGClient("push.db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesFromFiltersWorker) configureMarathonDatabase() {
-	var err error
-	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesFromFiltersWorker) loadConfigurationDefaults() {
-	b.Config.SetDefault("workers.createBatchesFromFilters.dbPageSize", 1000)
-	b.Config.SetDefault("workers.createBatchesFromFilters.pageProcessingConcurrency", 1)
-}
-
-func (b *CreateBatchesFromFiltersWorker) loadConfiguration() {
-	b.DBPageSize = b.Config.GetInt("workers.createBatchesFromFilters.dbPageSize")
-	b.PageProcessingConcurrency = b.Config.GetInt("workers.createBatchesFromFilters.pageProcessingConcurrency")
-}
-
-func (b *CreateBatchesFromFiltersWorker) configureDatabases() {
-	b.configureMarathonDatabase()
-	b.configurePushDatabase()
-}
-
-func (b *CreateBatchesFromFiltersWorker) configureRedisClient() {
-	r, err := extensions.NewRedis("workers", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-	b.RedisClient = r
-}
-
-func (b *CreateBatchesFromFiltersWorker) configureS3Client() {
-	s3Client, err := extensions.NewS3(b.Config, b.Logger)
-	checkErr(b.Logger, err)
-	b.S3Client = s3Client
-}
-
-func (b *CreateBatchesFromFiltersWorker) configure() {
-	b.loadConfigurationDefaults()
-	b.loadConfiguration()
-	b.configureDatabases()
-	b.configureS3Client()
-	b.configureRedisClient()
-}
-
-func (b *CreateBatchesFromFiltersWorker) getPageFromDBWithFilters(job *model.Job, page DBPage) *[]User {
+func (b *CreateBatchesFromFiltersWorker) createDbToCsvJob(job *model.Job, page DBPage,
+	uploader *s3.CreateMultipartUploadOutput, total int) {
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
-	limit := b.DBPageSize
-	var query string
-	if (whereClause) != "" {
-		query = fmt.Sprintf("SELECT user_id FROM %s WHERE seq_id > %d AND %s ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.Offset, whereClause, limit)
-	} else {
-		query = fmt.Sprintf("SELECT user_id FROM %s WHERE seq_id > %d ORDER BY seq_id ASC LIMIT %d;", GetPushDBTableName(job.App.Name, job.Service), page.Offset, limit)
+	query := fmt.Sprintf("SELECT DISTINCT user_id FROM %s WHERE user_id > '%s'", GetPushDBTableName(job.App.Name, job.Service), page.SmallestID)
+	if !page.Last {
+		query += fmt.Sprintf(" AND user_id <= '%s'", page.BiggestID)
 	}
-	var users []User
-	start := time.Now()
-	_, err := b.PushDB.DB.Query(&users, query)
-	labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-	b.Workers.Statsd.Timing("get_page_with_filters", time.Now().Sub(start), labels, 1)
+	if (whereClause) != "" {
+		query += fmt.Sprintf(" AND %s", whereClause)
+	}
+	query += fmt.Sprintf(" ORDER BY user_id;")
 
-	checkErr(b.Logger, err)
-	return &users
+	b.Workers.DbToCsvJob(&ToCSVMessage{
+		Query:      query,
+		PartNumber: page.Page,
+		Uploader:   *uploader,
+		TotalJobs:  total,
+		Job:        *job,
+	})
 }
 
-func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job, stageStatus *StageStatus) ([]DBPage, int, int) {
+func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPage, int) {
 	filters := job.Filters
-	var count int
 	whereClause := GetWhereClauseFromFilters(filters)
+
+	// test if exist any user
 	var query string
+	count := 0
 	if (whereClause) != "" {
-		query = fmt.Sprintf("SELECT count(1) FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+		query = fmt.Sprintf("SELECT count(1) FROM (SELECT * FROM %s WHERE %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
 	} else {
-		query = fmt.Sprintf("SELECT count(1) FROM %s;", GetPushDBTableName(job.App.Name, job.Service))
+		query = fmt.Sprintf("SELECT count(1) FROM (SELECT * FROM %s LIMIT 1) AS tmp;", GetPushDBTableName(job.App.Name, job.Service))
 	}
-	_, err := b.PushDB.DB.Query(&count, query)
+	_, err := b.Workers.PushDB.DB.Query(&count, query)
 	if count == 0 {
 		checkErr(b.Logger, fmt.Errorf("no users matching the filters"))
 	}
-	pageCount := int(math.Ceil(float64(count) / float64(b.DBPageSize)))
-	checkErr(b.Logger, err)
+
+	DBPageSize := int(math.Ceil(10.0*1024.0*1024.0) / 30.0) // estimative
+
 	pages := []DBPage{}
-	nextPageOffset := 0
+	start := time.Now()
 
-	preProcessStats, err := stageStatus.NewSubStage("pre processing pages", pageCount)
+	tx, err := b.Workers.PushDB.DB.Begin()
 	checkErr(b.Logger, err)
-
-	tx, err := b.PushDB.DB.Begin()
-	checkErr(b.Logger, err)
-
 	defer tx.Rollback()
 
 	if (whereClause) != "" {
-		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s WHERE %s;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
+		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT DISTINCT user_id FROM %s WHERE %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service), whereClause)
 	} else {
-		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT seq_id FROM %s;", GetPushDBTableName(job.App.Name, job.Service))
+		query = fmt.Sprintf("DECLARE cursor CURSOR FOR SELECT DISTINCT user_id FROM %s ORDER BY user_id;", GetPushDBTableName(job.App.Name, job.Service))
 	}
 	tx.Query(nil, query)
 
-	for page := 0; page < pageCount; page++ {
+	pageCount := 0
+	userIDPageOffset := ""
+	for {
 		pages = append(pages, DBPage{
-			Page:   page,
-			Offset: nextPageOffset,
+			Page:       pageCount + 1, // amazon page start at 1
+			SmallestID: userIDPageOffset,
 		})
-		_, err := tx.Query(&nextPageOffset, fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", b.DBPageSize))
+		b.Workers.Statsd.Incr("get_interval_cursor_start", job.Labels(), 1)
+		startFetch := time.Now()
+		query := fmt.Sprintf("FETCH RELATIVE +%d FROM cursor;", DBPageSize)
+		_, err := tx.QueryOne(&userIDPageOffset, query)
+
+		if err != nil && strings.Compare(err.Error(), pg.ErrNoRows.Error()) == 0 {
+			pages[pageCount].Last = true
+			pageCount++
+			break
+		}
 		checkErr(b.Logger, err)
-		preProcessStats.IncrProgress()
+
+		pages[pageCount].BiggestID = userIDPageOffset
+		b.Workers.Statsd.Timing("get_interval_cursor", time.Now().Sub(startFetch), job.Labels(), 1)
+		pageCount++
 	}
+
 	tx.Commit()
+	b.Workers.Statsd.Timing("get_intervals_cursor", time.Now().Sub(start), job.Labels(), 1)
 
-	_, err = b.MarathonDB.DB.Model(job).Set("total_tokens = ?", count).Where("id = ?", job.ID).Update()
-	checkErr(b.Logger, err)
-
-	return pages, pageCount, count
+	return pages, pageCount
 }
 
-func (b *CreateBatchesFromFiltersWorker) processPages(c <-chan DBPage, writeToCSVCH chan<- *[]User, job *model.Job, wg *sync.WaitGroup, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
-	for page := range c {
-		users := b.getPageFromDBWithFilters(job, page)
-		b.Logger.Info("got users from db", zap.Int("usersInBatch", len(*users)), zap.Int("Offset", page.Offset))
-		labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-		b.Workers.Statsd.Incr("process_pages", labels, 1)
-		wgCSV.Add(1)
-		writeToCSVCH <- users
-		wg.Done()
+func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job) {
+	pages, pageCount := b.preprocessPages(job)
+	b.Logger.Info(fmt.Sprintf("Total pages:%d", pageCount))
 
-		err := stageStatus.IncrProgress()
-		checkErr(b.Logger, err)
-	}
-}
-
-func (b *CreateBatchesFromFiltersWorker) writeUserPageIntoCSV(job *model.Job, c <-chan *[]User, bFilter *bloom.BloomFilter, csvWriter *io.Writer, wgCSV *sync.WaitGroup, stageStatus *StageStatus) {
-	(*csvWriter).Write([]byte("userIds\n"))
-	for users := range c {
-		labels := []string{fmt.Sprintf("game:%s", job.App.Name), fmt.Sprintf("platform:%s", job.Service)}
-		b.Workers.Statsd.Incr("write_user_page_into_csv", labels, 1)
-		for _, user := range *users {
-			if IsUserIDValid(user.UserID) && !bFilter.TestString(user.UserID) {
-				(*csvWriter).Write([]byte(fmt.Sprintf("%s\n", user.UserID)))
-				bFilter.AddString(user.UserID)
-			}
-		}
-		wgCSV.Done()
-
-		err := stageStatus.IncrProgress()
-		checkErr(b.Logger, err)
-	}
-}
-
-func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job, csvWriter *io.Writer, stageStatus *StageStatus) error {
-	pages, pageCount, usersCount := b.preprocessPages(job, stageStatus)
-	var wg sync.WaitGroup
-	var wgCSV sync.WaitGroup
-	pageCH := make(chan DBPage, pageCount)
-	csvWriterCH := make(chan *[]User)
-	wg.Add(pageCount)
-
-	processPageStatus, err := stageStatus.NewSubStage(
-		"processing pages", pageCount)
+	folder := b.Workers.Config.GetString("s3.folder")
+	bucket := b.Workers.Config.GetString("s3.bucket")
+	writePath := fmt.Sprintf("%s/%s/job-%s.csv", bucket, folder, job.ID.String())
+	uploader, err := b.Workers.S3Client.InitMultipartUpload(writePath)
 	checkErr(b.Logger, err)
+	b.updateJobCSVPath(job, writePath)
 
-	for i := 0; i < b.PageProcessingConcurrency; i++ {
-		go b.processPages(pageCH, csvWriterCH, job, &wg, &wgCSV, processPageStatus)
-	}
-	rate := 1E-8
-	bFilter := bloom.NewWithEstimates(uint(usersCount), rate)
-
-	writeCSVStats, err := stageStatus.NewSubStage(
-		"writing to csv", pageCount)
-	checkErr(b.Logger, err)
-
-	go b.writeUserPageIntoCSV(job, csvWriterCH, bFilter, csvWriter, &wgCSV, writeCSVStats)
 	for i := 0; i < pageCount; i++ {
-		pageCH <- DBPage{
-			Page:   pages[i].Page,
-			Offset: pages[i].Offset,
-		}
+		b.createDbToCsvJob(job, pages[i], uploader, pageCount)
 	}
-
-	checkErr(b.Logger, err)
-
-	wg.Wait()
-	wgCSV.Wait()
-	close(pageCH)
-	close(csvWriterCH)
-	return nil
 }
 
 func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPath string) {
 	job.CSVPath = csvPath
-	_, err := b.MarathonDB.DB.Model(job).Set("csv_path = ?csv_path").Update()
+	_, err := b.Workers.MarathonDB.DB.Model(job).Set("csv_path = ?csv_path").Update()
 	checkErr(b.Logger, err)
-}
-
-func (b *CreateBatchesFromFiltersWorker) sendCSVToS3AndCreateCreateBatchesJob(csvBytes *[]byte, job *model.Job) error {
-	folder := b.Config.GetString("s3.folder")
-	bucket := b.Config.GetString("s3.bucket")
-	writePath := fmt.Sprintf("%s/job-%s.csv", folder, job.ID.String())
-	b.Logger.Info("uploading file to s3", zap.String("path", writePath))
-	err := extensions.S3PutObject(b.Config, b.S3Client, writePath, csvBytes)
-	if err != nil {
-		return err
-	}
-	b.updateJobCSVPath(job, fmt.Sprintf("%s/%s", bucket, writePath))
-	jid, err := b.Workers.CreateBatchesJob(&[]string{job.ID.String()})
-	if err != nil {
-		return err
-	}
-	b.Logger.Info("created create batches job", zap.String("jid", jid))
-	return nil
 }
 
 // Process processes the messages sent to worker queue
@@ -290,7 +169,6 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	id, err := uuid.FromString(jobID.(string))
 	checkErr(b.Logger, err)
 	l := b.Logger.With(
-		zap.Int("dbPageSize", b.DBPageSize),
 		zap.String("jobID", id.String()),
 		zap.String("worker", nameCreateBatchesFromFilters),
 	)
@@ -299,10 +177,10 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	job.TagRunning(b.MarathonDB, nameCreateBatchesFromFilters, "starting")
-	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	job.TagRunning(b.Workers.MarathonDB, nameCreateBatchesFromFilters, "starting")
+	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	if err != nil {
-		job.TagError(b.MarathonDB, nameCreateBatchesFromFilters, err.Error())
+		job.TagError(b.Workers.MarathonDB, nameCreateBatchesFromFilters, err.Error())
 		return
 	}
 	if job.Status == stoppedJobStatus {
@@ -310,39 +188,15 @@ func (b *CreateBatchesFromFiltersWorker) Process(message *workers.Msg) {
 		return
 	}
 
-	processStats, err := NewStageStatus(b.RedisClient, job.ID.String(),
-		"1", "create batches from filter worker", 1)
-	b.checkErr(job, err)
+	b.createBatchesFromFilters(job)
 
-	csvBuffer := &bytes.Buffer{}
-	csvWriter := io.Writer(csvBuffer)
-
-	createBatchStats, err := processStats.NewSubStage(
-		"creating batches from filters", 1)
-	b.checkErr(job, err)
-
-	err = b.createBatchesFromFilters(job, &csvWriter, createBatchStats)
-	b.checkErr(job, err)
-	createBatchStats.IncrProgress()
-
-	uploadCSVStats, err := processStats.NewSubStage("uploading csv to s3", 1)
-	b.checkErr(job, err)
-
-	csvBytes := csvBuffer.Bytes()
-	err = b.sendCSVToS3AndCreateCreateBatchesJob(&csvBytes, job)
-	b.checkErr(job, err)
-
+	job.TagSuccess(b.Workers.MarathonDB, nameCreateBatchesFromFilters, "finished")
 	l.Info("finished")
-	err = uploadCSVStats.IncrProgress()
-	b.checkErr(job, err)
-
-	job.TagSuccess(b.MarathonDB, nameCreateBatchesFromFilters, "finished")
-	processStats.IncrProgress()
 }
 
 func (b *CreateBatchesFromFiltersWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.MarathonDB, nameCreateBatchesFromFilters, err.Error())
+		job.TagError(b.Workers.MarathonDB, nameCreateBatchesFromFilters, err.Error())
 		checkErr(b.Logger, err)
 	}
 }

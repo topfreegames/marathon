@@ -34,15 +34,17 @@ s3:
   secretAccessKey: "SECRET-ACCESS-KEY"
 workers:
   statsPort: 8081
-  createBatches:
-    batchSize: 10000
-    dbPageSize: 10000
-    pageProcessingConcurrency: 10
+  createBatchesFromFilters:
     concurrency: 10
     maxRetries: 5
-  createBatchesFromFilters:
-    dbPageSize: 2
-    pageProcessingConcurrency: 2
+  dbToCsv:
+    concurrency: 10
+    maxRetries: 5
+  csvSplitWorker:
+    concurrency: 10
+    maxRetries: 5
+  createBatches:
+    pageProcessingConcurrency: 20
     concurrency: 10
     maxRetries: 5
   processBatch:
@@ -50,6 +52,12 @@ workers:
     maxBatchFailure: 0.05
     maxUserFailureInBatch: 0.05
     intervalToSendCompletedJob: 10m
+  jobCompleted:
+    concurrency: 10
+    maxRetries: 5
+  resume:
+    concurrency: 10
+    maxRetries: 5
   redis:
     poolSize: 10
     host: localhost

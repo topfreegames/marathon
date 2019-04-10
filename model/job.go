@@ -23,6 +23,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/asaskevich/govalidator"
@@ -99,6 +100,14 @@ func (j *Job) Validate(c echo.Context) error {
 		return InvalidField("csvPath: cannot contain s3 protocol, just the bucket path")
 	}
 	return nil
+}
+
+// Labels return the labels for metrics
+func (j *Job) Labels() []string {
+	return []string{
+		fmt.Sprintf("game:%s", j.App.Name),
+		fmt.Sprintf("platform:%s", j.Service),
+	}
 }
 
 func (j *Job) tag(db *extensions.PGClient, name, message, state string) {

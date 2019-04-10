@@ -28,15 +28,17 @@ kafka:
   bootstrapServers: localhost:9940
 workers:
   statsPort: 8081
-  createBatches:
-    batchSize: 20000
-    dbPageSize: 20000
-    pageProcessingConcurrency: 20
+  createBatchesFromFilters:
     concurrency: 10
     maxRetries: 5
-  createBatchesFromFilters:
-    dbPageSize: 10000
-    pageProcessingConcurrency: 10
+  dbToCsv:
+    concurrency: 10
+    maxRetries: 5
+  csvSplitWorker:
+    concurrency: 10
+    maxRetries: 5
+  createBatches:
+    pageProcessingConcurrency: 20
     concurrency: 10
     maxRetries: 5
   processBatch:
@@ -44,6 +46,12 @@ workers:
     maxBatchFailure: 0.05
     maxUserFailureInBatch: 0.05
     intervalToSendCompletedJob: 10m
+  jobCompleted:
+    concurrency: 10
+    maxRetries: 5
+  resume:
+    concurrency: 10
+    maxRetries: 5
   redis:
     poolSize: 10
     host: localhost
@@ -51,12 +59,6 @@ workers:
     db: 0
     pass:
   topicTemplate: "%s-%s-c"
-  resume:
-    concurrency: 10
-    maxRetries: 5
-  jobCompleted:
-    concurrency: 10
-    maxRetries: 5
 feedbackListener:
   flushInterval: 5000
   gracefulShutdownTimeout: 30
