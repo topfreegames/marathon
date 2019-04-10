@@ -59,7 +59,7 @@ func NewCreateBatchesWorker(workers *Worker) *CreateBatchesWorker {
 }
 
 // ReadFromCSV reads CSV from S3 and return correspondent array of strings
-func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte) []string {
+func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, job *model.Job) []string {
 	for i, b := range *buffer {
 		if b == 0x0D {
 			(*buffer)[i] = 0x0A
@@ -68,7 +68,7 @@ func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte) []string {
 
 	r := csv.NewReader(bytes.NewReader(*buffer))
 	lines, err := r.ReadAll()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 	res := []string{}
 	for i, line := range lines {
 		if i == 0 {
@@ -83,14 +83,14 @@ func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Jo
 	job.TotalBatches = totalBatches
 	// coalesce is necessary since total_batches can be null
 	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_batches = coalesce(total_batches, 0) + ?", totalBatches).Where("id = ?", job.ID).Update()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 func (b *CreateBatchesWorker) updateTotalTokens(totalTokens int, job *model.Job) {
 	job.TotalTokens = totalTokens
 	// coalesce is necessary since total_tokens can be null
 	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_tokens = coalesce(total_tokens, 0) + ?", totalTokens).Where("id = ?", job.ID).Update()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.Job) *[]User {
@@ -100,7 +100,7 @@ func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.J
 	_, err := b.Workers.PushDB.DB.Query(&users, query, pg.In(*userIds))
 	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 	return &users
 }
 
@@ -134,7 +134,7 @@ func (b *CreateBatchesWorker) sendLocalizedBatches(batches map[string]*[]User, j
 	l := b.Logger
 	for tz, users := range batches {
 		offset, err := GetTimeOffsetFromUTCInSeconds(tz, b.Logger)
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 		t := time.Unix(0, job.StartsAt)
 		localizedTime := t.Add(time.Duration(offset) * time.Second)
 		log.I(l, "scheduling batch of users to process batches worker", func(cm log.CM) {
@@ -151,7 +151,7 @@ func (b *CreateBatchesWorker) sendLocalizedBatches(batches map[string]*[]User, j
 			}
 		}
 		_, err = b.Workers.ScheduleProcessBatchJob(job.ID.String(), job.App.Name, users, localizedTime.UnixNano())
-		checkErr(l, err)
+		b.checkErr(job, err)
 	}
 }
 
@@ -162,7 +162,7 @@ func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model
 			cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
 		})
 		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
-		checkErr(l, err)
+		b.checkErr(job, err)
 	}
 }
 
@@ -173,13 +173,13 @@ func (b *CreateBatchesWorker) sendControlGroupToRedis(job *model.Job, controlGro
 		args = append(args, id)
 	}
 	_, err := b.Workers.RedisClient.LPush(fmt.Sprintf("%s-CONTROL", hash), args...).Result()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 func (b *CreateBatchesWorker) updateTotalUsers(job *model.Job, totalUsers int) {
 	job.TotalUsers = totalUsers
 	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_users = coalesce(total_users, 0) + ?", totalUsers).Where("id = ?", job.ID).Update()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
@@ -223,7 +223,7 @@ func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 // get the list of ids and send to redis the splited ids
 func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []string {
 	bBystes := buffer.Bytes()
-	lines := b.ReadFromCSV(&bBystes)
+	lines := b.ReadFromCSV(&bBystes, &msg.Job)
 	totalLines := len(lines)
 	start := 0
 	end := totalLines
@@ -255,12 +255,12 @@ func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []st
 		if err == redis.Nil {
 			continue
 		}
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 		endStr, err := b.Workers.RedisClient.Get(end).Result()
 		if err == redis.Nil {
 			continue
 		}
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 
 		ids = append(ids, beginStr+endStr)
 
@@ -273,7 +273,7 @@ func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []st
 func (b *CreateBatchesWorker) setAsComplete(part int, job *model.Job) int {
 	hash := job.ID.String()
 	count, err := b.Workers.RedisClient.LPush(hash, part).Result()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 	return int(count)
 }
 
@@ -309,13 +309,13 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	labels := msg.Job.Labels()
 	labels = append(labels, fmt.Sprintf("error:%t", err != nil))
 	b.Workers.Statsd.Timing("get_csv_from_s3", time.Now().Sub(start), labels, 1)
-	checkErr(l, err)
+	b.checkErr(&msg.Job, err)
 
 	ids := b.getIDs(buffer, &msg)
 
 	if len(ids) == 0 {
 		_, err := b.Workers.MarathonDB.DB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
-		checkErr(l, err)
+		b.checkErr(&msg.Job, err)
 	}
 
 	// pull from db, send to control and send to kafta

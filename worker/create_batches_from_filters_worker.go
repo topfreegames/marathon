@@ -90,7 +90,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	}
 	_, err := b.Workers.PushDB.DB.Query(&count, query)
 	if count == 0 {
-		checkErr(b.Logger, fmt.Errorf("no users matching the filters"))
+		b.checkErr(job, fmt.Errorf("no users matching the filters"))
 	}
 
 	DBPageSize := int(math.Ceil(10.0*1024.0*1024.0) / 30.0) // estimative
@@ -99,7 +99,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 	start := time.Now()
 
 	tx, err := b.Workers.PushDB.DB.Begin()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 	defer tx.Rollback()
 
 	if (whereClause) != "" {
@@ -126,7 +126,7 @@ func (b *CreateBatchesFromFiltersWorker) preprocessPages(job *model.Job) ([]DBPa
 			pageCount++
 			break
 		}
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 
 		pages[pageCount].BiggestID = userIDPageOffset
 		b.Workers.Statsd.Timing("get_interval_cursor", time.Now().Sub(startFetch), job.Labels(), 1)
@@ -147,7 +147,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 	bucket := b.Workers.Config.GetString("s3.bucket")
 	writePath := fmt.Sprintf("%s/%s/job-%s.csv", bucket, folder, job.ID.String())
 	uploader, err := b.Workers.S3Client.InitMultipartUpload(writePath)
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 	b.updateJobCSVPath(job, writePath)
 
 	for i := 0; i < pageCount; i++ {
@@ -158,7 +158,7 @@ func (b *CreateBatchesFromFiltersWorker) createBatchesFromFilters(job *model.Job
 func (b *CreateBatchesFromFiltersWorker) updateJobCSVPath(job *model.Job, csvPath string) {
 	job.CSVPath = csvPath
 	_, err := b.Workers.MarathonDB.DB.Model(job).Set("csv_path = ?csv_path").Update()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 // Process processes the messages sent to worker queue

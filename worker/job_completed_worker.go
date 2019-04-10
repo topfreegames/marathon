@@ -57,7 +57,7 @@ func (b *JobCompletedWorker) flushControlGroup(job *model.Job) {
 	hash := job.ID.String()
 	hash = fmt.Sprintf("%s-CONTROL", hash)
 	controlGroup, err := b.Workers.RedisClient.LRange(hash, 0, -1).Result()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 
 	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
 	csvBuffer := &bytes.Buffer{}
@@ -71,17 +71,17 @@ func (b *JobCompletedWorker) flushControlGroup(job *model.Job) {
 	writePath := fmt.Sprintf("%s/%s/job-%s.csv", bucket, folder, job.ID.String())
 	csvBytes := csvBuffer.Bytes()
 	_, err = b.Workers.S3Client.PutObject(writePath, &csvBytes)
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 	b.updateJobControlGroupCSVPath(job, writePath)
 
 	err = b.Workers.RedisClient.Del(hash).Err()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 func (b *JobCompletedWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
 	job.ControlGroupCSVPath = csvPath
 	_, err := b.Workers.MarathonDB.DB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
-	checkErr(b.Logger, err)
+	b.checkErr(job, err)
 }
 
 // Process processes the messages sent to worker queue
@@ -102,7 +102,7 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	}
 	err = b.Workers.MarathonDB.DB.Model(job).Where("job.id = ?", job.ID).Select()
 	if err != nil {
-		checkErr(l, err)
+		b.checkErr(job, err)
 	}
 	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
 	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
