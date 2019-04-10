@@ -23,6 +23,7 @@
 package extensions
 
 import (
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -95,7 +96,8 @@ func (c *KafkaProducer) connectToKafka() error {
 	config.Producer.Return.Successes = true
 	config.Producer.MaxMessageBytes = c.MaxMessageBytes
 
-	producer, err := sarama.NewAsyncProducer([]string{c.BootstrapBrokers}, config)
+	hosts := strings.Split(c.BootstrapBrokers, ",")
+	producer, err := sarama.NewAsyncProducer(hosts, config)
 	if err != nil {
 		return err
 	}
