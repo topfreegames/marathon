@@ -393,7 +393,7 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 // Start starts the worker
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
-	http.HandleFunc("/_ping", func(w http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
 		json.NewEncoder(w).Encode(struct {
 			Healthy bool `json:"healthy"`
 		}{
