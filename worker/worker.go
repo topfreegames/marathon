@@ -23,6 +23,7 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -393,7 +394,11 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
 	http.HandleFunc("/_ping", func(w http.ResponseWriter, req *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(struct {
+			Healthy bool `json:"healthy"`
+		}{
+			Healthy: true,
+		})
 	})
 	if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
 		panic(err)
