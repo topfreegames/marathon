@@ -393,16 +393,17 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 // Start starts the worker
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
-	http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
-		json.NewEncoder(w).Encode(struct {
-			Healthy bool `json:"healthy"`
-		}{
-			Healthy: true,
+	go func() {
+		http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
+			json.NewEncoder(w).Encode(struct {
+				Healthy bool `json:"healthy"`
+			}{
+				Healthy: true,
+			})
 		})
-	})
-	if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
-		panic(err)
-	} else {
-		workers.Run()
-	}
+		if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
+			panic(err)
+		}
+	}()
+	workers.Run()
 }
