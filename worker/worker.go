@@ -24,6 +24,7 @@ package worker
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -391,6 +392,12 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 // Start starts the worker
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
-	go workers.StatsServer(jobsStatsPort)
-	workers.Run()
+	http.HandleFunc("/_ping", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
+		panic(err)
+	} else {
+		workers.Run()
+	}
 }
