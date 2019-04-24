@@ -277,6 +277,9 @@ func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
 	if err != nil {
 		return err
 	}
+	if rownsEstimative == 0 {
+		rownsEstimative = 1
+	}
 	testBatchSize = (200000 * maxSeqID) / rownsEstimative
 
 	maxRetries := w.Config.GetInt("workers.direct.maxRetries")

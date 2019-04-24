@@ -142,13 +142,12 @@ func (b *DirectWorker) getJobTemplatesByNameAndLocale(appID uuid.UUID, templateN
 	return templateByLocale, nil
 }
 
-func (b *DirectWorker) getQuery(job *model.Job, msg DirectPartMsg) string {
+func (b *DirectWorker) getQuery(job *model.Job) string {
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
-	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s", GetPushDBTableName(job.App.Name, job.Service))
-	query = fmt.Sprintf("%s WHERE seq_id >= %d AND seq_id < %d", query, msg.SmallestSeqID, msg.BiggestSeqID)
+	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE seq_id >= ? AND seq_id < ?", GetPushDBTableName(job.App.Name, job.Service))
 	if (whereClause) != "" {
-		query = fmt.Sprintf("%s AND %s;", query, whereClause)
+		query = fmt.Sprintf("%s AND %s", query, whereClause)
 	}
 	return query
 }
@@ -196,7 +195,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	var users []User
 	start := time.Now()
-	_, err = b.Workers.PushDB.DB.Query(&users, b.getQuery(job, msg))
+	_, err = b.Workers.PushDB.DB.Query(&users, b.getQuery(job), msg.SmallestSeqID, msg.BiggestSeqID)
 	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	successfulUsers := len(users)
