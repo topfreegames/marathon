@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 TFG Co <backend@tfgco.com>
+ * Copyright (c) 2019 TFG Co <backend@tfgco.com>
  * Author: TFG Co <backend@tfgco.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -39,7 +39,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
-// DirectPartMsg  save information about a block to process
+// DirectPartMsg saves information about a block to process
 type DirectPartMsg struct {
 	SmallestSeqID uint64 // not in the interval
 	BiggestSeqID  uint64 // in the interval
@@ -156,9 +156,9 @@ func (b *DirectWorker) getQuery(job *model.Job, msg DirectPartMsg) string {
 // Process processes the messages sent to batch worker queue and send them to kafka
 func (b *DirectWorker) Process(message *workers.Msg) {
 	l := b.Logger.With(
-		zap.String("worker", nameDbToCsv),
+		zap.String("worker", nameDirectWorker),
 	)
-	l.Info("starting")
+	log.I(l, "starting")
 
 	var msg DirectPartMsg
 	data := message.Args().ToJson()
@@ -199,7 +199,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	_, err = b.Workers.PushDB.DB.Query(&users, b.getQuery(job, msg))
 	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
-	successfullyUsers := len(users)
+	successfulUsers := len(users)
 	for _, user := range users {
 		templateName := job.TemplateName
 		templateNames := strings.Split(job.TemplateName, ",")
@@ -246,12 +246,12 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 		err = b.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, templateName)
 		if err != nil {
-			successfullyUsers--
+			successfulUsers--
 		}
 	}
 
 	// ignore errors
-	b.addCompletedTokens(job, successfullyUsers)
+	b.addCompletedTokens(job, successfulUsers)
 	b.addCompletedBatch(job)
 	complete, _ := b.checkComplete(job)
 	if complete {
