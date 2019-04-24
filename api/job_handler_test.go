@@ -586,6 +586,7 @@ var _ = Describe("Job Handler", func() {
 				payload["filters"] = map[string]interface{}{
 					"locale": "en",
 				}
+				payload["controlGroup"] = 0.01
 				delete(payload, "startsAt")
 				pl, _ := json.Marshal(payload)
 				status, body := Post(app, baseRoute, string(pl), "success@test.com")
@@ -605,6 +606,29 @@ var _ = Describe("Job Handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(j1["queue"].(string)).To(Equal("create_batches_from_filters_worker"))
 				Expect(j1["args"].([]interface{})[0]).To(Equal(job["id"]))
+			})
+
+			It("should start the create batches from filters immediately if payload without startsAt", func() {
+				payload := GetJobPayload()
+				payload["filters"] = map[string]interface{}{
+					"locale": "en",
+				}
+				delete(payload, "startsAt")
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				res, err := w.RedisClient.LLen("queue:create_batches_from_filters_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res).To(BeEquivalentTo(0))
+
+				res, err = w.RedisClient.LLen("queue:direct_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res).To(BeEquivalentTo(1))
 			})
 
 			It("should schedule the job if payload with startsAt", func() {
