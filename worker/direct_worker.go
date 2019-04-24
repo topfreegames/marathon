@@ -146,7 +146,7 @@ func (b *DirectWorker) getQuery(job *model.Job, msg DirectPartMsg) string {
 	filters := job.Filters
 	whereClause := GetWhereClauseFromFilters(filters)
 	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s", GetPushDBTableName(job.App.Name, job.Service))
-	query = fmt.Sprintf("%s WHERE seq_id > %d AND seq_id <= %d", query, msg.SmallestSeqID, msg.BiggestSeqID)
+	query = fmt.Sprintf("%s WHERE seq_id >= %d AND seq_id < %d", query, msg.SmallestSeqID, msg.BiggestSeqID)
 	if (whereClause) != "" {
 		query = fmt.Sprintf("%s AND %s;", query, whereClause)
 	}
