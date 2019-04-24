@@ -33,6 +33,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
+	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 	redis "gopkg.in/redis.v5"
 )
@@ -180,6 +181,7 @@ func (w *Worker) configureWorkers() {
 	f := NewCreateBatchesFromFiltersWorker(w)
 	r := NewResumeJobWorker(w)
 	j := NewJobCompletedWorker(w)
+	directWorker := NewDirectWorker(w)
 
 	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
 	dbToCsvWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
@@ -189,6 +191,8 @@ func (w *Worker) configureWorkers() {
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
 
+	jobDirectWorkerConcurrency := w.Config.GetInt("workers.direct.concurrency")
+
 	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("db_to_csv_worker", d.Process, dbToCsvWorkerConcurrency)
 
@@ -197,6 +201,8 @@ func (w *Worker) configureWorkers() {
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
 	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
+
+	workers.Process("direct_worker", directWorker.Process, jobDirectWorkerConcurrency)
 }
 
 func (w *Worker) configureSentry() {
@@ -251,6 +257,57 @@ func (w *Worker) CreateBatchesFromFiltersJob(jobID *[]string) (string, error) {
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
+}
+
+// CreateDirectBatchesJob receive a job id and create a model
+func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
+	var testBatchSize uint64
+	var maxSeqID uint64
+	var rownsEstimative uint64
+	var i uint64
+
+	tableName := GetPushDBTableName(job.App.Name, job.Service)
+	query := fmt.Sprintf("SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname = '%s';", tableName)
+	_, err := w.PushDB.DB.QueryOne(&rownsEstimative, query)
+	if err != nil {
+		return err
+	}
+	query = fmt.Sprintf("SELECT max(seq_id) FROM %s;", tableName)
+	_, err = w.PushDB.DB.QueryOne(&maxSeqID, query)
+	if err != nil {
+		return err
+	}
+	testBatchSize = (200000 * maxSeqID) / rownsEstimative
+
+	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
+	for i = 0; i < maxSeqID+1; {
+		_, err = workers.EnqueueWithOptions("direct_worker", "Add",
+			DirectPartMsg{
+				SmallestSeqID: i,
+				BiggestSeqID:  i + testBatchSize,
+				JobUUID:       job.ID,
+			}, workers.EnqueueOptions{
+				Retry:      true,
+				RetryCount: maxRetries,
+			})
+		if err != nil {
+			return err
+		}
+		i += testBatchSize
+	}
+
+	_, err = w.MarathonDB.DB.Model(job).Set("total_tokens = ?", rownsEstimative).Where("id = ?", job.ID).Update()
+	if err != nil {
+		return err
+	}
+
+	batches := i / testBatchSize
+	_, err = w.MarathonDB.DB.Model(job).Set("total_batches = ?", batches).Where("id = ?", job.ID).Update()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateProcessBatchJob creates a new ProcessBatchWorker job

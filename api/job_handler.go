@@ -249,6 +249,9 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		} else {
 			if len(job.CSVPath) > 0 {
 				wJobID, err = a.Worker.CSVSplitJob(job.ID.String())
+			} else if job.ControlGroup == 0 {
+				job.App = *app
+				err = a.Worker.CreateDirectBatchesJob(job)
 			} else {
 				wJobID, err = a.Worker.CreateBatchesFromFiltersJob(&[]string{job.ID.String()})
 			}
