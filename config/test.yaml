@@ -34,6 +34,9 @@ s3:
   secretAccessKey: "SECRET-ACCESS-KEY"
 workers:
   statsPort: 8081
+  direct:
+    concurrency: 10
+    maxRetries: 5
   createBatchesFromFilters:
     concurrency: 10
     maxRetries: 5

@@ -28,6 +28,9 @@ kafka:
   bootstrapServers: localhost:9940
 workers:
   statsPort: 8081
+  direct:
+    concurrency: 10
+    maxRetries: 5
   createBatchesFromFilters:
     concurrency: 10
     maxRetries: 5

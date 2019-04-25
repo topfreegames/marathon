@@ -39,6 +39,7 @@ type DB interface {
 	Exec(query interface{}, params ...interface{}) (*types.Result, error)
 	ExecOne(query interface{}, params ...interface{}) (*types.Result, error)
 	Query(coll, query interface{}, params ...interface{}) (*types.Result, error)
+	QueryOne(coll, query interface{}, params ...interface{}) (*types.Result, error)
 	Begin() (*pg.Tx, error)
 	Close() error
 }

@@ -207,6 +207,21 @@ func (m *PGMock) Query(obj interface{}, query interface{}, params ...interface{}
 	return result, nil
 }
 
+//QueryOne stores executed params
+func (m *PGMock) QueryOne(obj interface{}, query interface{}, params ...interface{}) (*types.Result, error) {
+	op := []interface{}{
+		obj, query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
 //Model mock for testing
 func (m *PGMock) Model(params ...interface{}) *orm.Query {
 	return nil
