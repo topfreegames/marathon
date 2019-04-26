@@ -79,12 +79,15 @@ f57a0010-1318-4997-9a92-dcfb8ca0f24a
 a04087d6-4d95-4d99-901f-a1ff8578a2bf
 5146be6c-ffda-401c-8721-3c43c7370872
 dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
+		fakeData6 := []byte(`userIds
+stange-token`)
 		fakeS3.PutObject("test/jobs/obj1.csv", &fakeData1)
 		fakeS3.PutObject("test/jobs/obj2.csv", &fakeData2)
 		fakeS3.PutObject("test/jobs/obj3.csv", &fakeData3)
 		fakeS3.PutObject("test/jobs/obj4.csv", &fakeData4)
 		fakeS3.PutObject("test/jobs/obj5.csv", &fakeData5)
-		app = CreateTestApp(w.MarathonDB.DB)
+		fakeS3.PutObject("test/jobs/obj6.csv", &fakeData6)
+		app = CreateTestApp(w.MarathonDB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
 			"object_name": "village",
@@ -92,7 +95,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		body := map[string]interface{}{
 			"alert": "{{user_name}} just liked your {{object_name}}!",
 		}
-		template = CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
+		template = CreateTestTemplate(w.MarathonDB, app.ID, map[string]interface{}{
 			"defaults": defaults,
 			"body":     body,
 			"locale":   "en",
@@ -100,7 +103,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		context = map[string]interface{}{
 			"user_name": "Everyone",
 		}
-		CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+		CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 			"context": context,
 		})
 		users := make([]worker.User, 2)
@@ -130,7 +133,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should panic if csvPath is invalid", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "algum",
@@ -147,13 +150,37 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should not panic if csvPath and jobID are valid", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj2.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
+			Expect(err).NotTo(HaveOccurred())
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
+			createBatchesWorker.Process(msg)
+		})
+
+		It("should not panic if csv was only one ID", func() {
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "test/jobs/obj6.csv",
+			})
+
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -171,13 +198,13 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should work if CSV is from Excel/Windows", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj4.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -195,14 +222,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should do nothing if job status is stopped", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -211,7 +238,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
 
-			_, err = w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+			_, err = w.MarathonDB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
@@ -226,14 +253,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -251,35 +278,27 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
+			Expect(res).To(BeEquivalentTo(1))
 			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
-			j2 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
 			Expect(err).NotTo(HaveOccurred())
-			err = json.Unmarshal([]byte(job2), &j2)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
-			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
 			Expect(err).NotTo(HaveOccurred())
-			wMessage2, err := worker.ParseProcessBatchWorkerMessageArray(j2["args"].([]interface{}))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(wMessage1.Users) + len(wMessage2.Users)).To(BeEquivalentTo(10))
+			Expect(len(wMessage1.Users)).To(BeEquivalentTo(10))
 		})
 
 		It("should create batches with the right number of tokens if a controlGroup is specified", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
 				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.2,
 			})
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -309,15 +328,15 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		})
 
 		It("should create batches with the right number of tokens if a controlGroup is specified", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context":      context,
 				"filters":      map[string]interface{}{},
 				"csvPath":      "test/jobs/obj5.csv",
 				"controlGroup": 0.4,
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -348,14 +367,14 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if numPushes < dbPageSize", func() {
 			w.DBPageSize = 500
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -373,29 +392,21 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
+			Expect(res).To(BeEquivalentTo(1))
 			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
-			j2 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
 			Expect(err).NotTo(HaveOccurred())
-			err = json.Unmarshal([]byte(job2), &j2)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
-			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
 			Expect(err).NotTo(HaveOccurred())
-			wMessage2, err := worker.ParseProcessBatchWorkerMessageArray(j2["args"].([]interface{}))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(wMessage1.Users) + len(wMessage2.Users)).To(BeEquivalentTo(10))
+			Expect(len(wMessage1.Users)).To(BeEquivalentTo(10))
 		})
 
 		It("should skip batches if startsAt is past and pastTimeStrategy is skip", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context":          context,
 				"filters":          map[string]interface{}{},
 				"csvPath":          "test/jobs/obj1.csv",
@@ -404,7 +415,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"pastTimeStrategy": "skip",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -425,82 +436,9 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(res).To(BeEquivalentTo(0))
 		})
 
-		It("should delay batches to next day if startsAt is past and pastTimeStrategy is nextDay", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-				"context":          context,
-				"filters":          map[string]interface{}{},
-				"csvPath":          "test/jobs/obj1.csv",
-				"localized":        true,
-				"startsAt":         time.Now().UTC().Add(time.Duration(-6) * time.Hour).UnixNano(),
-				"pastTimeStrategy": "nextDay",
-			})
-			_, err := w.CSVSplitJob(j.ID.String())
-			Expect(err).NotTo(HaveOccurred())
-
-			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(jobData))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
-
-			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
-			msg, err = workers.NewMsg(string(jobData))
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := w.RedisClient.ZCard("schedule").Result()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
-			var data workers.EnqueueData
-			jobs, err := w.RedisClient.ZRange("schedule", 0, 2).Result()
-			bytes, err := RedisReplyToBytes(jobs[0], err)
-			Expect(err).NotTo(HaveOccurred())
-			json.Unmarshal(bytes, &data)
-			pushTime := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
-			Expect(pushTime.After(time.Now())).To(Equal(true))
-		})
-
-		It("should schedule process_batches_worker if push is localized and starts in future", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
-				"context":   context,
-				"filters":   map[string]interface{}{},
-				"csvPath":   "test/jobs/obj1.csv",
-				"localized": true,
-				"startsAt":  time.Now().UTC().Add(12 * time.Hour).UnixNano(),
-			})
-			_, err := w.CSVSplitJob(j.ID.String())
-			Expect(err).NotTo(HaveOccurred())
-
-			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(jobData))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
-
-			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
-			msg, err = workers.NewMsg(string(jobData))
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			res, err := w.RedisClient.ZCard("schedule").Result()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
-			var data workers.EnqueueData
-			jobs, err := w.RedisClient.ZRange("schedule", 0, 2).Result()
-			bytes, err := RedisReplyToBytes(jobs[0], err)
-			Expect(err).NotTo(HaveOccurred())
-			json.Unmarshal(bytes, &data)
-			pushTime := time.Unix(0, int64(data.At*workers.NanoSecondPrecision))
-			Expect(pushTime.After(time.Now())).To(Equal(true))
-		})
-
 		It("should create batches with the right tokens and tz and send to process_batches_worker if a filter has multiple values separated bt comma", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{
 					"locale": "pt,en",
@@ -508,7 +446,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 				"csvPath": "test/jobs/obj1.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -525,36 +463,28 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
+			Expect(res).To(BeEquivalentTo(1))
 			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
-			j2 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
 			Expect(err).NotTo(HaveOccurred())
-			err = json.Unmarshal([]byte(job2), &j2)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
-			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
 			Expect(err).NotTo(HaveOccurred())
-			wMessage2, err := worker.ParseProcessBatchWorkerMessageArray(j2["args"].([]interface{}))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(wMessage1.Users) + len(wMessage2.Users)).To(BeEquivalentTo(10))
+			Expect(len(wMessage1.Users)).To(BeEquivalentTo(10))
 		})
 
 		It("should create batches with the right tokens and tz and send to process_batches_worker if service is gcm", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 				"service": "gcm",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -571,36 +501,28 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
+			Expect(res).To(BeEquivalentTo(1))
 			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
-			j2 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
 			Expect(err).NotTo(HaveOccurred())
-			err = json.Unmarshal([]byte(job2), &j2)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
-			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
 			Expect(err).NotTo(HaveOccurred())
-			wMessage2, err := worker.ParseProcessBatchWorkerMessageArray(j2["args"].([]interface{}))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(wMessage1.Users) + len(wMessage2.Users)).To(BeEquivalentTo(9))
+			Expect(len(wMessage1.Users)).To(BeEquivalentTo(9))
 		})
 
 		It("should not panic if job is a reexecution", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 				"service": "gcm",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -617,37 +539,29 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(res).To(BeEquivalentTo(2))
+			Expect(res).To(BeEquivalentTo(1))
 			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			job2, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
-			Expect(err).NotTo(HaveOccurred())
 			j1 := map[string]interface{}{}
-			j2 := map[string]interface{}{}
 			err = json.Unmarshal([]byte(job1), &j1)
 			Expect(err).NotTo(HaveOccurred())
-			err = json.Unmarshal([]byte(job2), &j2)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
-			Expect(j2["queue"].(string)).To(Equal("process_batch_worker"))
 			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
 			Expect(err).NotTo(HaveOccurred())
-			wMessage2, err := worker.ParseProcessBatchWorkerMessageArray(j2["args"].([]interface{}))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(wMessage1.Users) + len(wMessage2.Users)).To(BeEquivalentTo(9))
+			Expect(len(wMessage1.Users)).To(BeEquivalentTo(9))
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 		})
 
 		It("should use job DBPageSize if specified", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			w.MarathonDB.DB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
+			w.MarathonDB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -662,20 +576,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			err = w.MarathonDB.DB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j.DBPageSize).To(Equal(500))
 		})
 
 		It("should increment job totalBatches when no previous totalBatches", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -691,22 +605,22 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(job.TotalBatches).To(BeEquivalentTo(2))
+			Expect(job.TotalBatches).To(BeEquivalentTo(1))
 		})
 
 		It("should increment job totalBatches when previous totalBatches", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			_, err := w.MarathonDB.DB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
+			_, err := w.MarathonDB.Model(j).Set("total_batches = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = w.CSVSplitJob(j.ID.String())
+			_, err = w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -722,20 +636,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(job.TotalBatches).To(BeEquivalentTo(6))
+			Expect(job.TotalBatches).To(BeEquivalentTo(5))
 		})
 
 		It("should update totalTokens and totalUsers correctly", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -751,20 +665,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalUsers).To(BeEquivalentTo(10))
 			Expect(job.TotalTokens).To(BeEquivalentTo(10))
 		})
 
 		It("should increment job totalTokens when no previous totalTokens", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -780,20 +694,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(10))
 		})
 
 		It("should set totalTokens and totalUsers correctly", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj3.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -809,23 +723,23 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(4))
 			Expect(job.TotalUsers).To(BeEquivalentTo(2))
 		})
 
 		It("should increment job totalTokens when previous totalTokens", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj3.csv",
 			})
-			_, err := w.MarathonDB.DB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
+			_, err := w.MarathonDB.Model(j).Set("total_tokens = 4").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = w.CSVSplitJob(j.ID.String())
+			_, err = w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -841,20 +755,20 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
 			job := &model.Job{}
-			err = w.MarathonDB.DB.Model(job).Where("id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(8))
 		})
 
 		It("should not panic and change job status to stopped if bad csv", func() {
-			a := CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "testapp"})
-			j := CreateTestJob(w.MarathonDB.DB, a.ID, template.Name, map[string]interface{}{
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
 				"context": context,
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj2.csv",
 			})
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -873,7 +787,7 @@ dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 			updatedJob := &model.Job{
 				ID: j.ID,
 			}
-			err = w.MarathonDB.DB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
+			err = w.MarathonDB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(updatedJob.Status).To(Equal("stopped"))
 		})

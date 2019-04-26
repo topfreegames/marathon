@@ -78,7 +78,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		w.RedisClient.FlushAll()
 		templateName1 := "village-like"
 		templateName2 := "village-dislike"
-		app = CreateTestApp(w.MarathonDB.DB)
+		app = CreateTestApp(w.MarathonDB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
 			"object_name": "village",
@@ -89,19 +89,19 @@ var _ = Describe("ProcessBatch Worker", func() {
 		bodyDislike := map[string]interface{}{
 			"alert": "{{user_name}} just disliked your {{object_name}}!",
 		}
-		template = CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
+		template = CreateTestTemplate(w.MarathonDB, app.ID, map[string]interface{}{
 			"defaults": defaults,
 			"body":     body,
 			"locale":   "en",
 			"name":     templateName1,
 		})
-		template2 = CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
+		template2 = CreateTestTemplate(w.MarathonDB, app.ID, map[string]interface{}{
 			"defaults": defaults,
 			"body":     bodyDislike,
 			"locale":   "en",
 			"name":     templateName2,
 		})
-		CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
+		CreateTestTemplate(w.MarathonDB, app.ID, map[string]interface{}{
 			"defaults": map[string]interface{}{
 				"user_name":   "Alguém",
 				"object_name": "vila",
@@ -112,7 +112,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			"locale": "pt",
 			"name":   templateName1,
 		})
-		CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
+		CreateTestTemplate(w.MarathonDB, app.ID, map[string]interface{}{
 			"defaults": map[string]interface{}{
 				"user_name":   "Quelqu'un",
 				"object_name": "ville",
@@ -126,13 +126,13 @@ var _ = Describe("ProcessBatch Worker", func() {
 		context = map[string]interface{}{
 			"user_name": "Everyone",
 		}
-		job = CreateTestJob(w.MarathonDB.DB, app.ID, templateName1, map[string]interface{}{
+		job = CreateTestJob(w.MarathonDB, app.ID, templateName1, map[string]interface{}{
 			"context": context,
 		})
-		jobWithManyTemplates = CreateTestJob(w.MarathonDB.DB, app.ID, fmt.Sprintf("%s,%s", templateName1, templateName2), map[string]interface{}{
+		jobWithManyTemplates = CreateTestJob(w.MarathonDB, app.ID, fmt.Sprintf("%s,%s", templateName1, templateName2), map[string]interface{}{
 			"context": context,
 		})
-		gcmJob = CreateTestJob(w.MarathonDB.DB, app.ID, templateName1, map[string]interface{}{
+		gcmJob = CreateTestJob(w.MarathonDB, app.ID, templateName1, map[string]interface{}{
 			"context": context,
 			"service": "gcm",
 		})
@@ -185,7 +185,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should process when service is apns and increment job completed batches", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("service = apns").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("service = apns").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 
 			compressedUsers, err := worker.CompressUsers(&users)
@@ -263,7 +263,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should set job completedAt if last batch and schedule job_completed job", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = 1").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = 1").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
@@ -287,7 +287,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(BeNumerically("~", time.Now().UnixNano(), 50000000))
@@ -306,7 +306,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should not set job completedAt if not last batch and not schedule job_completed job", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = 2").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = 2").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
@@ -330,7 +330,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
@@ -341,7 +341,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should not set job completedAt total_batches is null and not schedule job_completed job", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = null").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("completed_batches = 0").Set("total_batches = null").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
@@ -365,7 +365,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
@@ -376,7 +376,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should increment job completed users", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("service = gcm").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("service = gcm").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 			compressedUsers, err := worker.CompressUsers(&users)
 			Expect(err).NotTo(HaveOccurred())
@@ -398,13 +398,13 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedTokens).To(Equal(len(users)))
 		})
 
 		It("should not process batch if job is expired", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("expires_at = ?", time.Now().UnixNano()-50000).Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("completed_batches = 0").Set("expires_at = ?", time.Now().UnixNano()-50000).Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 
 			compressedUsers, err := worker.CompressUsers(&users)
@@ -429,14 +429,14 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
 		})
 
 		It("should not process batch if job is stopped", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("completed_batches = 0").Set("status = 'stopped'").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("completed_batches = 0").Set("status = 'stopped'").Where("id = ?", job.ID).Update()
 			appName := strings.Split(app.BundleID, ".")[2]
 			compressedUsers, err := worker.CompressUsers(&users)
 			Expect(err).NotTo(HaveOccurred())
@@ -458,7 +458,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
@@ -599,8 +599,8 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 		It("should increment failedJobs", func() {
 			// unexistent template
-			w.MarathonDB.DB.Exec("DELETE FROM templates;")
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
+			w.MarathonDB.Exec("DELETE FROM templates;")
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			appName := strings.Split(app.BundleID, ".")[2]
 
@@ -631,7 +631,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.Status).To(Equal(""))
@@ -639,10 +639,10 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 		It("should increment failedJobs and mark job status as circuitbreak", func() {
 			// unexistent template
-			w.MarathonDB.DB.Exec("DELETE FROM templates;")
+			w.MarathonDB.Exec("DELETE FROM templates;")
 			err := w.RedisClient.Set(fmt.Sprintf("%s-failedbatches", job.ID.String()), 4, time.Hour).Err()
 			Expect(err).NotTo(HaveOccurred())
-			_, err = w.MarathonDB.DB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
+			_, err = w.MarathonDB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
@@ -674,7 +674,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.Status).To(Equal("circuitbreak"))
@@ -688,7 +688,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 		It("should re-schedule job if error getting the job", func() {
 			// unexistent job
-			w.MarathonDB.DB.Exec("DELETE FROM jobs;")
+			w.MarathonDB.Exec("DELETE FROM jobs;")
 			appName := strings.Split(app.BundleID, ".")[2]
 
 			compressedUsers, err := worker.CompressUsers(&users)
@@ -724,8 +724,8 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 		It("should re-schedule job if error getting the templates", func() {
 			// unexistent template
-			w.MarathonDB.DB.Exec("DELETE FROM templates;")
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
+			w.MarathonDB.Exec("DELETE FROM templates;")
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("total_batches = 100").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			appName := strings.Split(app.BundleID, ".")[2]
 
@@ -761,7 +761,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should not process job and add it to paused jobs list if job is paused", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'paused'").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("status = 'paused'").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
@@ -786,7 +786,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
@@ -797,7 +797,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should not process job and add it to paused jobs list if job is circuitbreak", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'circuitbreak'").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("status = 'circuitbreak'").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			appName := strings.Split(app.BundleID, ".")[2]
@@ -822,7 +822,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.DB.Select(&dbJob)
+			err = w.MarathonDB.Select(&dbJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
@@ -836,7 +836,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			metadata := map[string]interface{}{
 				"dryRun": true,
 			}
-			dryRunJob := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name,
+			dryRunJob := CreateTestJob(w.MarathonDB, app.ID, template.Name,
 				map[string]interface{}{
 					"context":  context,
 					"metadata": metadata,
@@ -892,7 +892,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			metadata := map[string]interface{}{
 				"dryRun": true,
 			}
-			dryRunJob := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name,
+			dryRunJob := CreateTestJob(w.MarathonDB, app.ID, template.Name,
 				map[string]interface{}{
 					"context":  context,
 					"metadata": metadata,

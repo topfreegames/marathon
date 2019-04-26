@@ -54,10 +54,10 @@ var _ = Describe("ProcessBatch Worker", func() {
 		resumeJobWorker = worker.NewResumeJobWorker(w)
 		w.RedisClient.FlushAll()
 
-		app = CreateTestApp(w.MarathonDB.DB)
+		app = CreateTestApp(w.MarathonDB)
 		appName := strings.Split(app.BundleID, ".")[2]
-		template = CreateTestTemplate(w.MarathonDB.DB, app.ID)
-		job = CreateTestJob(w.MarathonDB.DB, app.ID, template.Name)
+		template = CreateTestTemplate(w.MarathonDB, app.ID)
+		job = CreateTestJob(w.MarathonDB, app.ID, template.Name)
 		users = make([]worker.User, 10)
 		for index := range users {
 			id := uuid.NewV4().String()
@@ -111,7 +111,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 		})
 
 		It("should remove the paused jobs list and not enqueue to process_batch_worker if job status is stopped", func() {
-			_, err := w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", job.ID).Update()
+			_, err := w.MarathonDB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", job.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{
 				job.ID,
