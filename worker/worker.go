@@ -394,12 +394,26 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
 	go func() {
-		http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
-			json.NewEncoder(w).Encode(struct {
-				Healthy bool `json:"healthy"`
+		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
+
+			_, marathonError := w.MarathonDB.DB.Exec("SELECT 1")
+			_, pushError := w.MarathonDB.DB.Exec("SELECT 1")
+			pong, redisError := w.RedisClient.Ping().Result()
+
+			status := struct {
+				MarathonHealthy bool `json:"marathon_db_healthy"`
+				PushHealthy     bool `json:"push_db_healthy"`
+				RedisHealthy    bool `json:"redis_healthy"`
 			}{
-				Healthy: true,
-			})
+				MarathonHealthy: marathonError == nil,
+				PushHealthy:     pushError == nil,
+				RedisHealthy:    redisError == nil && pong == "PONG",
+			}
+
+			if !status.MarathonHealthy || !status.PushHealthy || !status.RedisHealthy {
+				rw.WriteHeader(http.StatusServiceUnavailable)
+			}
+			json.NewEncoder(rw).Encode(status)
 		})
 		if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
 			panic(err)
