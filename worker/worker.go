@@ -23,7 +23,9 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -391,6 +393,31 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 // Start starts the worker
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
-	go workers.StatsServer(jobsStatsPort)
+	go func() {
+		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
+
+			_, marathonError := w.MarathonDB.DB.Exec("SELECT 1")
+			_, pushError := w.MarathonDB.DB.Exec("SELECT 1")
+			pong, redisError := w.RedisClient.Ping().Result()
+
+			status := struct {
+				MarathonHealthy bool `json:"marathon_db_healthy"`
+				PushHealthy     bool `json:"push_db_healthy"`
+				RedisHealthy    bool `json:"redis_healthy"`
+			}{
+				MarathonHealthy: marathonError == nil,
+				PushHealthy:     pushError == nil,
+				RedisHealthy:    redisError == nil && pong == "PONG",
+			}
+
+			if !status.MarathonHealthy || !status.PushHealthy || !status.RedisHealthy {
+				rw.WriteHeader(http.StatusServiceUnavailable)
+			}
+			json.NewEncoder(rw).Encode(status)
+		})
+		if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
+			panic(err)
+		}
+	}()
 	workers.Run()
 }
