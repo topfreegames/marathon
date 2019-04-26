@@ -113,6 +113,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		UpdatedAt:    time.Now().UnixNano(),
 		App:          *app,
 	}
+
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, job)
 	})
@@ -120,33 +121,19 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
 
-	err = a.checkFilters(job, c)
-	if err != nil {
+	err, skip := a.checkFilters(job, c)
+	if err != nil || skip {
 		return err
 	}
 
-	err = a.checkTemplateName(templateName, job, c)
-	if err != nil {
+	err, skip = a.checkTemplateName(templateName, job, c)
+	if err != nil || skip {
 		return err
 	}
 
 	if job.StartsAt == 0 && job.Localized {
 		localeErr := "Job can not be localized and don't have an start time"
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
-	}
-
-	// check if was an timezone conflict
-	if job.StartsAt != 0 && job.Localized {
-		// get smallast timezone
-		localizedAt := time.Unix(0, job.StartsAt).Add(-12 * time.Hour)
-		localizedAt = localizedAt.Add(-15 * time.Minute)
-		// we'll use 1 to have some marging when creating the jobs
-		localizedAt = localizedAt.Add(-1 * time.Minute)
-		if localizedAt.Before(time.Now()) {
-			localeErr := "The selected time is invalid because it already has started in some places."
-			localeErr += "\nUse at least the current UTC time -12 hours."
-			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
-		}
 	}
 
 	err = WithSegment("create-job", c, func() error {
@@ -161,7 +148,6 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 					fmt.Sprintf("%+.4d", i*100+30),
 				}
 				sendTime := time.Unix(0, scheduleJob).Add(time.Duration(i) * time.Hour)
-
 				if sendTime.Before(time.Now()) {
 					if job.PastTimeStrategy == "skip" {
 						continue
@@ -209,13 +195,13 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, job)
 }
 
-func (a *Application) checkFilters(job *model.Job, c echo.Context) error {
+func (a *Application) checkFilters(job *model.Job, c echo.Context) (error, bool) {
 	if job.Filters["region"] != nil || job.Filters["NOTregion"] != nil || job.Filters["locale"] != nil || job.Filters["NOTlocale"] != nil {
 		var users []worker.User
 		query := fmt.Sprintf("SELECT locale, region FROM %s WHERE locale is not NULL AND region is not NULL LIMIT 1;", worker.GetPushDBTableName(job.App.Name, job.Service))
 		a.PushDB.Query(&users, query)
 		if len(users) != 1 {
-			return c.JSON(http.StatusInternalServerError, &Error{Reason: "Failed to check filters in Push DB"})
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: "Failed to check filters in Push DB"}), true
 		}
 		locale := users[0].Locale
 		region := users[0].Region
@@ -236,7 +222,7 @@ func (a *Application) checkFilters(job *model.Job, c echo.Context) error {
 			} else if localeSettings["isLowerCase"] && !localeSettings["isUpperCase"] {
 				job.Filters["locale"] = strings.ToLower(job.Filters["locale"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"}), true
 			}
 		}
 
@@ -246,7 +232,7 @@ func (a *Application) checkFilters(job *model.Job, c echo.Context) error {
 			} else if localeSettings["isLowerCase"] && !localeSettings["isUpperCase"] {
 				job.Filters["NOTlocale"] = strings.ToLower(job.Filters["NOTlocale"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"}), true
 			}
 		}
 
@@ -256,7 +242,7 @@ func (a *Application) checkFilters(job *model.Job, c echo.Context) error {
 			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
 				job.Filters["region"] = strings.ToLower(job.Filters["region"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"}), true
 			}
 		}
 
@@ -266,14 +252,14 @@ func (a *Application) checkFilters(job *model.Job, c echo.Context) error {
 			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
 				job.Filters["NOTregion"] = strings.ToLower(job.Filters["NOTregion"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
+				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"}), true
 			}
 		}
 	}
-	return nil
+	return nil, false
 }
 
-func (a *Application) checkTemplateName(templateName string, job *model.Job, c echo.Context) error {
+func (a *Application) checkTemplateName(templateName string, job *model.Job, c echo.Context) (error, bool) {
 	for _, tpl := range strings.Split(templateName, ",") {
 		template := &model.Template{}
 		err := WithSegment("db-select", c, func() error {
@@ -281,9 +267,9 @@ func (a *Application) checkTemplateName(templateName string, job *model.Job, c e
 		})
 		if err != nil {
 			if err.Error() == RecordNotFoundString {
-				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job}), true
 			}
-			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job}), true
 		}
 
 		err = WithSegment("db-select", c, func() error {
@@ -292,12 +278,12 @@ func (a *Application) checkTemplateName(templateName string, job *model.Job, c e
 		if err != nil {
 			if err.Error() == RecordNotFoundString {
 				localeErr := "Cannot create job if there is no template for locale 'en'."
-				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
+				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job}), true
 			}
-			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job}), true
 		}
 	}
-	return nil
+	return nil, false
 }
 
 func (a *Application) createJobWorkers(job *model.Job, c echo.Context) error {

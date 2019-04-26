@@ -237,7 +237,7 @@ var _ = Describe("Job Handler", func() {
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
 				Expect(dbJob.TemplateName).To(Equal(existingTemplate.Name))
-				Expect(dbJob.TotalBatches).To(Equal(0))
+				Expect(dbJob.TotalBatches).To(Equal(1))
 				Expect(dbJob.CompletedBatches).To(Equal(0))
 				Expect(dbJob.ExpiresAt).To(BeEquivalentTo(payload["expiresAt"]))
 				Expect(dbJob.StartsAt).To(BeEquivalentTo(payload["startsAt"]))
@@ -322,8 +322,20 @@ var _ = Describe("Job Handler", func() {
 
 			})
 
-			It("should return 201 and the created job with localized set to true", func() {
+			It("should return 422 and the created job with localized set to true and no schedule time", func() {
 				payload := GetJobPayload()
+				payload["localized"] = true
+				delete(payload, "csvPath")
+				delete(payload, "startsAt")
+				pl, _ := json.Marshal(payload)
+				status, _ := Post(app, baseRoute, string(pl), "success@test.com")
+
+				Expect(status).To(Equal(http.StatusUnprocessableEntity))
+			})
+
+			It("should return 201 and the created job with localized set to true and schedule time", func() {
+				payload := GetJobPayload()
+				payload["startsAt"] = time.Now().Add(1 * time.Hour).UnixNano()
 				payload["localized"] = true
 				delete(payload, "csvPath")
 				pl, _ := json.Marshal(payload)
@@ -596,16 +608,16 @@ var _ = Describe("Job Handler", func() {
 				err := json.Unmarshal([]byte(body), &job)
 				Expect(err).NotTo(HaveOccurred())
 
-				res, err := w.RedisClient.LLen("queue:create_batches_from_filters_worker").Result()
+				res, err := w.RedisClient.LLen("queue:direct_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(res).To(BeEquivalentTo(1))
-				job1, err := w.RedisClient.LPop("queue:create_batches_from_filters_worker").Result()
+				job1, err := w.RedisClient.LPop("queue:direct_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				j1 := map[string]interface{}{}
 				err = json.Unmarshal([]byte(job1), &j1)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(j1["queue"].(string)).To(Equal("create_batches_from_filters_worker"))
-				Expect(j1["args"].([]interface{})[0]).To(Equal(job["id"]))
+				Expect(j1["queue"].(string)).To(Equal("direct_worker"))
+				Expect(j1["args"].(map[string]interface{})["JobUUID"].(string)).To(Equal(job["id"]))
 			})
 
 			It("should start the create batches from filters immediately if payload without startsAt", func() {
@@ -650,8 +662,8 @@ var _ = Describe("Job Handler", func() {
 				var result map[string]interface{}
 				err = json.Unmarshal([]byte(res[0]), &result)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(result["queue"]).To(Equal("create_batches_worker"))
-				Expect(result["args"].([]interface{})[0]).To(Equal(job["id"]))
+				Expect(result["queue"]).To(Equal("csv_split_worker"))
+				Expect(result["args"].(string)).To(Equal(job["id"]))
 				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64)) / 1000000000.0))
 
 				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
@@ -675,10 +687,33 @@ var _ = Describe("Job Handler", func() {
 
 				res, err := w.RedisClient.ZRange("schedule", 0, -1).Result()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(len(res)).To(BeEquivalentTo(0))
+				Expect(len(res)).To(BeEquivalentTo(15))
 				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(res1).To(BeEquivalentTo(1))
+				Expect(res1).To(BeEquivalentTo(12))
+			})
+
+			It("should start the job if payload with startsAt, localized=true and past_time_strategy=skip", func() {
+				payload := GetJobPayload()
+				payload["startsAt"] = time.Now().Add(3 * time.Second).UnixNano()
+				payload["csvPath"] = "bucket/somecsv"
+				payload["localized"] = true
+				payload["PastTimeStrategy"] = "skip"
+				payload["filters"] = map[string]interface{}{}
+				pl, _ := json.Marshal(payload)
+				status, body := Post(app, baseRoute, string(pl), "success@test.com")
+				Expect(status).To(Equal(http.StatusCreated))
+
+				var job map[string]interface{}
+				err := json.Unmarshal([]byte(body), &job)
+				Expect(err).NotTo(HaveOccurred())
+
+				res, err := w.RedisClient.ZRange("schedule", 0, -1).Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(res)).To(BeEquivalentTo(15))
+				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(res1).To(BeEquivalentTo(0))
 			})
 
 			It("should schedule the job if payload with startsAt and localized=true and more than 14 hours in the future", func() {
@@ -697,13 +732,13 @@ var _ = Describe("Job Handler", func() {
 
 				res, err := w.RedisClient.ZRange("schedule", 0, -1).Result()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(len(res)).To(BeEquivalentTo(1))
+				Expect(len(res)).To(BeEquivalentTo(27))
 				var result map[string]interface{}
-				err = json.Unmarshal([]byte(res[0]), &result)
+				err = json.Unmarshal([]byte(res[26]), &result)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(result["queue"]).To(Equal("create_batches_worker"))
-				Expect(result["args"].([]interface{})[0]).To(Equal(job["id"]))
-				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64))/1000000000.0 - 14*60*60.0))
+				Expect(result["queue"]).To(Equal("csv_split_worker"))
+				Expect(result["args"].(string)).To(Equal(job["id"]))
+				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64))/1000000000.0 + 14*60*60.0))
 
 				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
@@ -730,11 +765,11 @@ var _ = Describe("Job Handler", func() {
 				var result map[string]interface{}
 				err = json.Unmarshal([]byte(res[0]), &result)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(result["queue"]).To(Equal("create_batches_from_filters_worker"))
-				Expect(result["args"].([]interface{})[0]).To(Equal(job["id"]))
+				Expect(result["queue"]).To(Equal("direct_worker"))
+				Expect(result["args"].(map[string]interface{})["JobUUID"].(string)).To(Equal(job["id"]))
 				Expect(result["at"].(float64)).To(Equal(float64(payload["startsAt"].(int64)) / 1000000000.0))
 
-				res1, err := w.RedisClient.LLen("queue:create_batches_from_filters_worker").Result()
+				res1, err := w.RedisClient.LLen("queue:direct_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(res1).To(BeEquivalentTo(0))
 			})
