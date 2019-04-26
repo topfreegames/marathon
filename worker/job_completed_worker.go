@@ -97,16 +97,10 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	)
 	log.I(l, "starting")
 
-	job := &model.Job{
-		ID: id,
-	}
-	err = b.Workers.MarathonDB.Model(job).Where("job.id = ?", job.ID).Select()
-	if err != nil {
-		b.checkErr(job, err)
-	}
+	job, err := b.Workers.GetJob(id)
+	checkErr(l, err)
+
 	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
-	err = b.Workers.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	b.checkErr(job, err)
 
 	if b.Workers.SendgridClient != nil {
 		err = email.SendJobCompletedEmail(b.Workers.SendgridClient, job, job.App.Name)

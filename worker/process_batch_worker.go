@@ -100,14 +100,6 @@ func (b *ProcessBatchWorker) sendToKafka(service, topic string, msg, messageMeta
 	return nil
 }
 
-func (b *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, error) {
-	job := model.Job{
-		ID: jobID,
-	}
-	err := b.Workers.MarathonDB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	return &job, err
-}
-
 func (b *ProcessBatchWorker) updateJobUsersInfo(jobID uuid.UUID, numUsers int) error {
 	job := model.Job{}
 	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_tokens = completed_tokens + ?", numUsers).Where("id = ?", jobID).Update()
@@ -182,8 +174,9 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	checkErr(l, err)
 	log.D(l, "Parsed message info successfully.")
 
-	job, err := b.getJob(parsed.JobID)
+	job, err := b.Workers.GetJob(parsed.JobID)
 	b.checkErrWithReEnqueue(parsed, l, err)
+
 	log.D(l, "Retrieved job successfully.")
 	b.Workers.Statsd.Incr("starting_process_batch_worker", job.Labels(), 1)
 

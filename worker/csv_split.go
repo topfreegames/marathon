@@ -84,12 +84,11 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 		zap.String("worker", nameSCVSplit),
 	)
 	log.I(l, "starting")
-	job := &model.Job{
-		ID: id,
-	}
-	job.TagRunning(b.Workers.MarathonDB, nameSCVSplit, "starting")
-	err = b.Workers.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+
+	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
+	job.TagRunning(b.Workers.MarathonDB, nameSCVSplit, "starting")
+
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job")
 		return
