@@ -281,6 +281,7 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options worker
 	var rownsEstimative uint64
 	var i uint64
 
+	job.GetJobInfoAndApp(w.MarathonDB)
 	tableName := GetPushDBTableName(job.App.Name, job.Service)
 	query := fmt.Sprintf("SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname = '%s';", tableName)
 	_, err := w.PushDB.QueryOne(&rownsEstimative, query)
