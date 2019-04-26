@@ -80,7 +80,7 @@ func (b *JobCompletedWorker) flushControlGroup(job *model.Job) {
 
 func (b *JobCompletedWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
 	job.ControlGroupCSVPath = csvPath
-	_, err := b.Workers.MarathonDB.DB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
+	_, err := b.Workers.MarathonDB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
 	b.checkErr(job, err)
 }
 
@@ -100,12 +100,12 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	err = b.Workers.MarathonDB.DB.Model(job).Where("job.id = ?", job.ID).Select()
+	err = b.Workers.MarathonDB.Model(job).Where("job.id = ?", job.ID).Select()
 	if err != nil {
 		b.checkErr(job, err)
 	}
 	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
-	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	err = b.Workers.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	b.checkErr(job, err)
 
 	if b.Workers.SendgridClient != nil {

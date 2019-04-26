@@ -28,10 +28,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"
 	"github.com/jrallison/go-workers"
+	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
@@ -43,8 +45,8 @@ import (
 // Worker is the struct that will configure workers
 type Worker struct {
 	Logger                    zap.Logger
-	PushDB                    *extensions.PGClient
-	MarathonDB                *extensions.PGClient
+	PushDB                    interfaces.DB
+	MarathonDB                interfaces.DB
 	Config                    *viper.Viper
 	DBPageSize                int
 	S3Client                  interfaces.S3
@@ -112,15 +114,15 @@ func (w *Worker) configureSendgrid() {
 }
 
 func (w *Worker) configurePushDatabase() {
-	var err error
-	w.PushDB, err = extensions.NewPGClient("push.db", w.Config, w.Logger)
+	connection, err := extensions.NewPGClient("push.db", w.Config, w.Logger)
 	checkErr(w.Logger, err)
+	w.PushDB = connection.DB
 }
 
 func (w *Worker) configureMarathonDatabase() {
-	var err error
-	w.MarathonDB, err = extensions.NewPGClient("db", w.Config, w.Logger)
+	connection, err := extensions.NewPGClient("db", w.Config, w.Logger)
 	checkErr(w.Logger, err)
+	w.MarathonDB = connection.DB
 }
 
 func (w *Worker) configureStatsd() {
@@ -177,26 +179,19 @@ func (w *Worker) configureS3Client() {
 
 func (w *Worker) configureWorkers() {
 	p := NewProcessBatchWorker(w)
-	d := NewDbToCsvWorker(w)
 	k := NewCSVSplitWorker(w)
 	c := NewCreateBatchesWorker(w)
-	f := NewCreateBatchesFromFiltersWorker(w)
 	r := NewResumeJobWorker(w)
 	j := NewJobCompletedWorker(w)
 	directWorker := NewDirectWorker(w)
 
-	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
-	dbToCsvWorkerConcurrency := w.Config.GetInt("workers.dbToCsv.concurrency")
 	createCSVSplitWorkerConcurrency := w.Config.GetInt("workers.csvSplitWorker.concurrency")
-	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
+	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
 
 	jobDirectWorkerConcurrency := w.Config.GetInt("workers.direct.concurrency")
-
-	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
-	workers.Process("db_to_csv_worker", d.Process, dbToCsvWorkerConcurrency)
 
 	workers.Process("csv_split_worker", k.Process, createCSVSplitWorkerConcurrency)
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
@@ -225,22 +220,31 @@ func (w *Worker) configureKafkaProducer() {
 	w.Kafka = kafka
 }
 
-// CSVSplitJob creates a new CSVSplitWorker job
-func (w *Worker) CSVSplitJob(jobID string) (string, error) {
+// CreateCSVSplitJob creates a new CSVSplitWorker job
+func (w *Worker) CreateCSVSplitJob(job *model.Job) (string, error) {
 	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
-	return workers.EnqueueWithOptions("csv_split_worker", "Add", jobID, workers.EnqueueOptions{
-		Retry:      true,
-		RetryCount: maxRetries,
-	})
+	return workers.EnqueueWithOptions(
+		"csv_split_worker",
+		"Add",
+		job.ID.String(),
+		workers.EnqueueOptions{
+			Retry:      true,
+			RetryCount: maxRetries,
+		})
 }
 
-// DbToCsvJob creates a new DbToCsvWorker job
-func (w *Worker) DbToCsvJob(msg *ToCSVMessage) (string, error) {
-	maxRetries := w.Config.GetInt("workers.dbToCsv.maxRetries")
-	return workers.EnqueueWithOptions("db_to_csv_worker", "Add", msg, workers.EnqueueOptions{
-		Retry:      true,
-		RetryCount: maxRetries,
-	})
+// ScheduleCSVSplitJob schedules a new CSVSplitWorker job
+func (w *Worker) ScheduleCSVSplitJob(job *model.Job, at int64) (string, error) {
+	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
+	return workers.EnqueueWithOptions(
+		"csv_split_worker",
+		"Add",
+		job.ID.String(),
+		workers.EnqueueOptions{
+			Retry:      true,
+			RetryCount: maxRetries,
+			At:         float64(at) / workers.NanoSecondPrecision,
+		})
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
@@ -252,17 +256,26 @@ func (w *Worker) CreateBatchesJob(part *BatchPart) (string, error) {
 	})
 }
 
-// CreateBatchesFromFiltersJob creates a new CreateBatchesFromFiltersWorker job
-func (w *Worker) CreateBatchesFromFiltersJob(jobID *[]string) (string, error) {
-	maxRetries := w.Config.GetInt("workers.createBatchesFromFilters.maxRetries")
-	return workers.EnqueueWithOptions("create_batches_from_filters_worker", "Add", jobID, workers.EnqueueOptions{
+// CreateDirectBatchesJob schedules a new DirectWorker job
+func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
+	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
+	return w.createDirectBatchesJobWithOption(job, workers.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
 }
 
-// CreateDirectBatchesJob receive a job id and create a model
-func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
+// ScheduleDirectBatchesJob schedules a new DirectWorker job
+func (w *Worker) ScheduleDirectBatchesJob(job *model.Job, at int64) error {
+	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
+	return w.createDirectBatchesJobWithOption(job, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+		At:         float64(at) / workers.NanoSecondPrecision,
+	})
+}
+
+func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options workers.EnqueueOptions) error {
 	var testBatchSize uint64
 	var maxSeqID uint64
 	var rownsEstimative uint64
@@ -270,12 +283,12 @@ func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
 
 	tableName := GetPushDBTableName(job.App.Name, job.Service)
 	query := fmt.Sprintf("SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname = '%s';", tableName)
-	_, err := w.PushDB.DB.QueryOne(&rownsEstimative, query)
+	_, err := w.PushDB.QueryOne(&rownsEstimative, query)
 	if err != nil {
 		return err
 	}
 	query = fmt.Sprintf("SELECT max(seq_id) FROM %s;", tableName)
-	_, err = w.PushDB.DB.QueryOne(&maxSeqID, query)
+	_, err = w.PushDB.QueryOne(&maxSeqID, query)
 	if err != nil {
 		return err
 	}
@@ -284,30 +297,26 @@ func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
 	}
 	testBatchSize = (200000 * maxSeqID) / rownsEstimative
 
-	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
 	for i = 0; i < maxSeqID+1; {
 		_, err = workers.EnqueueWithOptions("direct_worker", "Add",
 			DirectPartMsg{
 				SmallestSeqID: i,
 				BiggestSeqID:  i + testBatchSize,
 				JobUUID:       job.ID,
-			}, workers.EnqueueOptions{
-				Retry:      true,
-				RetryCount: maxRetries,
-			})
+			}, options)
 		if err != nil {
 			return err
 		}
 		i += testBatchSize
 	}
 
-	_, err = w.MarathonDB.DB.Model(job).Set("total_tokens = ?", rownsEstimative).Where("id = ?", job.ID).Update()
+	_, err = w.MarathonDB.Model(job).Set("total_tokens = ?", rownsEstimative).Where("id = ?", job.ID).Update()
 	if err != nil {
 		return err
 	}
 
 	batches := i / testBatchSize
-	_, err = w.MarathonDB.DB.Model(job).Set("total_batches = ?", batches).Where("id = ?", job.ID).Update()
+	_, err = w.MarathonDB.Model(job).Set("total_batches = ?", batches).Where("id = ?", job.ID).Update()
 	if err != nil {
 		return err
 	}
@@ -396,8 +405,8 @@ func (w *Worker) Start() {
 	go func() {
 		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
 
-			_, marathonError := w.MarathonDB.DB.Exec("SELECT 1")
-			_, pushError := w.MarathonDB.DB.Exec("SELECT 1")
+			_, marathonError := w.MarathonDB.Exec("SELECT 1")
+			_, pushError := w.MarathonDB.Exec("SELECT 1")
 			pong, redisError := w.RedisClient.Ping().Result()
 
 			status := struct {
@@ -420,4 +429,25 @@ func (w *Worker) Start() {
 		}
 	}()
 	workers.Run()
+}
+
+// SendControlGroupToRedis send a sequency of users ids to redis
+func (w *Worker) SendControlGroupToRedis(job *model.Job, ids []string) {
+	start := time.Now()
+	hash := job.ID.String()
+	var args []interface{}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	w.RedisClient.LPush(fmt.Sprintf("%s-CONTROL", hash), args...).Result()
+	w.Statsd.Timing("save_control_group", time.Now().Sub(start), job.Labels(), 1)
+}
+
+// GetJob get a job from the db
+func (w *Worker) GetJob(jobID uuid.UUID) (*model.Job, error) {
+	job := model.Job{
+		ID: jobID,
+	}
+	err := job.GetJobInfoAndApp(w.MarathonDB)
+	return &job, err
 }

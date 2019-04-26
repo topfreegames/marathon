@@ -65,7 +65,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 	job := &model.Job{
 		ID: id,
 	}
-	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	err = b.Workers.MarathonDB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job resume_job_worker")

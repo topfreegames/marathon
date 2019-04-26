@@ -82,14 +82,14 @@ func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, job *model.Job) []stri
 func (b *CreateBatchesWorker) updateTotalBatches(totalBatches int, job *model.Job) {
 	job.TotalBatches = totalBatches
 	// coalesce is necessary since total_batches can be null
-	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_batches = coalesce(total_batches, 0) + ?", totalBatches).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(job).Set("total_batches = coalesce(total_batches, 0) + ?", totalBatches).Where("id = ?", job.ID).Update()
 	b.checkErr(job, err)
 }
 
 func (b *CreateBatchesWorker) updateTotalTokens(totalTokens int, job *model.Job) {
 	job.TotalTokens = totalTokens
 	// coalesce is necessary since total_tokens can be null
-	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_tokens = coalesce(total_tokens, 0) + ?", totalTokens).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(job).Set("total_tokens = coalesce(total_tokens, 0) + ?", totalTokens).Where("id = ?", job.ID).Update()
 	b.checkErr(job, err)
 }
 
@@ -97,7 +97,7 @@ func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.J
 	var users []User
 	start := time.Now()
 	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(job.App.Name, job.Service))
-	_, err := b.Workers.PushDB.DB.Query(&users, query, pg.In(*userIds))
+	_, err := b.Workers.PushDB.Query(&users, query, pg.In(*userIds))
 	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	b.checkErr(job, err)
@@ -115,70 +115,25 @@ func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
 	log.I(l, "got users from db", func(cm log.CM) {
 		cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
 	})
-	bucketsByTZ := SplitUsersInBucketsByTZ(usersFromBatch)
-	for tz, users := range bucketsByTZ {
-		log.D(l, "batch of users for tz", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
-		})
-	}
-	if job.Localized {
-		b.sendLocalizedBatches(bucketsByTZ, job)
-	} else {
-		b.sendBatches(bucketsByTZ, job)
-	}
-	b.updateTotalBatches(len(bucketsByTZ), job)
+
+	b.sendBatches(*usersFromBatch, job)
+
+	b.updateTotalBatches(1, job)
 	b.updateTotalTokens(numUsersFromBatch, job)
 }
 
-func (b *CreateBatchesWorker) sendLocalizedBatches(batches map[string]*[]User, job *model.Job) {
+func (b *CreateBatchesWorker) sendBatches(users []User, job *model.Job) {
 	l := b.Logger
-	for tz, users := range batches {
-		offset, err := GetTimeOffsetFromUTCInSeconds(tz, b.Logger)
-		b.checkErr(job, err)
-		t := time.Unix(0, job.StartsAt)
-		localizedTime := t.Add(time.Duration(offset) * time.Second)
-		log.I(l, "scheduling batch of users to process batches worker", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(*users)),
-				zap.String("at", localizedTime.String()),
-			)
-		})
-		isLocalizedTimeInPast := time.Now().After(localizedTime)
-		if isLocalizedTimeInPast {
-			if job.PastTimeStrategy == "skip" {
-				continue
-			} else {
-				localizedTime = localizedTime.Add(time.Duration(24) * time.Hour)
-			}
-		}
-		_, err = b.Workers.ScheduleProcessBatchJob(job.ID.String(), job.App.Name, users, localizedTime.UnixNano())
-		b.checkErr(job, err)
-	}
-}
-
-func (b *CreateBatchesWorker) sendBatches(batches map[string]*[]User, job *model.Job) {
-	l := b.Logger
-	for tz, users := range batches {
-		log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
-			cm.Write(zap.Int("numUsers", len(*users)), zap.String("tz", tz))
-		})
-		_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, users)
-		b.checkErr(job, err)
-	}
-}
-
-func (b *CreateBatchesWorker) sendControlGroupToRedis(job *model.Job, controlGroup []string) {
-	hash := job.ID.String()
-	var args []interface{}
-	for _, id := range controlGroup {
-		args = append(args, id)
-	}
-	_, err := b.Workers.RedisClient.LPush(fmt.Sprintf("%s-CONTROL", hash), args...).Result()
+	log.I(l, "sending batch of users to process batches worker", func(cm log.CM) {
+		cm.Write(zap.Int("numUsers", len(users)))
+	})
+	_, err := b.Workers.CreateProcessBatchJob(job.ID.String(), job.App.Name, &users)
 	b.checkErr(job, err)
 }
 
 func (b *CreateBatchesWorker) updateTotalUsers(job *model.Job, totalUsers int) {
 	job.TotalUsers = totalUsers
-	_, err := b.Workers.MarathonDB.DB.Model(job).Set("total_users = coalesce(total_users, 0) + ?", totalUsers).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(job).Set("total_users = coalesce(total_users, 0) + ?", totalUsers).Where("id = ?", job.ID).Update()
 	b.checkErr(job, err)
 }
 
@@ -203,7 +158,8 @@ func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 		}
 		// grab control group
 		controlGroup := userIds[len(userIds)-controlGroupSize:]
-		b.sendControlGroupToRedis(&msg.Job, controlGroup)
+		go b.Workers.SendControlGroupToRedis(&msg.Job, controlGroup)
+
 		// cut control group from the slice
 		userIds = append(userIds[:len(userIds)-controlGroupSize], userIds[len(userIds):]...)
 		log.I(l, "control group cut from the users", func(cm log.CM) {
@@ -291,7 +247,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		zap.Int("totalParts", msg.TotalParts),
 	)
 
-	err = b.Workers.MarathonDB.DB.Model(&msg.Job).Column("job.status", "App").Where("job.id = ?", msg.Job.ID).Select()
+	err = b.Workers.MarathonDB.Model(&msg.Job).Column("job.status", "App").Where("job.id = ?", msg.Job.ID).Select()
 	checkErr(l, err)
 	if msg.Job.Status == stoppedJobStatus {
 		l.Info("stopped job")
@@ -314,7 +270,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	ids := b.getIDs(buffer, &msg)
 
 	if len(ids) == 0 {
-		_, err := b.Workers.MarathonDB.DB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
+		_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
 		b.checkErr(&msg.Job, err)
 	}
 

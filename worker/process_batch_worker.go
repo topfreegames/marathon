@@ -29,8 +29,6 @@ import (
 	"strings"
 	"time"
 
-	pg "gopkg.in/pg.v5"
-
 	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
@@ -67,7 +65,7 @@ func (b *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalBatches int
 	}
 	if float64(failedJobs)/float64(totalBatches) >= b.Workers.Config.GetFloat64("workers.processBatch.maxBatchFailure") {
 		job := model.Job{}
-		_, err := b.Workers.MarathonDB.DB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", jobID).Returning("*").Update()
+		_, err := b.Workers.MarathonDB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", jobID).Returning("*").Update()
 		checkErr(b.Logger, err)
 		changedStatus, err := b.Workers.RedisClient.SetNX(fmt.Sprintf("%s-circuitbreak", jobID.String()), 1, 1*time.Minute).Result()
 		checkErr(b.Logger, err)
@@ -106,55 +104,19 @@ func (b *ProcessBatchWorker) getJob(jobID uuid.UUID) (*model.Job, error) {
 	job := model.Job{
 		ID: jobID,
 	}
-	err := b.Workers.MarathonDB.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	err := b.Workers.MarathonDB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
 	return &job, err
-}
-
-func (b *ProcessBatchWorker) getJobTemplatesByNameAndLocale(appID uuid.UUID, templateName string) (map[string]map[string]model.Template, error) {
-	var templates []model.Template
-	var err error
-	if len(strings.Split(templateName, ",")) > 1 {
-		err = b.Workers.MarathonDB.DB.Model(&templates).Where(
-			"app_id = ? AND name IN (?)",
-			appID,
-			pg.In(strings.Split(templateName, ",")),
-		).Select()
-	} else {
-		err = b.Workers.MarathonDB.DB.Model(&templates).Where(
-			"app_id = ? AND name = ?",
-			appID,
-			templateName,
-		).Select()
-	}
-	if err != nil {
-		return nil, err
-	}
-	templateByLocale := make(map[string]map[string]model.Template)
-	for _, tpl := range templates {
-		if templateByLocale[tpl.Name] != nil {
-			templateByLocale[tpl.Name][tpl.Locale] = tpl
-		} else {
-			templateByLocale[tpl.Name] = map[string]model.Template{
-				tpl.Locale: tpl,
-			}
-		}
-	}
-
-	if len(templateByLocale) == 0 {
-		return nil, fmt.Errorf("No templates were found with name %s", templateName)
-	}
-	return templateByLocale, nil
 }
 
 func (b *ProcessBatchWorker) updateJobUsersInfo(jobID uuid.UUID, numUsers int) error {
 	job := model.Job{}
-	_, err := b.Workers.MarathonDB.DB.Model(&job).Set("completed_tokens = completed_tokens + ?", numUsers).Where("id = ?", jobID).Update()
+	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_tokens = completed_tokens + ?", numUsers).Where("id = ?", jobID).Update()
 	return err
 }
 
 func (b *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 	job := model.Job{}
-	_, err := b.Workers.MarathonDB.DB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Returning("*").Update()
+	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", jobID).Returning("*").Update()
 	if err != nil {
 		return err
 	}
@@ -172,7 +134,7 @@ func (b *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 		log.I(l, "Finished all batches")
 		job.TagSuccess(b.Workers.MarathonDB, "process_batche_worker", "Finished all batches")
 		job.CompletedAt = time.Now().UnixNano()
-		_, err = b.Workers.MarathonDB.DB.Model(&job).Column("completed_at").Update()
+		_, err = b.Workers.MarathonDB.Model(&job).Column("completed_at").Update()
 		if err != nil {
 			return err
 		}
@@ -246,7 +208,7 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 		log.D(l, "valid")
 	}
 
-	templatesByNameAndLocale, err := b.getJobTemplatesByNameAndLocale(job.AppID, job.TemplateName)
+	templatesByNameAndLocale, err := job.GetJobTemplatesByNameAndLocale(b.Workers.MarathonDB)
 	if err != nil {
 		b.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
 	}

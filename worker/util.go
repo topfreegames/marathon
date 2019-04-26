@@ -128,24 +128,6 @@ func markProcessedPage(page int, jobID uuid.UUID, redisClient *redis.Client) {
 	redisClient.SAdd(fmt.Sprintf("%s-processedpages", jobID.String()), page)
 }
 
-// SplitUsersInBucketsByTZ splits users in buckets by tz
-func SplitUsersInBucketsByTZ(users *[]User) map[string]*[]User {
-	bucketsByTZ := map[string]*[]User{}
-	for _, user := range *users {
-		userTz := user.Tz
-		if len(userTz) == 0 {
-			userTz = "-0500"
-		}
-		if res, ok := bucketsByTZ[userTz]; ok {
-			users := append(*res, user)
-			bucketsByTZ[userTz] = &users
-		} else {
-			bucketsByTZ[userTz] = &[]User{user}
-		}
-	}
-	return bucketsByTZ
-}
-
 func checkErr(l zap.Logger, err error) {
 	if err != nil {
 		raven.CaptureErrorAndWait(err, nil)
