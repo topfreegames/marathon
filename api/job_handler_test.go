@@ -687,10 +687,10 @@ var _ = Describe("Job Handler", func() {
 
 				res, err := w.RedisClient.ZRange("schedule", 0, -1).Result()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(len(res)).To(BeEquivalentTo(15))
+				Expect(len(res)).To(BeEquivalentTo(27))
 				res1, err := w.RedisClient.LLen("queue:csv_split_worker").Result()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(res1).To(BeEquivalentTo(12))
+				Expect(res1).To(BeEquivalentTo(0))
 			})
 
 			It("should start the job if payload with startsAt, localized=true and past_time_strategy=skip", func() {
