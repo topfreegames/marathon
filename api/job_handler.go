@@ -138,36 +138,37 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 
 	err = WithSegment("create-job", c, func() error {
 		scheduleJob := job.StartsAt
-		if scheduleJob != 0 && job.Localized {
-			// create a job for each tz
-			for i := -12; i <= 14; i++ {
-				tzs := []string{
-					fmt.Sprintf("%+.4d", i*100-55), // 100 - 55 = 45
-					fmt.Sprintf("%+.4d", i*100),
-					fmt.Sprintf("%+.4d", i*100+15),
-					fmt.Sprintf("%+.4d", i*100+30),
-				}
-				sendTime := time.Unix(0, scheduleJob).Add(time.Duration(i) * time.Hour)
-				if sendTime.Before(time.Now()) {
-					if job.PastTimeStrategy == "skip" {
-						continue
-					}
-					sendTime = sendTime.Add(time.Duration(24) * time.Hour)
-				}
 
-				job.StartsAt = sendTime.UnixNano()
-				job.Filters["tz"] = strings.Join(tzs, ",")
-				job.ID = uuid.NewV4()
-				log.I(l, "Create a timezone job.")
-
-				err = a.createJob(job, c)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
+		if scheduleJob == 0 || !job.Localized {
 			log.I(l, "Create a simple job.")
 			return a.createJob(job, c)
+		}
+
+		// create a job for each tz
+		for i := -12; i <= 14; i++ {
+			tzs := []string{
+				fmt.Sprintf("%+.4d", i*100-55), // 100 - 55 = 45
+				fmt.Sprintf("%+.4d", i*100),
+				fmt.Sprintf("%+.4d", i*100+15),
+				fmt.Sprintf("%+.4d", i*100+30),
+			}
+			sendTime := time.Unix(0, scheduleJob).Add(time.Duration(i) * time.Hour)
+			if sendTime.Before(time.Now()) {
+				if job.PastTimeStrategy == "skip" {
+					continue
+				}
+				sendTime = sendTime.Add(time.Duration(24) * time.Hour)
+			}
+
+			job.StartsAt = sendTime.UnixNano()
+			job.Filters["tz"] = strings.Join(tzs, ",")
+			job.ID = uuid.NewV4()
+			log.I(l, "Create a timezone job.")
+
+			err = a.createJob(job, c)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})
