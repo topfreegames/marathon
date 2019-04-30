@@ -139,6 +139,18 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	err = WithSegment("create-job", c, func() error {
 		scheduleJob := job.StartsAt
 
+		jobGroup := model.JobGroup{
+			ID:    uuid.NewV4(),
+			AppID: app.ID,
+		}
+		err := WithSegment("create-group", c, func() error {
+			return a.DB.Insert(&jobGroup)
+		})
+		if err != nil {
+			return err
+		}
+		job.JobGroupID = jobGroup.ID
+
 		if scheduleJob == 0 || !job.Localized {
 			log.I(l, "Create a simple job.")
 			return a.createJob(job, c)
