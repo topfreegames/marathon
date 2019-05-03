@@ -8,7 +8,7 @@ CREATE TABLE "job_groups" (
   PRIMARY KEY ("id")
 );
 
-ALTER TABLE "jobs"
+ALTER TABLE "job_groups"
 ADD CONSTRAINT jobs_group_app_id_apps_id_foreign
 FOREIGN KEY (app_id)
 REFERENCES apps(id)
@@ -20,5 +20,5 @@ ALTER TABLE "jobs" ADD COLUMN job_group_id uuid DEFAULT uuid_generate_v4();
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
 
-DROP TABLE "job_group";
 ALTER TABLE "jobs" DROP COLUMN job_group_id;
+DROP TABLE "job_group";
