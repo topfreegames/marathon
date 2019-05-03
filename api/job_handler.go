@@ -111,7 +111,9 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		CreatedBy:    userEmail,
 		CreatedAt:    time.Now().UnixNano(),
 		UpdatedAt:    time.Now().UnixNano(),
+		App:          *app,
 	}
+
 	err = WithSegment("decodeAndValidate", c, func() error {
 		return decodeAndValidate(c, job)
 	})
@@ -119,12 +121,100 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 	}
 
+	skip, err := a.checkFilters(job, c)
+	if err != nil || skip {
+		return err
+	}
+
+	skip, err = a.checkTemplateName(templateName, job, c)
+	if err != nil || skip {
+		return err
+	}
+
+	if job.StartsAt == 0 && job.Localized {
+		localeErr := "Job can not be localized and don't have an start time"
+		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
+	}
+
+	err = WithSegment("create-job", c, func() error {
+		scheduleJob := job.StartsAt
+
+		jobGroup := model.JobGroup{
+			ID:    uuid.NewV4(),
+			AppID: app.ID,
+		}
+		err := WithSegment("create-group", c, func() error {
+			return a.DB.Insert(&jobGroup)
+		})
+		if err != nil {
+			return err
+		}
+		job.JobGroupID = jobGroup.ID
+
+		if scheduleJob == 0 || !job.Localized {
+			log.I(l, "Create a simple job.")
+			return a.createJob(job, c)
+		}
+
+		// create a job for each tz
+		for i := -12; i <= 14; i++ {
+			tzs := []string{
+				fmt.Sprintf("%+.4d", i*100-55), // 100 - 55 = 45
+				fmt.Sprintf("%+.4d", i*100),
+				fmt.Sprintf("%+.4d", i*100+15),
+				fmt.Sprintf("%+.4d", i*100+30),
+			}
+			sendTime := time.Unix(0, scheduleJob).Add(time.Duration(i) * time.Hour)
+			if sendTime.Before(time.Now()) {
+				if job.PastTimeStrategy == "skip" {
+					continue
+				}
+				sendTime = sendTime.Add(time.Duration(24) * time.Hour)
+			}
+
+			job.StartsAt = sendTime.UnixNano()
+			job.Filters["tz"] = strings.Join(tzs, ",")
+			job.ID = uuid.NewV4()
+			log.I(l, "Create a timezone job.")
+
+			err = a.createJob(job, c)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.E(l, "Failed to send job to create_batches_worker.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+	}
+
+	if a.SendgridClient != nil {
+		log.D(l, "sending email with job info")
+		app := &model.App{ID: aid}
+		a.DB.Select(&app)
+
+		err := email.SendCreatedJobEmail(a.SendgridClient, job, app)
+		if err != nil {
+			log.E(l, "Failed to send email with job info.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+		}
+		log.I(l, "Successfully sent email with job info.")
+	}
+	return c.JSON(http.StatusCreated, job)
+}
+
+func (a *Application) checkFilters(job *model.Job, c echo.Context) (bool, error) {
 	if job.Filters["region"] != nil || job.Filters["NOTregion"] != nil || job.Filters["locale"] != nil || job.Filters["NOTlocale"] != nil {
 		var users []worker.User
-		query := fmt.Sprintf("SELECT locale, region FROM %s WHERE locale is not NULL AND region is not NULL LIMIT 1;", worker.GetPushDBTableName(app.Name, job.Service))
+		query := fmt.Sprintf("SELECT locale, region FROM %s WHERE locale is not NULL AND region is not NULL LIMIT 1;", worker.GetPushDBTableName(job.App.Name, job.Service))
 		a.PushDB.Query(&users, query)
 		if len(users) != 1 {
-			return c.JSON(http.StatusInternalServerError, &Error{Reason: "Failed to check filters in Push DB"})
+			return true, c.JSON(http.StatusInternalServerError, &Error{Reason: "Failed to check filters in Push DB"})
 		}
 		locale := users[0].Locale
 		region := users[0].Region
@@ -145,7 +235,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			} else if localeSettings["isLowerCase"] && !localeSettings["isUpperCase"] {
 				job.Filters["locale"] = strings.ToLower(job.Filters["locale"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
+				return true, c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
 			}
 		}
 
@@ -155,7 +245,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			} else if localeSettings["isLowerCase"] && !localeSettings["isUpperCase"] {
 				job.Filters["NOTlocale"] = strings.ToLower(job.Filters["NOTlocale"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
+				return true, c.JSON(http.StatusInternalServerError, &Error{Reason: "Locale case check failed in Push DB"})
 			}
 		}
 
@@ -165,7 +255,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
 				job.Filters["region"] = strings.ToLower(job.Filters["region"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
+				return true, c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
 			}
 		}
 
@@ -175,42 +265,60 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			} else if regionSettings["isLowerCase"] && !regionSettings["isUpperCase"] {
 				job.Filters["NOTregion"] = strings.ToLower(job.Filters["NOTregion"].(string))
 			} else {
-				return c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
+				return true, c.JSON(http.StatusInternalServerError, &Error{Reason: "Region case check failed in Push DB"})
 			}
 		}
 	}
+	return false, nil
+}
 
+func (a *Application) checkTemplateName(templateName string, job *model.Job, c echo.Context) (bool, error) {
 	for _, tpl := range strings.Split(templateName, ",") {
 		template := &model.Template{}
-		err = WithSegment("db-select", c, func() error {
-			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ?", tpl).First()
+		err := WithSegment("db-select", c, func() error {
+			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", job.AppID).Where("template.name = ?", tpl).First()
 		})
 		if err != nil {
 			if err.Error() == RecordNotFoundString {
-				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+				return true, c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 			}
-			log.E(l, "Failed to create job.", func(cm log.CM) {
-				cm.Write(zap.Error(err))
-			})
-			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+			return true, c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 		}
 
 		err = WithSegment("db-select", c, func() error {
-			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", aid).Where("template.name = ? AND template.locale='en'", tpl).First()
+			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", job.AppID).Where("template.name = ? AND template.locale='en'", tpl).First()
 		})
 		if err != nil {
 			if err.Error() == RecordNotFoundString {
 				localeErr := "Cannot create job if there is no template for locale 'en'."
-				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
+				return true, c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
 			}
-			log.E(l, "Failed to create job.", func(cm log.CM) {
-				cm.Write(zap.Error(err))
-			})
-			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+			return true, c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 		}
 	}
+	return false, nil
+}
 
-	err = WithSegment("db-insert", c, func() error {
+func (a *Application) createJobWorkers(job *model.Job, c echo.Context) error {
+	var err error
+	if job.StartsAt != 0 {
+		if len(job.CSVPath) > 0 {
+			_, err = a.Worker.ScheduleCSVSplitJob(job, job.StartsAt)
+		} else {
+			err = a.Worker.ScheduleDirectBatchesJob(job, job.StartsAt)
+		}
+	} else {
+		if len(job.CSVPath) > 0 {
+			_, err = a.Worker.CreateCSVSplitJob(job)
+		} else {
+			err = a.Worker.CreateDirectBatchesJob(job)
+		}
+	}
+	return err
+}
+
+func (a *Application) createJob(job *model.Job, c echo.Context) error {
+	err := WithSegment("db-insert", c, func() error {
 		return a.DB.Insert(&job)
 	})
 
@@ -221,70 +329,11 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		if strings.Contains(err.Error(), "violates foreign key constraint") {
 			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
-		log.E(l, "Failed to create job.", func(cm log.CM) {
-			cm.Write(zap.Error(err))
-		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
-	log.D(l, "job successfully created! creating job in create_batches_worker")
-	var wJobID string
-	err = WithSegment("create-job", c, func() error {
-		scheduleJob := int64(0)
-		if job.StartsAt != 0 && !job.Localized {
-			scheduleJob = job.StartsAt
-		} else if job.StartsAt != 0 {
-			// it will be at most 12h relative to UTC but
-			// we'll use 14 hours to have some marging when creating the jobs
-			localizedAt := time.Unix(0, job.StartsAt).Add(-14 * time.Hour)
-			if localizedAt.After(time.Now()) {
-				scheduleJob = localizedAt.UnixNano()
-			}
-		}
-		if scheduleJob != 0 {
-			if len(job.CSVPath) > 0 {
-				wJobID, err = a.Worker.ScheduleCreateBatchesJob(&[]string{job.ID.String()}, scheduleJob)
-			} else {
-				wJobID, err = a.Worker.ScheduleCreateBatchesFromFiltersJob(&[]string{job.ID.String()}, scheduleJob)
-			}
-		} else {
-			if len(job.CSVPath) > 0 {
-				wJobID, err = a.Worker.CSVSplitJob(job.ID.String())
-			} else if job.ControlGroup == 0 {
-				job.App = *app
-				err = a.Worker.CreateDirectBatchesJob(job)
-			} else {
-				wJobID, err = a.Worker.CreateBatchesFromFiltersJob(&[]string{job.ID.String()})
-			}
-		}
-		return err
-	})
+	a.createJobWorkers(job, c)
 
-	if err != nil {
-		a.DB.Delete(&job)
-		log.E(l, "Failed to send job to create_batches_worker.", func(cm log.CM) {
-			cm.Write(zap.Error(err))
-		})
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
-	}
-	log.I(l, "Job successfully sent to create_batches_worker", func(cm log.CM) {
-		cm.Write(zap.String("workerJobId", wJobID))
-	})
-
-	if a.SendgridClient != nil {
-		log.D(l, "sending email with job info")
-		app := &model.App{ID: aid}
-		a.DB.Select(&app)
-
-		err := email.SendCreatedJobEmail(a.SendgridClient, job, app)
-		if err != nil {
-			log.E(l, "Failed to send email with job info.", func(cm log.CM) {
-				cm.Write(zap.Error(err))
-			})
-		}
-		log.I(l, "Successfully sent email with job info.")
-
-	}
-	return c.JSON(http.StatusCreated, job)
+	return nil
 }
 
 // GetJobHandler is the method called when a get to /apps/:aid/templates/:templateName/jobs/:jid is called

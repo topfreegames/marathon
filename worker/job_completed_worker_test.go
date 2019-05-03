@@ -51,9 +51,9 @@ var _ = Describe("JobCompleted Worker", func() {
 	BeforeEach(func() {
 		jobCompletedWorker = worker.NewJobCompletedWorker(w)
 
-		app = CreateTestApp(w.MarathonDB.DB)
-		template = CreateTestTemplate(w.MarathonDB.DB, app.ID)
-		job = CreateTestJob(w.MarathonDB.DB, app.ID, template.Name)
+		app = CreateTestApp(w.MarathonDB)
+		template = CreateTestTemplate(w.MarathonDB, app.ID)
+		job = CreateTestJob(w.MarathonDB, app.ID, template.Name)
 	})
 
 	Describe("Process", func() {
@@ -73,7 +73,7 @@ var _ = Describe("JobCompleted Worker", func() {
 		})
 
 		It("should not process when job is not found in db", func() {
-			_, err := w.MarathonDB.DB.Exec("DELETE FROM jobs;")
+			_, err := w.MarathonDB.Exec("DELETE FROM jobs;")
 			Expect(err).NotTo(HaveOccurred())
 			messageObj := []interface{}{job.ID.String()}
 			msgB, err := json.Marshal(map[string][]interface{}{

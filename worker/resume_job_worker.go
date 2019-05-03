@@ -30,7 +30,6 @@ import (
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
-	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
 
@@ -62,10 +61,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 	)
 	log.I(l, "starting resume_job_worker")
 
-	job := &model.Job{
-		ID: id,
-	}
-	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job resume_job_worker")

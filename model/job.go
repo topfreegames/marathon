@@ -29,7 +29,7 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo"
 	"github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/interfaces"
 )
 
 // Job is the job model struct
@@ -55,6 +55,7 @@ type Job struct {
 	CreatedBy           string                 `json:"createdBy"`
 	App                 App                    `json:"app"`
 	AppID               uuid.UUID              `json:"appId"`
+	JobGroupID          uuid.UUID              `json:"jobGroupId" sql:",null"`
 	TemplateName        string                 `json:"templateName"`
 	PastTimeStrategy    string                 `json:"pastTimeStrategy"`
 	Status              string                 `json:"status"`
@@ -110,14 +111,14 @@ func (j *Job) Labels() []string {
 	}
 }
 
-func (j *Job) tag(db *extensions.PGClient, name, message, state string) {
+func (j *Job) tag(db interfaces.DB, name, message, state string) {
 	status := &Status{
 		Name:      name,
 		JobID:     j.ID,
 		ID:        uuid.NewV4(),
 		CreatedAt: time.Now().UnixNano(),
 	}
-	_, err := db.DB.Model(status).OnConflict("(name, job_id) DO UPDATE").Set("name = EXCLUDED.name").Returning("id").Insert()
+	_, err := db.Model(status).OnConflict("(name, job_id) DO UPDATE").Set("name = EXCLUDED.name").Returning("id").Insert()
 	if err != nil {
 		panic(err)
 	}
@@ -128,23 +129,23 @@ func (j *Job) tag(db *extensions.PGClient, name, message, state string) {
 		ID:        uuid.NewV4(),
 		CreatedAt: time.Now().UnixNano(),
 	}
-	_, err = db.DB.Model(event).Insert()
+	_, err = db.Model(event).Insert()
 	if err != nil {
 		panic(err)
 	}
 }
 
 // TagSuccess create a status in one job
-func (j *Job) TagSuccess(db *extensions.PGClient, name, message string) {
+func (j *Job) TagSuccess(db interfaces.DB, name, message string) {
 	j.tag(db, name, message, "success")
 }
 
 // TagError create a status in one job
-func (j *Job) TagError(db *extensions.PGClient, name, message string) {
+func (j *Job) TagError(db interfaces.DB, name, message string) {
 	j.tag(db, name, message, "fail")
 }
 
 // TagRunning create a status in one job
-func (j *Job) TagRunning(db *extensions.PGClient, name, message string) {
+func (j *Job) TagRunning(db interfaces.DB, name, message string) {
 	j.tag(db, name, message, "running")
 }

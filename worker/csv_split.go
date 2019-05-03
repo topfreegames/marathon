@@ -84,12 +84,11 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 		zap.String("worker", nameSCVSplit),
 	)
 	log.I(l, "starting")
-	job := &model.Job{
-		ID: id,
-	}
-	job.TagRunning(b.Workers.MarathonDB, nameSCVSplit, "starting")
-	err = b.Workers.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+
+	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
+	job.TagRunning(b.Workers.MarathonDB, nameSCVSplit, "starting")
+
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job")
 		return
@@ -101,7 +100,7 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	firstBytes := buf.String()
 
 	if !strings.EqualFold("userIds", firstBytes) {
-		b.checkErr(job, errors.New("Invalid CSV - it does not contain column"))
+		b.checkErr(job, errors.New("Invalid CSV - it does not contain the column userIds"))
 	}
 
 	start := 0

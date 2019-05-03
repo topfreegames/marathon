@@ -46,14 +46,14 @@ var _ = Describe("CSVSplit Worker", func() {
 
 	BeforeEach(func() {
 		w.S3Client = NewFakeS3(w.Config)
-		app = CreateTestApp(w.MarathonDB.DB)
-		template = CreateTestTemplate(w.MarathonDB.DB, app.ID)
+		app = CreateTestApp(w.MarathonDB)
+		template = CreateTestTemplate(w.MarathonDB, app.ID)
 		w.RedisClient.FlushAll()
 	})
 
 	Describe("Process", func() {
 		It("should create jobs for the next worker", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
@@ -67,7 +67,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			_, err := w.S3Client.PutObject("test/test.csv", &randomData)
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = w.CSVSplitJob(j.ID.String())
+			_, err = w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -114,7 +114,7 @@ var _ = Describe("CSVSplit Worker", func() {
 		})
 
 		It("should panic if is incorrect file content", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
@@ -129,7 +129,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			_, err := w.S3Client.PutObject("test/test.csv", &randomData)
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = w.CSVSplitJob(j.ID.String())
+			_, err = w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -139,7 +139,7 @@ var _ = Describe("CSVSplit Worker", func() {
 		})
 
 		It("should panic if is incorrect file path", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
@@ -152,7 +152,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			fakeS3 := NewFakeS3(w.Config)
 			w.S3Client = fakeS3
 
-			_, err := w.CSVSplitJob(j.ID.String())
+			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
@@ -165,8 +165,10 @@ var _ = Describe("CSVSplit Worker", func() {
 
 			randomData := make([]byte, 10)
 			rand.Read(randomData)
-
-			_, err := w.CSVSplitJob(uuid.NewV4().String())
+			job := &model.Job{
+				ID: uuid.NewV4(),
+			}
+			_, err := w.CreateCSVSplitJob(job)
 			Expect(err).NotTo(HaveOccurred())
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 			msg, err := workers.NewMsg(string(jobData))
@@ -175,7 +177,7 @@ var _ = Describe("CSVSplit Worker", func() {
 		})
 
 		It("should do nothing if job status is stopped", func() {
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
@@ -186,10 +188,10 @@ var _ = Describe("CSVSplit Worker", func() {
 			_, err := w.S3Client.PutObject("test/test.csv", &randomData)
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = w.CSVSplitJob(j.ID.String())
+			_, err = w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = w.MarathonDB.DB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
+			_, err = w.MarathonDB.Model(&model.Job{}).Set("status = 'stopped'").Where("id = ?", j.ID).Update()
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()

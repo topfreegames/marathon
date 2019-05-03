@@ -27,10 +27,10 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/rand"
 	"strings"
 	"time"
-
-	pg "gopkg.in/pg.v5"
 
 	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
@@ -83,63 +83,19 @@ func (b *DirectWorker) sendToKafka(service, topic string, msg, messageMetadata m
 	return nil
 }
 
-func (b *DirectWorker) getJob(jobID uuid.UUID) (*model.Job, error) {
-	job := model.Job{
-		ID: jobID,
-	}
-	err := b.Workers.MarathonDB.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	return &job, err
-}
-
 func (b *DirectWorker) addCompletedTokens(job *model.Job, nTokens int) error {
-	_, err := b.Workers.MarathonDB.DB.Model(&job).Set("completed_tokens = completed_tokens + ?", nTokens).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_tokens = completed_tokens + ?", nTokens).Where("id = ?", job.ID).Update()
 	return err
 }
 
 func (b *DirectWorker) addCompletedBatch(job *model.Job) error {
-	_, err := b.Workers.MarathonDB.DB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", job.ID).Update()
 	return err
 }
 
 func (b *DirectWorker) checkComplete(job *model.Job) (bool, error) {
-	err := b.Workers.MarathonDB.DB.Model(&job).Where("id = ?", job.ID).Select()
+	err := b.Workers.MarathonDB.Model(&job).Where("id = ?", job.ID).Select()
 	return job.CompletedBatches == job.TotalBatches, err
-}
-
-func (b *DirectWorker) getJobTemplatesByNameAndLocale(appID uuid.UUID, templateName string) (map[string]map[string]model.Template, error) {
-	var templates []model.Template
-	var err error
-	if len(strings.Split(templateName, ",")) > 1 {
-		err = b.Workers.MarathonDB.DB.Model(&templates).Where(
-			"app_id = ? AND name IN (?)",
-			appID,
-			pg.In(strings.Split(templateName, ",")),
-		).Select()
-	} else {
-		err = b.Workers.MarathonDB.DB.Model(&templates).Where(
-			"app_id = ? AND name = ?",
-			appID,
-			templateName,
-		).Select()
-	}
-	if err != nil {
-		return nil, err
-	}
-	templateByLocale := make(map[string]map[string]model.Template)
-	for _, tpl := range templates {
-		if templateByLocale[tpl.Name] != nil {
-			templateByLocale[tpl.Name][tpl.Locale] = tpl
-		} else {
-			templateByLocale[tpl.Name] = map[string]model.Template{
-				tpl.Locale: tpl,
-			}
-		}
-	}
-
-	if len(templateByLocale) == 0 {
-		return nil, fmt.Errorf("No templates were found with name %s", templateName)
-	}
-	return templateByLocale, nil
 }
 
 func (b *DirectWorker) getQuery(job *model.Job) string {
@@ -164,7 +120,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	err := json.Unmarshal([]byte(data), &msg)
 	checkErr(l, err)
 
-	job, err := b.getJob(msg.JobUUID)
+	job, err := b.Workers.GetJob(msg.JobUUID)
 	checkErr(l, err)
 	b.Workers.Statsd.Incr("starting_direct_part", job.Labels(), 1)
 
@@ -187,7 +143,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 		log.D(l, "valid")
 	}
 
-	templatesByNameAndLocale, err := b.getJobTemplatesByNameAndLocale(job.AppID, job.TemplateName)
+	templatesByNameAndLocale, err := job.GetJobTemplatesByNameAndLocale(b.Workers.MarathonDB)
 	b.checkErr(job, err)
 
 	topicTemplate := b.Workers.Config.GetString("workers.topicTemplate")
@@ -195,10 +151,33 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	var users []User
 	start := time.Now()
-	_, err = b.Workers.PushDB.DB.Query(&users, b.getQuery(job), msg.SmallestSeqID, msg.BiggestSeqID)
+	_, err = b.Workers.PushDB.Query(&users, b.getQuery(job), msg.SmallestSeqID, msg.BiggestSeqID)
 	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	successfulUsers := len(users)
+
+	// create a controll group if needed
+	controlGroupSize := int(math.Ceil(float64(len(users)) * job.ControlGroup))
+	if controlGroupSize > 0 {
+		if controlGroupSize >= len(users) {
+			panic("control group size cannot be higher than number of users")
+		}
+		// shuffle slice in place
+		for i := range users {
+			j := rand.Intn(i + 1)
+			users[i], users[j] = users[j], users[i]
+		}
+		// grab control group
+		controlGroup := []string{}
+		for i := len(users) - controlGroupSize; i < len(users); i++ {
+			controlGroup = append(controlGroup, users[i].UserID)
+		}
+		go b.Workers.SendControlGroupToRedis(job, controlGroup)
+
+		// cut control group from the slice
+		users = append(users[:len(users)-controlGroupSize], users[len(users):]...)
+	}
+
 	for _, user := range users {
 		templateName := job.TemplateName
 		templateNames := strings.Split(job.TemplateName, ",")
@@ -255,7 +234,10 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	complete, _ := b.checkComplete(job)
 	if complete {
 		job.CompletedAt = time.Now().UnixNano()
-		_, err = b.Workers.MarathonDB.DB.Model(&job).Column("completed_at").Update()
+		_, err = b.Workers.MarathonDB.Model(&job).Column("completed_at").Update()
+
+		at := time.Now().Add(b.Workers.Config.GetDuration("workers.processBatch.intervalToSendCompletedJob")).UnixNano()
+		_, err = b.Workers.ScheduleJobCompletedJob(job.ID.String(), at)
 	}
 }
 

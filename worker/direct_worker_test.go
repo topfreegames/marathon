@@ -21,7 +21,6 @@ package worker_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 
@@ -34,7 +33,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var _ = Describe("Complete Test Worker", func() {
+var _ = Describe("Complete Test", func() {
 	var app *model.App
 	var template *model.Template
 	var producer *FakeKafkaProducer
@@ -45,82 +44,45 @@ var _ = Describe("Complete Test Worker", func() {
 		zap.FatalLevel,
 	)
 	w := worker.NewWorker(logger, GetConfPath())
-
-	createBatchesFromFiltersWorker := worker.NewCreateBatchesFromFiltersWorker(w)
-	createDbToCsvBatchesWorker := worker.NewDbToCsvWorker(w)
-
-	createCSVSplitWorker := worker.NewCSVSplitWorker(w)
-	createBatchesWorker := worker.NewCreateBatchesWorker(w)
-	processBatchWorker := worker.NewProcessBatchWorker(w)
+	directWorker := worker.NewDirectWorker(w)
 	jobCompleteWorker := worker.NewJobCompletedWorker(w)
 
 	rand.Seed(42)
 
-	runAllSteps := func(jobID string) {
-		m := map[string]interface{}{
-			"jid":  1,
-			"args": []string{jobID},
-		}
-		smsg, err := json.Marshal(m)
+	runAllSteps := func(job *model.Job) {
+		err := w.CreateDirectBatchesJob(job)
 		Expect(err).NotTo(HaveOccurred())
-		msg, err := workers.NewMsg(string(smsg))
-		Expect(err).NotTo(HaveOccurred())
-		createBatchesFromFiltersWorker.Process(msg)
 
-		dataSlice, err := w.RedisClient.LRange("queue:db_to_csv_worker", 0, -1).Result()
+		dataSlice, err := w.RedisClient.LRange("queue:direct_worker", 0, -1).Result()
 		Expect(err).NotTo(HaveOccurred())
 		for _, data := range dataSlice {
-			msg, err = workers.NewMsg(data)
+			msg, err := workers.NewMsg(data)
 			Expect(err).NotTo(HaveOccurred())
-			createDbToCsvBatchesWorker.Process(msg)
-		}
-
-		dataSlice, err = w.RedisClient.LRange("queue:csv_split_worker", 0, -1).Result()
-		Expect(err).NotTo(HaveOccurred())
-		for _, data := range dataSlice {
-			msg, err = workers.NewMsg(data)
-			Expect(err).NotTo(HaveOccurred())
-			createCSVSplitWorker.Process(msg)
-		}
-
-		dataSlice, err = w.RedisClient.LRange("queue:create_batches_worker", 0, -1).Result()
-		Expect(err).NotTo(HaveOccurred())
-		for _, data := range dataSlice {
-			msg, err = workers.NewMsg(data)
-			Expect(err).NotTo(HaveOccurred())
-			createBatchesWorker.Process(msg)
-		}
-
-		dataSlice, err = w.RedisClient.LRange("queue:process_batch_worker", 0, -1).Result()
-		Expect(err).NotTo(HaveOccurred())
-		for _, data := range dataSlice {
-			msg, err = workers.NewMsg(data)
-			Expect(err).NotTo(HaveOccurred())
-			processBatchWorker.Process(msg)
+			directWorker.Process(msg)
 		}
 
 		dataSlice, err = w.RedisClient.ZRange("schedule", 0, -1).Result()
 		Expect(err).NotTo(HaveOccurred())
 		for _, data := range dataSlice {
-			msg, err = workers.NewMsg(data)
+			msg, err := workers.NewMsg(data)
 			Expect(err).NotTo(HaveOccurred())
 			jobCompleteWorker.Process(msg)
 		}
 	}
 
 	BeforeEach(func() {
-		app = CreateTestApp(w.MarathonDB.DB, map[string]interface{}{"name": "myapp"})
-		template = CreateTestTemplate(w.MarathonDB.DB, app.ID, map[string]interface{}{
+		app = CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "myapp"})
+		template = CreateTestTemplate(w.MarathonDB, app.ID, map[string]interface{}{
 			"locale": "en",
 		})
 
-		w.PushDB.DB.Query(nil, `
+		w.PushDB.Query(nil, `
 				DROP TABLE myapp_apns;
 			`)
-		w.PushDB.DB.Query(nil, `
+		w.PushDB.Query(nil, `
 				CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 			`)
-		w.PushDB.DB.Query(nil, `
+		w.PushDB.Query(nil, `
 				CREATE TABLE IF NOT EXISTS "myapp_apns" (
 				  "id" uuid DEFAULT uuid_generate_v4(),
     			  "seq_id" integer UNIQUE NOT NULL,
@@ -141,7 +103,7 @@ var _ = Describe("Complete Test Worker", func() {
 
 	Describe("Process", func() {
 		It("create 10000 queries test", func() {
-			_, err := w.PushDB.DB.Query(nil, `
+			_, err := w.PushDB.Query(nil, `
 				INSERT INTO myapp_apns (seq_id, user_id, token, locale, region, tz)
 				SELECT
 					generate_series(1, 10000) AS seq_id,
@@ -153,18 +115,18 @@ var _ = Describe("Complete Test Worker", func() {
 			`)
 			Expect(err).NotTo(HaveOccurred())
 
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
 			})
-			runAllSteps(j.ID.String())
+			runAllSteps(j)
 
 			Expect(len(producer.APNSMessages)).To(Equal(10000))
 		})
 
 		It("create 1000 queries with the same user_id", func() {
-			_, err := w.PushDB.DB.Query(nil, `
+			_, err := w.PushDB.Query(nil, `
 				INSERT INTO myapp_apns (seq_id, user_id, token, locale, region, tz)
 				SELECT
 					generate_series(1, 1000) AS seq_id,
@@ -176,19 +138,19 @@ var _ = Describe("Complete Test Worker", func() {
 			`)
 			Expect(err).NotTo(HaveOccurred())
 
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
 			})
 
-			runAllSteps(j.ID.String())
+			runAllSteps(j)
 
 			Expect(len(producer.APNSMessages)).To(Equal(1000))
 		})
 
 		It("should put control group in s3 and also update job with controlGroupCSVPath", func() {
-			_, err := w.PushDB.DB.Query(nil, `
+			_, err := w.PushDB.Query(nil, `
 				INSERT INTO myapp_apns (seq_id, user_id, token, locale, region, tz)
 				VALUES
 				(1, '1', '1', 'en', 'us', '+0000'),
@@ -204,7 +166,7 @@ var _ = Describe("Complete Test Worker", func() {
 			`)
 			Expect(err).NotTo(HaveOccurred())
 
-			j := CreateTestJob(w.MarathonDB.DB, app.ID, template.Name, map[string]interface{}{
+			j := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
 				"filters": map[string]interface{}{
 					"locale": "en",
 				},
@@ -212,22 +174,22 @@ var _ = Describe("Complete Test Worker", func() {
 				"controlGroup": 0.4,
 			})
 
-			runAllSteps(j.ID.String())
+			runAllSteps(j)
 
 			bucket := config.GetString("s3.bucket")
 			key := fmt.Sprintf("%s/%s/job-%s.csv", bucket, w.Config.GetString("s3.controlGroupFolder"), j.ID.String())
 			controlGroupCSV, err := w.S3Client.GetObject(key)
 			Expect(err).NotTo(HaveOccurred())
+
 			lines := ReadLinesFromIOReader(bytes.NewReader(controlGroupCSV))
 			Expect(len(lines)).To(Equal(5)) //5 -> header + 4 control group userIds
 
 			dbJob := &model.Job{
 				ID: j.ID,
 			}
-			err = w.MarathonDB.DB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
+			err = w.MarathonDB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.ControlGroupCSVPath).To(Equal(key))
 		})
 	})
-
 })
