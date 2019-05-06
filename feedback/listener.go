@@ -48,14 +48,16 @@ type Listener struct {
 	FeedbackHandler         *Handler
 	GracefulShutdownTimeout int
 
-	run bool
+	run         bool
+	stopChannel chan error
 }
 
 // NewListener creates and return a new instance of feedback.Listener
 func NewListener(configFile string, logger zap.Logger) (*Listener, error) {
 	l := &Listener{
-		ConfigFile: configFile,
-		Logger:     logger,
+		ConfigFile:  configFile,
+		Logger:      logger,
+		stopChannel: make(chan error),
 	}
 	err := l.configure()
 	if err != nil {
@@ -81,8 +83,10 @@ func (l *Listener) configure() error {
 	l.loadConfigurationDefaults()
 	l.configureSentry()
 	l.GracefulShutdownTimeout = l.Config.GetInt("feedbackListener.gracefulShutdownTimeout")
+	log := logrus.New()
+	log.Formatter = new(logrus.JSONFormatter)
 	q, err := kafka.NewConsumerWithPrefix(
-		l.Config, logrus.New(), "feedbackListener.kafka", nil,
+		l.Config, log, "feedbackListener.kafka", nil,
 	)
 	if err != nil {
 		return err
@@ -114,7 +118,12 @@ func (l *Listener) Start() {
 	)
 	log.Info("starting the feedbacks listener...")
 
-	go l.Queue.ConsumeLoop()
+	go func() {
+		err := l.Queue.ConsumeLoop()
+		if err != nil {
+			l.stopChannel <- err
+		}
+	}()
 	go l.FeedbackHandler.HandleMessages(l.Queue.MessagesChannel())
 
 	sigchan := make(chan os.Signal)
@@ -124,6 +133,9 @@ func (l *Listener) Start() {
 		select {
 		case sig := <-sigchan:
 			log.Warn("terminading due to caught signal", zap.String("signal", sig.String()))
+			l.run = false
+		case <-l.stopChannel:
+			log.Warn("Stop channel closed\n")
 			l.run = false
 		}
 	}
