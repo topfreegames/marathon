@@ -31,31 +31,31 @@ import (
 	"time"
 
 	raven "github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/extensions/kafka"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
 )
 
 // Listener will consume push feedbacks from a queue and update job feedbacks column
 type Listener struct {
-	Config                  *viper.Viper
-	ConfigFile              string
+	Config     *viper.Viper
+	ConfigFile string
+
 	Queue                   interfaces.Queue
 	Logger                  zap.Logger
-	PendingMessagesWG       *sync.WaitGroup
 	FeedbackHandler         *Handler
 	GracefulShutdownTimeout int
-	run                     bool
-	stopChannel             chan struct{}
+
+	run bool
 }
 
 // NewListener creates and return a new instance of feedback.Listener
 func NewListener(configFile string, logger zap.Logger) (*Listener, error) {
 	l := &Listener{
-		ConfigFile:  configFile,
-		Logger:      logger,
-		stopChannel: make(chan struct{}),
+		ConfigFile: configFile,
+		Logger:     logger,
 	}
 	err := l.configure()
 	if err != nil {
@@ -81,9 +81,8 @@ func (l *Listener) configure() error {
 	l.loadConfigurationDefaults()
 	l.configureSentry()
 	l.GracefulShutdownTimeout = l.Config.GetInt("feedbackListener.gracefulShutdownTimeout")
-	q, err := extensions.NewKafkaConsumer(
-		l.Config, l.Logger,
-		&l.stopChannel, nil,
+	q, err := kafka.NewConsumerWithPrefix(
+		l.Config, logrus.New(), "feedbackListener.kafka", nil,
 	)
 	if err != nil {
 		return err
@@ -114,17 +113,17 @@ func (l *Listener) Start() {
 		zap.String("method", "start"),
 	)
 	log.Info("starting the feedbacks listener...")
+
 	go l.Queue.ConsumeLoop()
 	go l.FeedbackHandler.HandleMessages(l.Queue.MessagesChannel())
+
 	sigchan := make(chan os.Signal)
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
 	for l.run == true {
 		select {
 		case sig := <-sigchan:
 			log.Warn("terminading due to caught signal", zap.String("signal", sig.String()))
-			l.run = false
-		case <-l.stopChannel:
-			log.Warn("Stop channel closed\n")
 			l.run = false
 		}
 	}
