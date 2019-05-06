@@ -10,12 +10,20 @@
   version = "2.1.0"
 
 [[projects]]
-  digest = "1:b7b1c24379c90ec2173a90d17adab8b28c3e94f0e31b1143185d32f289796bdb"
+  digest = "1:6d8a3b164679872fa5a4c44559235f7fb109c7b5cd0f456a2159d579b76cc9ba"
+  name = "github.com/DataDog/zstd"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "809b919c325d7887bff7bd876162af73db53e878"
+  version = "v1.4.0"
+
+[[projects]]
+  digest = "1:2ec153af6a806c3d63d4299f2549bcb29d75d9703097341be309a46db3481488"
   name = "github.com/Shopify/sarama"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0fb560e5f7fbcaee2f75e3c34174320709f69944"
-  version = "v1.11.0"
+  revision = "ea9ab1c316850bee881a07bb2555ee8a685cd4b6"
+  version = "v1.22.1"
 
 [[projects]]
   digest = "1:5967fdb2c1ad0650f94b6026e87c2227baef5100452dbee4505807e775892793"
@@ -141,11 +149,12 @@
   revision = "d7de57ceb51b029d5c5a61e26587f672e2834178"
 
 [[projects]]
-  digest = "1:38a61373ccb24ce39bf9ce7ad506a7578737fd65db5b6f22f8b30a9113bbdb50"
+  branch = "master"
+  digest = "1:e6fa20c2a73d100f0912e1817763e0c745dae1230a9d1f7af21063316bdfe102"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3f7439d3e74d88e21d196ba20eb61a5a958bc118"
+  revision = "919484f041ea21e7e27be291cee1d6af7bc98864"
 
 [[projects]]
   digest = "1:15e27372d379b45b18ac917b9dafc45c45485239490ece18cca97a12f9591146"
@@ -154,24 +163,6 @@
   pruneopts = "UT"
   revision = "9c8236e659b76e87bf02044d06fde8683008ff3e"
   version = "v1.39.0"
-
-[[projects]]
-  digest = "1:0235ea8e267dc7696e5e4f4fcd46dde5adb02acff8afc6ed8628a299f1ac00f7"
-  name = "github.com/go-pg/pg"
-  packages = [
-    ".",
-    "internal",
-    "internal/iszero",
-    "internal/parser",
-    "internal/pool",
-    "internal/struct_filter",
-    "internal/tag",
-    "orm",
-    "types",
-  ]
-  pruneopts = "UT"
-  revision = "8739ab22578066a7615d80bf38d823af75793002"
-  version = "v8.0.3"
 
 [[projects]]
   digest = "1:06c8168453decb3d6db47d2fcac0f58332a535631fae7e63238e481e827f5258"
@@ -228,12 +219,12 @@
   revision = "d60d79dbbfbb83f849d2430013a59152845fa598"
 
 [[projects]]
-  digest = "1:1e5bf9cae557702ebbd51a32a94b47e3d1a20b7637682be08da8cf62152ec781"
-  name = "github.com/klauspost/crc32"
+  digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
   pruneopts = "UT"
-  revision = "cb6bfca970f6908083f26f39a79009d608efd5cd"
-  version = "v1.1"
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
 
 [[projects]]
   digest = "1:7d04ac663639093ac12818c0305ffbcc368e70ece11d9fd6adf5f94474ffda08"
@@ -427,6 +418,14 @@
   version = "v3.4.1"
 
 [[projects]]
+  digest = "1:fd61cf4ae1953d55df708acb6b91492d538f49c305b364a014049914495db426"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f"
+  version = "v1.4.1"
+
+[[projects]]
   digest = "1:52a2ebfbfba82261de225d37a346043fcb663f5dde46b10462e2c305b0b05e3d"
   name = "github.com/spf13/afero"
   packages = [
@@ -474,6 +473,18 @@
   version = "v1.3.2"
 
 [[projects]]
+  digest = "1:66e569af2be05992ff08f5c985508a8b077b1a31adf0c3fcc83be3eb67775325"
+  name = "github.com/topfreegames/extensions"
+  packages = [
+    "kafka",
+    "kafka/interfaces",
+    "util",
+  ]
+  pruneopts = "UT"
+  revision = "bd7134b0722735c5ee8ff3d2b49a000052549cac"
+  version = "v8.2.0"
+
+[[projects]]
   digest = "1:9d5cf6f23377cc24f00ba9a7b0c83fe070171c094e42eece262c6252a392ec33"
   name = "github.com/uber-go/atomic"
   packages = ["."]
@@ -506,22 +517,33 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9607502b7199053c9294999ed9dce98d9c04e05d1b6610d3e979036f1dcad493"
+  digest = "1:674a2405f77863f4f362e3e45078fd9caa647dc1c0e8b022e3b9dc1ae89fbc8f"
   name = "golang.org/x/crypto"
   packages = [
     "acme",
     "acme/autocert",
-    "pbkdf2",
   ]
   pruneopts = "UT"
   revision = "4d3f4d9ffa16a13f451c3b2999e9c49e9750bf06"
 
 [[projects]]
-  digest = "1:e16c53d2592b2ba64d1a6da684a952bdff8815ed8b901b220fe875864b664643"
+  branch = "master"
+  digest = "1:3e0062766e6b0bcfe1ba1ed1d3f08a8e1e99cd5831426e2596dc9537d28f2adb"
+  name = "golang.org/x/net"
+  packages = [
+    "internal/socks",
+    "proxy",
+  ]
+  pruneopts = "UT"
+  revision = "f4e77d36d62c17c2336347bb2670ddbd02d092b7"
+
+[[projects]]
+  branch = "master"
+  digest = "1:1ddfda089b8a15d92242412aabc1107b8c7a87c609c09c5b441c81dbcca0ab79"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "a646d33e2ee3172a661fc09bca23bb4889a41bc8"
+  revision = "ca7f33d4116e3a1f9425755d6a44e7ed9b4c97df"
 
 [[projects]]
   digest = "1:acb3f0a0920a774a911ef413e773ebe9450a399bc989e090c69d0350627b74a1"
@@ -574,14 +596,6 @@
   pruneopts = "UT"
   revision = "a5b47d31c556af34a302ce5d659e6fea44d90de0"
 
-[[projects]]
-  digest = "1:999d566ad1ae4303c456af5a155f7b42401cca4fd33552567ed9dd997b107a08"
-  name = "mellium.im/sasl"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "e58e780e1378aa4df5dc705364ff5ae9a4dd1e04"
-  version = "v0.2.1"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -596,9 +610,7 @@
     "github.com/aws/aws-sdk-go/service/s3/s3iface",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/confluentinc/confluent-kafka-go/kafka",
-    "github.com/garyburd/redigo/redis",
     "github.com/getsentry/raven-go",
-    "github.com/go-pg/pg",
     "github.com/jrallison/go-workers",
     "github.com/labstack/echo",
     "github.com/labstack/echo/middleware",
@@ -610,8 +622,10 @@
     "github.com/satori/go.uuid",
     "github.com/sendgrid/sendgrid-go",
     "github.com/sendgrid/sendgrid-go/helpers/mail",
+    "github.com/sirupsen/logrus",
     "github.com/spf13/cobra",
     "github.com/spf13/viper",
+    "github.com/topfreegames/extensions/kafka",
     "github.com/uber-go/zap",
     "github.com/valyala/fasttemplate",
     "gopkg.in/pg.v5",
