@@ -26,7 +26,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	raven "github.com/getsentry/raven-go"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -53,7 +52,7 @@ type Application struct {
 	Config         *viper.Viper
 	NewRelic       newrelic.Application
 	Worker         *worker.Worker
-	S3Client       s3iface.S3API
+	S3Client       interfaces.S3
 	SendgridClient *extensions.SendgridClient
 }
 
@@ -157,7 +156,7 @@ func (a *Application) OnErrorHandler(err error, stack []byte) {
 }
 
 func (a *Application) configureWorker() {
-	a.Worker = worker.NewWorker(a.Debug, a.Logger, a.ConfigPath)
+	a.Worker = worker.NewWorker(a.Logger, a.ConfigPath)
 }
 
 func (a *Application) configureApplication() {

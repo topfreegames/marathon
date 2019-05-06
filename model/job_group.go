@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 TFG Co <backend@tfgco.com>
+ * Copyright (c) 2019 TFG Co <backend@tfgco.com>
  * Author: TFG Co <backend@tfgco.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -20,40 +20,15 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package cmd
+package model
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/topfreegames/marathon/worker"
-	"github.com/uber-go/zap"
+	"github.com/satori/go.uuid"
 )
 
-// workerCmd represents the worker command
-var workerCmd = &cobra.Command{
-	Use:   "start-workers",
-	Short: "starts marathon workers",
-	Long:  "starts marathon workers",
-	Run: func(cmd *cobra.Command, args []string) {
-		ll := zap.InfoLevel
-		l := zap.New(
-			zap.NewJSONEncoder(),
-			ll,
-		)
-
-		logger := l.With(
-			zap.Bool("debug", debug),
-			zap.Int("port", port),
-			zap.String("bind", host),
-		)
-
-		logger.Debug("configuring workers...")
-		w := worker.NewWorker(logger, cfgFile)
-
-		logger.Debug("starting worker...")
-		w.Start()
-	},
-}
-
-func init() {
-	RootCmd.AddCommand(workerCmd)
+// JobGroup is a collection of jobs
+type JobGroup struct {
+	ID    uuid.UUID `sql:",pk" json:"id"`
+	AppID uuid.UUID `json:"appId"`
+	Jobs  []*Job    `json:"jobs"`
 }

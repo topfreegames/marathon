@@ -29,49 +29,24 @@ import (
 
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
-	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
 )
 
 // ResumeJobWorker is the CreateBatchesUsingFiltersWorker struct
 type ResumeJobWorker struct {
-	Logger      zap.Logger
-	MarathonDB  *extensions.PGClient
-	Workers     *Worker
-	Config      *viper.Viper
-	RedisClient *redis.Client
+	Logger  zap.Logger
+	Workers *Worker
 }
 
 // NewResumeJobWorker gets a new ResumeJobWorker
-func NewResumeJobWorker(config *viper.Viper, logger zap.Logger, workers *Worker) *ResumeJobWorker {
+func NewResumeJobWorker(workers *Worker) *ResumeJobWorker {
 	b := &ResumeJobWorker{
-		Config:  config,
-		Logger:  logger.With(zap.String("worker", "ResumeJobWorker")),
+		Logger:  workers.Logger.With(zap.String("worker", "ResumeJobWorker")),
 		Workers: workers,
 	}
-	b.configure()
-	log.D(logger, "Configured ResumeJobWorker successfully.")
+	b.Logger.Debug("Configured ResumeJobWorker successfully.")
 	return b
-}
-
-func (b *ResumeJobWorker) configureMarathonDatabase() {
-	var err error
-	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
-
-func (b *ResumeJobWorker) configureRedisClient() {
-	r, err := extensions.NewRedis("workers", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-	b.RedisClient = r
-}
-
-func (b *ResumeJobWorker) configure() {
-	b.configureMarathonDatabase()
-	b.configureRedisClient()
 }
 
 // Process processes the messages sent to worker queue
@@ -86,14 +61,11 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 	)
 	log.I(l, "starting resume_job_worker")
 
-	job := &model.Job{
-		ID: id,
-	}
-	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job resume_job_worker")
-		err := b.RedisClient.Del(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Err()
+		err := b.Workers.RedisClient.Del(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Err()
 		if err != nil && err != redis.Nil {
 			checkErr(b.Logger, err)
 		}
@@ -101,7 +73,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 	}
 
 	for {
-		batchInfo, err := b.RedisClient.RPop(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Result()
+		batchInfo, err := b.Workers.RedisClient.RPop(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Result()
 		if err != nil && err == redis.Nil {
 			break
 		}
@@ -116,5 +88,5 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 		checkErr(l, err)
 	}
 
-	log.I(l, "finished resume_job_worker")
+	log.I(b.Logger, "finished resume_job_worker")
 }

@@ -23,30 +23,44 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"
 	"github.com/jrallison/go-workers"
+	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/interfaces"
+	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
+	redis "gopkg.in/redis.v5"
 )
 
 // Worker is the struct that will configure workers
 type Worker struct {
-	Debug      bool
-	Logger     zap.Logger
-	ConfigPath string
-	Config     *viper.Viper
-	Statsd     *statsd.Client
+	Logger                    zap.Logger
+	PushDB                    interfaces.DB
+	MarathonDB                interfaces.DB
+	Config                    *viper.Viper
+	DBPageSize                int
+	S3Client                  interfaces.S3
+	PageProcessingConcurrency int
+	Statsd                    *statsd.Client
+	RedisClient               *redis.Client
+	ConfigPath                string
+	SendgridClient            *extensions.SendgridClient
+	Kafka                     interfaces.PushProducer
 }
 
 // NewWorker returns a configured worker
-func NewWorker(debug bool, l zap.Logger, configPath string) *Worker {
+func NewWorker(l zap.Logger, configPath string) *Worker {
 	worker := &Worker{
-		Debug:      debug,
 		Logger:     l,
 		ConfigPath: configPath,
 	}
@@ -74,6 +88,11 @@ func (w *Worker) configure() {
 	w.configureStatsd()
 	w.configureWorkers()
 	w.configureStatsd()
+	w.configurePushDatabase()
+	w.configureMarathonDatabase()
+	w.configureS3Client()
+	w.configureSendgrid()
+	w.configureKafkaProducer()
 }
 
 func (w *Worker) loadConfigurationDefaults() {
@@ -85,6 +104,25 @@ func (w *Worker) loadConfigurationDefaults() {
 	w.Config.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
 	w.Config.SetDefault("workers.statsd.host", "127.0.0.1:8125")
 	w.Config.SetDefault("workers.statsd.prefix", "marathon.")
+}
+
+func (w *Worker) configureSendgrid() {
+	apiKey := w.Config.GetString("sendgrid.key")
+	if apiKey != "" {
+		w.SendgridClient = extensions.NewSendgridClient(w.Config, w.Logger, apiKey)
+	}
+}
+
+func (w *Worker) configurePushDatabase() {
+	connection, err := extensions.NewPGClient("push.db", w.Config, w.Logger)
+	checkErr(w.Logger, err)
+	w.PushDB = connection.DB
+}
+
+func (w *Worker) configureMarathonDatabase() {
+	connection, err := extensions.NewPGClient("db", w.Config, w.Logger)
+	checkErr(w.Logger, err)
+	w.MarathonDB = connection.DB
 }
 
 func (w *Worker) configureStatsd() {
@@ -128,25 +166,40 @@ func (w *Worker) configureRedis() {
 		"process":  hostname,
 		"password": redisPassword,
 	})
+	r, err := extensions.NewRedis("workers", w.Config, w.Logger)
+	checkErr(w.Logger, err)
+	w.RedisClient = r
+}
 
+func (w *Worker) configureS3Client() {
+	s3Client, err := extensions.NewS3(w.Config, w.Logger)
+	checkErr(w.Logger, err)
+	w.S3Client = s3Client
 }
 
 func (w *Worker) configureWorkers() {
-	p := NewProcessBatchWorker(w.Config, w.Logger, nil, w)
-	c := NewCreateBatchesWorker(w.Config, w.Logger, w)
-	f := NewCreateBatchesFromFiltersWorker(w.Config, w.Logger, w)
-	r := NewResumeJobWorker(w.Config, w.Logger, w)
-	j := NewJobCompletedWorker(w.Config, w.Logger)
-	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
-	createBatchesFromFiltersWorkerConcurrency := w.Config.GetInt("workers.createBatchesFromFilters.concurrency")
+	p := NewProcessBatchWorker(w)
+	k := NewCSVSplitWorker(w)
+	c := NewCreateBatchesWorker(w)
+	r := NewResumeJobWorker(w)
+	j := NewJobCompletedWorker(w)
+	directWorker := NewDirectWorker(w)
+
+	createCSVSplitWorkerConcurrency := w.Config.GetInt("workers.csvSplitWorker.concurrency")
 	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 	resumeJobWorkerConcurrency := w.Config.GetInt("workers.resume.concurrency")
 	jobCompletedWorkerConcurrency := w.Config.GetInt("workers.jobCompleted.concurrency")
+	createBatchesWorkerConcurrency := w.Config.GetInt("workers.createBatches.concurrency")
+
+	jobDirectWorkerConcurrency := w.Config.GetInt("workers.direct.concurrency")
+
+	workers.Process("csv_split_worker", k.Process, createCSVSplitWorkerConcurrency)
 	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
 	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
-	workers.Process("create_batches_from_filters_worker", f.Process, createBatchesFromFiltersWorkerConcurrency)
 	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
 	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
+
+	workers.Process("direct_worker", directWorker.Process, jobDirectWorkerConcurrency)
 }
 
 func (w *Worker) configureSentry() {
@@ -159,22 +212,117 @@ func (w *Worker) configureSentry() {
 	l.Info("Configured sentry successfully.")
 }
 
+func (w *Worker) configureKafkaProducer() {
+	var kafka *extensions.KafkaProducer
+	var err error
+	kafka, err = extensions.NewKafkaProducer(w.Config, w.Logger, w.Statsd)
+	checkErr(w.Logger, err)
+	w.Kafka = kafka
+}
+
+// CreateCSVSplitJob creates a new CSVSplitWorker job
+func (w *Worker) CreateCSVSplitJob(job *model.Job) (string, error) {
+	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
+	return workers.EnqueueWithOptions(
+		"csv_split_worker",
+		"Add",
+		job.ID.String(),
+		workers.EnqueueOptions{
+			Retry:      true,
+			RetryCount: maxRetries,
+		})
+}
+
+// ScheduleCSVSplitJob schedules a new CSVSplitWorker job
+func (w *Worker) ScheduleCSVSplitJob(job *model.Job, at int64) (string, error) {
+	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
+	return workers.EnqueueWithOptions(
+		"csv_split_worker",
+		"Add",
+		job.ID.String(),
+		workers.EnqueueOptions{
+			Retry:      true,
+			RetryCount: maxRetries,
+			At:         float64(at) / workers.NanoSecondPrecision,
+		})
+}
+
 // CreateBatchesJob creates a new CreateBatchesWorker job
-func (w *Worker) CreateBatchesJob(jobID *[]string) (string, error) {
+func (w *Worker) CreateBatchesJob(part *BatchPart) (string, error) {
 	maxRetries := w.Config.GetInt("workers.createBatches.maxRetries")
-	return workers.EnqueueWithOptions("create_batches_worker", "Add", jobID, workers.EnqueueOptions{
+	return workers.EnqueueWithOptions("create_batches_worker", "Add", part, workers.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
 }
 
-// CreateBatchesFromFiltersJob creates a new CreateBatchesFromFiltersWorker job
-func (w *Worker) CreateBatchesFromFiltersJob(jobID *[]string) (string, error) {
-	maxRetries := w.Config.GetInt("workers.createBatchesFromFilters.maxRetries")
-	return workers.EnqueueWithOptions("create_batches_from_filters_worker", "Add", jobID, workers.EnqueueOptions{
+// CreateDirectBatchesJob schedules a new DirectWorker job
+func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
+	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
+	return w.createDirectBatchesJobWithOption(job, workers.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
+}
+
+// ScheduleDirectBatchesJob schedules a new DirectWorker job
+func (w *Worker) ScheduleDirectBatchesJob(job *model.Job, at int64) error {
+	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
+	return w.createDirectBatchesJobWithOption(job, workers.EnqueueOptions{
+		Retry:      true,
+		RetryCount: maxRetries,
+		At:         float64(at) / workers.NanoSecondPrecision,
+	})
+}
+
+func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options workers.EnqueueOptions) error {
+	var testBatchSize uint64
+	var maxSeqID uint64
+	var rownsEstimative uint64
+	var i uint64
+
+	job.GetJobInfoAndApp(w.MarathonDB)
+	tableName := GetPushDBTableName(job.App.Name, job.Service)
+	query := fmt.Sprintf("SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname = '%s';", tableName)
+	_, err := w.PushDB.QueryOne(&rownsEstimative, query)
+	if err != nil {
+		return err
+	}
+	query = fmt.Sprintf("SELECT max(seq_id) FROM %s;", tableName)
+	_, err = w.PushDB.QueryOne(&maxSeqID, query)
+	if err != nil {
+		return err
+	}
+	if rownsEstimative == 0 {
+		rownsEstimative = 1
+	}
+	testBatchSize = (200000 * maxSeqID) / rownsEstimative
+
+	for i = 0; i < maxSeqID+1; {
+		_, err = workers.EnqueueWithOptions("direct_worker", "Add",
+			DirectPartMsg{
+				SmallestSeqID: i,
+				BiggestSeqID:  i + testBatchSize,
+				JobUUID:       job.ID,
+			}, options)
+		if err != nil {
+			return err
+		}
+		i += testBatchSize
+	}
+
+	_, err = w.MarathonDB.Model(job).Set("total_tokens = ?", rownsEstimative).Where("id = ?", job.ID).Update()
+	if err != nil {
+		return err
+	}
+
+	batches := i / testBatchSize
+	_, err = w.MarathonDB.Model(job).Set("total_batches = ?", batches).Where("id = ?", job.ID).Update()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateProcessBatchJob creates a new ProcessBatchWorker job
@@ -255,6 +403,52 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 // Start starts the worker
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
-	go workers.StatsServer(jobsStatsPort)
+	go func() {
+		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
+
+			_, marathonError := w.MarathonDB.Exec("SELECT 1")
+			_, pushError := w.MarathonDB.Exec("SELECT 1")
+			pong, redisError := w.RedisClient.Ping().Result()
+
+			status := struct {
+				MarathonHealthy bool `json:"marathon_db_healthy"`
+				PushHealthy     bool `json:"push_db_healthy"`
+				RedisHealthy    bool `json:"redis_healthy"`
+			}{
+				MarathonHealthy: marathonError == nil,
+				PushHealthy:     pushError == nil,
+				RedisHealthy:    redisError == nil && pong == "PONG",
+			}
+
+			if !status.MarathonHealthy || !status.PushHealthy || !status.RedisHealthy {
+				rw.WriteHeader(http.StatusServiceUnavailable)
+			}
+			json.NewEncoder(rw).Encode(status)
+		})
+		if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
+			panic(err)
+		}
+	}()
 	workers.Run()
+}
+
+// SendControlGroupToRedis send a sequency of users ids to redis
+func (w *Worker) SendControlGroupToRedis(job *model.Job, ids []string) {
+	start := time.Now()
+	hash := job.ID.String()
+	var args []interface{}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	w.RedisClient.LPush(fmt.Sprintf("%s-CONTROL", hash), args...).Result()
+	w.Statsd.Timing("save_control_group", time.Now().Sub(start), job.Labels(), 1)
+}
+
+// GetJob get a job from the db
+func (w *Worker) GetJob(jobID uuid.UUID) (*model.Job, error) {
+	job := model.Job{
+		ID: jobID,
+	}
+	err := job.GetJobInfoAndApp(w.MarathonDB)
+	return &job, err
 }

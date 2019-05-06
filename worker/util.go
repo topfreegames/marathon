@@ -33,7 +33,7 @@ import (
 	"strconv"
 	"strings"
 
-	pg "gopkg.in/pg.v5"
+	// pg "gopkg.in/pg.v5"
 	"gopkg.in/redis.v5"
 
 	raven "github.com/getsentry/raven-go"
@@ -48,15 +48,15 @@ const stoppedJobStatus = "stopped"
 
 // User is the struct that will keep users before sending them to send batches worker
 type User struct {
-	CreatedAt pg.NullTime `json:"created_at,omitempty" sql:"created_at"`
-	UserID    string      `json:"user_id,omitempty" sql:"user_id"`
-	Token     string      `json:"token,omitempty" sql:"token"`
-	Locale    string      `json:"locale,omitempty" sql:"locale"`
-	Region    string      `json:"region,omitempty" sql:"region"`
-	Tz        string      `json:"tz,omitempty" sql:"tz"`
-	Fiu       string      `json:"fiu,omitempty" sql:"fiu"`
-	Adid      string      `json:"adid,omitempty" sql:"adid"`
-	VendorID  string      `json:"vendor_id,omitempty" sql:"vendor_id"`
+	UserID string `json:"user_id,omitempty" sql:"user_id"`
+	Token  string `json:"token,omitempty" sql:"token"`
+	Locale string `json:"locale,omitempty" sql:"locale"`
+	Region string `json:"region,omitempty" sql:"region"`
+	Tz     string `json:"tz,omitempty" sql:"tz"`
+	// CreatedAt pg.NullTime `json:"created_at,omitempty" sql:"created_at"`
+	// Fiu       string      `json:"fiu,omitempty" sql:"fiu"`
+	// Adid      string      `json:"adid,omitempty" sql:"adid"`
+	// VendorID  string      `json:"vendor_id,omitempty" sql:"vendor_id"`
 }
 
 // Batch is a struct that helps tracking processes pages
@@ -67,8 +67,10 @@ type Batch struct {
 
 // DBPage is a struct that helps create batches from filters jobs
 type DBPage struct {
-	Page   int
-	Offset int
+	Page       int
+	SmallestID string
+	BiggestID  string
+	Last       bool
 }
 
 // SentBatches is a struct that helps tracking sent batches
@@ -124,24 +126,6 @@ func checkIsReexecution(jobID uuid.UUID, redisClient *redis.Client, l zap.Logger
 
 func markProcessedPage(page int, jobID uuid.UUID, redisClient *redis.Client) {
 	redisClient.SAdd(fmt.Sprintf("%s-processedpages", jobID.String()), page)
-}
-
-// SplitUsersInBucketsByTZ splits users in buckets by tz
-func SplitUsersInBucketsByTZ(users *[]User) map[string]*[]User {
-	bucketsByTZ := map[string]*[]User{}
-	for _, user := range *users {
-		userTz := user.Tz
-		if len(userTz) == 0 {
-			userTz = "-0500"
-		}
-		if res, ok := bucketsByTZ[userTz]; ok {
-			users := append(*res, user)
-			bucketsByTZ[userTz] = &users
-		} else {
-			bucketsByTZ[userTz] = &[]User{user}
-		}
-	}
-	return bucketsByTZ
 }
 
 func checkErr(l zap.Logger, err error) {
@@ -206,13 +190,14 @@ type BatchWorkerMessage struct {
 // TODO remove this hacky code
 func cleanUpUserInfo(user *User) *User {
 	return &User{
-		UserID: user.UserID,
+		// UserID: user.UserID,
 		Token:  user.Token,
 		Locale: user.Locale,
 	}
 }
 
 // TODO test this function
+
 // CompressUsers compresses users payload for enqueuing the message
 func CompressUsers(users *[]User) (string, error) {
 	cleanUsers := make([]*User, len(*users))

@@ -23,11 +23,13 @@
 package worker
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/email"
-	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -37,39 +39,49 @@ const nameJobCompleted = "job_completed_worker"
 
 // JobCompletedWorker is the JobCompletedWorker struct
 type JobCompletedWorker struct {
-	Logger         zap.Logger
-	MarathonDB     *extensions.PGClient
-	Config         *viper.Viper
-	SendgridClient *extensions.SendgridClient
+	Workers *Worker
+	Logger  zap.Logger
 }
 
 // NewJobCompletedWorker gets a new JobCompletedWorker
-func NewJobCompletedWorker(config *viper.Viper, logger zap.Logger) *JobCompletedWorker {
+func NewJobCompletedWorker(workers *Worker) *JobCompletedWorker {
 	b := &JobCompletedWorker{
-		Config: config,
-		Logger: logger.With(zap.String("worker", "JobCompletedWorker")),
+		Logger:  workers.Logger.With(zap.String("worker", "JobCompletedWorker")),
+		Workers: workers,
 	}
-	b.configure()
-	log.D(logger, "Configured JobCompletedWorker successfully.")
+	b.Logger.Debug("Configured JobCompletedWorker successfully.")
 	return b
 }
 
-func (b *JobCompletedWorker) configureMarathonDatabase() {
-	var err error
-	b.MarathonDB, err = extensions.NewPGClient("db", b.Config, b.Logger)
-	checkErr(b.Logger, err)
-}
+func (b *JobCompletedWorker) flushControlGroup(job *model.Job) {
+	hash := job.ID.String()
+	hash = fmt.Sprintf("%s-CONTROL", hash)
+	controlGroup, err := b.Workers.RedisClient.LRange(hash, 0, -1).Result()
+	b.checkErr(job, err)
 
-func (b *JobCompletedWorker) configureSendgrid() {
-	apiKey := b.Config.GetString("sendgrid.key")
-	if apiKey != "" {
-		b.SendgridClient = extensions.NewSendgridClient(b.Config, b.Logger, apiKey)
+	folder := b.Workers.Config.GetString("s3.controlGroupFolder")
+	csvBuffer := &bytes.Buffer{}
+	csvWriter := io.Writer(csvBuffer)
+	csvWriter.Write([]byte("controlGroupUserIds\n"))
+	for _, user := range controlGroup {
+		csvWriter.Write([]byte(fmt.Sprintf("%s\n", user)))
 	}
+
+	bucket := b.Workers.Config.GetString("s3.bucket")
+	writePath := fmt.Sprintf("%s/%s/job-%s.csv", bucket, folder, job.ID.String())
+	csvBytes := csvBuffer.Bytes()
+	_, err = b.Workers.S3Client.PutObject(writePath, &csvBytes)
+	b.checkErr(job, err)
+	b.updateJobControlGroupCSVPath(job, writePath)
+
+	err = b.Workers.RedisClient.Del(hash).Err()
+	b.checkErr(job, err)
 }
 
-func (b *JobCompletedWorker) configure() {
-	b.configureMarathonDatabase()
-	b.configureSendgrid()
+func (b *JobCompletedWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
+	job.ControlGroupCSVPath = csvPath
+	_, err := b.Workers.MarathonDB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
+	b.checkErr(job, err)
 }
 
 // Process processes the messages sent to worker queue
@@ -85,29 +97,26 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	)
 	log.I(l, "starting")
 
-	job := &model.Job{
-		ID: id,
-	}
-	err = b.MarathonDB.DB.Model(job).Where("job.id = ?", job.ID).Select()
-	if err != nil {
-		job.TagError(b.MarathonDB, nameJobCompleted, "finished")
-		checkErr(l, err)
-	}
-	job.TagRunning(b.MarathonDB, nameJobCompleted, "starting")
-	err = b.MarathonDB.DB.Model(job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
-	b.checkErr(job, err)
+	job, err := b.Workers.GetJob(id)
+	checkErr(l, err)
 
-	if b.SendgridClient != nil {
-		err = email.SendJobCompletedEmail(b.SendgridClient, job, job.App.Name)
+	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
+
+	if b.Workers.SendgridClient != nil {
+		err = email.SendJobCompletedEmail(b.Workers.SendgridClient, job, job.App.Name)
 		b.checkErr(job, err)
 	}
-	job.TagSuccess(b.MarathonDB, nameJobCompleted, "finished")
+
+	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "sending control group")
+	b.flushControlGroup(job)
+
+	job.TagSuccess(b.Workers.MarathonDB, nameJobCompleted, "finished")
 	log.I(l, "finished")
 }
 
 func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.MarathonDB, nameJobCompleted, err.Error())
+		job.TagError(b.Workers.MarathonDB, nameJobCompleted, err.Error())
 		checkErr(b.Logger, err)
 	}
 }
