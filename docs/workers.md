@@ -1,38 +1,54 @@
 Marathon Workers
 ================
+## Overview
 
-## Create CSV From Filters Worker
+Depending on the job type, different workers can be called. Se the image below:
 
-This worker queries the PUSH_DB using the job filters and creates the tasks for the next worker.  It will retrieve information from the database to create the necessary queries to produce the batchs in the next worker.
+![example](img/Workers.png)
 
-The first step of this worker is to count how many elements it needs to process. The running time of this query is present in the metric `count_total`.
+This image shows the order workers execution order. Also, you can see each data that go between the workers.
 
-The metric `get_intervals_cursor` is the total time spend to collect the batchs intervals.
- 
-## DB to CSV Worker
+When we have a scheduled job with multiple timezones, multiple jobs will be created and scheduled. Each job will be processed in 1 hour interval, tats mean, if a user is at the +1215 timezone he will receive a message when the +1200 is processed.
 
-This worker will get the batches queries from the previous worker and get the information from the database. It will also upload the list of  `users_id`  to the Amazon, using the multipart upload. After each part upload, the result will be saved in a Redis list (the name of the list is the job UUID). When all parts are successful uploaded, the last worker will send the complete multipart upload event to Amazon and create the next task.
+## Workers 
 
-The metric `get_page_with_filters` will measure the time spent to retrieve each batch from the database. And the `write_user_page_into_csv`  count how many times one S3 part upload started.
+### Direct Worker
 
-## Create Batches From CSV Worker
+This worker receives from the API batches database intervals to process. It will query the PUSH_DB using the job filters, creates the messages and send to Kafka. This worker is really fast and can handle big amount of tokens (tested with 1.5x10^8 tokens).
 
-This worker downloads a CSV file from AWS S3, reads it and creates batches of user information (locale, token, tz) grouped by timezone. If a job is scheduled and not localized, it schedules all batches in the next worker (process batch worker) for the same timestamp. If a job is scheduled and localized it schedules each batch according to the corresponding timestamp for each timezone. If a job is not scheduled, it calls the next worker directly for each batch.
+If the control group is set, it will save it on Redis. The completed job worker will pull this data and create a CSV for it.
 
-Only one worker will do this job, but this worker will start `workers.createBatches.pageProcessingConcurrency` goroutines. Each goroutine will get part of the ids, retrieve the locale and timezone (the metric `get_csv_batch_from_pg` will report the retrieve duration from the database) from the database and schedule each batch (see above).
+It will not generate a CSV of the sent messages.
 
-## Process Batch Worker
+This worker will produce two metrics: `starting_direct_part` that represent when it receives some data. After getting some data from the DB, it will send the timing metric `get_from_pg` representing the time spend to retrieve the data.
 
-This worker receives a batch of user information (locale and token), builds the template for each user using the locale information and the job template name and send to Kafka topic corresponding to the job app and service. If the error rate is more than a threshold this job enters circuit break state. When the job is paused or in circuit break the batches are stored in a paused job list in Redis with an expiration of one week.
+### CSV Split Worker
 
-When this work start, it sends the `starting_process_batch_worker` metric.
+This worker downloads a CSV file from AWS S3, read it size and split it in small batches.
+Only one worker will do this job.
 
-This worker sends messages to the Kafka. When the message is delivered, either successfully or with errors, the metric `send_message_return` will be produced.
+After creating each batch, it will send `csv_job_part` metric.
 
-## Job Completed Worker
+### Create Batches Worker
+
+This worker downloads a part of the CSV file from AWS S3, reads it and creates batches of user information (locale, token, tz). 
+
+### Process Batch Worker
+
+This worker receives a batch of user information (locale and token), builds the template for each user using the locale information and the job template name and send to Kafka topic corresponding to the job app and service. If the error rate is more than a threshold this job enters circuit break state. When the job is paused or in circuit break, the batches are stored in a paused job list in Redis with an expiration of one week.
+
+When this work started, it sends the `starting_process_batch_worker` metric.
+
+This worker sends messages to Kafka. When the message is delivered, either successfully or with errors, the metric `send_message_return` will be produced.
+
+In some cases IDs can be split between two batches, this worker will notice that and save the split parts in the Redis. After the last batch, this worker will try to join the split parts.
+
+### Job Completed Worker
 
 When all `Process Batch Worker` is completed, it will call this worker. It will send one email saying the job is completed.
 
-## Resume Job Worker
+Also, it reads the Redis and creates the control group CSV.
+
+### Resume Job Worker
 
 This worker handles jobs that are paused or in circuit break state. It removes a batch from the paused job list and calls the process batch worker for each one of them until are has no more paused batches.
