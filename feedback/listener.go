@@ -76,11 +76,13 @@ func (l *Listener) configure() error {
 	l.Config.SetEnvPrefix("marathon")
 	l.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	l.Config.AutomaticEnv()
+
 	err := l.Config.ReadInConfig()
 	if err != nil {
 		return err
 	}
 	l.loadConfigurationDefaults()
+
 	l.configureSentry()
 	l.GracefulShutdownTimeout = l.Config.GetInt("feedbackListener.gracefulShutdownTimeout")
 	log := logrus.New()
@@ -88,6 +90,12 @@ func (l *Listener) configure() error {
 	q, err := kafka.NewConsumerWithPrefix(
 		l.Config, log, "feedbackListener.kafka", nil,
 	)
+
+	// use environment in kafka configs
+	q.Config.SetEnvPrefix("marathon.feedbackListener.kafka")
+	q.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	q.Config.AutomaticEnv()
+
 	if err != nil {
 		return err
 	}
