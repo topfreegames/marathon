@@ -72,3 +72,4 @@ feedbackListener:
     sessionTimeout: 6000
     handleAllMessagesBeforeExiting: true
     offsetResetStrategy: latest
+    brokers: localhost:9092
