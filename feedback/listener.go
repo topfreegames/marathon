@@ -91,7 +91,7 @@ func (l *Listener) configure() error {
 		l.Config, log, "feedbackListener.kafka", nil,
 	)
 
-	// use enviroment in feedback
+	// use environment in kafka configs
 	q.Config.SetEnvPrefix("marathon.feedbackListener.kafka")
 	q.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	q.Config.AutomaticEnv()
