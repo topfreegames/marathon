@@ -27,9 +27,7 @@ package worker
 
 import (
 	"encoding/json"
-	"errors"
 	"math"
-	"strings"
 
 	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
@@ -95,13 +93,8 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	}
 
 	// get file information
-	totalSize, buf, err := b.Workers.S3Client.DownloadChunk(0, 7, job.CSVPath)
+	totalSize, _, err := b.Workers.S3Client.DownloadChunk(0, 1, job.CSVPath)
 	b.checkErr(job, err)
-	firstBytes := buf.String()
-
-	if !strings.EqualFold("userIds", firstBytes) {
-		b.checkErr(job, errors.New("Invalid CSV - it does not contain the column userIds"))
-	}
 
 	start := 0
 	totalParts := int(math.Ceil(float64(totalSize) / float64(partSize)))
