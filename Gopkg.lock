@@ -165,6 +165,22 @@
   version = "v1.39.0"
 
 [[projects]]
+  digest = "1:33082c63746b464db3d1c2c07a1396d860484d97fe857ef9e8668a9b406db09f"
+  name = "github.com/go-redis/redis"
+  packages = [
+    ".",
+    "internal",
+    "internal/consistenthash",
+    "internal/hashtag",
+    "internal/pool",
+    "internal/proto",
+    "internal/util",
+  ]
+  pruneopts = "UT"
+  revision = "d22fde8721cc915a55aeb6b00944a76a92bfeb6e"
+  version = "v6.15.2"
+
+[[projects]]
   digest = "1:06c8168453decb3d6db47d2fcac0f58332a535631fae7e63238e481e827f5258"
   name = "github.com/golang/snappy"
   packages = ["."]
@@ -473,7 +489,7 @@
   version = "v1.3.2"
 
 [[projects]]
-  digest = "1:66e569af2be05992ff08f5c985508a8b077b1a31adf0c3fcc83be3eb67775325"
+  digest = "1:837daeff14c020f4141513cff58e177f75926492ae02904663859a229bcbc014"
   name = "github.com/topfreegames/extensions"
   packages = [
     "kafka",
@@ -481,8 +497,8 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "bd7134b0722735c5ee8ff3d2b49a000052549cac"
-  version = "v8.2.0"
+  revision = "ac63d4b6bec73d076c5faff33cc726139d48ffe4"
+  version = "v8.2.1"
 
 [[projects]]
   digest = "1:9d5cf6f23377cc24f00ba9a7b0c83fe070171c094e42eece262c6252a392ec33"
@@ -611,6 +627,7 @@
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/confluentinc/confluent-kafka-go/kafka",
     "github.com/getsentry/raven-go",
+    "github.com/go-redis/redis",
     "github.com/jrallison/go-workers",
     "github.com/labstack/echo",
     "github.com/labstack/echo/middleware",

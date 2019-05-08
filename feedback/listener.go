@@ -86,15 +86,11 @@ func (l *Listener) configure() error {
 	l.configureSentry()
 	l.GracefulShutdownTimeout = l.Config.GetInt("feedbackListener.gracefulShutdownTimeout")
 	log := logrus.New()
+
 	log.Formatter = new(logrus.JSONFormatter)
 	q, err := kafka.NewConsumerWithPrefix(
 		l.Config, log, "feedbackListener.kafka", nil,
 	)
-
-	// use environment in kafka configs
-	q.Config.SetEnvPrefix("marathon.feedbackListener.kafka")
-	q.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	q.Config.AutomaticEnv()
 
 	if err != nil {
 		return err
