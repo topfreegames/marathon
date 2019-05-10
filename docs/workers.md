@@ -24,6 +24,8 @@ This worker will produce two metrics:
 - `starting_direct_part`: represents when the worker starts;
 - `get_from_pg` represent the spent time on retrieving data from the database.
 
+After processing all parts, the `Job Completed Worker` is called. To know if all batches are completed, a counter is the Redis is used.
+
 ### CSV Split Worker
 
 This worker downloads a CSV file from AWS S3, reads it size and splits it in small batches.
@@ -41,13 +43,17 @@ This worker receives a batch of user information (locale and token), builds the 
 
 When this work starts, it sends the `starting_process_batch_worker` metric.
 
-This worker sends messages to Kafka. When the message is delivered, either successfully or with errors, the metric `send_message_return` will be produced.
+The metric send_message_return is reported when messages are delivered to Kafka, either successfully or with errors.
 
-In some cases IDs can be split between two batches, this worker will notice that and save the split parts in the Redis. After the last batch, this worker will try to join the split parts.
+The batches are defined by a position in the CSV and the number of bytes to read from that position. Because of that, during the batches creation, some IDs can be divided and have it beginning in one batch and the end in other. To recovery this IDs, each process batch worker will search for the first `\n` in the file and will considerate all the bytes before this marker has part of one split ID. The method is similar at the end of the file, it will considerate all bytes since the las `\n` as part of another split ID. It will save this information in the Redis and after all, batches are processed, the last worker will retrieve this information, join the splits IDs and send the messages.
+
+To know if all batches are completed, a counter is the Redis is used.
 
 ### Job Completed Worker
 
-When all `Process Batch Worker` is completed, it will call this worker. It will send one email saying the job is completed.
+When all `Process Batch Workers` or all `Direct Workers` is completed, they will call this worker.
+
+This worker will send one email saying the job is completed.
 
 Also, it reads the Redis and creates the control group CSV.
 
