@@ -14,7 +14,7 @@ When we have a scheduled job with multiple timezones, multiple jobs will be crea
 
 ### Direct Worker
 
-This worker receives from the API batches database intervals to process. It will query the PUSH_DB using the job filters, creates the messages and send to Kafka. This worker is really fast and can handle big amount of tokens (tested with 1.5x10^8 tokens).
+The API is responsible to create batches using an estimative of the database size. This worker process these batches. It will query the PUSH_DB using the job filters, creates the messages and send to Kafka. This worker is really fast and can handle big amount of tokens (tested with 1.5x10^8 tokens).
 
 If a control group is set, it will be saved on Redis. The completed job worker will pull this data and create a CSV with the control group ids.
 
