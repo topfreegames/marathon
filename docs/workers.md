@@ -18,7 +18,7 @@ This worker receives from the API batches database intervals to process. It will
 
 If a control group is set, it will be saved on Redis. The completed job worker will pull this data and create a CSV with the control group ids.
 
-It will not generate a CSV of the sent messages.
+**It will not generate a CSV of the sent messages**.
 
 This worker will produce two metrics:
 - `starting_direct_part`: represents when the worker starts;
@@ -27,7 +27,7 @@ This worker will produce two metrics:
 ### CSV Split Worker
 
 This worker downloads a CSV file from AWS S3, reads it size and splits it in small batches.
-Only one worker will do this job.
+**Only one worker will do this job**.
 
 After creating each batch, it will send `csv_job_part` metric.
 
