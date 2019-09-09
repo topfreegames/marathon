@@ -165,22 +165,6 @@
   version = "v1.39.0"
 
 [[projects]]
-  digest = "1:33082c63746b464db3d1c2c07a1396d860484d97fe857ef9e8668a9b406db09f"
-  name = "github.com/go-redis/redis"
-  packages = [
-    ".",
-    "internal",
-    "internal/consistenthash",
-    "internal/hashtag",
-    "internal/pool",
-    "internal/proto",
-    "internal/util",
-  ]
-  pruneopts = "UT"
-  revision = "d22fde8721cc915a55aeb6b00944a76a92bfeb6e"
-  version = "v6.15.2"
-
-[[projects]]
   digest = "1:06c8168453decb3d6db47d2fcac0f58332a535631fae7e63238e481e827f5258"
   name = "github.com/golang/snappy"
   packages = ["."]
@@ -369,6 +353,17 @@
   revision = "e85f63af4302dc0e4277c6008ecf803f1d80e4f0"
 
 [[projects]]
+  digest = "1:90e282624796901d91e49c98f4a05dc4f6136d1aab7af39bd3dcf3e989273650"
+  name = "github.com/opentracing/opentracing-go"
+  packages = [
+    ".",
+    "log",
+  ]
+  pruneopts = "UT"
+  revision = "659c90643e714681897ec2521c60567dd21da733"
+  version = "v1.1.0"
+
+[[projects]]
   digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
   name = "github.com/pelletier/go-toml"
   packages = ["."]
@@ -501,6 +496,22 @@
   version = "v8.2.1"
 
 [[projects]]
+  digest = "1:2f53a65e6bc705d06e520fbda5598c4e15613ef004b0e02ac6156991cdb6376b"
+  name = "github.com/topfreegames/go-extensions-http"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "406395fac88ffdcd4e987a97873aa23e9b8e47ec"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:a0bf1c87d73c581518e25337862186dda8b7def3b2647872ca9e131a140fcbc2"
+  name = "github.com/topfreegames/go-extensions-tracing"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b2a1ed83a5ee950bb96756ca9213819fc7da33e0"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:9d5cf6f23377cc24f00ba9a7b0c83fe070171c094e42eece262c6252a392ec33"
   name = "github.com/uber-go/atomic"
   packages = ["."]
@@ -576,6 +587,14 @@
   revision = "5c6cf4f9a2357d38515014cea8c488ed22bdab90"
 
 [[projects]]
+  digest = "1:8cff1b38298ac6c9f02bce11df3a7b9026bba6540c52adcf3fc8b328bf0fc149"
+  name = "gopkg.in/jarcoal/httpmock.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ac2099de8d3789d30b99b740d1a9d242097462df"
+  version = "v1.0.4"
+
+[[projects]]
   digest = "1:415e7bb29c4fdb4e5bbd3357150d3f72360f915ac2a049273c9b22c5b8784e42"
   name = "gopkg.in/pg.v5"
   packages = [
@@ -627,7 +646,6 @@
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/confluentinc/confluent-kafka-go/kafka",
     "github.com/getsentry/raven-go",
-    "github.com/go-redis/redis",
     "github.com/jrallison/go-workers",
     "github.com/labstack/echo",
     "github.com/labstack/echo/middleware",
@@ -643,8 +661,10 @@
     "github.com/spf13/cobra",
     "github.com/spf13/viper",
     "github.com/topfreegames/extensions/kafka",
+    "github.com/topfreegames/go-extensions-http",
     "github.com/uber-go/zap",
     "github.com/valyala/fasttemplate",
+    "gopkg.in/jarcoal/httpmock.v1",
     "gopkg.in/pg.v5",
     "gopkg.in/pg.v5/orm",
     "gopkg.in/pg.v5/types",
