@@ -5,6 +5,8 @@ services:
     image: postgres:9.5
     ports:
       - "8585:5432"
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
   redis:
     image: redis
     ports:
@@ -22,3 +24,4 @@ services:
       KAFKA_ADVERTISED_PORT: 9940
       KAFKA_CREATE_TOPICS: "consumer:1:1,consumergcm:1:1,consumerapns:1:1"
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+
