@@ -155,13 +155,19 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	var users []User
 	start := time.Now()
-	_, err = b.Workers.PushDB.Query(&users, b.getQuery(job), msg.SmallestSeqID, msg.BiggestSeqID)
+	r, err := b.Workers.PushDB.Query(&users, b.getQuery(job), msg.SmallestSeqID, msg.BiggestSeqID)
+
+	if err != nil {
+		l.Error("Error fetching users", zap.Error(err))
+	}
+
 	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	successfulUsers := len(users)
 
 	log.I(l, "about to start processing users", func(l log.CM) {
 		l.Write(zap.Int("totalUsers", successfulUsers))
+		l.Write(zap.Int("queryReturned", r.RowsReturned()))
 	})
 
 	// create a controll group if needed
