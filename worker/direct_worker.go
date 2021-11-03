@@ -84,6 +84,7 @@ func (b *DirectWorker) sendToKafka(service, topic string, msg, messageMetadata m
 }
 
 func (b *DirectWorker) addCompletedTokens(job *model.Job, nTokens int) error {
+	b.Logger.Info("Finished adding completion tokens", zap.Int("completedTokens", nTokens))
 	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_tokens = completed_tokens + ?", nTokens).Where("id = ?", job.ID).Update()
 	return err
 }
@@ -224,6 +225,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 		err = b.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, templateName)
 		if err != nil {
+			b.Logger.Error("Error sending message to kafka", zap.Error(err))
 			successfulUsers--
 		}
 	}
