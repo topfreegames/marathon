@@ -33,7 +33,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"
 	"github.com/jrallison/go-workers"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
@@ -296,7 +296,9 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options worker
 	if rownsEstimative == 0 {
 		rownsEstimative = 1
 	}
-	testBatchSize = (200000 * maxSeqID) / rownsEstimative
+
+	//testBatchSize = (200000 * maxSeqID) / rownsEstimative
+	testBatchSize = 50000
 
 	for i = 0; i < maxSeqID+1; {
 		_, err = workers.EnqueueWithOptions("direct_worker", "Add",
