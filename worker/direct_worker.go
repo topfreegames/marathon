@@ -118,7 +118,6 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	l := b.Logger.With(
 		zap.String("worker", nameDirectWorker),
 	)
-	log.I(l, "starting")
 
 	var msg DirectPartMsg
 	data := message.Args().ToJson()
@@ -160,6 +159,10 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	successfulUsers := len(users)
+
+	log.I(l, "about to start processing users", func(l log.CM) {
+		l.Write(zap.Int("totalUsers", successfulUsers))
+	})
 
 	// create a controll group if needed
 	controlGroupSize := int(math.Ceil(float64(len(users)) * job.ControlGroup))
