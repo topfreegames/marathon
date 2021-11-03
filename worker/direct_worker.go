@@ -157,7 +157,6 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	start := time.Now()
 
 	q := b.getQuery(job)
-	l.Info("About to run query", zap.String("userFetchQuery", q), zap.Uint64("smallSeqId", msg.SmallestSeqID), zap.Uint64("bigSeqId", msg.BiggestSeqID))
 	r, err := b.Workers.PushDB.Query(&users, q, msg.SmallestSeqID, msg.BiggestSeqID)
 
 	if err != nil {
@@ -173,7 +172,11 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 		if r != nil {
 			queryReturned = r.RowsAffected()
 		}
-		l.Write(zap.Int("totalUsers", successfulUsers), zap.Int("queryReturned", queryReturned))
+		l.Write(zap.Int("totalUsers", successfulUsers),
+			zap.Int("queryReturned", queryReturned),
+			zap.String("userFetchQuery", q),
+			zap.Uint64("smallSeqId", msg.SmallestSeqID),
+			zap.Uint64("bigSeqId", msg.BiggestSeqID))
 	})
 
 	// create a controll group if needed
