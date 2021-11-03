@@ -166,7 +166,11 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	successfulUsers := len(users)
 
 	log.I(l, "about to start processing users", func(l log.CM) {
-		l.Write(zap.Int("totalUsers", successfulUsers), zap.Int("queryReturned", r.RowsReturned()))
+		queryReturned := 0
+		if r != nil {
+			queryReturned = r.RowsAffected()
+		}
+		l.Write(zap.Int("totalUsers", successfulUsers), zap.Int("queryReturned", queryReturned))
 	})
 
 	// create a controll group if needed
