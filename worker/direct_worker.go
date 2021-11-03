@@ -155,7 +155,10 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	var users []User
 	start := time.Now()
-	r, err := b.Workers.PushDB.Query(&users, b.getQuery(job), msg.SmallestSeqID, msg.BiggestSeqID)
+
+	q := b.getQuery(job)
+	l.Info("About to run query", zap.String("userFetchQuery", q), zap.Uint64("smallSeqId", msg.SmallestSeqID), zap.Uint64("bigSeqId", msg.BiggestSeqID))
+	r, err := b.Workers.PushDB.Query(&users, q, msg.SmallestSeqID, msg.BiggestSeqID)
 
 	if err != nil {
 		l.Error("Error fetching users", zap.Error(err))
