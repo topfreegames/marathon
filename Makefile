@@ -30,10 +30,8 @@ clear-hooks:
 	@cd .git/hooks && rm pre-commit
 
 setup: setup-hooks
-	@go get -u github.com/golang/dep/cmd/dep
-	@go get -u github.com/onsi/ginkgo/ginkgo
-	@go get github.com/gordonklaus/ineffassign
-	@dep ensure
+	@go get -d -u github.com/onsi/ginkgo/ginkgo
+	@go get -d github.com/gordonklaus/ineffassign
 
 assets:
 	@for pkg in $(GODIRS) ; do \
@@ -58,10 +56,8 @@ cross: assets
 	@chmod +x bin/*
 
 setup-ci:
-	@go get -u github.com/golang/dep/cmd/dep
-	@go get github.com/mattn/goveralls
-	@go get github.com/onsi/ginkgo/ginkgo
-	@dep ensure
+	@go get -d github.com/mattn/goveralls
+	@go get -d github.com/onsi/ginkgo/ginkgo
 
 prepare-dev: deps create-db migrate
 

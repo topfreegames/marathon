@@ -298,7 +298,7 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options worker
 	}
 
 	//testBatchSize = (200000 * maxSeqID) / rownsEstimative
-	testBatchSize = 50000
+	testBatchSize = 100000
 
 	for i = 0; i < maxSeqID+1; {
 		_, err = workers.EnqueueWithOptions("direct_worker", "Add",

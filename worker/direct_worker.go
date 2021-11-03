@@ -84,7 +84,7 @@ func (b *DirectWorker) sendToKafka(service, topic string, msg, messageMetadata m
 }
 
 func (b *DirectWorker) addCompletedTokens(job *model.Job, nTokens int) error {
-	log.I(b.Logger.With(
+	log.D(b.Logger.With(
 		zap.String("worker", nameDirectWorker),
 	), "Finished adding completion tokens", func(l log.CM) {
 		l.Write(zap.Int("completedTokens", nTokens))
@@ -167,7 +167,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	successfulUsers := len(users)
 
-	log.I(l, "about to start processing users", func(l log.CM) {
+	log.D(l, "about to start processing users", func(l log.CM) {
 		queryReturned := 0
 		if r != nil {
 			queryReturned = r.RowsAffected()

@@ -23,6 +23,7 @@
 package lib_test
 
 import (
+	"github.com/jarcoal/httpmock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -33,7 +34,6 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/lib"
-	"gopkg.in/jarcoal/httpmock.v1"
 )
 
 var _ = Describe("Lib", func() {
