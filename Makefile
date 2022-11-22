@@ -30,7 +30,7 @@ clear-hooks:
 	@cd .git/hooks && rm pre-commit
 
 setup: setup-hooks
-	@go get -d -u github.com/onsi/ginkgo/ginkgo
+	@go install github.com/onsi/ginkgo/ginkgo@latest
 	@go get -d github.com/gordonklaus/ineffassign
 
 assets:
@@ -57,7 +57,7 @@ cross: assets
 
 setup-ci:
 	@go get -d github.com/mattn/goveralls
-	@go get -d github.com/onsi/ginkgo/ginkgo
+	@go install github.com/onsi/ginkgo/ginkgo@latest
 
 prepare-dev: deps create-db migrate
 
