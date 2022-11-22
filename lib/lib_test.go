@@ -31,9 +31,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/lib"
-	"gopkg.in/jarcoal/httpmock.v1"
 )
 
 var _ = Describe("Lib", func() {
