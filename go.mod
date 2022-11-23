@@ -77,6 +77,7 @@ require (
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/stretchr/testify v1.4.0 // indirect
 	github.com/topfreegames/go-extensions-tracing v1.0.0 // indirect
 	github.com/uber-go/atomic v1.3.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
