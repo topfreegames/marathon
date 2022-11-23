@@ -56,7 +56,7 @@ cross: assets
 	@chmod +x bin/*
 
 setup-ci:
-	@go install github.com/mattn/goveralls
+	@go install github.com/mattn/goveralls@latest
 	@go install github.com/onsi/ginkgo/ginkgo@latest
 
 prepare-dev: deps create-db migrate

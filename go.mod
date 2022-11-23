@@ -19,7 +19,7 @@ require (
 	github.com/pressly/goose v0.0.0-20161106184528-d6e8fe029271
 	github.com/satori/go.uuid v1.2.0
 	github.com/sendgrid/sendgrid-go v3.4.1+incompatible
-	github.com/sirupsen/logrus v1.4.1
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v0.0.0-20161116132053-9495bc009a56
 	github.com/spf13/viper v1.3.2
 	github.com/topfreegames/extensions v8.2.1+incompatible
@@ -52,7 +52,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v0.0.0-20160817014601-74387dc39a75 // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/labstack/gommon v0.2.7 // indirect
 	github.com/magiconair/properties v1.8.0 // indirect
@@ -69,14 +69,17 @@ require (
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/stretchr/testify v1.4.0 // indirect
 	github.com/topfreegames/go-extensions-tracing v1.0.0 // indirect
 	github.com/uber-go/atomic v1.3.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 // indirect
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
-	golang.org/x/sys v0.0.0-20210510120138-977fb7262007 // indirect
-	golang.org/x/text v0.3.3 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/text v0.3.7 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
