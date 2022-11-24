@@ -19,7 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-FROM golang:1.17-alpine AS build
+FROM golang:1.19-alpine AS build
 
 LABEL MAINTAINER="TFG Co <backend@tfgco.com>"
 
