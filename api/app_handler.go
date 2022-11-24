@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"

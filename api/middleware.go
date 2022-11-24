@@ -38,14 +38,14 @@ import (
 	"github.com/topfreegames/marathon/model"
 )
 
-//NewVersionMiddleware with API version
+// NewVersionMiddleware with API version
 func NewVersionMiddleware() *VersionMiddleware {
 	return &VersionMiddleware{
 		Version: VERSION,
 	}
 }
 
-//VersionMiddleware inserts the current version in all requests
+// VersionMiddleware inserts the current version in all requests
 type VersionMiddleware struct {
 	Version string
 }
@@ -59,14 +59,14 @@ func (v *VersionMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-//NewSentryMiddleware returns a new sentry middleware
+// NewSentryMiddleware returns a new sentry middleware
 func NewSentryMiddleware(app *Application) *SentryMiddleware {
 	return &SentryMiddleware{
 		Application: app,
 	}
 }
 
-//SentryMiddleware is responsible for sending all exceptions to sentry
+// SentryMiddleware is responsible for sending all exceptions to sentry
 type SentryMiddleware struct {
 	Application *Application
 }
@@ -123,19 +123,19 @@ func newHTTPFromCtx(ctx echo.Context) *raven.Http {
 	return h
 }
 
-//NewRecoveryMiddleware returns a configured middleware
+// NewRecoveryMiddleware returns a configured middleware
 func NewRecoveryMiddleware(onError func(error, []byte)) *RecoveryMiddleware {
 	return &RecoveryMiddleware{
 		OnError: onError,
 	}
 }
 
-//RecoveryMiddleware recovers from errors
+// RecoveryMiddleware recovers from errors
 type RecoveryMiddleware struct {
 	OnError func(error, []byte)
 }
 
-//Serve executes on error handler when errors happen
+// Serve executes on error handler when errors happen
 func (r *RecoveryMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		defer func() {
@@ -160,7 +160,7 @@ func NewLoggerMiddleware(theLogger zap.Logger) *LoggerMiddleware {
 	return l
 }
 
-//LoggerMiddleware is responsible for logging to Zap all requests
+// LoggerMiddleware is responsible for logging to Zap all requests
 type LoggerMiddleware struct {
 	Logger zap.Logger
 }
@@ -223,7 +223,7 @@ func (l *LoggerMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-//NewNewRelicMiddleware returns the logger middleware
+// NewNewRelicMiddleware returns the logger middleware
 func NewNewRelicMiddleware(app *Application, theLogger zap.Logger) *NewRelicMiddleware {
 	l := &NewRelicMiddleware{App: app, Logger: theLogger}
 	return l
@@ -257,12 +257,12 @@ func (nr *NewRelicMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-//AppAuthMiddleware automatically adds a version header to response
+// AppAuthMiddleware automatically adds a version header to response
 type AppAuthMiddleware struct {
 	App *Application
 }
 
-//Serve Validate that a user exists
+// Serve Validate that a user exists
 func (a AppAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userEmail := c.Request().Header.Get("x-forwarded-email")
@@ -300,19 +300,19 @@ func (a AppAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-//NewAppAuthMiddleware returns a configured auth middleware
+// NewAppAuthMiddleware returns a configured auth middleware
 func NewAppAuthMiddleware(app *Application) *AppAuthMiddleware {
 	return &AppAuthMiddleware{
 		App: app,
 	}
 }
 
-//UserAuthMiddleware automatically adds a version header to response
+// UserAuthMiddleware automatically adds a version header to response
 type UserAuthMiddleware struct {
 	App *Application
 }
 
-//Serve Validate that a user exists
+// Serve Validate that a user exists
 func (a UserAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userEmail := c.Request().Header.Get("x-forwarded-email")
@@ -341,19 +341,19 @@ func (a UserAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-//NewUserAuthMiddleware returns a configured auth middleware
+// NewUserAuthMiddleware returns a configured auth middleware
 func NewUserAuthMiddleware(app *Application) *UserAuthMiddleware {
 	return &UserAuthMiddleware{
 		App: app,
 	}
 }
 
-//UploadAuthMiddleware automatically adds a version header to response
+// UploadAuthMiddleware automatically adds a version header to response
 type UploadAuthMiddleware struct {
 	App *Application
 }
 
-//Serve Validate that a user exists
+// Serve Validate that a user exists
 func (a UploadAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userEmail := c.Request().Header.Get("x-forwarded-email")
@@ -375,7 +375,7 @@ func (a UploadAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-//NewUploadAuthMiddleware returns a configured auth middleware
+// NewUploadAuthMiddleware returns a configured auth middleware
 func NewUploadAuthMiddleware(app *Application) *UploadAuthMiddleware {
 	return &UploadAuthMiddleware{
 		App: app,

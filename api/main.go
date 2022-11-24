@@ -139,7 +139,7 @@ func (a *Application) configureS3Client() error {
 	return nil
 }
 
-//OnErrorHandler handles panics
+// OnErrorHandler handles panics
 func (a *Application) OnErrorHandler(err error, stack []byte) {
 	a.Logger.Error(
 		"Panic occurred.",
