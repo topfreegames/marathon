@@ -17,6 +17,7 @@ require (
 	github.com/newrelic/go-agent v1.11.0
 	github.com/onsi/ginkgo v1.4.0
 	github.com/onsi/gomega v0.0.0-20170114000305-e85f63af4302
+	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pressly/goose v0.0.0-20161106184528-d6e8fe029271
 	github.com/prometheus/client_golang v1.14.0
 	github.com/satori/go.uuid v1.2.0
@@ -26,6 +27,7 @@ require (
 	github.com/spf13/viper v1.3.2
 	github.com/topfreegames/extensions v8.2.1+incompatible
 	github.com/topfreegames/go-extensions-http v1.0.0
+	github.com/topfreegames/go-extensions-tracing v1.0.0
 	github.com/uber-go/zap v0.0.0-20160809182253-d11d2851fcab
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4
 	gopkg.in/pg.v5 v5.3.3
@@ -64,7 +66,6 @@ require (
 	github.com/mattn/go-isatty v0.0.0-20161123143637-30a891c33c7c // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
-	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.2.0 // indirect
 	github.com/pierrec/lz4 v0.0.0-20190327172049-315a67e90e41 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -77,7 +78,6 @@ require (
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
-	github.com/topfreegames/go-extensions-tracing v1.0.0 // indirect
 	github.com/uber-go/atomic v1.3.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
