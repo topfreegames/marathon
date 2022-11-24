@@ -19,9 +19,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-FROM golang:1.12-alpine
+FROM golang:1.19-alpine AS build
 
-MAINTAINER TFG Co <backend@tfgco.com>
+LABEL MAINTAINER="TFG Co <backend@tfgco.com>"
 
 RUN apk update
 RUN apk add make git g++ bash python wget pkgconfig
@@ -30,15 +30,12 @@ ENV LIBRDKAFKA_VERSION 0.11.6
 RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
     tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
     cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
-    ./configure && make && make install && make clean && ./configure --clean && \
-    go get -u github.com/golang/dep/cmd/dep
+    ./configure && make && make install && make clean && ./configure --clean
 
 RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
 
-ADD Gopkg.lock /go/src/github.com/topfreegames/marathon
-ADD Gopkg.toml /go/src/github.com/topfreegames/marathon
-RUN dep ensure -vendor-only
+RUN go mod vendor
 
 ADD . /go/src/github.com/topfreegames/marathon
 

@@ -1,11 +1,11 @@
 language: go
 go:
-- "1.12"
+- "1.19"
 sudo: false
 addons:
   postgresql: '9.5'
 services:
-- postgres
+- postgresql
 - docker
 env:
   matrix:
