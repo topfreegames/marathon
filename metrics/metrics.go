@@ -105,40 +105,6 @@ var (
 		},
 		buildAPIMetricsLabels(),
 	)
-
-	// WorkerRunTime summary
-	WorkerRunTime = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Namespace:  "marathon",
-			Subsystem:  "worker",
-			Name:       "runtime_ms",
-			Help:       "The run time of marathon scripts",
-			Objectives: map[float64]float64{0.7: 0.02, 0.95: 0.005, 0.99: 0.001},
-		},
-		[]string{"game", "roomType", "job"},
-	)
-
-	// WorkerSuccessCounter counter
-	WorkerSuccessCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "worker",
-			Name:      "success_counter",
-			Help:      "The counter of successfull job runs",
-		},
-		[]string{"game", "roomType", "job"},
-	)
-
-	// 	WorkerErrorCounter counter
-	WorkerErrorCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "worker",
-			Name:      "error_counter",
-			Help:      "The counter of failed job runs",
-		},
-		[]string{"game", "roomType", "job"},
-	)
 )
 
 // SetupMetrics register all metrics
@@ -146,9 +112,6 @@ func init() {
 	prometheus.MustRegister(
 		APIResponseTime,
 		APIRequestsCounter,
-		WorkerRunTime,
-		WorkerSuccessCounter,
-		WorkerErrorCounter,
 	)
 	port := ":9090"
 	if envPort, ok := os.LookupEnv("MARATHON_PROMETHEUS_PORT"); ok {
