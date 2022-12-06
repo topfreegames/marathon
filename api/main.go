@@ -164,6 +164,7 @@ func (a *Application) configureApplication() {
 	_, w, _ := os.Pipe()
 	e.Logger.SetOutput(w)
 	e.Pre(middleware.RemoveTrailingSlash())
+	e.Use(NewMetricsReporterMiddleware(a).Serve)
 
 	// Base Routes
 	e.GET("/healthcheck", a.HealthcheckHandler)

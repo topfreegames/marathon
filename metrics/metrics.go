@@ -24,7 +24,7 @@ func AllowedMuxVars() []string {
 }
 
 func buildAPIMetricsLabels() []string {
-	return append([]string{"route", "method"}, AllowedMuxVars()...)
+	return append([]string{"route", "method", "status"}, AllowedMuxVars()...)
 }
 
 var (
@@ -47,61 +47,6 @@ var (
 			Subsystem: "api",
 			Name:      "requests_counter",
 			Help:      "A counter of api requests",
-		},
-		buildAPIMetricsLabels(),
-	)
-
-	// APIStatusCode1XXCounter counter
-	APIStatusCode1XXCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "api",
-			Name:      "requests_status_code_1xx_counter",
-			Help:      "A counter of api requests with status 1xx",
-		},
-		buildAPIMetricsLabels(),
-	)
-
-	// APIStatusCode2XXCounter counter
-	APIStatusCode2XXCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "api",
-			Name:      "requests_status_code_2xx_counter",
-			Help:      "A counter of api requests with status 2xx",
-		},
-		buildAPIMetricsLabels(),
-	)
-
-	// APIStatusCode3XXCounter counter
-	APIStatusCode3XXCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "api",
-			Name:      "requests_status_code_3xx_counter",
-			Help:      "A counter of api requests with status 3xx",
-		},
-		buildAPIMetricsLabels(),
-	)
-
-	// APIStatusCode4XXCounter counter
-	APIStatusCode4XXCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "api",
-			Name:      "requests_status_code_4xx_counter",
-			Help:      "A counter of api requests with status 4xx",
-		},
-		buildAPIMetricsLabels(),
-	)
-
-	// APIStatusCode5XXCounter counter
-	APIStatusCode5XXCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "marathon",
-			Subsystem: "api",
-			Name:      "requests_status_code_5xx_counter",
-			Help:      "A counter of api requests with status 5xx",
 		},
 		buildAPIMetricsLabels(),
 	)

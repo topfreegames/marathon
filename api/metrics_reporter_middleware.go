@@ -1,17 +1,15 @@
 package api
 
 import (
-	"context"
+	"errors"
+	"github.com/labstack/echo"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/opentracing/opentracing-go"
-	tracing "github.com/topfreegames/go-extensions-tracing"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/topfreegames/marathon/metrics"
-	"github.com/topfreegames/marathon/model"
 )
 
 // MetricsReporterMiddleware handles logging
@@ -32,62 +30,37 @@ func NewMetricsReporterMiddleware(a *Application) *MetricsReporterMiddleware {
 	return m
 }
 
-type contextKey string
+// Serve executes the middleware logic.
+// Implementation based on: https://github.com/labstack/echo-contrib/blob/master/prometheus/prometheus.go#L394
+func (m *MetricsReporterMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		start := time.Now()
 
-// MetricsReporterKey is the key used to store the metrics reporter in the context
-const metricsReporterKey = contextKey("metricsReporter")
-
-// MixedMetricsReporter is responsible for storing the mixed metrics reporter in the context
-func newContextWithMetricsReporter(ctx context.Context, mr *model.MixedMetricsReporter) context.Context {
-	c := context.WithValue(ctx, metricsReporterKey, mr)
-	return c
-}
-
-func trace(ctx context.Context, operationName string, tags opentracing.Tags, f func()) {
-	var parent opentracing.SpanContext
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		parent = span.Context()
-	}
-	reference := opentracing.ChildOf(parent)
-	if tags == nil {
-		tags = opentracing.Tags{}
-	}
-	tags["span.kind"] = "server"
-	span := opentracing.StartSpan(operationName, reference, tags)
-	defer span.Finish()
-	defer tracing.LogPanic(span)
-	f()
-}
-
-func (m *MetricsReporterMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	trace(r.Context(), "MetricsReporterMiddleware", nil, func() {
-		ctx := newContextWithMetricsReporter(r.Context(), model.NewMixedMetricsReporter())
-
-		// Call the next middleware/handler in chain
-		startTime := time.Now()
-		m.Next.ServeHTTP(w, r.WithContext(ctx))
-		defer func() {
-			labels := m.PrometheusLabelsFromRequest(r)
-			timeUsed := float64(time.Since(startTime).Nanoseconds() / (1000 * 1000))
-			statusCode := r.Response.StatusCode
-			if statusCode >= 100 && statusCode < 200 {
-				metrics.APIStatusCode1XXCounter.With(labels).Inc()
-			} else if statusCode >= 200 && statusCode < 300 {
-				metrics.APIStatusCode2XXCounter.With(labels).Inc()
-			} else if statusCode >= 300 && statusCode < 400 {
-				metrics.APIStatusCode3XXCounter.With(labels).Inc()
-			} else if statusCode >= 400 && statusCode < 500 {
-				metrics.APIStatusCode4XXCounter.With(labels).Inc()
-			} else if statusCode >= 500 {
-				metrics.APIStatusCode5XXCounter.With(labels).Inc()
+		err := next(c)
+		status := c.Response().Status
+		if err != nil {
+			var httpError *echo.HTTPError
+			if errors.As(err, &httpError) {
+				status = httpError.Code
 			}
-			metrics.APIResponseTime.With(labels).Observe(timeUsed)
-			metrics.APIRequestsCounter.With(labels).Inc()
-		}()
-	})
+			if status == 0 || status == http.StatusOK {
+				status = http.StatusInternalServerError
+			}
+		}
+
+		elapsed := float64(time.Since(start)) / float64(time.Second)
+
+		labels := m.prometheusLabelsFromRequest(c.Request())
+		labels["status"] = strconv.Itoa(status)
+
+		metrics.APIResponseTime.With(labels).Observe(elapsed)
+		metrics.APIRequestsCounter.With(labels).Inc()
+
+		return err
+	}
 }
 
-func (m MetricsReporterMiddleware) PrometheusLabelsFromRequest(r *http.Request) prometheus.Labels {
+func (m *MetricsReporterMiddleware) prometheusLabelsFromRequest(r *http.Request) prometheus.Labels {
 	//keep only allowedMuxVars
 	labels := prometheus.Labels{}
 	for k := range m.AllowedMuxVars {
