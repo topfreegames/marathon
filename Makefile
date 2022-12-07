@@ -21,7 +21,7 @@
 MY_IP=`ifconfig | grep --color=none -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep --color=none -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
 BIN_PATH = "./bin"
 BIN_NAME = "marathon"
-GODIRS = $(shell go list ../... | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
+GODIRS = $(shell go list . | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
 
 setup-hooks:
 	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit

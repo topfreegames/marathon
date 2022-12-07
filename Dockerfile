@@ -24,7 +24,7 @@ FROM golang:1.19-alpine AS build
 LABEL MAINTAINER="TFG Co <backend@tfgco.com>"
 
 RUN apk update
-RUN apk add make git g++ bash python wget pkgconfig
+RUN apk add make git g++ bash python3 wget pkgconfig
 
 ENV LIBRDKAFKA_VERSION 0.11.6
 RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
@@ -35,9 +35,10 @@ RUN wget -O /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/ede
 RUN mkdir -p /go/src/github.com/topfreegames/marathon
 WORKDIR /go/src/github.com/topfreegames/marathon
 
+ADD . /go/src/github.com/topfreegames/marathon
+
 RUN go mod vendor
 
-ADD . /go/src/github.com/topfreegames/marathon
 
 ENV CPLUS_INCLUDE_PATH /usr/local/include
 ENV LIBRARY_PATH /usr/local/lib
@@ -54,4 +55,4 @@ WORKDIR /app
 EXPOSE 8080 8081
 VOLUME /app/config
 
-CMD /app/marathon start-api -c /app/config/default.yaml
+CMD /app/marathon start-api -d -c /app/config/default.yaml -b 0.0.0.0

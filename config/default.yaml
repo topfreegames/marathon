@@ -57,7 +57,7 @@ workers:
     maxRetries: 5
   redis:
     poolSize: 10
-    host: localhost
+    host: 0.0.0.0
     port: 6333
     db: 0
     pass:
