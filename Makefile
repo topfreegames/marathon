@@ -18,7 +18,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-MY_IP=`ifconfig | grep --color=none -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep --color=none -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
 BIN_PATH = "./bin"
 BIN_NAME = "marathon"
 GODIRS = $(shell go list . | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
@@ -48,7 +47,7 @@ cross: assets
 	@echo "Building for linux-i386..."
 	@env GOOS=linux GOARCH=386 go build -o ${BIN_PATH}/${BIN_NAME}-linux-i386
 	@echo "Building for linux-x86_64..."
-	@env GOOS=linux GOARCH=amd64 go build -o ${BIN_PATH}/${BIN_NAME}-linux-x86_64
+	@env GOOS=linux GOARCH=amd64 go buld -o ${BIN_PATH}/${BIN_NAME}-linux-x86_64
 	@echo "Building for darwin-i386..."
 	@env GOOS=darwin GOARCH=386 go build -o ${BIN_PATH}/${BIN_NAME}-darwin-i386
 	@echo "Building for darwin-x86_64..."
@@ -61,11 +60,16 @@ setup-ci:
 
 prepare-dev: deps create-db migrate
 
-run:
-	@go run main.go start-api -d -c ./config/default.yaml
-
 run-api:
 	@go run main.go start-api -d -c ./config/default.yaml
+
+run-api-docker:
+	@docker build . -t marathon
+	@docker run \
+		-p 8080:8080 \
+		--network marathon_default \
+		-v $$PWD/config:/app/config \
+		marathon /app/marathon start-api -c /app/config/local_compose.yaml -b 0.0.0.0 -d
 
 run-workers:
 	@go run main.go start-workers -d -c ./config/default.yaml
@@ -89,18 +93,18 @@ wait-for-pg:
 deps: start-deps wait-for-pg
 
 start-deps:
-	@echo "Starting dependencies using HOST IP of ${MY_IP}..."
-	@env MY_IP=${MY_IP} docker-compose --project-name marathon up -d
+	@echo "Starting dependencies..."
+	@docker-compose --project-name marathon up -d
 	@sleep 10
 	@echo "Dependencies started successfully."
 
 stop-deps:
-	@env MY_IP=${MY_IP} docker-compose --project-name marathon down
+	@docker-compose --project-name marathon down
 
 test: test-services test-run
 
 test-run:
-	@env MY_IP=${MY_IP} ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
+	@ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
 	@$(MAKE) test-coverage-func
 
 test-coverage-func:

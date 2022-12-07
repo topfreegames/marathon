@@ -1,0 +1,75 @@
+---
+db:
+  host: postgres
+  port: 5432
+  user: marathon_user
+  pass: ""
+  poolSize: 20
+  maxRetries: 3
+  database: marathon
+push:
+  db:
+    host: postgres
+    port: 5432
+    user: marathon_user
+    pass: ""
+    poolSize: 20
+    maxRetries: 3
+    database: push
+s3:
+  bucket: "tfg-push-notifications"
+  region: "us-east-1"
+  folder: "development/jobs"
+  controlGroupFolder: "development/control-groups"
+  daysExpiry: 1
+  accessKey: "ACCESS-KEY"
+  secretAccessKey: "SECRET-ACCESS-KEY"
+kafka:
+  bootstrapServers: kafka:9092
+workers:
+  statsPort: 8081
+  direct:
+    concurrency: 10
+    maxRetries: 5
+  createBatchesFromFilters:
+    concurrency: 10
+    maxRetries: 5
+  dbToCsv:
+    concurrency: 10
+    maxRetries: 5
+  csvSplitWorker:
+    concurrency: 10
+    maxRetries: 5
+  createBatches:
+    pageProcessingConcurrency: 20
+    concurrency: 10
+    maxRetries: 5
+  processBatch:
+    concurrency: 10
+    maxBatchFailure: 0.05
+    maxUserFailureInBatch: 0.05
+    intervalToSendCompletedJob: 10m
+  jobCompleted:
+    concurrency: 10
+    maxRetries: 5
+  resume:
+    concurrency: 10
+    maxRetries: 5
+  redis:
+    poolSize: 10
+    host: redis
+    port: 6379
+    db: 0
+    pass:
+  topicTemplate: "%s-%s-c"
+feedbackListener:
+  flushInterval: 5000
+  gracefulShutdownTimeout: 30
+  kafka:
+    topics:
+      - "^.*-feedbacks$"
+    group: marathon-consumer-group
+    sessionTimeout: 6000
+    handleAllMessagesBeforeExiting: true
+    offsetResetStrategy: latest
+    brokers: kafka:9092
