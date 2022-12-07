@@ -9,16 +9,15 @@ require (
 	github.com/aws/aws-sdk-go v1.12.72
 	github.com/confluentinc/confluent-kafka-go v0.11.6
 	github.com/getsentry/raven-go v0.2.1-0.20190419175539-919484f041ea
-	github.com/gorilla/mux v1.8.0
 	github.com/jarcoal/httpmock v1.2.0
 	github.com/jrallison/go-workers v0.0.0-20161202000216-d60d79dbbfbb
+	github.com/labstack/echo-contrib v0.13.0
 	github.com/labstack/echo/v4 v4.9.1
 	github.com/lib/pq v0.0.0-20160806144029-80f8150043c8
 	github.com/newrelic/go-agent v1.11.0
 	github.com/onsi/ginkgo v1.4.0
 	github.com/onsi/gomega v1.4.1
 	github.com/pressly/goose v0.0.0-20161106184528-d6e8fe029271
-	github.com/prometheus/client_golang v1.14.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sendgrid/sendgrid-go v3.4.1+incompatible
 	github.com/sirupsen/logrus v1.6.0
@@ -65,9 +64,10 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
-	github.com/opentracing/opentracing-go v1.1.0 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml v1.2.0 // indirect
 	github.com/pierrec/lz4 v0.0.0-20190327172049-315a67e90e41 // indirect
+	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
@@ -86,7 +86,7 @@ require (
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
-	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
+	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

@@ -33,6 +33,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 
+	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/log"
@@ -164,7 +165,10 @@ func (a *Application) configureApplication() {
 	_, w, _ := os.Pipe()
 	e.Logger.SetOutput(w)
 	e.Pre(middleware.RemoveTrailingSlash())
-	e.Use(NewMetricsReporterMiddleware(a).Serve)
+
+	// Add metrics middleware from echo-contrib
+	p := prometheus.NewPrometheus("echo", nil)
+	p.Use(e)
 
 	// Base Routes
 	e.GET("/healthcheck", a.HealthcheckHandler)
