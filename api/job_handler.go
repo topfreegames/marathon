@@ -30,7 +30,7 @@ import (
 
 	"gopkg.in/pg.v5/types"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"

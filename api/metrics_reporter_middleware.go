@@ -2,7 +2,7 @@ package api
 
 import (
 	"errors"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
 	"time"
@@ -31,7 +31,7 @@ func NewMetricsReporterMiddleware(a *Application) *MetricsReporterMiddleware {
 }
 
 // Serve executes the middleware logic.
-// Implementation based on: https://github.com/labstack/echo-contrib/blob/master/prometheus/prometheus.go#L394
+// Implementation based on: https://github.com/labstack/echo/v4-contrib/blob/master/prometheus/prometheus.go#L394
 func (m *MetricsReporterMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		start := time.Now()

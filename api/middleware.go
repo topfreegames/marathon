@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/getsentry/raven-go"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
