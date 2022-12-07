@@ -75,7 +75,12 @@ run-workers:
 	@go run main.go start-workers -d -c ./config/default.yaml
 
 migrate:
-	@go run main.go migrations up
+	@docker build . -t marathon
+	@docker run \
+		--network marathon_default \
+		-v $$PWD:/go/src/github.com/topfreegames/marathon \
+		--workdir /go/src/github.com/topfreegames/marathon \
+		marathon go run main.go migrations up -c /app/config/local_compose.yaml 
 
 test-migrations:
 	@go run main.go migrations up -m test_migrations
@@ -87,7 +92,7 @@ create-db:
 	@psql -U postgres -h localhost -p 8585 -f db/create.sql > /dev/null
 
 wait-for-pg:
-	@until docker exec marathon_postgres_1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
+	@until docker exec marathon-postgres-1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
 	@sleep 2
 
 deps: start-deps wait-for-pg
