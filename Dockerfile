@@ -52,7 +52,7 @@ RUN rm -r /go/src/github.com/topfreegames/marathon
 
 WORKDIR /app
 
-EXPOSE 8080 8081
+EXPOSE 8080 8081 9090
 VOLUME /app/config
 
 CMD /app/marathon start-api -c /app/config/default.yaml -d -b 0.0.0.0

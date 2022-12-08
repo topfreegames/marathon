@@ -42,19 +42,20 @@ import (
 
 // Application is the api main struct
 type Application struct {
-	Debug          bool
-	API            *echo.Echo
-	Logger         zap.Logger
-	Port           int
-	Host           string
-	DB             interfaces.DB
-	PushDB         interfaces.DB
-	ConfigPath     string
-	Config         *viper.Viper
-	NewRelic       newrelic.Application
-	Worker         *worker.Worker
-	S3Client       interfaces.S3
-	SendgridClient *extensions.SendgridClient
+	Debug              bool
+	API                *echo.Echo
+	PrometheusExporter *echo.Echo
+	Logger             zap.Logger
+	Port               int
+	Host               string
+	DB                 interfaces.DB
+	PushDB             interfaces.DB
+	ConfigPath         string
+	Config             *viper.Viper
+	NewRelic           newrelic.Application
+	Worker             *worker.Worker
+	S3Client           interfaces.S3
+	SendgridClient     *extensions.SendgridClient
 }
 
 // GetApplication returns a configured api
@@ -167,8 +168,11 @@ func (a *Application) configureApplication() {
 	e.Pre(middleware.RemoveTrailingSlash())
 
 	// Add metrics middleware from echo-contrib
+	prometheusExporter := echo.New()
+	prometheusExporter.HideBanner = true
 	p := prometheus.NewPrometheus("echo", nil)
-	p.Use(e)
+	p.SetMetricsPath(prometheusExporter)
+	e.Use(p.HandlerFunc)
 
 	// Base Routes
 	e.GET("/healthcheck", a.HealthcheckHandler)
@@ -233,6 +237,7 @@ func (a *Application) configureApplication() {
 	userGroup.DELETE("/:uid", a.DeleteUserHandler)
 
 	a.API = e
+	a.PrometheusExporter = prometheusExporter
 }
 
 func (a *Application) configureDatabase() error {
@@ -304,6 +309,15 @@ func (a *Application) configureNewRelic() error {
 
 // Start starts the api
 func (a *Application) Start() {
+	go func() {
+		err := a.PrometheusExporter.Start(fmt.Sprintf("%s:%d", a.Host, 9090))
+		if err != nil {
+			log.P(a.Logger, "Cannot start prometheus exporter.", func(cm log.CM) {
+				cm.Write(zap.Error(err))
+			})
+		}
+	}()
+
 	err := a.API.Start(fmt.Sprintf("%s:%d", a.Host, a.Port))
 	if err != nil {
 		log.P(a.Logger, "Cannot start api.", func(cm log.CM) {

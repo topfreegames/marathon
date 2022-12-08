@@ -67,6 +67,7 @@ run-api-docker:
 	@docker build . -t marathon
 	@docker run \
 		-p 8080:8080 \
+		-p 9090:9090 \
 		--network marathon_default \
 		-v $$PWD/config:/app/config \
 		marathon /app/marathon start-api -c /app/config/local_compose.yaml -b 0.0.0.0 -d
