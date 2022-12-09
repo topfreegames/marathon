@@ -32,3 +32,5 @@ _testmain.go
 *.coverprofile
 
 .idea/
+
+.DS_STORE
