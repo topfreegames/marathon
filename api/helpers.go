@@ -23,20 +23,20 @@
 package api
 
 import (
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	newrelic "github.com/newrelic/go-agent"
 )
 
 // RecordNotFoundString is the string returned when a record is not found
 var RecordNotFoundString = "pg: no rows in result set"
 
-//Error is a struct to help return errors
+// Error is a struct to help return errors
 type Error struct {
 	Reason string          `json:"reason"`
 	Value  InputValidation `json:"value"`
 }
 
-//GetTX returns new relic transaction
+// GetTX returns new relic transaction
 func GetTX(c echo.Context) newrelic.Transaction {
 	tx := c.Get("txn")
 	if tx == nil {
@@ -46,7 +46,7 @@ func GetTX(c echo.Context) newrelic.Transaction {
 	return tx.(newrelic.Transaction)
 }
 
-//WithSegment adds a segment to new relic transaction
+// WithSegment adds a segment to new relic transaction
 func WithSegment(name string, c echo.Context, f func() error) error {
 	tx := GetTX(c)
 	if tx == nil {

@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -56,7 +56,7 @@ func (a *Application) ListUsersHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, users)
 }
 
-//CreateUserHandler is the method called when a post to /users is called
+// CreateUserHandler is the method called when a post to /users is called
 func (a *Application) CreateUserHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "userHandler"),
@@ -95,7 +95,7 @@ func (a *Application) CreateUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, user)
 }
 
-//GetUserHandler is the method called when a get to /users/:id is called
+// GetUserHandler is the method called when a get to /users/:id is called
 func (a *Application) GetUserHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "userHandler"),
@@ -125,7 +125,7 @@ func (a *Application) GetUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-//UpdateUserHandler is the method called when a put to /users/:id is called
+// UpdateUserHandler is the method called when a put to /users/:id is called
 func (a *Application) UpdateUserHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "userHandler"),
@@ -168,7 +168,7 @@ func (a *Application) UpdateUserHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-//DeleteUserHandler is the method called when a delete to /users/:id is called
+// DeleteUserHandler is the method called when a delete to /users/:id is called
 func (a *Application) DeleteUserHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "userHandler"),

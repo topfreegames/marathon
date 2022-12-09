@@ -43,7 +43,7 @@ Marathon can be used with [Pusher](https://github.com/topfreegames/pusher/). In 
 
 For the devs out there, our code is in Go, but more specifically:
 
-* Web Framework - [Echo](https://github.com/labstack/echo);
+* Web Framework - [Echo](https://github.com/labstack/echo/v4);
 * Database - Postgres >= 9.5;
 * Workers - [go-workers](https://github.com/jrallison/go-workers) using Redis.
 * Kafka and Zookeper;

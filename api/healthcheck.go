@@ -25,7 +25,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
 )

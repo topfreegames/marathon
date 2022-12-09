@@ -18,10 +18,9 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-MY_IP=`ifconfig | grep --color=none -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep --color=none -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n 1`
 BIN_PATH = "./bin"
 BIN_NAME = "marathon"
-GODIRS = $(shell go list ../... | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
+GODIRS = $(shell go list . | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
 
 setup-hooks:
 	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
@@ -61,17 +60,28 @@ setup-ci:
 
 prepare-dev: deps create-db migrate
 
-run:
-	@go run main.go start-api -d -c ./config/default.yaml
-
 run-api:
 	@go run main.go start-api -d -c ./config/default.yaml
+
+run-api-docker:
+	@docker build . -t marathon
+	@docker run \
+		-p 8080:8080 \
+		-p 9090:9090 \
+		--network marathon_default \
+		-v $$PWD/config:/app/config \
+		marathon /app/marathon start-api -c /app/config/local_compose.yaml -b 0.0.0.0 -d
 
 run-workers:
 	@go run main.go start-workers -d -c ./config/default.yaml
 
 migrate:
-	@go run main.go migrations up
+	@docker build . -t marathon
+	@docker run \
+		--network marathon_default \
+		-v $$PWD:/go/src/github.com/topfreegames/marathon \
+		--workdir /go/src/github.com/topfreegames/marathon \
+		marathon go run main.go migrations up -c /app/config/local_compose.yaml 
 
 test-migrations:
 	@go run main.go migrations up -m test_migrations
@@ -83,24 +93,24 @@ create-db:
 	@psql -U postgres -h localhost -p 8585 -f db/create.sql > /dev/null
 
 wait-for-pg:
-	@until docker exec marathon_postgres_1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
+	@until docker exec marathon-postgres-1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
 	@sleep 2
 
 deps: start-deps wait-for-pg
 
 start-deps:
-	@echo "Starting dependencies using HOST IP of ${MY_IP}..."
-	@env MY_IP=${MY_IP} docker-compose --project-name marathon up -d
+	@echo "Starting dependencies..."
+	@docker-compose --project-name marathon up -d
 	@sleep 10
 	@echo "Dependencies started successfully."
 
 stop-deps:
-	@env MY_IP=${MY_IP} docker-compose --project-name marathon down
+	@docker-compose --project-name marathon down
 
 test: test-services test-run
 
 test-run:
-	@env MY_IP=${MY_IP} ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
+	@ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
 	@$(MAKE) test-coverage-func
 
 test-coverage-func:

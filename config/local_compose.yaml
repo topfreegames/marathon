@@ -1,16 +1,16 @@
 ---
 db:
-  host: localhost
-  port: 8585
-  user: postgres
+  host: postgres
+  port: 5432
+  user: marathon_user
   pass: ""
   poolSize: 20
   maxRetries: 3
   database: marathon
 push:
   db:
-    host: localhost
-    port: 8558
+    host: postgres
+    port: 5432
     user: marathon_user
     pass: ""
     poolSize: 20
@@ -25,7 +25,7 @@ s3:
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
 kafka:
-  bootstrapServers: localhost:9940
+  bootstrapServers: kafka:9092
 workers:
   statsPort: 8081
   direct:
@@ -57,8 +57,8 @@ workers:
     maxRetries: 5
   redis:
     poolSize: 10
-    host: 0.0.0.0
-    port: 6333
+    host: redis
+    port: 6379
     db: 0
     pass:
   topicTemplate: "%s-%s-c"
@@ -72,4 +72,4 @@ feedbackListener:
     sessionTimeout: 6000
     handleAllMessagesBeforeExiting: true
     offsetResetStrategy: latest
-    brokers: localhost:9092
+    brokers: kafka:9092

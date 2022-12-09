@@ -5,7 +5,7 @@ Marathon
 )](http://marathon.readthedocs.io/en/latest/)
 
 The Marathon push notification platform makes it very easy to send massive push notifications to tens of millions of users for several different apps. The architecture is composed of two main modules:
-- An API built on top of [Echo Web Framework](https://github.com/labstack/echo).
+- An API built on top of [Echo Web Framework](https://github.com/labstack/echo/v4).
 - Workers built on top of [go-workers](https://github.com/jrallison/go-workers).
 
 ## Features
@@ -30,20 +30,13 @@ Run `make setup`.
 
 ### Running the application
 
-Make sure you have docker compose installed as we'll use it to run all Marathon dependencies:
+Make sure you have docker compose installed as we'll use it to run all Marathon dependencies with `make prepare-dev`. The list of dependencies follows:
 - Kafka
 - Zookeper
 - Postgres
 - Redis
 
-Create the development database with
-
-```
-make create-db
-make migrate
-```
-
-Run the api with `make run-api`.
+You can run the api with `make run-api`. Moreover, you can run inside a container bypassing the need to install dependencies on your machine by running `make run-api-docker`.
 
 Run the workers with `make run-workers`.
 
