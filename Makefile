@@ -47,7 +47,7 @@ cross: assets
 	@echo "Building for linux-i386..."
 	@env GOOS=linux GOARCH=386 go build -o ${BIN_PATH}/${BIN_NAME}-linux-i386
 	@echo "Building for linux-x86_64..."
-	@env GOOS=linux GOARCH=amd64 go buld -o ${BIN_PATH}/${BIN_NAME}-linux-x86_64
+	@env GOOS=linux GOARCH=amd64 go build -o ${BIN_PATH}/${BIN_NAME}-linux-x86_64
 	@echo "Building for darwin-i386..."
 	@env GOOS=darwin GOARCH=386 go build -o ${BIN_PATH}/${BIN_NAME}-darwin-i386
 	@echo "Building for darwin-x86_64..."
