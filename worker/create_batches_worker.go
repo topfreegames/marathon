@@ -93,6 +93,11 @@ func (b *CreateBatchesWorker) updateTotalTokens(totalTokens int, job *model.Job)
 	b.checkErr(job, err)
 }
 
+func (b *CreateBatchesWorker) updateCompletedAt(unixTime int64, job *model.Job) {
+	_, err := b.Workers.MarathonDB.Model(job).Set("completed_at = ?", unixTime).Where("id = ?", job.ID).Update()
+	b.checkErr(job, err)
+}
+
 func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.Job) *[]User {
 	var users []User
 	start := time.Now()
@@ -285,8 +290,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		b.processIDs(ids, &msg)
 
 		if msg.Job.TotalUsers == 0 {
-			_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("completed_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
-			b.checkErr(&msg.Job, err)
+			b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
 			msg.Job.TagError(b.Workers.MarathonDB, nameCreateBatches, "the job has finished without finding any valid user ids")
 		} else {
 			msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
