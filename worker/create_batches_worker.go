@@ -116,10 +116,13 @@ func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
 		cm.Write(zap.Int("usersInBatch", numUsersFromBatch))
 	})
 
-	b.sendBatches(*usersFromBatch, job)
+	if numUsersFromBatch != 0 {
+		b.sendBatches(*usersFromBatch, job)
 
-	b.updateTotalBatches(1, job)
-	b.updateTotalTokens(numUsersFromBatch, job)
+		b.updateTotalUsers(job, numUsersFromBatch)
+		b.updateTotalBatches(1, job)
+		b.updateTotalTokens(numUsersFromBatch, job)
+	}
 }
 
 func (b *CreateBatchesWorker) sendBatches(users []User, job *model.Job) {
@@ -168,9 +171,6 @@ func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 			)
 		})
 	}
-
-	// update total job info
-	b.updateTotalUsers(&msg.Job, len(userIds))
 
 	// pull from db and send to kafta
 	b.processBatch(&userIds, &msg.Job)
@@ -274,15 +274,24 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		b.checkErr(&msg.Job, err)
 	}
 
-	// pull from db, send to control and send to kafta
+	// pull from db, send to control and send to kafka
 	b.processIDs(ids, &msg)
 
 	completedParts := b.setAsComplete(msg.Part, &msg.Job)
 
 	if completedParts == msg.TotalParts {
 		ids = b.getSplitedIds(msg.TotalParts, &msg.Job)
+
 		b.processIDs(ids, &msg)
-		msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
+
+		if msg.Job.TotalUsers == 0 {
+			_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("completed_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
+			b.checkErr(&msg.Job, err)
+			msg.Job.TagError(b.Workers.MarathonDB, nameCreateBatches, "the job has finished without finding any valid user ids")
+		} else {
+			msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
+		}
+
 		// TODO: schedule a job to run after send all messages. This job will check
 		// for errors and delete waste if a error happen
 	} else {

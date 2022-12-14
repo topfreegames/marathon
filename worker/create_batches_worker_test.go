@@ -81,12 +81,19 @@ a04087d6-4d95-4d99-901f-a1ff8578a2bf
 dc2be5c1-2b6d-47d6-9a45-c188fd96d124`)
 		fakeData6 := []byte(`userIds
 stange-token`)
+
+		// Ids that do not exist
+		fakeData7 := []byte(`userIds
+d6333e62-2778-463c-b7d6-4d99aab04fb8
+438d72f7-3e2f-4439-be9d-ee48b9ba2e76`)
+
 		fakeS3.PutObject("test/jobs/obj1.csv", &fakeData1)
 		fakeS3.PutObject("test/jobs/obj2.csv", &fakeData2)
 		fakeS3.PutObject("test/jobs/obj3.csv", &fakeData3)
 		fakeS3.PutObject("test/jobs/obj4.csv", &fakeData4)
 		fakeS3.PutObject("test/jobs/obj5.csv", &fakeData5)
 		fakeS3.PutObject("test/jobs/obj6.csv", &fakeData6)
+		fakeS3.PutObject("test/jobs/obj7.csv", &fakeData7)
 		app = CreateTestApp(w.MarathonDB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -790,6 +797,39 @@ stange-token`)
 			err = w.MarathonDB.Model(updatedJob).Column("job.*").Where("job.id = ?", updatedJob.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(updatedJob.Status).To(Equal("stopped"))
+		})
+
+		It("should finish if no id is known and add error message", func() {
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "test/jobs/obj7.csv",
+			})
+
+			_, err := w.CreateCSVSplitJob(j)
+			Expect(err).NotTo(HaveOccurred())
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeEquivalentTo(0))
+
+			err = w.MarathonDB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j.CompletedAt).ToNot(BeNil())
 		})
 	})
 

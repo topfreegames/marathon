@@ -93,7 +93,7 @@ create-db:
 	@psql -U postgres -h localhost -p 8585 -f db/create.sql > /dev/null
 
 wait-for-pg:
-	@until docker exec marathon-postgres-1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
+	@until docker exec marathon_postgres_1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
 	@sleep 2
 
 deps: start-deps wait-for-pg
