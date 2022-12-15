@@ -48,11 +48,6 @@ type BatchPart struct {
 
 const nameSCVSplit = "csv_split_worker"
 
-// Run batches of 10mb of data. This value is not configurable
-// to prevent memory overflow. If you want to reduce the maximum
-// memory use, reduce the number of workers and vice-versa.
-const partSize = 10 * 1024 * 1024
-
 // CSVSplitWorker is the CSVSplitWorker struct
 type CSVSplitWorker struct {
 	Workers *Worker
@@ -72,6 +67,7 @@ func NewCSVSplitWorker(workers *Worker) *CSVSplitWorker {
 // Process processes the messages sent to batch worker queue
 func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	var id uuid.UUID
+	csvSizeLimit := b.getCSVSizeLimitBytes()
 	err := json.Unmarshal([]byte(message.Args().ToJson()), &id)
 	checkErr(b.Logger, err)
 
@@ -97,12 +93,12 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	b.checkErr(job, err)
 
 	start := 0
-	totalParts := int(math.Ceil(float64(totalSize) / float64(partSize)))
+	totalParts := int(math.Ceil(float64(totalSize) / float64(csvSizeLimit)))
 
 	for i := 0; i < totalParts; i++ {
 		size := totalSize - start
-		if size > partSize {
-			size = partSize
+		if size > csvSizeLimit {
+			size = csvSizeLimit
 		}
 		_, err := b.Workers.CreateBatchesJob(&BatchPart{
 			Start:      start,
@@ -124,4 +120,11 @@ func (b *CSVSplitWorker) checkErr(job *model.Job, err error) {
 		job.TagError(b.Workers.MarathonDB, nameSCVSplit, err.Error())
 		checkErr(b.Logger, err)
 	}
+}
+
+func (b *CSVSplitWorker) getCSVSizeLimitBytes() int {
+	b.Workers.Config.SetDefault("workers.csvSplitWorker.csvSizeLimitMB", 10)
+	csvSizeLimitMB := b.Workers.Config.GetInt("workers.csvSplitWorker.csvSizeLimitMB")
+
+	return csvSizeLimitMB * 1024 * 1024
 }
