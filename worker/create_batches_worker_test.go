@@ -733,7 +733,7 @@ d6333e62-2778-463c-b7d6-4d99aab04fb8
 			err = w.MarathonDB.Model(job).Where("id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalTokens).To(BeEquivalentTo(4))
-			Expect(job.TotalUsers).To(BeEquivalentTo(2))
+			Expect(job.TotalUsers).To(BeEquivalentTo(4))
 		})
 
 		It("should increment job totalTokens when previous totalTokens", func() {
