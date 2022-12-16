@@ -59,7 +59,8 @@ func NewCreateBatchesWorker(workers *Worker) *CreateBatchesWorker {
 }
 
 // ReadFromCSV reads CSV from S3 and return correspondent array of strings
-func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, job *model.Job) []string {
+func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, msg *BatchPart) []string {
+	job := &msg.Job
 	for i, b := range *buffer {
 		if b == 0x0D {
 			(*buffer)[i] = 0x0A
@@ -71,7 +72,7 @@ func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, job *model.Job) []stri
 	b.checkErr(job, err)
 	res := []string{}
 	for i, line := range lines {
-		if i == 0 {
+		if i == 0 && msg.Part == 0 {
 			continue
 		}
 		res = append(res, line[0])
@@ -184,7 +185,7 @@ func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 // get the list of ids and send to redis the splited ids
 func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []string {
 	bBystes := buffer.Bytes()
-	lines := b.ReadFromCSV(&bBystes, &msg.Job)
+	lines := b.ReadFromCSV(&bBystes, msg)
 	totalLines := len(lines)
 	start := 0
 	end := totalLines
