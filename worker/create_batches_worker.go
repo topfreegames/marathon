@@ -41,6 +41,7 @@ import (
 )
 
 const nameCreateBatches = "create_batches_worker"
+const uuidSizeBytes = 36
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
@@ -209,9 +210,9 @@ func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []str
 
 func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []string {
 	var ids []string
-	for i := 1; i < totalParts-1; i++ {
-		begin := fmt.Sprintf("%s-INI-%d", job.ID, i)
-		end := fmt.Sprintf("%s-END-%d", job.ID, i+1)
+	for i := 0; i < totalParts-1; i++ {
+		begin := fmt.Sprintf("%s-INI-%d", job.ID, i+1)
+		end := fmt.Sprintf("%s-END-%d", job.ID, i)
 
 		beginStr, err := b.Workers.RedisClient.Get(begin).Result()
 		if err == redis.Nil {
@@ -224,7 +225,12 @@ func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []st
 		}
 		b.checkErr(job, err)
 
-		ids = append(ids, beginStr+endStr)
+		if len(beginStr) == uuidSizeBytes {
+			ids = append(ids, beginStr)
+			ids = append(ids, endStr)
+		} else {
+			ids = append(ids, endStr+beginStr)
+		}
 
 		b.Workers.RedisClient.Del(begin)
 		b.Workers.RedisClient.Del(end)
@@ -274,11 +280,6 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	b.checkErr(&msg.Job, err)
 
 	ids := b.getIDs(buffer, &msg)
-
-	if len(ids) == 0 {
-		_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
-		b.checkErr(&msg.Job, err)
-	}
 
 	// pull from db, send to control and send to kafka
 	b.processIDs(ids, &msg)

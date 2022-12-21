@@ -93,12 +93,12 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	b.checkErr(job, err)
 
 	start := 0
-	totalParts := int(math.Ceil(float64(totalSize) / float64(csvSizeLimit)))
+	totalParts := int(math.Ceil(float64(totalSize) / csvSizeLimit))
 
 	for i := 0; i < totalParts; i++ {
 		size := totalSize - start
-		if size > csvSizeLimit {
-			size = csvSizeLimit
+		if size > int(math.Ceil(csvSizeLimit)) {
+			size = int(math.Ceil(csvSizeLimit))
 		}
 		_, err := b.Workers.CreateBatchesJob(&BatchPart{
 			Start:      start,
@@ -122,9 +122,9 @@ func (b *CSVSplitWorker) checkErr(job *model.Job, err error) {
 	}
 }
 
-func (b *CSVSplitWorker) getCSVSizeLimitBytes() int {
+func (b *CSVSplitWorker) getCSVSizeLimitBytes() float64 {
 	b.Workers.Config.SetDefault("workers.csvSplitWorker.csvSizeLimitMB", 10)
-	csvSizeLimitMB := b.Workers.Config.GetInt("workers.csvSplitWorker.csvSizeLimitMB")
+	csvSizeLimitMB := b.Workers.Config.GetFloat64("workers.csvSplitWorker.csvSizeLimitMB")
 
 	return csvSizeLimitMB * 1024 * 1024
 }
