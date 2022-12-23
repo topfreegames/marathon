@@ -100,6 +100,8 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
 
+	b.Workers.Statsd.Incr(jobCompletedWorkerStart, job.Labels(), 1)
+
 	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
 
 	if b.Workers.SendgridClient != nil {
@@ -111,12 +113,16 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	b.flushControlGroup(job)
 
 	job.TagSuccess(b.Workers.MarathonDB, nameJobCompleted, "finished")
+	b.Workers.Statsd.Incr(jobCompletedWorkerCompleted, job.Labels(), 1)
+
 	log.I(l, "finished")
 }
 
 func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameJobCompleted, err.Error())
+		b.Workers.Statsd.Incr(jobCompletedWorkerError, job.Labels(), 1)
+
 		checkErr(b.Logger, err)
 	}
 }
