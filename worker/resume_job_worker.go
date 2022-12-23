@@ -66,7 +66,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 
 	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
-	b.Workers.Statsd.Incr(resumeJobWorkerStart, job.Labels(), 1)
+	b.Workers.Statsd.Incr(ResumeJobWorkerStart, job.Labels(), 1)
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job resume_job_worker")
 		err := b.Workers.RedisClient.Del(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Err()
@@ -92,14 +92,14 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 		b.checkErr(job, err)
 	}
 
-	b.Workers.Statsd.Incr(resumeJobWorkerCompleted, job.Labels(), 1)
+	b.Workers.Statsd.Incr(ResumeJobWorkerCompleted, job.Labels(), 1)
 	log.I(b.Logger, "finished resume_job_worker")
 }
 
 func (b *ResumeJobWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
-		job.TagError(b.Workers.MarathonDB, resumeJobWorkerError, err.Error())
-		b.Workers.Statsd.Incr(resumeJobWorkerError, job.Labels(), 1)
+		job.TagError(b.Workers.MarathonDB, ResumeJobWorkerError, err.Error())
+		b.Workers.Statsd.Incr(ResumeJobWorkerError, job.Labels(), 1)
 
 		checkErr(b.Logger, err)
 	}

@@ -178,7 +178,7 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	b.checkErrWithReEnqueue(parsed, l, err)
 
 	log.D(l, "Retrieved job successfully.")
-	b.Workers.Statsd.Incr(processBatchWorkerStart, job.Labels(), 1)
+	b.Workers.Statsd.Incr(ProcessBatchWorkerStart, job.Labels(), 1)
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
@@ -292,14 +292,14 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 		b.checkErr(job, fmt.Errorf("failed to send message to several users, considering batch as failed"))
 	}
 
-	b.Workers.Statsd.Incr(processBatchWorkerCompleted, job.Labels(), 1)
+	b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 	log.I(l, "finished")
 }
 
 func (b *ProcessBatchWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameProcessBatchWorker, err.Error())
-		b.Workers.Statsd.Incr(processBatchWorkerError, job.Labels(), 1)
+		b.Workers.Statsd.Incr(ProcessBatchWorkerError, job.Labels(), 1)
 
 		checkErr(b.Logger, err)
 	}

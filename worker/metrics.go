@@ -1,29 +1,29 @@
 package worker
 
 const (
-	createBatchesWorkerStart     = "starting_create_batches_worker"
-	createBatchesWorkerCompleted = "completed_create_batches_worker"
-	createBatchesWorkerError     = "error_create_batches_worker"
+	CreateBatchesWorkerStart     = "starting_create_batches_worker"
+	CreateBatchesWorkerCompleted = "completed_create_batches_worker"
+	CreateBatchesWorkerError     = "error_create_batches_worker"
 
-	csvSplitWorkerStart     = "starting_csv_split_worker"
-	csvSplitWorkerCompleted = "completed_csv_split_worker"
-	csvSplitWorkerError     = "error_csv_split_worker"
+	CsvSplitWorkerStart     = "starting_csv_split_worker"
+	CsvSplitWorkerCompleted = "completed_csv_split_worker"
+	CsvSplitWorkerError     = "error_csv_split_worker"
 
-	directWorkerStart     = "starting_direct_part"
-	directWorkerCompleted = "completed_direct_worker"
-	directWorkerError     = "error_direct_worker"
+	DirectWorkerStart     = "starting_direct_part"
+	DirectWorkerCompleted = "completed_direct_worker"
+	DirectWorkerError     = "error_direct_worker"
 
-	jobCompletedWorkerStart     = "starting_job_completed_worker"
-	jobCompletedWorkerCompleted = "completed_job_completed_worker"
-	jobCompletedWorkerError     = "error_job_completed_worker"
+	JobCompletedWorkerStart     = "starting_job_completed_worker"
+	JobCompletedWorkerCompleted = "completed_job_completed_worker"
+	JobCompletedWorkerError     = "error_job_completed_worker"
 
-	processBatchWorkerStart     = "starting_process_batch_worker"
-	processBatchWorkerCompleted = "completed_process_batch_worker"
-	processBatchWorkerError     = "error_process_batch_worker"
+	ProcessBatchWorkerStart     = "starting_process_batch_worker"
+	ProcessBatchWorkerCompleted = "completed_process_batch_worker"
+	ProcessBatchWorkerError     = "error_process_batch_worker"
 
-	resumeJobWorkerStart     = "starting_resume_job_worker"
-	resumeJobWorkerCompleted = "completed_resume_job_worker"
-	resumeJobWorkerError     = "error_resume_job_worker"
+	ResumeJobWorkerStart     = "starting_resume_job_worker"
+	ResumeJobWorkerCompleted = "completed_resume_job_worker"
+	ResumeJobWorkerError     = "error_resume_job_worker"
 
-	getCsvFromS3Timing = "get_csv_from_s3"
+	GetCsvFromS3Timing = "get_csv_from_s3"
 )
