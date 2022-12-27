@@ -259,6 +259,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
 	if msg.Job.Status == stoppedJobStatus {
 		l.Info("stopped job")
+		b.Workers.Statsd.Incr(CreateBatchesWorkerCompleted, msg.Job.Labels(), 1)
 		return
 	}
 	l.Info("starting")

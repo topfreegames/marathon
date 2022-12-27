@@ -130,18 +130,22 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	}
 
 	switch job.Status {
 	case "circuitbreak":
 		log.I(l, "circuit break")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	case "paused":
 		log.I(l, "paused")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	case "stopped":
 		log.I(l, "stopped")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	default:
 		log.D(l, "valid")
@@ -163,7 +167,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 		l.Error("Error fetching users", zap.Error(err))
 	}
 
-	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
+	b.Workers.Statsd.Timing(GetUsersFromDbTiming, time.Now().Sub(start), job.Labels(), 1)
 
 	successfulUsers := len(users)
 

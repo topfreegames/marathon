@@ -90,6 +90,7 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job")
+		b.Workers.Statsd.Incr(CsvSplitWorkerCompleted, job.Labels(), 1)
 		return
 	}
 

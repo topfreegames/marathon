@@ -182,6 +182,7 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	}
 
@@ -189,13 +190,16 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	case "circuitbreak":
 		log.I(l, "circuit break")
 		b.moveJobToPausedQueue(job, message)
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	case "paused":
 		log.I(l, "paused")
 		b.moveJobToPausedQueue(job, message)
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	case "stopped":
 		log.I(l, "stopped")
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	default:
 		log.D(l, "valid")

@@ -73,6 +73,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 		if err != nil && err != redis.Nil {
 			checkErr(b.Logger, err)
 		}
+		b.Workers.Statsd.Incr(ResumeJobWorkerCompleted, job.Labels(), 1)
 		return
 	}
 

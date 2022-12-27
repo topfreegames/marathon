@@ -25,5 +25,6 @@ const (
 	ResumeJobWorkerCompleted = "completed_resume_job_worker"
 	ResumeJobWorkerError     = "error_resume_job_worker"
 
-	GetCsvFromS3Timing = "get_csv_from_s3"
+	GetCsvFromS3Timing   = "get_csv_from_s3"
+	GetUsersFromDbTiming = "get_from_pg"
 )
