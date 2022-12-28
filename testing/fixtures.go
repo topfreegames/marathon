@@ -42,7 +42,7 @@ func getOpt(options map[string]interface{}, key string, defaultValue interface{}
 	return val
 }
 
-//CreateTestApp with specified optional values
+// CreateTestApp with specified optional values
 func CreateTestApp(db interfaces.DB, options ...map[string]interface{}) *model.App {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -60,7 +60,7 @@ func CreateTestApp(db interfaces.DB, options ...map[string]interface{}) *model.A
 	return app
 }
 
-//CreateTestApps for n apps
+// CreateTestApps for n apps
 func CreateTestApps(db interfaces.DB, n int, options ...map[string]interface{}) []*model.App {
 	apps := make([]*model.App, n)
 	for i := 0; i < n; i++ {
@@ -71,7 +71,7 @@ func CreateTestApps(db interfaces.DB, n int, options ...map[string]interface{}) 
 	return apps
 }
 
-//CreateTestUser with specified optional values
+// CreateTestUser with specified optional values
 func CreateTestUser(db interfaces.DB, options ...map[string]interface{}) *model.User {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -90,7 +90,7 @@ func CreateTestUser(db interfaces.DB, options ...map[string]interface{}) *model.
 	return user
 }
 
-//CreateTestUsers for n users
+// CreateTestUsers for n users
 func CreateTestUsers(db interfaces.DB, n int, options ...map[string]interface{}) []*model.User {
 	users := make([]*model.User, n)
 	for i := 0; i < n; i++ {
@@ -101,7 +101,7 @@ func CreateTestUsers(db interfaces.DB, n int, options ...map[string]interface{})
 	return users
 }
 
-//GetAppPayload with specified optional values
+// GetAppPayload with specified optional values
 func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -119,7 +119,7 @@ func GetAppPayload(options ...map[string]interface{}) map[string]interface{} {
 	return app
 }
 
-//GetUserPayload with specified optional values
+// GetUserPayload with specified optional values
 func GetUserPayload(options ...map[string]interface{}) map[string]interface{} {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -137,7 +137,7 @@ func GetUserPayload(options ...map[string]interface{}) map[string]interface{} {
 	return user
 }
 
-//CreateTestTemplate with specified optional values
+// CreateTestTemplate with specified optional values
 func CreateTestTemplate(db interfaces.DB, appID uuid.UUID, options ...map[string]interface{}) *model.Template {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -161,7 +161,7 @@ func CreateTestTemplate(db interfaces.DB, appID uuid.UUID, options ...map[string
 	return template
 }
 
-//CreateTestTemplates for n apps
+// CreateTestTemplates for n apps
 func CreateTestTemplates(db interfaces.DB, appID uuid.UUID, n int, options ...map[string]interface{}) []*model.Template {
 	templates := make([]*model.Template, n)
 	for i := 0; i < n; i++ {
@@ -172,7 +172,7 @@ func CreateTestTemplates(db interfaces.DB, appID uuid.UUID, n int, options ...ma
 	return templates
 }
 
-//GetTemplatePayload with specified optional values
+// GetTemplatePayload with specified optional values
 func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{} {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -196,7 +196,7 @@ func GetTemplatePayload(options ...map[string]interface{}) map[string]interface{
 	return template
 }
 
-//GetTemplatePayloads with specified optional values
+// GetTemplatePayloads with specified optional values
 func GetTemplatePayloads(amount int, options ...map[string]interface{}) []map[string]interface{} {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -211,7 +211,7 @@ func GetTemplatePayloads(amount int, options ...map[string]interface{}) []map[st
 	return templates
 }
 
-//CreateTestJob with specified optional values
+// CreateTestJob with specified optional values
 func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
@@ -243,7 +243,7 @@ func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, optio
 	return job
 }
 
-//CreateTestJobs for n apps
+// CreateTestJobs for n apps
 func CreateTestJobs(db interfaces.DB, appID uuid.UUID, templateName string, n int, options ...map[string]interface{}) []*model.Job {
 	jobs := make([]*model.Job, n)
 	for i := 0; i < n; i++ {
@@ -254,7 +254,7 @@ func CreateTestJobs(db interfaces.DB, appID uuid.UUID, templateName string, n in
 	return jobs
 }
 
-//GetJobPayload with specified optional values
+// GetJobPayload with specified optional values
 func GetJobPayload(options ...map[string]interface{}) map[string]interface{} {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {

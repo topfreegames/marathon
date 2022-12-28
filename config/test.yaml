@@ -46,6 +46,7 @@ workers:
   csvSplitWorker:
     concurrency: 10
     maxRetries: 5
+    csvSizeLimitMB: 10
   createBatches:
     pageProcessingConcurrency: 20
     concurrency: 10

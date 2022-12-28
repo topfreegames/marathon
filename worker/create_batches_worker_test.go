@@ -57,9 +57,9 @@ a8e8d2d5-f178-4d90-9b31-683ad3aae920
 5c3033c0-24ad-487a-a80d-68432464c8de
 4223171e-c665-4612-9edd-485f229240bf
 2df5bb01-15d1-4569-bc56-49fa0a33c4c3
-67b872de-8ae4-4763-aef8-7c87a7f928a7
-3f8732a1-8642-4f22-8d77-a9688dd6a5ae
-21854bbf-ea7e-43e3-8f79-9ab2c121b941
+user_id
+idisnotanuuidanditssizecanvaryforeachuser
+gamesendsanuseridthatisnotanuuid
 843a61f8-45b3-44f9-9ab7-8becb2765653`)
 		fakeData2 := []byte(`userids`)
 		fakeData3 := []byte(`userids
@@ -86,6 +86,18 @@ stange-token`)
 		fakeData7 := []byte(`userIds
 d6333e62-2778-463c-b7d6-4d99aab04fb8
 438d72f7-3e2f-4439-be9d-ee48b9ba2e76`)
+		fakeData8 := []byte(`userIds
+9e558649-9c23-469d-a11c-59b05813e3d5
+57be9009-e616-42c6-9cfe-505508ede2d0
+a8e8d2d5-f178-4d90-9b31-683ad3aae920
+5c3033c0-24ad-487a-a80d-68432464c8de`)
+		// Ids are not uuid
+		fakeData9 := []byte(`userIds
+useridisnotanuuid
+gamesendsanuseridthatisnotanuuid
+idisnotanuuidanditssizecanvaryforeachuser
+user_id
+`)
 
 		fakeS3.PutObject("test/jobs/obj1.csv", &fakeData1)
 		fakeS3.PutObject("test/jobs/obj2.csv", &fakeData2)
@@ -94,6 +106,8 @@ d6333e62-2778-463c-b7d6-4d99aab04fb8
 		fakeS3.PutObject("test/jobs/obj5.csv", &fakeData5)
 		fakeS3.PutObject("test/jobs/obj6.csv", &fakeData6)
 		fakeS3.PutObject("test/jobs/obj7.csv", &fakeData7)
+		fakeS3.PutObject("test/jobs/obj8.csv", &fakeData8)
+		fakeS3.PutObject("test/jobs/obj9.csv", &fakeData9)
 		app = CreateTestApp(w.MarathonDB)
 		defaults := map[string]interface{}{
 			"user_name":   "Someone",
@@ -831,6 +845,122 @@ d6333e62-2778-463c-b7d6-4d99aab04fb8
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j.CompletedAt).ToNot(BeNil())
 		})
+
+		It("should not ignore first line if is not the first part of the file", func() {
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "test/jobs/obj8.csv",
+			})
+
+			_, err := w.CreateCSVSplitJob(j)
+			Expect(err).NotTo(HaveOccurred())
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			// it's the size of the header + first 2 id
+			sizeLimit := 81
+			totalParts := 2
+			Expect(err).NotTo(HaveOccurred())
+			createCSVSplitWorker.Workers.Config.Set("workers.csvSplitWorker.csvSizeLimitMB", float64(sizeLimit)/1024/1024)
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			for i := 0; i < totalParts; i++ {
+				jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				msg, err = workers.NewMsg(string(jobData))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+			}
+
+			res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			// two processed batches and 1 batch from split ids process
+			Expect(res).To(BeEquivalentTo(3))
+
+			userIds := map[string]string{}
+			for i := 0; i < int(res); i++ {
+				job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
+				Expect(err).NotTo(HaveOccurred())
+				j1 := map[string]interface{}{}
+				err = json.Unmarshal([]byte(job1), &j1)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
+				wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
+
+				for _, user := range wMessage1.Users {
+					userIds[user.UserID] = user.UserID
+				}
+
+				Expect(err).NotTo(HaveOccurred())
+			}
+			Expect(len(userIds)).To(BeEquivalentTo(4))
+
+			Expect(userIds["9e558649-9c23-469d-a11c-59b05813e3d5"]).To(BeEquivalentTo("9e558649-9c23-469d-a11c-59b05813e3d5"))
+			Expect(userIds["57be9009-e616-42c6-9cfe-505508ede2d0"]).To(BeEquivalentTo("57be9009-e616-42c6-9cfe-505508ede2d0"))
+			Expect(userIds["a8e8d2d5-f178-4d90-9b31-683ad3aae920"]).To(BeEquivalentTo("a8e8d2d5-f178-4d90-9b31-683ad3aae920"))
+			Expect(userIds["5c3033c0-24ad-487a-a80d-68432464c8de"]).To(BeEquivalentTo("5c3033c0-24ad-487a-a80d-68432464c8de"))
+
+		})
+	})
+
+	It("should process all ids even when split a file in middle of a line", func() {
+		a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+		j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
+			"context": context,
+			"filters": map[string]interface{}{},
+			"csvPath": "test/jobs/obj9.csv",
+		})
+
+		_, err := w.CreateCSVSplitJob(j)
+		Expect(err).NotTo(HaveOccurred())
+
+		jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+		Expect(err).NotTo(HaveOccurred())
+		msg, err := workers.NewMsg(string(jobData))
+		Expect(err).NotTo(HaveOccurred())
+		// it's the size of the header + part of the first id
+		sizeLimit := 40
+		totalParts := 3
+		Expect(err).NotTo(HaveOccurred())
+		createCSVSplitWorker.Workers.Config.Set("workers.csvSplitWorker.csvSizeLimitMB", float64(sizeLimit)/1024/1024)
+		Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+		for i := 0; i < totalParts; i++ {
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+		}
+
+		res, err := w.RedisClient.LLen("queue:process_batch_worker").Result()
+		Expect(err).NotTo(HaveOccurred())
+		// two processed batches and 1 batch from split ids process
+		Expect(res).To(BeEquivalentTo(3))
+
+		userIds := map[string]string{}
+		for i := 0; i < int(res); i++ {
+			job1, err := w.RedisClient.LPop("queue:process_batch_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			j1 := map[string]interface{}{}
+			err = json.Unmarshal([]byte(job1), &j1)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(j1["queue"].(string)).To(Equal("process_batch_worker"))
+			wMessage1, err := worker.ParseProcessBatchWorkerMessageArray(j1["args"].([]interface{}))
+			for _, user := range wMessage1.Users {
+				userIds[user.UserID] = user.UserID
+			}
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		Expect(userIds["user_id"]).To(BeEquivalentTo("user_id"))
+		Expect(userIds["useridisnotanuuid"]).To(BeEquivalentTo("useridisnotanuuid"))
+		Expect(userIds["gamesendsanuseridthatisnotanuuid"]).To(BeEquivalentTo("gamesendsanuseridthatisnotanuuid"))
+		Expect(userIds["idisnotanuuidanditssizecanvaryforeachuser"]).To(BeEquivalentTo("idisnotanuuidanditssizecanvaryforeachuser"))
 	})
 
 	// Describe("Read CSV from S3", func() {

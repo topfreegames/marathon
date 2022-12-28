@@ -41,6 +41,7 @@ import (
 )
 
 const nameCreateBatches = "create_batches_worker"
+const uuidSizeBytes = 36
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
@@ -59,7 +60,8 @@ func NewCreateBatchesWorker(workers *Worker) *CreateBatchesWorker {
 }
 
 // ReadFromCSV reads CSV from S3 and return correspondent array of strings
-func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, job *model.Job) []string {
+func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, msg *BatchPart) []string {
+	job := &msg.Job
 	for i, b := range *buffer {
 		if b == 0x0D {
 			(*buffer)[i] = 0x0A
@@ -71,7 +73,7 @@ func (b *CreateBatchesWorker) ReadFromCSV(buffer *[]byte, job *model.Job) []stri
 	b.checkErr(job, err)
 	res := []string{}
 	for i, line := range lines {
-		if i == 0 {
+		if i == 0 && msg.Part == 0 {
 			continue
 		}
 		res = append(res, line[0])
@@ -184,7 +186,7 @@ func (b *CreateBatchesWorker) processIDs(userIds []string, msg *BatchPart) {
 // get the list of ids and send to redis the splited ids
 func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []string {
 	bBystes := buffer.Bytes()
-	lines := b.ReadFromCSV(&bBystes, &msg.Job)
+	lines := b.ReadFromCSV(&bBystes, msg)
 	totalLines := len(lines)
 	start := 0
 	end := totalLines
@@ -208,9 +210,9 @@ func (b *CreateBatchesWorker) getIDs(buffer *bytes.Buffer, msg *BatchPart) []str
 
 func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []string {
 	var ids []string
-	for i := 1; i < totalParts-1; i++ {
-		begin := fmt.Sprintf("%s-INI-%d", job.ID, i)
-		end := fmt.Sprintf("%s-END-%d", job.ID, i+1)
+	for i := 0; i < totalParts-1; i++ {
+		begin := fmt.Sprintf("%s-INI-%d", job.ID, i+1)
+		end := fmt.Sprintf("%s-END-%d", job.ID, i)
 
 		beginStr, err := b.Workers.RedisClient.Get(begin).Result()
 		if err == redis.Nil {
@@ -223,7 +225,9 @@ func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []st
 		}
 		b.checkErr(job, err)
 
-		ids = append(ids, beginStr+endStr)
+		ids = append(ids, endStr+beginStr)
+		ids = append(ids, beginStr)
+		ids = append(ids, endStr)
 
 		b.Workers.RedisClient.Del(begin)
 		b.Workers.RedisClient.Del(end)
@@ -278,11 +282,6 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 
 	ids := b.getIDs(buffer, &msg)
 
-	if len(ids) == 0 {
-		_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?", time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
-		b.checkErr(&msg.Job, err)
-	}
-
 	// pull from db, send to control and send to kafka
 	b.processIDs(ids, &msg)
 
@@ -294,7 +293,9 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		b.processIDs(ids, &msg)
 
 		if msg.Job.TotalUsers == 0 {
-			b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
+			_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?, completed_at = ?", time.Now().UnixNano(), time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
+			b.checkErr(&msg.Job, err)
+			//b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
 			msg.Job.TagError(b.Workers.MarathonDB, nameCreateBatches, "the job has finished without finding any valid user ids")
 			b.Workers.Statsd.Incr(CreateBatchesWorkerError, msg.Job.Labels(), 1)
 		} else {
