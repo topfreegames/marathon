@@ -24,6 +24,7 @@ package worker
 
 import (
 	"fmt"
+	"github.com/topfreegames/marathon/model"
 
 	"gopkg.in/redis.v5"
 
@@ -38,6 +39,8 @@ type ResumeJobWorker struct {
 	Logger  zap.Logger
 	Workers *Worker
 }
+
+const nameResumoJobWorker = "resumo_job_worker"
 
 // NewResumeJobWorker gets a new ResumeJobWorker
 func NewResumeJobWorker(workers *Worker) *ResumeJobWorker {
@@ -63,12 +66,14 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 
 	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
+	b.Workers.Statsd.Incr(ResumeJobWorkerStart, job.Labels(), 1)
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job resume_job_worker")
 		err := b.Workers.RedisClient.Del(fmt.Sprintf("%s-pausedjobs", jobID.(string))).Err()
 		if err != nil && err != redis.Nil {
 			checkErr(b.Logger, err)
 		}
+		b.Workers.Statsd.Incr(ResumeJobWorkerCompleted, job.Labels(), 1)
 		return
 	}
 
@@ -77,16 +82,26 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 		if err != nil && err == redis.Nil {
 			break
 		}
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 		pausedJobArgs, err := workers.NewMsg(batchInfo)
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 		pausedJobArr, err := pausedJobArgs.Args().Array()
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 		parsed, err := ParseProcessBatchWorkerMessageArray(pausedJobArr)
-		checkErr(b.Logger, err)
+		b.checkErr(job, err)
 		_, err = b.Workers.CreateProcessBatchJob(parsed.JobID.String(), parsed.AppName, &parsed.Users)
-		checkErr(l, err)
+		b.checkErr(job, err)
 	}
 
+	b.Workers.Statsd.Incr(ResumeJobWorkerCompleted, job.Labels(), 1)
 	log.I(b.Logger, "finished resume_job_worker")
+}
+
+func (b *ResumeJobWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.Workers.MarathonDB, ResumeJobWorkerError, err.Error())
+		b.Workers.Statsd.Incr(ResumeJobWorkerError, job.Labels(), 1)
+
+		checkErr(b.Logger, err)
+	}
 }

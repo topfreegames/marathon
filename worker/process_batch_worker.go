@@ -55,20 +55,20 @@ func NewProcessBatchWorker(workers *Worker) *ProcessBatchWorker {
 	return b
 }
 
-func (b *ProcessBatchWorker) incrFailedBatches(jobID uuid.UUID, totalBatches int, appName string) {
-	failedJobs, err := b.Workers.RedisClient.Incr(fmt.Sprintf("%s-failedbatches", jobID.String())).Result()
-	checkErr(b.Logger, err)
-	ttl, err := b.Workers.RedisClient.TTL(fmt.Sprintf("%s-failedbatches", jobID.String())).Result()
-	checkErr(b.Logger, err)
+func (b *ProcessBatchWorker) incrFailedBatches(j *model.Job, appName string) {
+	failedJobs, err := b.Workers.RedisClient.Incr(fmt.Sprintf("%s-failedbatches", j.ID.String())).Result()
+	b.checkErr(j, err)
+	ttl, err := b.Workers.RedisClient.TTL(fmt.Sprintf("%s-failedbatches", j.ID.String())).Result()
+	b.checkErr(j, err)
 	if ttl < 0 {
-		b.Workers.RedisClient.Expire(fmt.Sprintf("%s-failedbatches", jobID.String()), 7*24*time.Hour)
+		b.Workers.RedisClient.Expire(fmt.Sprintf("%s-failedbatches", j.ID.String()), 7*24*time.Hour)
 	}
-	if float64(failedJobs)/float64(totalBatches) >= b.Workers.Config.GetFloat64("workers.processBatch.maxBatchFailure") {
+	if float64(failedJobs)/float64(j.TotalBatches) >= b.Workers.Config.GetFloat64("workers.processBatch.maxBatchFailure") {
 		job := model.Job{}
-		_, err := b.Workers.MarathonDB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", jobID).Returning("*").Update()
-		checkErr(b.Logger, err)
-		changedStatus, err := b.Workers.RedisClient.SetNX(fmt.Sprintf("%s-circuitbreak", jobID.String()), 1, 1*time.Minute).Result()
-		checkErr(b.Logger, err)
+		_, err := b.Workers.MarathonDB.Model(&job).Set("status = 'circuitbreak'").Where("id = ?", j.ID).Returning("*").Update()
+		b.checkErr(j, err)
+		changedStatus, err := b.Workers.RedisClient.SetNX(fmt.Sprintf("%s-circuitbreak", j.ID.String()), 1, 1*time.Minute).Result()
+		b.checkErr(j, err)
 		if changedStatus && b.Workers.SendgridClient != nil {
 			var expireAt int64
 			if ttl > 0 {
@@ -136,13 +136,13 @@ func (b *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 	return err
 }
 
-func (b *ProcessBatchWorker) moveJobToPausedQueue(jobID uuid.UUID, message *workers.Msg) {
-	_, err := b.Workers.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", jobID.String()), message.ToJson()).Result()
-	checkErr(b.Logger, err)
-	ttl, err := b.Workers.RedisClient.TTL(fmt.Sprintf("%s-pausedjobs", jobID.String())).Result()
-	checkErr(b.Logger, err)
+func (b *ProcessBatchWorker) moveJobToPausedQueue(job *model.Job, message *workers.Msg) {
+	_, err := b.Workers.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", job.ID.String()), message.ToJson()).Result()
+	b.checkErr(job, err)
+	ttl, err := b.Workers.RedisClient.TTL(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
+	b.checkErr(job, err)
 	if ttl < 0 {
-		b.Workers.RedisClient.Expire(fmt.Sprintf("%s-pausedjobs", jobID.String()), 7*24*time.Hour)
+		b.Workers.RedisClient.Expire(fmt.Sprintf("%s-pausedjobs", job.ID.String()), 7*24*time.Hour)
 	}
 }
 
@@ -178,24 +178,28 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	b.checkErrWithReEnqueue(parsed, l, err)
 
 	log.D(l, "Retrieved job successfully.")
-	b.Workers.Statsd.Incr("starting_process_batch_worker", job.Labels(), 1)
+	b.Workers.Statsd.Incr(ProcessBatchWorkerStart, job.Labels(), 1)
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	}
 
 	switch job.Status {
 	case "circuitbreak":
 		log.I(l, "circuit break")
-		b.moveJobToPausedQueue(job.ID, message)
+		b.moveJobToPausedQueue(job, message)
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	case "paused":
 		log.I(l, "paused")
-		b.moveJobToPausedQueue(job.ID, message)
+		b.moveJobToPausedQueue(job, message)
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	case "stopped":
 		log.I(l, "stopped")
+		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 		return
 	default:
 		log.D(l, "valid")
@@ -203,7 +207,7 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 
 	templatesByNameAndLocale, err := job.GetJobTemplatesByNameAndLocale(b.Workers.MarathonDB)
 	if err != nil {
-		b.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
+		b.incrFailedBatches(job, parsed.AppName)
 	}
 	b.checkErrWithReEnqueue(parsed, l, err)
 	log.D(l, "Retrieved templatesByNameAndLocale successfully.", func(cm log.CM) {
@@ -233,21 +237,21 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 		} else if val, ok := templatesByLocale["en"]; ok {
 			template = val
 		} else {
-			b.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
-			checkErr(l, fmt.Errorf("there is no template for the given locale or 'en'"))
+			b.incrFailedBatches(job, parsed.AppName)
+			b.checkErr(job, fmt.Errorf("there is no template for the given locale or 'en'"))
 		}
 
 		msgStr, msgErr := BuildMessageFromTemplate(template, job.Context)
 		if msgErr != nil {
-			b.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
+			b.incrFailedBatches(job, parsed.AppName)
 		}
-		checkErr(l, msgErr)
+		b.checkErr(job, msgErr)
 		var msg map[string]interface{}
 		err = json.Unmarshal([]byte(msgStr), &msg)
 		if err != nil {
-			b.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
+			b.incrFailedBatches(job, parsed.AppName)
 		}
-		checkErr(l, err)
+		b.checkErr(job, err)
 		pushMetadata := map[string]interface{}{
 			"userId":       user.UserID,
 			"pushTime":     time.Now().Unix(),
@@ -282,14 +286,25 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	}
 	log.D(l, "Sent push to pusher for batch users.")
 	err = b.updateJobBatchesInfo(parsed.JobID)
-	checkErr(l, err)
+	b.checkErr(job, err)
 	log.D(l, "Updated job batches info successfully.")
 	err = b.updateJobUsersInfo(parsed.JobID, len(parsed.Users)-batchErrorCounter)
-	checkErr(l, err)
+	b.checkErr(job, err)
 	log.D(l, "Updated job users info successfully.")
 	if float64(batchErrorCounter)/float64(len(parsed.Users)) > b.Workers.Config.GetFloat64("workers.processBatch.maxUserFailureInBatch") {
-		b.incrFailedBatches(job.ID, job.TotalBatches, parsed.AppName)
-		checkErr(l, fmt.Errorf("failed to send message to several users, considering batch as failed"))
+		b.incrFailedBatches(job, parsed.AppName)
+		b.checkErr(job, fmt.Errorf("failed to send message to several users, considering batch as failed"))
 	}
+
+	b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 	log.I(l, "finished")
+}
+
+func (b *ProcessBatchWorker) checkErr(job *model.Job, err error) {
+	if err != nil {
+		job.TagError(b.Workers.MarathonDB, nameProcessBatchWorker, err.Error())
+		b.Workers.Statsd.Incr(ProcessBatchWorkerError, job.Labels(), 1)
+
+		checkErr(b.Logger, err)
+	}
 }

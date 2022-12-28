@@ -60,3 +60,8 @@ Also, it reads the Redis and creates the control group CSV.
 ### Resume Job Worker
 
 This worker handles jobs that are paused or in circuit break state. It removes a batch from the paused job list and calls the process batch worker for each one of them until are has no more paused batches.
+
+### Metrics
+
+Each one of the workers has metrics indicating the start (e.g. `starting_create_batches_worker`), the completion (e.g. `completed_create_batches_worker`) and possible execution errors (e.g. `error_create_batches_worker`).
+The error metrics are only generated for internal errors or input validation errors, for instance when no valid IDs are present in the CSV file. In every other case, the workers will generate the completed metric.

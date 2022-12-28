@@ -126,22 +126,26 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	job, err := b.Workers.GetJob(msg.JobUUID)
 	checkErr(l, err)
-	b.Workers.Statsd.Incr("starting_direct_part", job.Labels(), 1)
+	b.Workers.Statsd.Incr(DirectWorkerStart, job.Labels(), 1)
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	}
 
 	switch job.Status {
 	case "circuitbreak":
 		log.I(l, "circuit break")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	case "paused":
 		log.I(l, "paused")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	case "stopped":
 		log.I(l, "stopped")
+		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 		return
 	default:
 		log.D(l, "valid")
@@ -163,7 +167,7 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 		l.Error("Error fetching users", zap.Error(err))
 	}
 
-	b.Workers.Statsd.Timing("get_from_pg", time.Now().Sub(start), job.Labels(), 1)
+	b.Workers.Statsd.Timing(GetUsersFromDbTiming, time.Now().Sub(start), job.Labels(), 1)
 
 	successfulUsers := len(users)
 
@@ -265,11 +269,16 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 		at := time.Now().Add(b.Workers.Config.GetDuration("workers.processBatch.intervalToSendCompletedJob")).UnixNano()
 		_, err = b.Workers.ScheduleJobCompletedJob(job.ID.String(), at)
 	}
+
+	b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
+	l.Info("finished")
 }
 
 func (b *DirectWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameDirectWorker, err.Error())
+		b.Workers.Statsd.Incr(DirectWorkerError, job.Labels(), 1)
+
 		checkErr(b.Logger, err)
 	}
 }

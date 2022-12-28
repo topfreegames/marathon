@@ -86,9 +86,11 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
 	job.TagRunning(b.Workers.MarathonDB, nameSCVSplit, "starting")
+	b.Workers.Statsd.Incr(CsvSplitWorkerStart, job.Labels(), 1)
 
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job")
+		b.Workers.Statsd.Incr(CsvSplitWorkerCompleted, job.Labels(), 1)
 		return
 	}
 
@@ -116,12 +118,17 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 		start += size
 		b.Workers.Statsd.Incr("csv_job_part", job.Labels(), 1)
 	}
+
 	job.TagSuccess(b.Workers.MarathonDB, nameSCVSplit, "finished")
+	b.Workers.Statsd.Incr(CsvSplitWorkerCompleted, job.Labels(), 1)
+	l.Info("finished")
 }
 
 func (b *CSVSplitWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameSCVSplit, err.Error())
+		b.Workers.Statsd.Incr(CsvSplitWorkerError, job.Labels(), 1)
+
 		checkErr(b.Logger, err)
 	}
 }

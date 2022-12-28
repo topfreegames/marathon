@@ -252,10 +252,14 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		zap.Int("totalParts", msg.TotalParts),
 	)
 
+	b.Workers.Statsd.Incr(CreateBatchesWorkerStart, msg.Job.Labels(), 1)
+
 	err = b.Workers.MarathonDB.Model(&msg.Job).Column("job.status", "App").Where("job.id = ?", msg.Job.ID).Select()
-	checkErr(l, err)
+	b.checkErr(&msg.Job, err)
+
 	if msg.Job.Status == stoppedJobStatus {
 		l.Info("stopped job")
+		b.Workers.Statsd.Incr(CreateBatchesWorkerCompleted, msg.Job.Labels(), 1)
 		return
 	}
 	l.Info("starting")
@@ -269,7 +273,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	_, buffer, err := b.Workers.S3Client.DownloadChunk(int64(msg.Start), int64(msg.Size), msg.Job.CSVPath)
 	labels := msg.Job.Labels()
 	labels = append(labels, fmt.Sprintf("error:%t", err != nil))
-	b.Workers.Statsd.Timing("get_csv_from_s3", time.Now().Sub(start), labels, 1)
+	b.Workers.Statsd.Timing(GetCsvFromS3Timing, time.Now().Sub(start), labels, 1)
 	b.checkErr(&msg.Job, err)
 
 	ids := b.getIDs(buffer, &msg)
@@ -292,8 +296,10 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		if msg.Job.TotalUsers == 0 {
 			b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
 			msg.Job.TagError(b.Workers.MarathonDB, nameCreateBatches, "the job has finished without finding any valid user ids")
+			b.Workers.Statsd.Incr(CreateBatchesWorkerError, msg.Job.Labels(), 1)
 		} else {
 			msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
+			b.Workers.Statsd.Incr(CreateBatchesWorkerCompleted, msg.Job.Labels(), 1)
 		}
 
 		// TODO: schedule a job to run after send all messages. This job will check
@@ -310,6 +316,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
+		b.Workers.Statsd.Incr(CreateBatchesWorkerError, job.Labels(), 1)
+
 		checkErr(b.Logger, err)
 	}
 }
