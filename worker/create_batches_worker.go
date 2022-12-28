@@ -225,12 +225,9 @@ func (b *CreateBatchesWorker) getSplitedIds(totalParts int, job *model.Job) []st
 		}
 		b.checkErr(job, err)
 
-		if len(beginStr) == uuidSizeBytes {
-			ids = append(ids, beginStr)
-			ids = append(ids, endStr)
-		} else {
-			ids = append(ids, endStr+beginStr)
-		}
+		ids = append(ids, endStr+beginStr)
+		ids = append(ids, beginStr)
+		ids = append(ids, endStr)
 
 		b.Workers.RedisClient.Del(begin)
 		b.Workers.RedisClient.Del(end)
@@ -292,7 +289,9 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 		b.processIDs(ids, &msg)
 
 		if msg.Job.TotalUsers == 0 {
-			b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
+			_, err := b.Workers.MarathonDB.Model(&msg.Job).Set("status = 'stopped', updated_at = ?, completed_at = ?", time.Now().UnixNano(), time.Now().UnixNano()).Where("id = ?", msg.Job.ID).Update()
+			b.checkErr(&msg.Job, err)
+			//b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
 			msg.Job.TagError(b.Workers.MarathonDB, nameCreateBatches, "the job has finished without finding any valid user ids")
 		} else {
 			msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
