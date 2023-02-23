@@ -46,6 +46,8 @@ var _ = Describe("CreateBatches Worker", func() {
 	w := worker.NewWorker(logger, GetConfPath())
 	createBatchesWorker := worker.NewCreateBatchesWorker(w)
 	createCSVSplitWorker := worker.NewCSVSplitWorker(w)
+	processBatchWorker := worker.NewProcessBatchWorker(w)
+	processBatchWorkerConcurrency := w.Config.GetInt("workers.processBatch.concurrency")
 
 	BeforeEach(func() {
 		fakeS3 := NewFakeS3(w.Config)
@@ -690,6 +692,62 @@ user_id
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job.TotalUsers).To(BeEquivalentTo(10))
 			Expect(job.TotalTokens).To(BeEquivalentTo(10))
+		})
+
+		It("should update totalTokens and totalUsers before send the job to queue", func() {
+			a := CreateTestApp(w.MarathonDB, map[string]interface{}{"name": "testapp"})
+			j := CreateTestJob(w.MarathonDB, a.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"filters": map[string]interface{}{},
+				"csvPath": "test/jobs/obj1.csv",
+			})
+
+			_, err := w.CreateCSVSplitJob(j)
+			Expect(err).NotTo(HaveOccurred())
+
+			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err := workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
+
+			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			Expect(err).NotTo(HaveOccurred())
+			msg, err = workers.NewMsg(string(jobData))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
+
+			resultChan := make(chan bool)
+			validateProcessAction := ValidateCreateBatchesMiddleware{
+				IsTestRunning:       true,
+				ResultChan:          &resultChan,
+				JobID:               j.ID,
+				MarathonDB:          w.MarathonDB,
+				ExpectedTotalUsers:  10,
+				ExpectedTotalTokens: 10,
+			}
+			defer func() {
+				validateProcessAction.IsTestRunning = false
+			}()
+
+			workers.Middleware.Append(&validateProcessAction)
+			workers.Process("process_batch_worker", processBatchWorker.Process, processBatchWorkerConcurrency)
+			workers.Start()
+
+		Loop:
+			for {
+				select {
+				case passed := <-resultChan:
+					if !passed {
+						Fail("Job metadata not updated before running Process Batch Job")
+					} else {
+						break Loop
+					}
+				case <-time.After(200 * time.Millisecond):
+					Fail("Test timed out, probably no jobs were sent to process_batch_worker queue")
+				}
+
+			}
 		})
 
 		It("should increment job totalTokens when no previous totalTokens", func() {

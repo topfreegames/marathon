@@ -124,11 +124,10 @@ func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {
 	})
 
 	if numUsersFromBatch != 0 {
-		b.sendBatches(*usersFromBatch, job)
-
 		b.updateTotalUsers(job, numUsersFromBatch)
 		b.updateTotalBatches(1, job)
 		b.updateTotalTokens(numUsersFromBatch, job)
+		b.sendBatches(*usersFromBatch, job)
 	}
 }
 
