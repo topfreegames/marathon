@@ -27,9 +27,9 @@ package worker
 
 import (
 	"encoding/json"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"math"
 
-	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -65,7 +65,7 @@ func NewCSVSplitWorker(workers *Worker) *CSVSplitWorker {
 }
 
 // Process processes the messages sent to batch worker queue
-func (b *CSVSplitWorker) Process(message *workers.Msg) {
+func (b *CSVSplitWorker) Process(message *goworkers2.Msg) error {
 	var id uuid.UUID
 	csvSizeLimit := b.getCSVSizeLimitBytes()
 	err := json.Unmarshal([]byte(message.Args().ToJson()), &id)
@@ -81,13 +81,18 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 
 	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
+	l = l.With(
+		zap.String("appID", job.AppID.String()),
+	)
+	l.Debug("job found")
+
 	job.TagRunning(b.Workers.MarathonDB, nameSCVSplit, "starting")
 	b.Workers.Statsd.Incr(CsvSplitWorkerStart, job.Labels(), 1)
 
 	if job.Status == stoppedJobStatus {
 		l.Info("stopped job")
 		b.Workers.Statsd.Incr(CsvSplitWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	}
 
 	// get file information
@@ -118,6 +123,8 @@ func (b *CSVSplitWorker) Process(message *workers.Msg) {
 	job.TagSuccess(b.Workers.MarathonDB, nameSCVSplit, "finished")
 	b.Workers.Statsd.Incr(CsvSplitWorkerCompleted, job.Labels(), 1)
 	l.Info("finished")
+
+	return nil
 }
 
 func (b *CSVSplitWorker) checkErr(job *model.Job, err error) {

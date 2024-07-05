@@ -25,11 +25,11 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"math/rand"
 	"strings"
 	"time"
 
-	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
@@ -136,7 +136,7 @@ func (b *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 	return err
 }
 
-func (b *ProcessBatchWorker) moveJobToPausedQueue(job *model.Job, message *workers.Msg) {
+func (b *ProcessBatchWorker) moveJobToPausedQueue(job *model.Job, message *goworkers2.Msg) {
 	_, err := b.Workers.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", job.ID.String()), message.ToJson()).Result()
 	b.checkErr(job, err)
 	ttl, err := b.Workers.RedisClient.TTL(fmt.Sprintf("%s-pausedjobs", job.ID.String())).Result()
@@ -160,7 +160,7 @@ func (b *ProcessBatchWorker) checkErrWithReEnqueue(parsed *BatchWorkerMessage, l
 }
 
 // Process processes the messages sent to batch worker queue and send them to kafka
-func (b *ProcessBatchWorker) Process(message *workers.Msg) {
+func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 	batchErrorCounter := 0
 	l := b.Logger.With(
 		zap.String("source", "processBatchWorker"),
@@ -177,13 +177,19 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 	job, err := b.Workers.GetJob(parsed.JobID)
 	b.checkErrWithReEnqueue(parsed, l, err)
 
+	l = l.With(
+		zap.String("jobID", job.ID.String()),
+		zap.String("appName", parsed.AppName),
+		zap.String("appID", job.App.ID.String()),
+	)
+
 	log.D(l, "Retrieved job successfully.")
 	b.Workers.Statsd.Incr(ProcessBatchWorkerStart, job.Labels(), 1)
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
 		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	}
 
 	switch job.Status {
@@ -191,16 +197,16 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 		log.I(l, "circuit break")
 		b.moveJobToPausedQueue(job, message)
 		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	case "paused":
 		log.I(l, "paused")
 		b.moveJobToPausedQueue(job, message)
 		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	case "stopped":
 		log.I(l, "stopped")
 		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	default:
 		log.D(l, "valid")
 	}
@@ -298,6 +304,8 @@ func (b *ProcessBatchWorker) Process(message *workers.Msg) {
 
 	b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
 	log.I(l, "finished")
+
+	return nil
 }
 
 func (b *ProcessBatchWorker) checkErr(job *model.Job, err error) {

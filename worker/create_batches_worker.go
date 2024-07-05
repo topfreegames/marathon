@@ -27,13 +27,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"math"
 	"math/rand"
 	"time"
 
 	"gopkg.in/pg.v5"
 
-	"github.com/jrallison/go-workers"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
 	"github.com/uber-go/zap"
@@ -242,7 +242,7 @@ func (b *CreateBatchesWorker) setAsComplete(part int, job *model.Job) int {
 }
 
 // Process processes the messages sent to batch worker queue
-func (b *CreateBatchesWorker) Process(message *workers.Msg) {
+func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 
 	var msg BatchPart
 	data := message.Args().ToJson()
@@ -263,7 +263,7 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	if msg.Job.Status == stoppedJobStatus {
 		l.Info("stopped job")
 		b.Workers.Statsd.Incr(CreateBatchesWorkerCompleted, msg.Job.Labels(), 1)
-		return
+		return nil
 	}
 	l.Info("starting")
 
@@ -311,6 +311,8 @@ func (b *CreateBatchesWorker) Process(message *workers.Msg) {
 	ids = nil
 
 	l.Info("finished")
+	
+	return nil
 }
 
 func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {

@@ -63,7 +63,9 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 		DB:       redisDB,
 	}
 	if tlsEnabled {
-		opt.TLSConfig = &tls.Config{}
+		opt.TLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
 	}
 	client := redis.NewClient(opt)
 	_, err := client.Ping().Result()

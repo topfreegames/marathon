@@ -24,8 +24,8 @@ package worker_test
 
 import (
 	"encoding/json"
+	goworkers2 "github.com/digitalocean/go-workers2"
 
-	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/topfreegames/marathon/model"
@@ -64,7 +64,7 @@ var _ = Describe("JobCompleted Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() {
@@ -81,7 +81,7 @@ var _ = Describe("JobCompleted Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { jobCompletedWorker.Process(message) }).Should(Panic())

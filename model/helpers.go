@@ -73,7 +73,7 @@ func (j *Job) GetJobTemplatesByNameAndLocale(db interfaces.DB) (map[string]map[s
 	}
 
 	if len(templateByLocale) == 0 {
-		return nil, fmt.Errorf("No templates were found with name %s", j.TemplateName)
+		return nil, fmt.Errorf("No templates were found with name %s and %s", j.TemplateName, j.App.ID)
 	}
 	return templateByLocale, nil
 }

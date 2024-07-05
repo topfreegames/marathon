@@ -25,6 +25,7 @@ package worker_test
 import (
 	"encoding/json"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"strings"
 	"time"
 
@@ -165,7 +166,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -200,7 +201,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 			processBatchWorker.Process(message)
 
@@ -233,7 +234,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -279,7 +280,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -322,7 +323,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -357,7 +358,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -390,7 +391,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -419,7 +420,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -450,7 +451,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -488,7 +489,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -527,7 +528,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -575,7 +576,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -616,7 +617,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
@@ -659,7 +660,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
@@ -703,7 +704,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
@@ -741,7 +742,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { processBatchWorker.Process(message) }).Should(Panic())
@@ -778,7 +779,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -814,7 +815,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -863,7 +864,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)
@@ -921,7 +922,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 
 			processBatchWorker.Process(message)

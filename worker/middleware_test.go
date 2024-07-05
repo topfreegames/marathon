@@ -1,7 +1,7 @@
 package worker_test
 
 import (
-	"github.com/jrallison/go-workers"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/model"
@@ -16,14 +16,12 @@ type ValidateCreateBatchesMiddleware struct {
 	ExpectedTotalTokens int
 }
 
-func (v *ValidateCreateBatchesMiddleware) Call(queue string, message *workers.Msg, next func() bool) (r bool) {
-	{
+func (v *ValidateCreateBatchesMiddleware) Call(queue string, m *goworkers2.Manager, next goworkers2.JobFunc) goworkers2.JobFunc {
+	return func(message *goworkers2.Msg) error {
 		if !v.IsTestRunning {
-			return next()
+			return next(message)
 		}
-		r = false
 		if queue == "process_batch_worker" {
-
 			dbUpdated := false // check database state
 			job := &model.Job{}
 			err := v.MarathonDB.Model(job).Where("id = ?", v.JobID).Select()
@@ -33,6 +31,7 @@ func (v *ValidateCreateBatchesMiddleware) Call(queue string, message *workers.Ms
 
 			*v.ResultChan <- dbUpdated
 		}
-		return
+		return next(message)
 	}
+
 }

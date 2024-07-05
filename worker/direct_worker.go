@@ -27,12 +27,12 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"math"
 	"math/rand"
 	"strings"
 	"time"
 
-	workers "github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -114,7 +114,7 @@ func (b *DirectWorker) getQuery(job *model.Job) string {
 }
 
 // Process processes the messages sent to batch worker queue and send them to kafka
-func (b *DirectWorker) Process(message *workers.Msg) {
+func (b *DirectWorker) Process(message *goworkers2.Msg) error {
 	l := b.Logger.With(
 		zap.String("worker", nameDirectWorker),
 	)
@@ -131,22 +131,22 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
 		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	}
 
 	switch job.Status {
 	case "circuitbreak":
 		log.I(l, "circuit break")
 		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	case "paused":
 		log.I(l, "paused")
 		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	case "stopped":
 		log.I(l, "stopped")
 		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	default:
 		log.D(l, "valid")
 	}
@@ -272,6 +272,8 @@ func (b *DirectWorker) Process(message *workers.Msg) {
 
 	b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
 	l.Info("finished")
+
+	return nil
 }
 
 func (b *DirectWorker) checkErr(job *model.Job, err error) {

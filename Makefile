@@ -21,6 +21,7 @@
 BIN_PATH = "./bin"
 BIN_NAME = "marathon"
 GODIRS = $(shell go list . | grep -v /vendor/ | sed s@github.com/topfreegames/marathon@.@g | egrep -v "^[.]$$")
+GINKGO = go run github.com/onsi/ginkgo/ginkgo@v1.4.0
 
 setup-hooks:
 	@cd .git/hooks && ln -sf ../../hooks/pre-commit.sh pre-commit
@@ -96,21 +97,21 @@ wait-for-pg:
 	@until docker exec marathon_postgres_1 pg_isready; do echo 'Waiting for Postgres...' && sleep 1; done
 	@sleep 2
 
-deps: start-deps wait-for-pg
+deps: start-deps
 
 start-deps:
 	@echo "Starting dependencies..."
-	@docker-compose --project-name marathon up -d
+	@docker compose --project-name marathon up -d
 	@sleep 10
 	@echo "Dependencies started successfully."
 
 stop-deps:
-	@docker-compose --project-name marathon down
+	@docker compose --project-name marathon down
 
 test: test-services test-run
 
 test-run:
-	@ginkgo -r --randomizeAllSpecs --randomizeSuites --cover .
+	@$(GINKGO) -r --randomizeAllSpecs --randomizeSuites --cover .
 	@$(MAKE) test-coverage-func
 
 test-coverage-func:
