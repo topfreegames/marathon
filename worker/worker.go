@@ -459,7 +459,7 @@ func (w *Worker) Start() {
 			panic(err)
 		}
 	}()
-	go w.Manager.Run()
+	w.Manager.Run()
 }
 
 // SendControlGroupToRedis send a sequency of users ids to redis
