@@ -47,6 +47,8 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 	redisPort := conf.GetInt(fmt.Sprintf("%s.redis.port", prefix))
 	redisPass := conf.GetString(fmt.Sprintf("%s.redis.pass", prefix))
 	redisDB := conf.GetInt(fmt.Sprintf("%s.redis.db", prefix))
+	tlsEnabled := conf.GetBool(fmt.Sprintf("%s.redis.tlsEnabled", prefix))
+
 	l := logger.With(
 		zap.String("source", "redisExtension"),
 		zap.String("operation", "NewRedis"),
@@ -55,12 +57,15 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 		zap.Int("redisDB", redisDB),
 	)
 	log.D(l, "Connecting to redis...")
-	client := redis.NewClient(&redis.Options{
-		Addr:      fmt.Sprintf("%s:%d", redisHost, redisPort),
-		Password:  redisPass,
-		DB:        redisDB,
-		TLSConfig: &tls.Config{},
-	})
+	opt := &redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", redisHost, redisPort),
+		Password: redisPass,
+		DB:       redisDB,
+	}
+	if tlsEnabled {
+		opt.TLSConfig = &tls.Config{}
+	}
+	client := redis.NewClient(opt)
 	_, err := client.Ping().Result()
 	if err != nil {
 		log.E(l, "Connection to redis failed.", func(cm log.CM) {
