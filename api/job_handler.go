@@ -152,8 +152,14 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		job.JobGroupID = jobGroup.ID
 
 		if scheduleJob == 0 || !job.Localized {
-			log.I(l, "Create a simple job.")
-			return a.createJob(job, c)
+			log.I(l, "Will create a simple job.")
+			err = a.createJob(job, c)
+			if err != nil {
+				l.Error("Failed to create job.", zap.Error(err))
+				return err
+			}
+
+			return nil
 		}
 
 		// create a job for each tz
@@ -179,6 +185,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 
 			err = a.createJob(job, c)
 			if err != nil {
+				l.Error("Failed to create job.", zap.Error(err))
 				return err
 			}
 		}
@@ -318,11 +325,18 @@ func (a *Application) createJobWorkers(job *model.Job, c echo.Context) error {
 }
 
 func (a *Application) createJob(job *model.Job, c echo.Context) error {
+	l := a.Logger.With(
+		zap.String("source", "jobHandler"),
+		zap.String("operation", "createJob"),
+		zap.String("appId", job.AppID.String()),
+		zap.String("jobID", job.ID.String()),
+	)
 	err := WithSegment("db-insert", c, func() error {
 		return a.DB.Insert(&job)
 	})
 
 	if err != nil {
+		l.Error("Failed to create job.", zap.Error(err))
 		if strings.Contains(err.Error(), "duplicate key") {
 			return c.JSON(http.StatusConflict, job)
 		}
@@ -331,7 +345,12 @@ func (a *Application) createJob(job *model.Job, c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
-	a.createJobWorkers(job, c)
+
+	err = a.createJobWorkers(job, c)
+	if err != nil {
+		l.Error("Failed to create job worker", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+	}
 
 	return nil
 }
