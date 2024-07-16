@@ -22,9 +22,9 @@ package worker_test
 import (
 	"bytes"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"math/rand"
 
-	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/topfreegames/marathon/model"
@@ -56,7 +56,7 @@ var _ = Describe("Complete Test", func() {
 		dataSlice, err := w.RedisClient.LRange("queue:direct_worker", 0, -1).Result()
 		Expect(err).NotTo(HaveOccurred())
 		for _, data := range dataSlice {
-			msg, err := workers.NewMsg(data)
+			msg, err := goworkers2.NewMsg(data)
 			Expect(err).NotTo(HaveOccurred())
 			directWorker.Process(msg)
 		}
@@ -64,7 +64,7 @@ var _ = Describe("Complete Test", func() {
 		dataSlice, err = w.RedisClient.ZRange("schedule", 0, -1).Result()
 		Expect(err).NotTo(HaveOccurred())
 		for _, data := range dataSlice {
-			msg, err := workers.NewMsg(data)
+			msg, err := goworkers2.NewMsg(data)
 			Expect(err).NotTo(HaveOccurred())
 			jobCompleteWorker.Process(msg)
 		}

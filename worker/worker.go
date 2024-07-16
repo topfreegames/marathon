@@ -23,6 +23,7 @@
 package worker
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -31,8 +32,8 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	raven "github.com/getsentry/raven-go"
-	"github.com/jrallison/go-workers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
@@ -56,6 +57,8 @@ type Worker struct {
 	ConfigPath                string
 	SendgridClient            *extensions.SendgridClient
 	Kafka                     interfaces.PushProducer
+
+	Manager *goworkers2.Manager
 }
 
 // NewWorker returns a configured worker
@@ -140,15 +143,16 @@ func (w *Worker) configureStatsd() {
 func (w *Worker) configureRedis() {
 	redisHost := w.Config.GetString("workers.redis.host")
 	redisPort := w.Config.GetInt("workers.redis.port")
-	redisDatabase := w.Config.GetString("workers.redis.db")
+	redisDatabase := w.Config.GetInt("workers.redis.db")
 	redisPassword := w.Config.GetString("workers.redis.pass")
-	redisPoolsize := w.Config.GetString("workers.redis.poolSize")
+	redisPoolsize := w.Config.GetInt("workers.redis.poolSize")
+	tlsEnabled := w.Config.GetBool("workers.redis.tlsEnabled")
 
 	logger := w.Logger.With(
 		zap.String("redisHost", redisHost),
 		zap.Int("redisPort", redisPort),
-		zap.String("redisDB", redisDatabase),
-		zap.String("redisPoolsize", redisPoolsize),
+		zap.Int("redisDB", redisDatabase),
+		zap.Int("redisPoolsize", redisPoolsize),
 	)
 
 	logger.Info("connecting to workers redis")
@@ -159,16 +163,27 @@ func (w *Worker) configureRedis() {
 		panic(err)
 	}
 
-	workers.Configure(map[string]string{
-		"server":   fmt.Sprintf("%s:%d", redisHost, redisPort),
-		"database": redisDatabase,
-		"pool":     redisPoolsize,
-		"process":  hostname,
-		"password": redisPassword,
-	})
 	r, err := extensions.NewRedis("workers", w.Config, w.Logger)
 	checkErr(w.Logger, err)
 	w.RedisClient = r
+
+	opt := goworkers2.Options{
+		ServerAddr: fmt.Sprintf("%s:%d", redisHost, redisPort),
+		Database:   redisDatabase,
+		PoolSize:   redisPoolsize,
+		ProcessID:  hostname,
+		Password:   redisPassword,
+	}
+	if tlsEnabled {
+		opt.RedisTLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
+	manager, err := goworkers2.NewManager(opt)
+	checkErr(w.Logger, err)
+
+	w.Manager = manager
 }
 
 func (w *Worker) configureS3Client() {
@@ -193,13 +208,12 @@ func (w *Worker) configureWorkers() {
 
 	jobDirectWorkerConcurrency := w.Config.GetInt("workers.direct.concurrency")
 
-	workers.Process("csv_split_worker", k.Process, createCSVSplitWorkerConcurrency)
-	workers.Process("create_batches_worker", c.Process, createBatchesWorkerConcurrency)
-	workers.Process("process_batch_worker", p.Process, processBatchWorkerConcurrency)
-	workers.Process("resume_job_worker", r.Process, resumeJobWorkerConcurrency)
-	workers.Process("job_completed_worker", j.Process, jobCompletedWorkerConcurrency)
-
-	workers.Process("direct_worker", directWorker.Process, jobDirectWorkerConcurrency)
+	w.Manager.AddWorker("csv_split_worker", createCSVSplitWorkerConcurrency, k.Process)
+	w.Manager.AddWorker("create_batches_worker", createBatchesWorkerConcurrency, c.Process)
+	w.Manager.AddWorker("process_batch_worker", processBatchWorkerConcurrency, p.Process)
+	w.Manager.AddWorker("resume_job_worker", resumeJobWorkerConcurrency, r.Process)
+	w.Manager.AddWorker("job_completed_worker", jobCompletedWorkerConcurrency, j.Process)
+	w.Manager.AddWorker("direct_worker", jobDirectWorkerConcurrency, directWorker.Process)
 }
 
 func (w *Worker) configureSentry() {
@@ -223,11 +237,13 @@ func (w *Worker) configureKafkaProducer() {
 // CreateCSVSplitJob creates a new CSVSplitWorker job
 func (w *Worker) CreateCSVSplitJob(job *model.Job) (string, error) {
 	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
-	return workers.EnqueueWithOptions(
+	producer := w.Manager.Producer()
+
+	return producer.EnqueueWithOptions(
 		"csv_split_worker",
 		"Add",
 		job.ID.String(),
-		workers.EnqueueOptions{
+		goworkers2.EnqueueOptions{
 			Retry:      true,
 			RetryCount: maxRetries,
 		})
@@ -236,21 +252,23 @@ func (w *Worker) CreateCSVSplitJob(job *model.Job) (string, error) {
 // ScheduleCSVSplitJob schedules a new CSVSplitWorker job
 func (w *Worker) ScheduleCSVSplitJob(job *model.Job, at int64) (string, error) {
 	maxRetries := w.Config.GetInt("workers.csvSplitWorker.maxRetries")
-	return workers.EnqueueWithOptions(
+	producer := w.Manager.Producer()
+	return producer.EnqueueWithOptions(
 		"csv_split_worker",
 		"Add",
 		job.ID.String(),
-		workers.EnqueueOptions{
+		goworkers2.EnqueueOptions{
 			Retry:      true,
 			RetryCount: maxRetries,
-			At:         float64(at) / workers.NanoSecondPrecision,
+			At:         float64(at) / goworkers2.NanoSecondPrecision,
 		})
 }
 
 // CreateBatchesJob creates a new CreateBatchesWorker job
 func (w *Worker) CreateBatchesJob(part *BatchPart) (string, error) {
 	maxRetries := w.Config.GetInt("workers.createBatches.maxRetries")
-	return workers.EnqueueWithOptions("create_batches_worker", "Add", part, workers.EnqueueOptions{
+	producer := w.Manager.Producer()
+	return producer.EnqueueWithOptions("create_batches_worker", "Add", part, goworkers2.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
@@ -259,7 +277,7 @@ func (w *Worker) CreateBatchesJob(part *BatchPart) (string, error) {
 // CreateDirectBatchesJob schedules a new DirectWorker job
 func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
 	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
-	return w.createDirectBatchesJobWithOption(job, workers.EnqueueOptions{
+	return w.createDirectBatchesJobWithOption(job, goworkers2.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
@@ -268,14 +286,14 @@ func (w *Worker) CreateDirectBatchesJob(job *model.Job) error {
 // ScheduleDirectBatchesJob schedules a new DirectWorker job
 func (w *Worker) ScheduleDirectBatchesJob(job *model.Job, at int64) error {
 	maxRetries := w.Config.GetInt("workers.direct.maxRetries")
-	return w.createDirectBatchesJobWithOption(job, workers.EnqueueOptions{
+	return w.createDirectBatchesJobWithOption(job, goworkers2.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
-		At:         float64(at) / workers.NanoSecondPrecision,
+		At:         float64(at) / goworkers2.NanoSecondPrecision,
 	})
 }
 
-func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options workers.EnqueueOptions) error {
+func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options goworkers2.EnqueueOptions) error {
 	var testBatchSize uint64
 	var maxSeqID uint64
 	var rownsEstimative uint64
@@ -300,8 +318,10 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options worker
 	//testBatchSize = (200000 * maxSeqID) / rownsEstimative
 	testBatchSize = 100000
 
+	producer := w.Manager.Producer()
+
 	for i = 0; i < maxSeqID+1; {
-		_, err = workers.EnqueueWithOptions("direct_worker", "Add",
+		_, err = producer.EnqueueWithOptions("direct_worker", "Add",
 			DirectPartMsg{
 				SmallestSeqID: i,
 				BiggestSeqID:  i + testBatchSize,
@@ -333,7 +353,8 @@ func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users *[]Us
 	if err != nil {
 		return "", err
 	}
-	return workers.Enqueue(
+	producer := w.Manager.Producer()
+	return producer.Enqueue(
 		"process_batch_worker",
 		"Add",
 		[]interface{}{jobID, appName, compressedUsers},
@@ -343,7 +364,8 @@ func (w *Worker) CreateProcessBatchJob(jobID string, appName string, users *[]Us
 // CreateResumeJob creates a new ResumeJobWorker job
 func (w *Worker) CreateResumeJob(jobID *[]string) (string, error) {
 	maxRetries := w.Config.GetInt("workers.resume.maxRetries")
-	return workers.EnqueueWithOptions("resume_job_worker", "Add", jobID, workers.EnqueueOptions{
+	producer := w.Manager.Producer()
+	return producer.EnqueueWithOptions("resume_job_worker", "Add", jobID, goworkers2.EnqueueOptions{
 		Retry:      true,
 		RetryCount: maxRetries,
 	})
@@ -351,25 +373,28 @@ func (w *Worker) CreateResumeJob(jobID *[]string) (string, error) {
 
 // ScheduleCreateBatchesJob schedules a new CreateBatchesWorker job
 func (w *Worker) ScheduleCreateBatchesJob(jobID *[]string, at int64) (string, error) {
-	return workers.EnqueueWithOptions(
+	producer := w.Manager.Producer()
+
+	return producer.EnqueueWithOptions(
 		"create_batches_worker",
 		"Add",
 		jobID,
-		workers.EnqueueOptions{
+		goworkers2.EnqueueOptions{
 			Retry: true,
-			At:    float64(at) / workers.NanoSecondPrecision,
+			At:    float64(at) / goworkers2.NanoSecondPrecision,
 		})
 }
 
 // ScheduleCreateBatchesFromFiltersJob schedules a new CreateBatchesWorker job
 func (w *Worker) ScheduleCreateBatchesFromFiltersJob(jobID *[]string, at int64) (string, error) {
-	return workers.EnqueueWithOptions(
+	producer := w.Manager.Producer()
+	return producer.EnqueueWithOptions(
 		"create_batches_from_filters_worker",
 		"Add",
 		jobID,
-		workers.EnqueueOptions{
+		goworkers2.EnqueueOptions{
 			Retry: true,
-			At:    float64(at) / workers.NanoSecondPrecision,
+			At:    float64(at) / goworkers2.NanoSecondPrecision,
 		})
 }
 
@@ -379,26 +404,29 @@ func (w *Worker) ScheduleProcessBatchJob(jobID string, appName string, users *[]
 	if err != nil {
 		return "", err
 	}
-	return workers.EnqueueWithOptions(
+	producer := w.Manager.Producer()
+	return producer.EnqueueWithOptions(
 		"process_batch_worker",
 		"Add",
 		[]interface{}{jobID, appName, compressedUsers},
-		workers.EnqueueOptions{
-			At: float64(at) / workers.NanoSecondPrecision,
+		goworkers2.EnqueueOptions{
+			At: float64(at) / goworkers2.NanoSecondPrecision,
 		})
 }
 
 // ScheduleJobCompletedJob schedules a new JobCompletedWorker job
 func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error) {
 	maxRetries := w.Config.GetInt("workers.jobCompleted.maxRetries")
-	return workers.EnqueueWithOptions(
+	producer := w.Manager.Producer()
+
+	return producer.EnqueueWithOptions(
 		"job_completed_worker",
 		"Add",
 		[]interface{}{jobID},
-		workers.EnqueueOptions{
+		goworkers2.EnqueueOptions{
 			Retry:      true,
 			RetryCount: maxRetries,
-			At:         float64(at) / workers.NanoSecondPrecision,
+			At:         float64(at) / goworkers2.NanoSecondPrecision,
 		})
 }
 
@@ -431,7 +459,7 @@ func (w *Worker) Start() {
 			panic(err)
 		}
 	}()
-	workers.Run()
+	w.Manager.Run()
 }
 
 // SendControlGroupToRedis send a sequency of users ids to redis

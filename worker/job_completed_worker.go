@@ -25,9 +25,9 @@ package worker
 import (
 	"bytes"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"io"
 
-	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
@@ -85,7 +85,7 @@ func (b *JobCompletedWorker) updateJobControlGroupCSVPath(job *model.Job, csvPat
 }
 
 // Process processes the messages sent to worker queue
-func (b *JobCompletedWorker) Process(message *workers.Msg) {
+func (b *JobCompletedWorker) Process(message *goworkers2.Msg) error {
 	arr, err := message.Args().Array()
 	checkErr(b.Logger, err)
 	jobID := arr[0]
@@ -116,6 +116,8 @@ func (b *JobCompletedWorker) Process(message *workers.Msg) {
 	b.Workers.Statsd.Incr(JobCompletedWorkerCompleted, job.Labels(), 1)
 
 	log.I(l, "finished")
+
+	return nil
 }
 
 func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {

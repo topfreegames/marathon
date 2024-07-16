@@ -21,9 +21,9 @@ package worker_test
 
 import (
 	"encoding/json"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"math/rand"
 
-	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
@@ -71,7 +71,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			message, err := workers.NewMsg(string(jobData))
+			message, err := goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 			createCSVSplitWorker.Process(message)
 
@@ -80,9 +80,9 @@ var _ = Describe("CSVSplit Worker", func() {
 			Expect(size).To(Equal(int64(2)))
 
 			// Check first info
-			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
+			jobData, err = w.RedisClient.RPop("queue:create_batches_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			message, err = workers.NewMsg(string(jobData))
+			message, err = goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 
 			var msg worker.BatchPart
@@ -92,14 +92,14 @@ var _ = Describe("CSVSplit Worker", func() {
 
 			Expect(msg.TotalSize).To(Equal(20000000))
 			Expect(msg.TotalParts).To(Equal(2))
-			Expect(msg.Size).To(Equal(10485760))
+			Expect(msg.Size).To(Equal(10485760)) // 10MB
 			Expect(msg.Part).To(Equal(0))
 			Expect(msg.Job.ID).To(Equal(j.ID))
 
-			// Check secound info
+			// Check second info
 			jobData, err = w.RedisClient.LPop("queue:create_batches_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			message, err = workers.NewMsg(string(jobData))
+			message, err = goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 
 			data = message.Args().ToJson()
@@ -133,7 +133,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			msg, err := workers.NewMsg(string(jobData))
+			msg, err := goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createCSVSplitWorker.Process(msg) }).Should(Panic())
 		})
@@ -156,7 +156,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			msg, err := workers.NewMsg(string(jobData))
+			msg, err := goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createCSVSplitWorker.Process(msg) }).Should(Panic())
 		})
@@ -171,7 +171,7 @@ var _ = Describe("CSVSplit Worker", func() {
 			_, err := w.CreateCSVSplitJob(job)
 			Expect(err).NotTo(HaveOccurred())
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
-			msg, err := workers.NewMsg(string(jobData))
+			msg, err := goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createCSVSplitWorker.Process(msg) }).Should(Panic())
 		})
@@ -196,7 +196,7 @@ var _ = Describe("CSVSplit Worker", func() {
 
 			jobData, err := w.RedisClient.LPop("queue:csv_split_worker").Result()
 			Expect(err).NotTo(HaveOccurred())
-			msg, err := workers.NewMsg(string(jobData))
+			msg, err := goworkers2.NewMsg(string(jobData))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(func() { createCSVSplitWorker.Process(msg) }).ShouldNot(Panic())
 

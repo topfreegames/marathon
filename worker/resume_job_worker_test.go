@@ -25,9 +25,9 @@ package worker_test
 import (
 	"encoding/json"
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"strings"
 
-	workers "github.com/jrallison/go-workers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
@@ -80,7 +80,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 			_, err = w.RedisClient.RPush(fmt.Sprintf("%s-pausedjobs", job.ID.String()), message.ToJson()).Result()
 			Expect(err).NotTo(HaveOccurred())
@@ -97,7 +97,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 			resumeJobWorker.Process(message)
 
@@ -121,7 +121,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			message, err := workers.NewMsg(string(msgB))
+			message, err := goworkers2.NewMsg(string(msgB))
 			Expect(err).NotTo(HaveOccurred())
 			resumeJobWorker.Process(message)
 

@@ -24,11 +24,11 @@ package worker
 
 import (
 	"fmt"
+	goworkers2 "github.com/digitalocean/go-workers2"
 	"github.com/topfreegames/marathon/model"
 
 	"gopkg.in/redis.v5"
 
-	"github.com/jrallison/go-workers"
 	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
 	"github.com/uber-go/zap"
@@ -53,7 +53,7 @@ func NewResumeJobWorker(workers *Worker) *ResumeJobWorker {
 }
 
 // Process processes the messages sent to worker queue
-func (b *ResumeJobWorker) Process(message *workers.Msg) {
+func (b *ResumeJobWorker) Process(message *goworkers2.Msg) error {
 	arr, err := message.Args().Array()
 	checkErr(b.Logger, err)
 	jobID := arr[0]
@@ -74,7 +74,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 			checkErr(b.Logger, err)
 		}
 		b.Workers.Statsd.Incr(ResumeJobWorkerCompleted, job.Labels(), 1)
-		return
+		return nil
 	}
 
 	for {
@@ -83,7 +83,7 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 			break
 		}
 		b.checkErr(job, err)
-		pausedJobArgs, err := workers.NewMsg(batchInfo)
+		pausedJobArgs, err := goworkers2.NewMsg(batchInfo)
 		b.checkErr(job, err)
 		pausedJobArr, err := pausedJobArgs.Args().Array()
 		b.checkErr(job, err)
@@ -95,6 +95,8 @@ func (b *ResumeJobWorker) Process(message *workers.Msg) {
 
 	b.Workers.Statsd.Incr(ResumeJobWorkerCompleted, job.Labels(), 1)
 	log.I(b.Logger, "finished resume_job_worker")
+
+	return nil
 }
 
 func (b *ResumeJobWorker) checkErr(job *model.Job, err error) {

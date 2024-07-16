@@ -23,6 +23,7 @@
 package extensions
 
 import (
+	"crypto/tls"
 	"fmt"
 
 	"github.com/spf13/viper"
@@ -31,7 +32,7 @@ import (
 	"gopkg.in/redis.v5"
 )
 
-//RedisConnectionError with SourceError that originated the connection failure
+// RedisConnectionError with SourceError that originated the connection failure
 type RedisConnectionError struct {
 	SourceError error
 }
@@ -40,12 +41,14 @@ func (e *RedisConnectionError) Error() string {
 	return fmt.Sprintf("Could not connect to redis using supplied configuration: %s", e.SourceError.Error())
 }
 
-//NewRedis connection with the specified configuration
+// NewRedis connection with the specified configuration
 func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Client, error) {
 	redisHost := conf.GetString(fmt.Sprintf("%s.redis.host", prefix))
 	redisPort := conf.GetInt(fmt.Sprintf("%s.redis.port", prefix))
 	redisPass := conf.GetString(fmt.Sprintf("%s.redis.pass", prefix))
 	redisDB := conf.GetInt(fmt.Sprintf("%s.redis.db", prefix))
+	tlsEnabled := conf.GetBool(fmt.Sprintf("%s.redis.tlsEnabled", prefix))
+
 	l := logger.With(
 		zap.String("source", "redisExtension"),
 		zap.String("operation", "NewRedis"),
@@ -54,11 +57,17 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 		zap.Int("redisDB", redisDB),
 	)
 	log.D(l, "Connecting to redis...")
-	client := redis.NewClient(&redis.Options{
+	opt := &redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", redisHost, redisPort),
 		Password: redisPass,
 		DB:       redisDB,
-	})
+	}
+	if tlsEnabled {
+		opt.TLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+	client := redis.NewClient(opt)
 	_, err := client.Ping().Result()
 	if err != nil {
 		log.E(l, "Connection to redis failed.", func(cm log.CM) {

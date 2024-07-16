@@ -1,12 +1,16 @@
-version: '2'
-
 services:
   postgres:
-    image: postgres:9.5
+    image: postgres:13
     ports:
       - "8585:5432"
     environment:
       - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "content-catalog", "-U", "ps_user" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   redis:
     image: redis
     ports:
@@ -20,8 +24,8 @@ services:
     ports:
       - "9940:9092"
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: kafka
-      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ADVERTISED_PORT: 9940
       KAFKA_CREATE_TOPICS: "consumer:1:1,consumergcm:1:1,consumerapns:1:1"
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
 
