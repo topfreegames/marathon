@@ -23,6 +23,7 @@
 package extensions
 
 import (
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -58,7 +59,7 @@ func NewPGClient(prefix string, config *viper.Viper, logger zap.Logger, PGOrNil 
 	return client, nil
 }
 
-//Connect to PG
+// Connect to PG
 func (c *PGClient) Connect(prefix string, PGOrNil ...interfaces.DB) error {
 	user := c.Config.GetString(fmt.Sprintf("%s.user", prefix))
 	pass := c.Config.GetString(fmt.Sprintf("%s.pass", prefix))
@@ -67,26 +68,36 @@ func (c *PGClient) Connect(prefix string, PGOrNil ...interfaces.DB) error {
 	port := c.Config.GetInt(fmt.Sprintf("%s.port", prefix))
 	poolSize := c.Config.GetInt(fmt.Sprintf("%s.poolSize", prefix))
 	maxRetries := c.Config.GetInt(fmt.Sprintf("%s.maxRetries", prefix))
+	sslmode := c.Config.GetBool(fmt.Sprintf("%s.sslmode", prefix))
 
 	if len(PGOrNil) > 0 {
 		c.DB = PGOrNil[0]
 		return nil
 	}
 
-	conn := pg.Connect(&pg.Options{
+	var tlsConfig *tls.Config
+	if sslmode {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+	opts := &pg.Options{
 		Addr:       fmt.Sprintf("%s:%d", host, port),
 		User:       user,
 		Password:   pass,
 		Database:   db,
 		PoolSize:   poolSize,
 		MaxRetries: maxRetries,
-	})
+		TLSConfig:  tlsConfig,
+	}
+
+	conn := pg.Connect(opts)
 	c.DB = conn
 
 	return nil
 }
 
-//IsConnected determines if the client is connected to PG
+// IsConnected determines if the client is connected to PG
 func (c *PGClient) IsConnected() bool {
 	res, err := c.DB.Exec("select 1")
 	if err != nil {
@@ -95,13 +106,13 @@ func (c *PGClient) IsConnected() bool {
 	return res.RowsReturned() == 1
 }
 
-//Close the connections to PG
+// Close the connections to PG
 func (c *PGClient) Close() error {
 	c.DB.Close()
 	return nil
 }
 
-//WaitForConnection loops until postgres is connected
+// WaitForConnection loops until postgres is connected
 func (c *PGClient) WaitForConnection(timeout int) error {
 	start := time.Now().Unix()
 	for !c.IsConnected() || time.Now().Unix()-start > int64(timeout) {
