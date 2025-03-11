@@ -33,6 +33,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/uber-go/zap"
 
+	pg "github.com/go-pg/pg/v10"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/topfreegames/marathon/extensions"
 	"github.com/topfreegames/marathon/interfaces"
@@ -48,8 +49,8 @@ type Application struct {
 	Logger             zap.Logger
 	Port               int
 	Host               string
-	DB                 interfaces.DB
-	PushDB             interfaces.DB
+	DB                 *pg.DB
+	PushDB             *pg.DB
 	ConfigPath         string
 	Config             *viper.Viper
 	NewRelic           newrelic.Application

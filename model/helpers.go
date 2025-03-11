@@ -26,8 +26,8 @@ import (
 	"fmt"
 	"strings"
 
+	pg "github.com/go-pg/pg/v10"
 	"github.com/topfreegames/marathon/interfaces"
-	pg "gopkg.in/pg.v5"
 )
 
 // InvalidField returns an error telling that field is invalid

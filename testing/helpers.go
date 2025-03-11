@@ -34,9 +34,9 @@ import (
 	"os"
 	"strings"
 
-	pg "gopkg.in/pg.v5"
-	"gopkg.in/pg.v5/orm"
-	"gopkg.in/pg.v5/types"
+	pg "github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
+	"github.com/go-pg/pg/v10/types"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/onsi/gomega"
@@ -117,7 +117,7 @@ func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, mess
 	return nil
 }
 
-//PGMock should be used for tests that need to connect to PG
+// PGMock should be used for tests that need to connect to PG
 type PGMock struct {
 	Execs        [][]interface{}
 	ExecOnes     [][]interface{}
@@ -128,7 +128,7 @@ type PGMock struct {
 	Error        error
 }
 
-//NewPGMock creates a new instance
+// NewPGMock creates a new instance
 func NewPGMock(rowsAffected, rowsReturned int, errOrNil ...error) *PGMock {
 	var err error
 	if len(errOrNil) == 1 {
@@ -146,7 +146,7 @@ func (m *PGMock) getResult() *types.Result {
 	return types.NewResult([]byte(fmt.Sprintf(" %d", m.RowsAffected)), m.RowsReturned)
 }
 
-//Close records that it is closed
+// Close records that it is closed
 func (m *PGMock) Close() error {
 	m.Closed = true
 
@@ -162,7 +162,7 @@ func (m *PGMock) Begin() (*pg.Tx, error) {
 	return nil, nil
 }
 
-//Exec stores executed params
+// Exec stores executed params
 func (m *PGMock) Exec(obj interface{}, params ...interface{}) (*types.Result, error) {
 	op := []interface{}{
 		obj, params,
@@ -177,7 +177,7 @@ func (m *PGMock) Exec(obj interface{}, params ...interface{}) (*types.Result, er
 	return result, nil
 }
 
-//ExecOne stores executed params
+// ExecOne stores executed params
 func (m *PGMock) ExecOne(obj interface{}, params ...interface{}) (*types.Result, error) {
 	op := []interface{}{
 		obj, params,
@@ -192,7 +192,7 @@ func (m *PGMock) ExecOne(obj interface{}, params ...interface{}) (*types.Result,
 	return result, nil
 }
 
-//Query stores executed params
+// Query stores executed params
 func (m *PGMock) Query(obj interface{}, query interface{}, params ...interface{}) (*types.Result, error) {
 	op := []interface{}{
 		obj, query, params,
@@ -207,7 +207,7 @@ func (m *PGMock) Query(obj interface{}, query interface{}, params ...interface{}
 	return result, nil
 }
 
-//QueryOne stores executed params
+// QueryOne stores executed params
 func (m *PGMock) QueryOne(obj interface{}, query interface{}, params ...interface{}) (*types.Result, error) {
 	op := []interface{}{
 		obj, query, params,
@@ -222,27 +222,27 @@ func (m *PGMock) QueryOne(obj interface{}, query interface{}, params ...interfac
 	return result, nil
 }
 
-//Model mock for testing
+// Model mock for testing
 func (m *PGMock) Model(params ...interface{}) *orm.Query {
 	return nil
 }
 
-//Select mock for testing
+// Select mock for testing
 func (m *PGMock) Select(params interface{}) error {
 	return nil
 }
 
-//Insert mock for testing
+// Insert mock for testing
 func (m *PGMock) Insert(params ...interface{}) error {
 	return nil
 }
 
-//Update mock for testing
+// Update mock for testing
 func (m *PGMock) Update(params interface{}) error {
 	return nil
 }
 
-//Delete mock for testing
+// Delete mock for testing
 func (m *PGMock) Delete(params interface{}) error {
 	return nil
 }
@@ -369,7 +369,7 @@ func ReadLinesFromIOReader(reader io.Reader) []string {
 	return lines
 }
 
-//GetTestDB for usage in tests
+// GetTestDB for usage in tests
 func GetTestDB(a *api.Application) *pg.DB {
 	host := a.Config.GetString("db.host")
 	user := a.Config.GetString("db.user")
@@ -410,7 +410,7 @@ func GetFaultyTestDB(a *api.Application) *pg.DB {
 	return faultyDb
 }
 
-//GetConfPath for the environment we're in
+// GetConfPath for the environment we're in
 func GetConfPath() string {
 	conf := "../config/test.yaml"
 
@@ -419,7 +419,7 @@ func GetConfPath() string {
 	return conf
 }
 
-//GetConf returns a viper config for the environment we're in
+// GetConf returns a viper config for the environment we're in
 func GetConf() *viper.Viper {
 	confPath := GetConfPath()
 	config := viper.New()
@@ -428,27 +428,27 @@ func GetConf() *viper.Viper {
 	return config
 }
 
-//GetDefaultTestApp returns a new marathon API Application bound to 0.0.0.0:8833 for test
+// GetDefaultTestApp returns a new marathon API Application bound to 0.0.0.0:8833 for test
 func GetDefaultTestApp(logger zap.Logger) *api.Application {
 	return api.GetApplication("0.0.0.0", 8833, false, logger, GetConfPath())
 }
 
-//Get from server
+// Get from server
 func Get(app *api.Application, url, auth string) (int, string) {
 	return doRequest(app, "GET", url, "", auth)
 }
 
-//Post to server
+// Post to server
 func Post(app *api.Application, url, body string, auth string) (int, string) {
 	return doRequest(app, "POST", url, body, auth)
 }
 
-//Put to server
+// Put to server
 func Put(app *api.Application, url, body string, auth string) (int, string) {
 	return doRequest(app, "PUT", url, body, auth)
 }
 
-//Delete from server
+// Delete from server
 func Delete(app *api.Application, url, auth string) (int, string) {
 	return doRequest(app, "DELETE", url, "", auth)
 }
@@ -481,13 +481,13 @@ func doRequest(app *api.Application, method, url, body, auth string) (int, strin
 	return res.StatusCode, string(b)
 }
 
-//ResetStdout back to os.Stdout
+// ResetStdout back to os.Stdout
 var ResetStdout func()
 
-//ReadStdout value
+// ReadStdout value
 var ReadStdout func() string
 
-//MockStdout to read it's value later
+// MockStdout to read it's value later
 func MockStdout() {
 	stdout := os.Stdout
 	r, w, err := os.Pipe()
@@ -508,23 +508,23 @@ func MockStdout() {
 	}
 }
 
-//TestBuffer is a mock buffer
+// TestBuffer is a mock buffer
 type TestBuffer struct {
 	bytes.Buffer
 }
 
-//Sync does nothing
+// Sync does nothing
 func (b *TestBuffer) Sync() error {
 	return nil
 }
 
-//Lines returns all lines of log
+// Lines returns all lines of log
 func (b *TestBuffer) Lines() []string {
 	output := strings.Split(b.String(), "\n")
 	return output[:len(output)-1]
 }
 
-//Stripped removes new lines
+// Stripped removes new lines
 func (b *TestBuffer) Stripped() string {
 	return strings.TrimRight(b.String(), "\n")
 }

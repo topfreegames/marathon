@@ -34,6 +34,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	goworkers2 "github.com/digitalocean/go-workers2"
 	raven "github.com/getsentry/raven-go"
+	pg "github.com/go-pg/pg/v10"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
@@ -46,8 +47,8 @@ import (
 // Worker is the struct that will configure workers
 type Worker struct {
 	Logger                    zap.Logger
-	PushDB                    interfaces.DB
-	MarathonDB                interfaces.DB
+	PushDB                    *pg.DB
+	MarathonDB                *pg.DB
 	Config                    *viper.Viper
 	DBPageSize                int
 	S3Client                  interfaces.S3

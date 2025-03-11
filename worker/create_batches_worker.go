@@ -27,12 +27,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"math"
 	"math/rand"
 	"time"
 
-	"gopkg.in/pg.v5"
+	goworkers2 "github.com/digitalocean/go-workers2"
+
+	"github.com/go-pg/pg/v10"
 
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -311,7 +312,7 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 	ids = nil
 
 	l.Info("finished")
-	
+
 	return nil
 }
 

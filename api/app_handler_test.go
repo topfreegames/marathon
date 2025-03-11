@@ -131,7 +131,7 @@ var _ = Describe("App Handler", func() {
 				dbApp := &model.App{
 					ID: id,
 				}
-				err = app.DB.Select(dbApp)
+				err = app.DB.Model(dbApp).Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbApp).NotTo(BeNil())
 				Expect(dbApp.Name).To(Equal(payload["name"]))

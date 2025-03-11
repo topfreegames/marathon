@@ -23,12 +23,11 @@
 package interfaces
 
 import (
-	pg "gopkg.in/pg.v5"
-	"gopkg.in/pg.v5/orm"
-	"gopkg.in/pg.v5/types"
+	pg "github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
 )
 
-//DB represents the contract for a Postgres DB
+// DB represents the contract for a Postgres DB
 type DB interface {
 	Model(model ...interface{}) *orm.Query
 	Select(model interface{}) error
@@ -36,10 +35,10 @@ type DB interface {
 	Update(model interface{}) error
 	Delete(model interface{}) error
 
-	Exec(query interface{}, params ...interface{}) (*types.Result, error)
-	ExecOne(query interface{}, params ...interface{}) (*types.Result, error)
-	Query(coll, query interface{}, params ...interface{}) (*types.Result, error)
-	QueryOne(coll, query interface{}, params ...interface{}) (*types.Result, error)
+	Exec(query interface{}, params ...interface{}) (pg.Result, error)
+	ExecOne(query interface{}, params ...interface{}) (pg.Result, error)
+	Query(coll, query interface{}, params ...interface{}) (pg.Result, error)
+	QueryOne(coll, query interface{}, params ...interface{}) (pg.Result, error)
 	Begin() (*pg.Tx, error)
 	Close() error
 }

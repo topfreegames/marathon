@@ -28,10 +28,10 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/pg.v5/types"
+	"github.com/go-pg/pg/v10/types"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/labstack/echo/v4"
-	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"

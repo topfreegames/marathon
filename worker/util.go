@@ -33,7 +33,7 @@ import (
 	"strconv"
 	"strings"
 
-	// pg "gopkg.in/pg.v5"
+	// pg "github.com/go-pg/pg/v10"
 	"gopkg.in/redis.v5"
 
 	raven "github.com/getsentry/raven-go"
