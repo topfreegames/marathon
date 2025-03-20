@@ -242,20 +242,30 @@ func (a *Application) configureApplication() {
 
 func (a *Application) configureDatabase() error {
 	PgClient, err := extensions.NewPGClient("db", a.Config, a.Logger)
-	a.DB = PgClient.DB
-	if err == nil {
-		log.I(a.Logger, "successfully connected to the marathon database")
+	if err != nil {
+		log.E(a.Logger, "Failed to initialize Marathon Database.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return err
 	}
-	return err
+
+	a.DB = PgClient.DB
+	log.I(a.Logger, "successfully connected to the marathon database")
+	return nil
 }
 
 func (a *Application) configurePushDatabase() error {
 	PgClient, err := extensions.NewPGClient("push.db", a.Config, a.Logger)
-	a.PushDB = PgClient.DB
-	if err == nil {
-		log.I(a.Logger, "successfully connected to the push database")
+	if err != nil {
+		log.E(a.Logger, "Failed to initialize Push Database.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return err
 	}
-	return err
+
+	a.PushDB = PgClient.DB
+	log.I(a.Logger, "successfully connected to the push database")
+	return nil
 }
 
 func (a *Application) configureSendgrid() {

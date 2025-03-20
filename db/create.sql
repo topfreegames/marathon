@@ -6,3 +6,9 @@ CREATE DATABASE marathon
        ENCODING = 'UTF8'
        TABLESPACE = pg_default
        TEMPLATE = template0;
+
+CREATE DATABASE push
+  WITH OWNER = marathon_user
+       ENCODING = 'UTF8'
+       TABLESPACE = pg_default
+       TEMPLATE = template0;

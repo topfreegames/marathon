@@ -419,6 +419,13 @@ func GetConfPath() string {
 	return conf
 }
 
+//GetFaultyDBConfPath return faulty DB config for testing
+func GetFaultyDBConfPath() string {
+	conf := "../config/test-faulty-db.yaml"
+	return conf
+}
+
+
 //GetConf returns a viper config for the environment we're in
 func GetConf() *viper.Viper {
 	confPath := GetConfPath()
