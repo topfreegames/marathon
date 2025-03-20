@@ -2,30 +2,28 @@
 db:
   host: localhost
   port: 8585
-  user: postgres
-  pass: ""
+  user: marathon_test_user
+  password: ""
   poolSize: 20
   maxRetries: 3
-  database: marathon
+  database: marathon_faulty
 push:
   db:
     host: localhost
     port: 8585
-    user: marathon_user
+    user: marathon_test_user
     pass: ""
     poolSize: 20
     maxRetries: 3
-    database: push
+    database: marathon_test
 s3:
   bucket: "tfg-push-notifications"
+  folder: "test/jobs"
+  controlGroupFolder: "test/control-groups"
   region: "us-east-1"
-  folder: "development/jobs"
-  controlGroupFolder: "development/control-groups"
   daysExpiry: 1
   accessKey: "ACCESS-KEY"
   secretAccessKey: "SECRET-ACCESS-KEY"
-kafka:
-  bootstrapServers: localhost:9940
 workers:
   statsPort: 8081
   direct:
@@ -58,11 +56,10 @@ workers:
     maxRetries: 5
   redis:
     poolSize: 10
-    host: 0.0.0.0
+    host: localhost
     port: 6333
     db: 0
     pass:
-    tlsEnabled: true
   topicTemplate: "%s-%s-c"
 feedbackListener:
   flushInterval: 5000
@@ -70,8 +67,8 @@ feedbackListener:
   kafka:
     topics:
       - "^.*-feedbacks$"
+    brokers: localhost:9940
     group: marathon-consumer-group
     sessionTimeout: 6000
     handleAllMessagesBeforeExiting: true
     offsetResetStrategy: latest
-    brokers: localhost:9092

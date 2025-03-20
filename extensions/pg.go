@@ -24,6 +24,7 @@ package extensions
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"time"
 
@@ -93,6 +94,10 @@ func (c *PGClient) Connect(prefix string, PGOrNil ...interfaces.DB) error {
 
 	conn := pg.Connect(opts)
 	c.DB = conn
+
+	if !c.IsConnected() {
+		return errors.New("cannot connect to DB")
+	}
 
 	return nil
 }

@@ -25,13 +25,12 @@ package api_test
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/topfreegames/marathon/api"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/uber-go/zap"
+	"net/http"
 )
 
 var _ = Describe("API Application", func() {
@@ -95,6 +94,10 @@ var _ = Describe("API Application", func() {
 			Expect(obj["msg"]).To(Equal("Panic occurred."))
 			Expect(obj["operation"]).To(Equal("OnErrorHandler"))
 			Expect(obj["stack"]).To(Equal("stack"))
+		})
+
+		It("should panic on DB connect error", func() {
+			Expect(func() { api.GetApplication("127.0.0.1", 9999, false, logger, GetFaultyDBConfPath()) }).To(PanicWith("cannot configure application"))
 		})
 	})
 })
