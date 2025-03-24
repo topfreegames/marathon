@@ -40,18 +40,33 @@ func (a *Application) checkPostgres() error {
 	return err
 }
 
+func (a *Application) checkPushDB() error {
+	_, err := a.PushDB.Exec("SELECT 1")
+	return err
+}
+
 // HealthcheckHandler is the method called when a get to /healthcheck is called
 func (a *Application) HealthcheckHandler(c echo.Context) error {
 	l := a.Logger.With(
 		zap.String("source", "healthcheckHandler"),
 		zap.String("operation", "healthcheck"),
 	)
+
 	err := a.checkPostgres()
 	if err != nil {
-		log.E(l, "Failed healthcheck.", func(cm log.CM) {
+		log.E(l, "Failed Postgres healthcheck.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
 		return c.JSON(http.StatusInternalServerError, &Health{Healthy: false})
 	}
+
+	err = a.checkPushDB()
+	if err != nil {
+		log.E(l, "Failed PushDB healthcheck.", func(cm log.CM) {
+			cm.Write(zap.Error(err))
+		})
+		return c.JSON(http.StatusInternalServerError, &Health{Healthy: false})
+	}
+
 	return c.JSON(http.StatusOK, &Health{Healthy: true})
 }
