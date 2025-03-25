@@ -68,7 +68,7 @@ func NewRedis(prefix string, conf *viper.Viper, logger zap.Logger) (*redis.Clien
 		}
 	}
 	client := redis.NewClient(opt)
-	_, err := client.Ping().Result()
+	err := client.Ping().Err()
 	if err != nil {
 		log.E(l, "Connection to redis failed.", func(cm log.CM) {
 			cm.Write(zap.Error(err))

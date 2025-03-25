@@ -35,8 +35,26 @@ type Health struct {
 	Healthy bool `json:"healthy"`
 }
 
-func (a *Application) checkPostgres() error {
+func (a *Application) checkDependencies() error {
+
+	// try to connect to Marathon DB
 	_, err := a.DB.Exec("SELECT 1")
+	if err != nil {
+		return err
+	}
+
+	// try to connect to Push DB
+	_, err = a.PushDB.Exec("SELECT 1")
+	if err != nil {
+		return err
+	}
+
+	// try to connect to Marathon Redis
+	_, err = a.Worker.RedisClient.Ping().Result()
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
@@ -46,7 +64,7 @@ func (a *Application) HealthcheckHandler(c echo.Context) error {
 		zap.String("source", "healthcheckHandler"),
 		zap.String("operation", "healthcheck"),
 	)
-	err := a.checkPostgres()
+	err := a.checkDependencies()
 	if err != nil {
 		log.E(l, "Failed healthcheck.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
