@@ -437,7 +437,7 @@ func (w *Worker) Start() {
 		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
 
 			_, marathonError := w.MarathonDB.Exec("SELECT 1")
-			_, pushError := w.MarathonDB.Exec("SELECT 1")
+			_, pushError := w.PushDB.Exec("SELECT 1")
 			pong, redisError := w.RedisClient.Ping().Result()
 
 			status := struct {
