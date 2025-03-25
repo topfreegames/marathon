@@ -196,6 +196,12 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		log.E(l, "Failed to send job to create_batches_worker.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
+		if strings.Contains(err.Error(), "duplicate key") {
+			return c.JSON(http.StatusConflict, job)
+		}
+		if strings.Contains(err.Error(), "violates foreign key constraint") {
+			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
 
@@ -337,19 +343,13 @@ func (a *Application) createJob(job *model.Job, c echo.Context) error {
 
 	if err != nil {
 		l.Error("Failed to create job.", zap.Error(err))
-		if strings.Contains(err.Error(), "duplicate key") {
-			return c.JSON(http.StatusConflict, job)
-		}
-		if strings.Contains(err.Error(), "violates foreign key constraint") {
-			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
-		}
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+		return err
 	}
 
 	err = a.createJobWorkers(job, c)
 	if err != nil {
 		l.Error("Failed to create job worker", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
+		return err
 	}
 
 	return nil
