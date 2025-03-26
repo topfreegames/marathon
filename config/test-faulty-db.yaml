@@ -60,6 +60,7 @@ workers:
     port: 6333
     db: 0
     pass:
+    tlsEnabled: false
   topicTemplate: "%s-%s-c"
 feedbackListener:
   flushInterval: 5000

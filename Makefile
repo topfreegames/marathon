@@ -111,8 +111,7 @@ stop-deps:
 test: test-services test-run
 
 test-run:
-	@$(GINKGO) -r --randomizeAllSpecs --randomizeSuites --cover .
-	@$(MAKE) test-coverage-func
+	@go test -p 1 -v -cover -coverprofile=coverage.out ./...
 
 test-coverage-func:
 	@mkdir -p _build
