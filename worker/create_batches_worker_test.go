@@ -27,7 +27,7 @@ import (
 	goworkers2 "github.com/digitalocean/go-workers2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/topfreegames/marathon/worker"
@@ -582,7 +582,7 @@ user_id
 				"filters": map[string]interface{}{},
 				"csvPath": "test/jobs/obj1.csv",
 			})
-			w.MarathonDB.Model(j).Set("db_page_size = ?", 500).Returning("*").Update()
+			w.MarathonDB.Model(j).WherePK().Set("db_page_size = ?", 500).Returning("*").Update()
 
 			_, err := w.CreateCSVSplitJob(j)
 			Expect(err).NotTo(HaveOccurred())
@@ -599,7 +599,7 @@ user_id
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(func() { createBatchesWorker.Process(msg) }).ShouldNot(Panic())
-			err = w.MarathonDB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(j).Column("job.*").Relation("App").Where("job.id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j.DBPageSize).To(Equal(500))
 		})
@@ -843,7 +843,7 @@ user_id
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeEquivalentTo(0))
 
-			err = w.MarathonDB.Model(j).Column("job.*", "App").Where("job.id = ?", j.ID).Select()
+			err = w.MarathonDB.Model(j).Column("job.*").Relation("App").Where("job.id = ?", j.ID).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(j.CompletedAt).ToNot(BeNil())
 		})

@@ -21,8 +21,9 @@ package worker_test
 
 import (
 	"encoding/json"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"math/rand"
+
+	goworkers2 "github.com/digitalocean/go-workers2"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

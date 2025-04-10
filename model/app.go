@@ -25,12 +25,12 @@ package model
 import (
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo/v4"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // App is the app model struct
 type App struct {
-	ID        uuid.UUID `sql:",pk" json:"id"`
+	ID        uuid.UUID `pg:",pk" json:"id"`
 	Name      string    `json:"name"`
 	BundleID  string    `json:"bundleId"`
 	CreatedBy string    `json:"createdBy"`

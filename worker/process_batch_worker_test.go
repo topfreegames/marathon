@@ -25,9 +25,10 @@ package worker_test
 import (
 	"encoding/json"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"strings"
 	"time"
+
+	goworkers2 "github.com/digitalocean/go-workers2"
 
 	"github.com/Shopify/sarama"
 	workers "github.com/jrallison/go-workers"
@@ -288,7 +289,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(BeNumerically("~", time.Now().UnixNano(), 50000000))
@@ -331,7 +332,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
@@ -366,7 +367,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(1))
 			Expect(dbJob.CompletedAt).To(Equal(int64(0)))
@@ -399,7 +400,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedTokens).To(Equal(len(users)))
 		})
@@ -430,7 +431,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
@@ -459,7 +460,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
@@ -632,7 +633,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.Status).To(Equal(""))
@@ -675,7 +676,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.Status).To(Equal("circuitbreak"))
@@ -787,7 +788,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))
@@ -823,7 +824,7 @@ var _ = Describe("ProcessBatch Worker", func() {
 			dbJob := model.Job{
 				ID: job.ID,
 			}
-			err = w.MarathonDB.Select(&dbJob)
+			err = w.MarathonDB.Model(&dbJob).WherePK().Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.CompletedBatches).To(Equal(0))
 			Expect(dbJob.CompletedTokens).To(Equal(0))

@@ -25,12 +25,12 @@ package model
 import (
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo/v4"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // Template is the template model struct
 type Template struct {
-	ID        uuid.UUID              `sql:",pk" json:"id"`
+	ID        uuid.UUID              `pg:",pk" json:"id"`
 	Name      string                 `json:"name"`
 	Locale    string                 `json:"locale"`
 	Defaults  map[string]interface{} `json:"defaults"`

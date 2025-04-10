@@ -2,8 +2,8 @@ package worker_test
 
 import (
 	goworkers2 "github.com/digitalocean/go-workers2"
+	"github.com/go-pg/pg/v10"
 	uuid "github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/model"
 )
 
@@ -11,7 +11,7 @@ type ValidateCreateBatchesMiddleware struct {
 	IsTestRunning       bool
 	ResultChan          *chan bool
 	JobID               uuid.UUID
-	MarathonDB          interfaces.DB
+	MarathonDB          *pg.DB
 	ExpectedTotalUsers  int
 	ExpectedTotalTokens int
 }

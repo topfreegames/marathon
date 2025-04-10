@@ -27,11 +27,12 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"math"
 	"math/rand"
 	"strings"
 	"time"
+
+	goworkers2 "github.com/digitalocean/go-workers2"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/log"
@@ -89,17 +90,17 @@ func (b *DirectWorker) addCompletedTokens(job *model.Job, nTokens int) error {
 	), "Finished adding completion tokens", func(l log.CM) {
 		l.Write(zap.Int("completedTokens", nTokens))
 	})
-	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_tokens = completed_tokens + ?", nTokens).Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(job).Set("completed_tokens = completed_tokens + ?", nTokens).Where("id = ?", job.ID).Update()
 	return err
 }
 
 func (b *DirectWorker) addCompletedBatch(job *model.Job) error {
-	_, err := b.Workers.MarathonDB.Model(&job).Set("completed_batches = completed_batches + 1").Where("id = ?", job.ID).Update()
+	_, err := b.Workers.MarathonDB.Model(job).Set("completed_batches = completed_batches + 1").Where("id = ?", job.ID).Update()
 	return err
 }
 
 func (b *DirectWorker) checkComplete(job *model.Job) (bool, error) {
-	err := b.Workers.MarathonDB.Model(&job).Where("id = ?", job.ID).Select()
+	err := b.Workers.MarathonDB.Model(job).Where("id = ?", job.ID).Select()
 	return job.CompletedBatches == job.TotalBatches, err
 }
 
@@ -264,7 +265,7 @@ func (b *DirectWorker) Process(message *goworkers2.Msg) error {
 	complete, _ := b.checkComplete(job)
 	if complete {
 		job.CompletedAt = time.Now().UnixNano()
-		_, err = b.Workers.MarathonDB.Model(&job).Column("completed_at").Update()
+		_, err = b.Workers.MarathonDB.Model(job).WherePK().Column("completed_at").Update()
 
 		at := time.Now().Add(b.Workers.Config.GetDuration("workers.processBatch.intervalToSendCompletedJob")).UnixNano()
 		_, err = b.Workers.ScheduleJobCompletedJob(job.ID.String(), at)

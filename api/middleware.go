@@ -24,7 +24,9 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/go-pg/pg/v10"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -272,10 +274,10 @@ func (a AppAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set("user-email", userEmail)
 		user := &model.User{}
 		err := WithSegment("db-select", c, func() error {
-			return a.App.DB.Model(&user).Column("*").Where("email = ?", userEmail).Select()
+			return a.App.DB.Model(user).Column("*").Where("email = ?", userEmail).Select()
 		})
 		if err != nil {
-			if err.Error() == RecordNotFoundString {
+			if errors.Is(err, pg.ErrNoRows) {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
 			}
 			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
@@ -322,10 +324,10 @@ func (a UserAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set("user-email", userEmail)
 		user := &model.User{}
 		err := WithSegment("db-select", c, func() error {
-			return a.App.DB.Model(&user).Column("*").Where("email = ?", userEmail).Select()
+			return a.App.DB.Model(user).Column("*").Where("email = ?", userEmail).Select()
 		})
 		if err != nil {
-			if err.Error() == RecordNotFoundString {
+			if errors.Is(err, pg.ErrNoRows) {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
 			}
 			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
@@ -363,10 +365,10 @@ func (a UploadAuthMiddleware) Serve(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set("user-email", userEmail)
 		user := &model.User{}
 		err := WithSegment("db-select", c, func() error {
-			return a.App.DB.Model(&user).Column("*").Where("email = ?", userEmail).Select()
+			return a.App.DB.Model(user).Column("*").Where("email = ?", userEmail).Select()
 		})
 		if err != nil {
-			if err.Error() == RecordNotFoundString {
+			if errors.Is(err, pg.ErrNoRows) {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"status": "Unauthorized."})
 			}
 			return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})

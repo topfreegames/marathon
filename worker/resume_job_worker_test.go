@@ -25,8 +25,9 @@ package worker_test
 import (
 	"encoding/json"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"strings"
+
+	goworkers2 "github.com/digitalocean/go-workers2"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

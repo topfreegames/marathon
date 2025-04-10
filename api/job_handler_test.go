@@ -232,7 +232,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -289,7 +289,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -316,7 +316,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.Localized).To(Equal(false))
 
@@ -351,7 +351,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.Localized).To(Equal(true))
 
@@ -374,7 +374,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ControlGroup).To(BeEquivalentTo(0.10))
 			})
@@ -425,7 +425,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -473,7 +473,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -502,7 +502,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -531,7 +531,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -561,7 +561,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))
@@ -1118,7 +1118,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).To(Equal(existingJob.ID))
 				Expect(dbJob.Status).To(Equal("paused"))
@@ -1192,7 +1192,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).To(Equal(existingJob.ID))
 				Expect(dbJob.Status).To(Equal("stopped"))
@@ -1247,7 +1247,7 @@ var _ = Describe("Job Handler", func() {
 				dbJob := &model.Job{
 					ID: id,
 				}
-				err = app.DB.Select(&dbJob)
+				err = app.DB.Model(dbJob).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbJob.ID).ToNot(BeNil())
 				Expect(dbJob.AppID).To(Equal(existingApp.ID))

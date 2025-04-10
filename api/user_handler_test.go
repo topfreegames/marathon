@@ -25,12 +25,12 @@ package api_test
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-pg/pg/v10"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/api"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/uber-go/zap"
@@ -135,7 +135,7 @@ var _ = Describe("User Handler", func() {
 				dbUser := &model.User{
 					ID: id,
 				}
-				err = app.DB.Select(dbUser)
+				err = app.DB.Model(dbUser).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbUser).NotTo(BeNil())
 				Expect(dbUser.Email).To(Equal(payload["email"]))
@@ -273,7 +273,7 @@ var _ = Describe("User Handler", func() {
 				dbUser := &model.User{
 					ID: id,
 				}
-				err = app.DB.Select(dbUser)
+				err = app.DB.Model(dbUser).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbUser).NotTo(BeNil())
 				Expect(dbUser.Email).To(Equal(existingUser.Email))
@@ -330,9 +330,9 @@ var _ = Describe("User Handler", func() {
 				dbUser := &model.User{
 					ID: existingUser.ID,
 				}
-				err := app.DB.Select(dbUser)
+				err := app.DB.Model(dbUser).WherePK().Select()
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
+				Expect(err).To(Equal(pg.ErrNoRows))
 			})
 		})
 

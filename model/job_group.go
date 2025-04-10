@@ -22,13 +22,11 @@
 
 package model
 
-import (
-	"github.com/satori/go.uuid"
-)
+import uuid "github.com/satori/go.uuid"
 
 // JobGroup is a collection of jobs
 type JobGroup struct {
-	ID    uuid.UUID `sql:",pk" json:"id"`
+	ID    uuid.UUID `pg:",pk" json:"id"`
 	AppID uuid.UUID `json:"appId"`
 	Jobs  []*Job    `json:"jobs"`
 }

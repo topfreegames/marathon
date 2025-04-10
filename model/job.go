@@ -27,14 +27,14 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/go-pg/pg/v10/orm"
 	"github.com/labstack/echo/v4"
-	"github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/interfaces"
+	uuid "github.com/satori/go.uuid"
 )
 
 // Job is the job model struct
 type Job struct {
-	ID                  uuid.UUID              `sql:",pk" json:"id"`
+	ID                  uuid.UUID              `pg:",pk" json:"id"`
 	TotalBatches        int                    `json:"totalBatches"`
 	CompletedBatches    int                    `json:"completedBatches"`
 	ControlGroup        float64                `json:"controlGroup"`
@@ -55,7 +55,7 @@ type Job struct {
 	CreatedBy           string                 `json:"createdBy"`
 	App                 App                    `json:"app"`
 	AppID               uuid.UUID              `json:"appId"`
-	JobGroupID          uuid.UUID              `json:"jobGroupId" sql:",null"`
+	JobGroupID          uuid.UUID              `json:"jobGroupId" pg:",null"`
 	TemplateName        string                 `json:"templateName"`
 	PastTimeStrategy    string                 `json:"pastTimeStrategy"`
 	Status              string                 `json:"status"`
@@ -111,7 +111,7 @@ func (j *Job) Labels() []string {
 	}
 }
 
-func (j *Job) tag(db interfaces.DB, name, message, state string) {
+func (j *Job) tag(db orm.DB, name, message, state string) {
 	status := &Status{
 		Name:      name,
 		JobID:     j.ID,
@@ -136,16 +136,16 @@ func (j *Job) tag(db interfaces.DB, name, message, state string) {
 }
 
 // TagSuccess create a status in one job
-func (j *Job) TagSuccess(db interfaces.DB, name, message string) {
+func (j *Job) TagSuccess(db orm.DB, name, message string) {
 	j.tag(db, name, message, "success")
 }
 
 // TagError create a status in one job
-func (j *Job) TagError(db interfaces.DB, name, message string) {
+func (j *Job) TagError(db orm.DB, name, message string) {
 	j.tag(db, name, message, "fail")
 }
 
 // TagRunning create a status in one job
-func (j *Job) TagRunning(db interfaces.DB, name, message string) {
+func (j *Job) TagRunning(db orm.DB, name, message string) {
 	j.tag(db, name, message, "running")
 }

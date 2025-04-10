@@ -23,8 +23,9 @@
 package api
 
 import (
+	"errors"
+	"github.com/go-pg/pg/v10"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -76,11 +77,14 @@ func (a *Application) PostAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: app})
 	}
 	err = WithSegment("db-insert", c, func() error {
-		return a.DB.Insert(&app)
+		_, err := a.DB.Model(app).Insert()
+		return err
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
+		var pgErr pg.Error
+		ok := errors.As(err, &pgErr)
+		if ok && pgErr.IntegrityViolation() {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
 		log.E(l, "Failed to create app.", func(cm log.CM) {
@@ -107,10 +111,10 @@ func (a *Application) GetAppHandler(c echo.Context) error {
 	}
 	app := &model.App{ID: id}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Select(&app)
+		return a.DB.Model(app).WherePK().Select()
 	})
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
 		log.E(l, "Failed to retrieve app.", func(cm log.CM) {
@@ -147,11 +151,13 @@ func (a *Application) PutAppHandler(c echo.Context) error {
 	}
 	app.ID = id
 	err = WithSegment("db-update", c, func() error {
-		_, err = a.DB.Model(&app).Column("name").Column("bundle_id").Column("updated_at").Returning("*").Update()
+		_, err = a.DB.Model(app).WherePK().Column("name").Column("bundle_id").Column("updated_at").Returning("*").Update()
 		return err
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
+		var pgErr pg.Error
+		ok := errors.As(err, &pgErr)
+		if ok && pgErr.IntegrityViolation() {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: app})
 		}
 		log.E(l, "Failed to update app.", func(cm log.CM) {
@@ -177,13 +183,15 @@ func (a *Application) DeleteAppHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error()})
 	}
 	app := &model.App{ID: id}
+	var values pg.Result
 	err = WithSegment("db-delete", c, func() error {
-		return a.DB.Delete(&app)
+		values, err = a.DB.Model(app).WherePK().Delete()
+		return err
 	})
+	if values.RowsAffected() == 0 {
+		return c.JSON(http.StatusNotFound, map[string]string{})
+	}
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
-			return c.JSON(http.StatusNotFound, map[string]string{})
-		}
 		log.E(l, "Failed to delete app.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})

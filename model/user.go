@@ -25,14 +25,14 @@ package model
 import (
 	"github.com/asaskevich/govalidator"
 	"github.com/labstack/echo/v4"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // User is the user model struct
 type User struct {
-	ID          uuid.UUID   `sql:",pk" json:"id"`
+	ID          uuid.UUID   `pg:",pk" json:"id"`
 	Email       string      `json:"email"`
-	IsAdmin     bool        `sql:",notnull" json:"isAdmin"`
+	IsAdmin     bool        `pg:",notnull,use_zero" json:"isAdmin"`
 	AllowedApps []uuid.UUID `pg:",array" json:"allowedApps"`
 	CreatedBy   string      `json:"createdBy"`
 	CreatedAt   int64       `json:"createdAt"`

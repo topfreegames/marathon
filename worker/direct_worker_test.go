@@ -22,8 +22,9 @@ package worker_test
 import (
 	"bytes"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"math/rand"
+
+	goworkers2 "github.com/digitalocean/go-workers2"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -187,7 +188,7 @@ var _ = Describe("Complete Test", func() {
 			dbJob := &model.Job{
 				ID: j.ID,
 			}
-			err = w.MarathonDB.Model(&dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
+			err = w.MarathonDB.Model(dbJob).Column("control_group_csv_path").Where("id = ?", j.ID.String()).Select()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dbJob.ControlGroupCSVPath).To(Equal(key))
 		})

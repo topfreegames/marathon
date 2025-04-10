@@ -25,13 +25,13 @@ package api_test
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-pg/pg/v10"
 	"net/http"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/api"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/uber-go/zap"
@@ -131,7 +131,7 @@ var _ = Describe("App Handler", func() {
 				dbApp := &model.App{
 					ID: id,
 				}
-				err = app.DB.Select(dbApp)
+				err = app.DB.Model(dbApp).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbApp).NotTo(BeNil())
 				Expect(dbApp.Name).To(Equal(payload["name"]))
@@ -334,7 +334,7 @@ var _ = Describe("App Handler", func() {
 				dbApp := &model.App{
 					ID: id,
 				}
-				err = app.DB.Select(dbApp)
+				err = app.DB.Model(dbApp).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbApp).NotTo(BeNil())
 				Expect(dbApp.Name).To(Equal(payload["name"]))
@@ -458,9 +458,9 @@ var _ = Describe("App Handler", func() {
 				dbApp := &model.App{
 					ID: existingApp.ID,
 				}
-				err := app.DB.Select(dbApp)
+				err := app.DB.Model(dbApp).WherePK().Select()
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
+				Expect(err).To(Equal(pg.ErrNoRows))
 			})
 		})
 

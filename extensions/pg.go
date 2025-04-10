@@ -28,22 +28,21 @@ import (
 	"fmt"
 	"time"
 
-	pg "gopkg.in/pg.v5"
+	pg "github.com/go-pg/pg/v10"
 
 	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
 )
 
 // PGClient is the struct that connects to PostgreSQL
 type PGClient struct {
 	Config *viper.Viper
-	DB     interfaces.DB
+	DB     *pg.DB
 	Logger zap.Logger
 }
 
 // NewPGClient creates a new client
-func NewPGClient(prefix string, config *viper.Viper, logger zap.Logger, PGOrNil ...interfaces.DB) (*PGClient, error) {
+func NewPGClient(prefix string, config *viper.Viper, logger zap.Logger, PGOrNil ...*pg.DB) (*PGClient, error) {
 	client := &PGClient{
 		Config: config,
 		Logger: logger,
@@ -61,7 +60,7 @@ func NewPGClient(prefix string, config *viper.Viper, logger zap.Logger, PGOrNil 
 }
 
 // Connect to PG
-func (c *PGClient) Connect(prefix string, PGOrNil ...interfaces.DB) error {
+func (c *PGClient) Connect(prefix string, PGOrNil ...*pg.DB) error {
 	user := c.Config.GetString(fmt.Sprintf("%s.user", prefix))
 	pass := c.Config.GetString(fmt.Sprintf("%s.pass", prefix))
 	host := c.Config.GetString(fmt.Sprintf("%s.host", prefix))
