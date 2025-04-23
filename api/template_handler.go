@@ -207,10 +207,9 @@ func (a *Application) PutTemplateHandler(c echo.Context) error {
 	}
 	template.ID = tid
 	template.AppID = aid
-	var _ pg.Result
 	err = WithSegment("db-update", c, func() error {
 		updating := a.DB.Model(template).WherePK().Column("name").Column("locale").Column("body").Column("updated_at")
-		if template.Defaults != nil && len(template.Defaults) > 0 {
+		if len(template.Defaults) > 0 {
 			updating = updating.Column("defaults")
 		}
 		_, err = updating.Returning("*").Update()

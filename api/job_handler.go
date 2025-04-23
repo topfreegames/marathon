@@ -494,7 +494,6 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 		Status:    "stopped",
 		UpdatedAt: time.Now().UnixNano(),
 	}
-	var _ pg.Result
 	err = WithSegment("db-update", c, func() error {
 		_, err = a.DB.Model(job).WherePK().Column("status").Column("updated_at").Returning("*").Update()
 		return err
