@@ -25,6 +25,7 @@ package testing
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,7 +36,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	pg "github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/onsi/gomega"
 	"github.com/spf13/viper"
@@ -164,6 +165,14 @@ func (m *PGMock) getResult() pg.Result {
 	}
 }
 
+func (m *PGMock) Context() context.Context {
+	return context.Background()
+}
+
+func (m *PGMock) Formatter() orm.QueryFormatter {
+	return orm.NewFormatter()
+}
+
 // Close records that it is closed
 func (m *PGMock) Close() error {
 	m.Closed = true
@@ -195,10 +204,38 @@ func (m *PGMock) Exec(obj interface{}, params ...interface{}) (pg.Result, error)
 	return result, nil
 }
 
+func (m *PGMock) ExecContext(c context.Context, query interface{}, params ...interface{}) (pg.Result, error) {
+	op := []interface{}{
+		query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
 // ExecOne stores executed params
 func (m *PGMock) ExecOne(obj interface{}, params ...interface{}) (pg.Result, error) {
 	op := []interface{}{
 		obj, params,
+	}
+	m.ExecOnes = append(m.ExecOnes, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
+func (m *PGMock) ExecOneContext(c context.Context, query interface{}, params ...interface{}) (pg.Result, error) {
+	op := []interface{}{
+		query, params,
 	}
 	m.ExecOnes = append(m.ExecOnes, op)
 
@@ -225,6 +262,20 @@ func (m *PGMock) Query(obj interface{}, query interface{}, params ...interface{}
 	return result, nil
 }
 
+func (m *PGMock) QueryContext(c context.Context, model, query interface{}, params ...interface{}) (pg.Result, error) {
+	op := []interface{}{
+		model, query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
 // QueryOne stores executed params
 func (m *PGMock) QueryOne(obj interface{}, query interface{}, params ...interface{}) (pg.Result, error) {
 	op := []interface{}{
@@ -240,8 +291,26 @@ func (m *PGMock) QueryOne(obj interface{}, query interface{}, params ...interfac
 	return result, nil
 }
 
+func (m *PGMock) QueryOneContext(c context.Context, model, query interface{}, params ...interface{}) (pg.Result, error) {
+	op := []interface{}{
+		model, query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
 // Model mock for testing
 func (m *PGMock) Model(params ...interface{}) *orm.Query {
+	return nil
+}
+
+func (m *PGMock) ModelContext(c context.Context, model ...interface{}) *pg.Query {
 	return nil
 }
 
@@ -263,6 +332,38 @@ func (m *PGMock) Update(params interface{}) error {
 // Delete mock for testing
 func (m *PGMock) Delete(params interface{}) error {
 	return nil
+}
+
+func (m *PGMock) RunInTransaction(ctx context.Context, fn func(*pg.Tx) error) error {
+	return nil
+}
+
+func (m *PGMock) CopyFrom(r io.Reader, query interface{}, params ...interface{}) (pg.Result, error) {
+	op := []interface{}{
+		query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
+}
+
+func (m *PGMock) CopyTo(w io.Writer, query interface{}, params ...interface{}) (pg.Result, error) {
+	op := []interface{}{
+		query, params,
+	}
+	m.Execs = append(m.Execs, op)
+
+	if m.Error != nil {
+		return nil, m.Error
+	}
+
+	result := m.getResult()
+	return result, nil
 }
 
 // FakeS3 for usage in tests

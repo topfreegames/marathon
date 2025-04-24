@@ -25,9 +25,9 @@ package model
 import (
 	"fmt"
 	"strings"
-
+	
+	"github.com/topfreegames/marathon/interfaces"
 	"github.com/go-pg/pg/v10"
-	"github.com/go-pg/pg/v10/orm"
 )
 
 // InvalidField returns an error telling that field is invalid
@@ -37,12 +37,12 @@ func InvalidField(field string) error {
 
 // GetJobInfoAndApp get the app and the job from the database
 // job.ID must be set
-func (j *Job) GetJobInfoAndApp(db orm.DB) error {
+func (j *Job) GetJobInfoAndApp(db interfaces.DB) error {
 	return db.Model(j).Column("job.*").Relation("App").Where("job.id = ?", j.ID).Select()
 }
 
 // GetJobTemplatesByNameAndLocale ...
-func (j *Job) GetJobTemplatesByNameAndLocale(db orm.DB) (map[string]map[string]Template, error) {
+func (j *Job) GetJobTemplatesByNameAndLocale(db interfaces.DB) (map[string]map[string]Template, error) {
 	var templates []Template
 	var err error
 	if len(strings.Split(j.TemplateName, ",")) > 1 {

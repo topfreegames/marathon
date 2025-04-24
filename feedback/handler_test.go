@@ -25,6 +25,9 @@ package feedback
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -145,6 +148,28 @@ var _ = Describe("Feedback Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 			s := handler.feedbackService(&message)
 			Expect(s).To(Equal("apns"))
+		})
+	})
+
+	Describe("flushFeedbacks", func() {
+		It("should delete map keys and exec query in postgres", func() {
+			mockPG := testing.NewPGMock(0, 0, nil)
+			mockDB, err := extensions.NewPGClient("db", config, logger, mockPG)
+			Expect(err).NotTo(HaveOccurred())
+			h, err := NewHandler(config, logger, nil, mockDB)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(handler.FeedbackCache)).To(Equal(0))
+			m := fmt.Sprintf("{\"from\":\"F8DIN2OFA0X3IOV897KUVPWU9CR2GNGUIOODWUFFVMJTFGQB45CY0ZEKXV758JOY0Z46P2CUCVL9HMNI3UGE5YXZYDM1AM0DX5ENIEGESOOLOV23YCKXG39ODFJXCU3UZFIW5ZCWLSEGGM1MY7SSGT07\",\"message_id\":\"422fc070-bf0e-4005-86e9-6aafaee9f3dd\",\"message_type\":\"ack\",\"error\": null,\"category\":\"\",\"metadata\":{\"jobId\":\"%s\"}}", jobID.String())
+			h.handleMessage([]byte(m))
+			Expect(len(h.FeedbackCache)).To(Equal(1))
+			h.FlushInterval = time.Duration(10) * time.Millisecond
+			go h.flushFeedbacks()
+			Eventually(func() int {
+				return len(h.FeedbackCache)
+			}).Should(Equal(0))
+			Eventually(func() int {
+				return len(mockPG.ExecOnes)
+			}).Should(Equal(1))
 		})
 	})
 

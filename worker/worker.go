@@ -47,8 +47,8 @@ import (
 // Worker is the struct that will configure workers
 type Worker struct {
 	Logger                    zap.Logger
-	PushDB                    *pg.DB
-	MarathonDB                *pg.DB
+	PushDB                    interfaces.DB
+	MarathonDB                interfaces.DB
 	Config                    *viper.Viper
 	DBPageSize                int
 	S3Client                  interfaces.S3

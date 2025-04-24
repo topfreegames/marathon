@@ -24,10 +24,10 @@ package model
 
 import (
 	"fmt"
+	"github.com/topfreegames/marathon/interfaces"
 	"time"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/go-pg/pg/v10/orm"
 	"github.com/labstack/echo/v4"
 	uuid "github.com/satori/go.uuid"
 )
@@ -111,7 +111,7 @@ func (j *Job) Labels() []string {
 	}
 }
 
-func (j *Job) tag(db orm.DB, name, message, state string) {
+func (j *Job) tag(db interfaces.DB, name, message, state string) {
 	status := &Status{
 		Name:      name,
 		JobID:     j.ID,
@@ -136,16 +136,16 @@ func (j *Job) tag(db orm.DB, name, message, state string) {
 }
 
 // TagSuccess create a status in one job
-func (j *Job) TagSuccess(db orm.DB, name, message string) {
+func (j *Job) TagSuccess(db interfaces.DB, name, message string) {
 	j.tag(db, name, message, "success")
 }
 
 // TagError create a status in one job
-func (j *Job) TagError(db orm.DB, name, message string) {
+func (j *Job) TagError(db interfaces.DB, name, message string) {
 	j.tag(db, name, message, "fail")
 }
 
 // TagRunning create a status in one job
-func (j *Job) TagRunning(db orm.DB, name, message string) {
+func (j *Job) TagRunning(db interfaces.DB, name, message string) {
 	j.tag(db, name, message, "running")
 }
