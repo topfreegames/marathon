@@ -25,10 +25,11 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"math/rand"
 	"strings"
 	"time"
+
+	goworkers2 "github.com/digitalocean/go-workers2"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
@@ -126,7 +127,7 @@ func (b *ProcessBatchWorker) updateJobBatchesInfo(jobID uuid.UUID) error {
 		log.I(l, "Finished all batches")
 		job.TagSuccess(b.Workers.MarathonDB, "process_batche_worker", "Finished all batches")
 		job.CompletedAt = time.Now().UnixNano()
-		_, err = b.Workers.MarathonDB.Model(&job).Column("completed_at").Update()
+		_, err = b.Workers.MarathonDB.Model(&job).WherePK().Column("completed_at").Update()
 		if err != nil {
 			return err
 		}

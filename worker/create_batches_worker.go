@@ -27,12 +27,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"math"
 	"math/rand"
 	"time"
 
-	"gopkg.in/pg.v5"
+	goworkers2 "github.com/digitalocean/go-workers2"
+
+	"github.com/go-pg/pg/v10"
 
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -257,7 +258,7 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 
 	b.Workers.Statsd.Incr(CreateBatchesWorkerStart, msg.Job.Labels(), 1)
 
-	err = b.Workers.MarathonDB.Model(&msg.Job).Column("job.status", "App").Where("job.id = ?", msg.Job.ID).Select()
+	err = b.Workers.MarathonDB.Model(&msg.Job).Column("job.status").Relation("App").Where("job.id = ?", msg.Job.ID).Select()
 	b.checkErr(&msg.Job, err)
 
 	if msg.Job.Status == stoppedJobStatus {
@@ -311,7 +312,7 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 	ids = nil
 
 	l.Info("finished")
-	
+
 	return nil
 }
 

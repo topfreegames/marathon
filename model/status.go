@@ -22,17 +22,15 @@
 
 package model
 
-import (
-	"github.com/satori/go.uuid"
-)
+import uuid "github.com/satori/go.uuid"
 
 // Status is the status model struct
 type Status struct {
-	tableName struct{} `sql:"status,alias:status"`
+	tableName struct{} `pg:"status,alias:status"`
 
-	ID        uuid.UUID `sql:",pk" json:"id"`
+	ID        uuid.UUID `pg:",pk" json:"id"`
 	Name      string    `json:"name"`
-	JobID     uuid.UUID `sql:",notnull" json:"jobID"`
+	JobID     uuid.UUID `pg:",notnull" json:"jobID"`
 	CreatedAt int64     `json:"createdAt"`
 	Events    []*Events `json:"events"`
 }

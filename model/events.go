@@ -22,15 +22,13 @@
 
 package model
 
-import (
-	"github.com/satori/go.uuid"
-)
+import uuid "github.com/satori/go.uuid"
 
 // Events is the events model struct
 type Events struct {
-	ID        uuid.UUID `sql:",pk" json:"id"`
+	ID        uuid.UUID `pg:",pk" json:"id"`
 	Message   string    `json:"message"`
-	StatusID  uuid.UUID `sql:",notnull" json:"statusID"`
+	StatusID  uuid.UUID `pg:",notnull" json:"statusID"`
 	State     string    `json:"state"`
 	CreatedAt int64     `json:"createdAt"`
 }

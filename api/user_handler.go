@@ -23,9 +23,11 @@
 package api
 
 import (
+	"errors"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/go-pg/pg/v10"
 
 	"github.com/labstack/echo/v4"
 	uuid "github.com/satori/go.uuid"
@@ -77,12 +79,17 @@ func (a *Application) CreateUserHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: user})
 	}
 	err = WithSegment("db-insert", c, func() error {
-		return a.DB.Insert(&user)
+		_, err := a.DB.Model(user).Insert()
+		return err
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
-			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: user})
+		var pgErr pg.Error
+		ok := errors.As(err, &pgErr)
+		if ok && pgErr.IntegrityViolation() {
+			if pgErr.Field('C') == "23505" { // Unique violation
+				return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: user})
+			}
 		}
 		log.E(l, "Failed to create user.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
@@ -108,10 +115,10 @@ func (a *Application) GetUserHandler(c echo.Context) error {
 	}
 	user := &model.User{ID: id}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Select(&user)
+		return a.DB.Model(user).WherePK().Select()
 	})
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
 		log.E(l, "Failed to retrieve user.", func(cm log.CM) {
@@ -148,13 +155,13 @@ func (a *Application) UpdateUserHandler(c echo.Context) error {
 	}
 	user.ID = id
 	err = WithSegment("db-update", c, func() error {
-		_, err = a.DB.Model(&user).Column("is_admin").Column("allowed_apps").Column("updated_at").Returning("*").Update()
+		_, err = a.DB.Model(user).WherePK().Column("is_admin").Column("allowed_apps").Column("updated_at").ExcludeColumn().Returning("*").Update()
 		return err
 	})
-	// FIXME: Ugly fix to remove duplicate elements returned by update
-	user.AllowedApps = user.AllowedApps[0 : len(user.AllowedApps)/2]
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
+		var pgErr pg.Error
+		ok := errors.As(err, &pgErr)
+		if ok && pgErr.IntegrityViolation() {
 			return c.JSON(http.StatusConflict, &Error{Reason: err.Error(), Value: user})
 		}
 		log.E(l, "Failed to update user.", func(cm log.CM) {
@@ -181,10 +188,11 @@ func (a *Application) DeleteUserHandler(c echo.Context) error {
 	}
 	user := &model.User{ID: id}
 	err = WithSegment("db-delete", c, func() error {
-		return a.DB.Delete(&user)
+		_, err := a.DB.Model(user).WherePK().Delete()
+		return err
 	})
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{})
 		}
 		log.E(l, "Failed to delete user.", func(cm log.CM) {

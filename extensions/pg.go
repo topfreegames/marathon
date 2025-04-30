@@ -26,12 +26,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/topfreegames/marathon/interfaces"
 	"time"
 
-	pg "gopkg.in/pg.v5"
+	pg "github.com/go-pg/pg/v10"
 
 	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/interfaces"
 	"github.com/uber-go/zap"
 )
 

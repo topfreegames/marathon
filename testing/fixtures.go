@@ -27,9 +27,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-pg/pg/v10/orm"
 	"github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/interfaces"
 	"github.com/topfreegames/marathon/model"
 )
 
@@ -43,7 +43,7 @@ func getOpt(options map[string]interface{}, key string, defaultValue interface{}
 }
 
 // CreateTestApp with specified optional values
-func CreateTestApp(db interfaces.DB, options ...map[string]interface{}) *model.App {
+func CreateTestApp(db orm.DB, options ...map[string]interface{}) *model.App {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -55,13 +55,13 @@ func CreateTestApp(db interfaces.DB, options ...map[string]interface{}) *model.A
 	app.BundleID = getOpt(opts, "bundleId", fmt.Sprintf("com.app.%s", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 	app.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 
-	err := db.Insert(&app)
+	_, err := db.Model(app).Insert()
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	return app
 }
 
 // CreateTestApps for n apps
-func CreateTestApps(db interfaces.DB, n int, options ...map[string]interface{}) []*model.App {
+func CreateTestApps(db orm.DB, n int, options ...map[string]interface{}) []*model.App {
 	apps := make([]*model.App, n)
 	for i := 0; i < n; i++ {
 		app := CreateTestApp(db, options...)
@@ -72,7 +72,7 @@ func CreateTestApps(db interfaces.DB, n int, options ...map[string]interface{}) 
 }
 
 // CreateTestUser with specified optional values
-func CreateTestUser(db interfaces.DB, options ...map[string]interface{}) *model.User {
+func CreateTestUser(db orm.DB, options ...map[string]interface{}) *model.User {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -85,13 +85,13 @@ func CreateTestUser(db interfaces.DB, options ...map[string]interface{}) *model.
 	user.AllowedApps = getOpt(opts, "allowedApps", []uuid.UUID{uuid.NewV4()}).([]uuid.UUID)
 	user.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 
-	err := db.Insert(&user)
+	_, err := db.Model(user).Insert()
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	return user
 }
 
 // CreateTestUsers for n users
-func CreateTestUsers(db interfaces.DB, n int, options ...map[string]interface{}) []*model.User {
+func CreateTestUsers(db orm.DB, n int, options ...map[string]interface{}) []*model.User {
 	users := make([]*model.User, n)
 	for i := 0; i < n; i++ {
 		user := CreateTestUser(db, options...)
@@ -138,7 +138,7 @@ func GetUserPayload(options ...map[string]interface{}) map[string]interface{} {
 }
 
 // CreateTestTemplate with specified optional values
-func CreateTestTemplate(db interfaces.DB, appID uuid.UUID, options ...map[string]interface{}) *model.Template {
+func CreateTestTemplate(db orm.DB, appID uuid.UUID, options ...map[string]interface{}) *model.Template {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -156,13 +156,13 @@ func CreateTestTemplate(db interfaces.DB, appID uuid.UUID, options ...map[string
 	template.Locale = getOpt(opts, "locale", strings.Split(uuid.NewV4().String(), "-")[0]).(string)
 	template.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 
-	err := db.Insert(&template)
+	_, err := db.Model(template).Insert()
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	return template
 }
 
 // CreateTestTemplates for n apps
-func CreateTestTemplates(db interfaces.DB, appID uuid.UUID, n int, options ...map[string]interface{}) []*model.Template {
+func CreateTestTemplates(db orm.DB, appID uuid.UUID, n int, options ...map[string]interface{}) []*model.Template {
 	templates := make([]*model.Template, n)
 	for i := 0; i < n; i++ {
 		template := CreateTestTemplate(db, appID, options...)
@@ -212,7 +212,7 @@ func GetTemplatePayloads(amount int, options ...map[string]interface{}) []map[st
 }
 
 // CreateTestJob with specified optional values
-func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
+func CreateTestJob(db orm.DB, appID uuid.UUID, templateName string, options ...map[string]interface{}) *model.Job {
 	opts := map[string]interface{}{}
 	if len(options) == 1 {
 		opts = options[0]
@@ -238,13 +238,13 @@ func CreateTestJob(db interfaces.DB, appID uuid.UUID, templateName string, optio
 	job.CreatedBy = getOpt(opts, "createdBy", fmt.Sprintf("%s@test.com", strings.Split(uuid.NewV4().String(), "-")[0])).(string)
 	job.StartsAt = getOpt(opts, "startsAt", time.Now().Add(time.Hour).UnixNano()).(int64)
 
-	err := db.Insert(&job)
+	_, err := db.Model(job).Insert()
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	return job
 }
 
 // CreateTestJobs for n apps
-func CreateTestJobs(db interfaces.DB, appID uuid.UUID, templateName string, n int, options ...map[string]interface{}) []*model.Job {
+func CreateTestJobs(db orm.DB, appID uuid.UUID, templateName string, n int, options ...map[string]interface{}) []*model.Job {
 	jobs := make([]*model.Job, n)
 	for i := 0; i < n; i++ {
 		job := CreateTestJob(db, appID, templateName, options...)

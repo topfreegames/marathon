@@ -25,10 +25,11 @@ package worker
 import (
 	"bytes"
 	"fmt"
-	goworkers2 "github.com/digitalocean/go-workers2"
 	"io"
 
-	"github.com/satori/go.uuid"
+	goworkers2 "github.com/digitalocean/go-workers2"
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -80,7 +81,7 @@ func (b *JobCompletedWorker) flushControlGroup(job *model.Job) {
 
 func (b *JobCompletedWorker) updateJobControlGroupCSVPath(job *model.Job, csvPath string) {
 	job.ControlGroupCSVPath = csvPath
-	_, err := b.Workers.MarathonDB.Model(job).Set("control_group_csv_path = ?control_group_csv_path").Update()
+	_, err := b.Workers.MarathonDB.Model(job).WherePK().Set("control_group_csv_path = ?control_group_csv_path").Update()
 	b.checkErr(job, err)
 }
 

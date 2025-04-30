@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	raven "github.com/getsentry/raven-go"
+	"github.com/go-pg/pg/v10/orm"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	newrelic "github.com/newrelic/go-agent"
@@ -48,8 +49,8 @@ type Application struct {
 	Logger             zap.Logger
 	Port               int
 	Host               string
-	DB                 interfaces.DB
-	PushDB             interfaces.DB
+	DB                 orm.DB
+	PushDB             orm.DB
 	ConfigPath         string
 	Config             *viper.Viper
 	NewRelic           newrelic.Application

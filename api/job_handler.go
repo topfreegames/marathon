@@ -23,15 +23,16 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"gopkg.in/pg.v5/types"
+	pg "github.com/go-pg/pg/v10"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/labstack/echo/v4"
-	"github.com/satori/go.uuid"
 	"github.com/topfreegames/marathon/email"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/model"
@@ -53,7 +54,7 @@ func (a *Application) ListJobsHandler(c echo.Context) error {
 	}
 	templateName := c.QueryParam("template")
 	jobs := []model.Job{}
-	query := a.DB.Model(&jobs).Column("job.*", "App").Where("job.app_id = ?", aid)
+	query := a.DB.Model(&jobs).Column("job.*").Relation("App").Where("job.app_id = ?", aid)
 	if templateName != "" {
 		query.Where("job.template_name = ?", templateName)
 	}
@@ -87,10 +88,10 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 
 	app := &model.App{ID: aid}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Select(&app)
+		return a.DB.Model(app).WherePK().Select()
 	})
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: "App not found with given id."})
 		}
 		log.E(l, "Failed to retrieve app.", func(cm log.CM) {
@@ -144,7 +145,8 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 			AppID: app.ID,
 		}
 		err := WithSegment("create-group", c, func() error {
-			return a.DB.Insert(&jobGroup)
+			_, err := a.DB.Model(&jobGroup).Insert()
+			return err
 		})
 		if err != nil {
 			return err
@@ -196,11 +198,13 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 		log.E(l, "Failed to send job to create_batches_worker.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
-		if strings.Contains(err.Error(), "duplicate key") {
+		var pgErr pg.Error
+		ok := errors.As(err, &pgErr)
+		if ok && pgErr.IntegrityViolation() {
+			if pgErr.Field('C') == "23503" { // Foreign key violation
+				return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
+			}
 			return c.JSON(http.StatusConflict, job)
-		}
-		if strings.Contains(err.Error(), "violates foreign key constraint") {
-			return c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 		}
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 	}
@@ -208,7 +212,7 @@ func (a *Application) PostJobHandler(c echo.Context) error {
 	if a.SendgridClient != nil {
 		log.D(l, "sending email with job info")
 		app := &model.App{ID: aid}
-		a.DB.Select(&app)
+		a.DB.Model(app).WherePK().Select()
 
 		err := email.SendCreatedJobEmail(a.SendgridClient, job, app)
 		if err != nil {
@@ -289,20 +293,20 @@ func (a *Application) checkTemplateName(templateName string, job *model.Job, c e
 	for _, tpl := range strings.Split(templateName, ",") {
 		template := &model.Template{}
 		err := WithSegment("db-select", c, func() error {
-			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", job.AppID).Where("template.name = ?", tpl).First()
+			return a.DB.Model(template).Column("template.*").Where("template.app_id = ?", job.AppID).Where("template.name = ?", tpl).First()
 		})
 		if err != nil {
-			if err.Error() == RecordNotFoundString {
+			if errors.Is(err, pg.ErrNoRows) {
 				return true, c.JSON(http.StatusUnprocessableEntity, &Error{Reason: err.Error(), Value: job})
 			}
 			return true, c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
 		}
 
 		err = WithSegment("db-select", c, func() error {
-			return a.DB.Model(&template).Column("template.*").Where("template.app_id = ?", job.AppID).Where("template.name = ? AND template.locale='en'", tpl).First()
+			return a.DB.Model(template).Column("template.*").Where("template.app_id = ?", job.AppID).Where("template.name = ? AND template.locale='en'", tpl).First()
 		})
 		if err != nil {
-			if err.Error() == RecordNotFoundString {
+			if errors.Is(err, pg.ErrNoRows) {
 				localeErr := "Cannot create job if there is no template for locale 'en'."
 				return true, c.JSON(http.StatusUnprocessableEntity, &Error{Reason: localeErr, Value: job})
 			}
@@ -338,7 +342,8 @@ func (a *Application) createJob(job *model.Job, c echo.Context) error {
 		zap.String("jobID", job.ID.String()),
 	)
 	err := WithSegment("db-insert", c, func() error {
-		return a.DB.Insert(&job)
+		_, err := a.DB.Model(job).Insert()
+		return err
 	})
 
 	if err != nil {
@@ -376,11 +381,11 @@ func (a *Application) GetJobHandler(c echo.Context) error {
 		AppID: aid,
 	}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Model(&job).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+		return a.DB.Model(job).Column("job.*").Relation("App").Where("job.id = ?", job.ID).Select()
 	})
-	a.DB.Model(&job.StatusEvents).Where("job_id = ?", job.ID).Column("status.*", "Events").Select()
+	a.DB.Model(&job.StatusEvents).Where("job_id = ?", job.ID).Column("status.*").Relation("Events").Select()
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, job)
 		}
 		log.E(l, "Failed to retrieve job.", func(cm log.CM) {
@@ -420,10 +425,10 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 	}
 	prevJob := &model.Job{}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Model(&prevJob).Column("job.*", "App").Where("job.id = ?", job.ID).Select()
+		return a.DB.Model(prevJob).Column("job.*").Relation("App").Where("job.id = ?", job.ID).Select()
 	})
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, job)
 		}
 		log.E(l, "Failed to retrieve job.", func(cm log.CM) {
@@ -435,7 +440,7 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, &Error{Reason: fmt.Sprintf("cannot pause %s job", prevJob.Status)})
 	}
 	err = WithSegment("db-update", c, func() error {
-		_, err = a.DB.Model(&job).Column("status").Column("updated_at").Returning("*").Update()
+		_, err = a.DB.Model(job).WherePK().Column("status").Column("updated_at").Returning("*").Update()
 		return err
 	})
 	if err != nil {
@@ -451,7 +456,7 @@ func (a *Application) PauseJobHandler(c echo.Context) error {
 	if a.SendgridClient != nil {
 		log.D(l, "sending email with paused job info")
 		app := &model.App{ID: aid}
-		a.DB.Select(&app)
+		a.DB.Model(app).WherePK().Select()
 
 		expireAt := time.Now().Add(7 * 24 * time.Hour).UnixNano()
 		err := email.SendPausedJobEmail(a.SendgridClient, job, app.Name, expireAt)
@@ -489,19 +494,18 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 		Status:    "stopped",
 		UpdatedAt: time.Now().UnixNano(),
 	}
-	var values *types.Result
 	err = WithSegment("db-update", c, func() error {
-		values, err = a.DB.Model(&job).Column("status").Column("updated_at").Returning("*").Update()
+		_, err = a.DB.Model(job).WherePK().Column("status").Column("updated_at").Returning("*").Update()
 		return err
 	})
 	if err != nil {
+		if errors.Is(err, pg.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{})
+		}
 		log.E(l, "Failed to stop job.", func(cm log.CM) {
 			cm.Write(zap.Error(err))
 		})
 		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error(), Value: job})
-	}
-	if values.RowsAffected() == 0 {
-		return c.JSON(http.StatusNotFound, map[string]string{})
 	}
 	log.D(l, "Updated job successfully.", func(cm log.CM) {
 		cm.Write(zap.Object("job", job))
@@ -510,7 +514,7 @@ func (a *Application) StopJobHandler(c echo.Context) error {
 	if a.SendgridClient != nil {
 		log.D(l, "sending email with stopped job info")
 		app := &model.App{ID: aid}
-		a.DB.Select(&app)
+		a.DB.Model(app).WherePK().Select()
 
 		err := email.SendStoppedJobEmail(a.SendgridClient, job, app.Name, userEmail)
 		if err != nil {
@@ -542,10 +546,10 @@ func (a *Application) ResumeJobHandler(c echo.Context) error {
 	userEmail := c.Get("user-email").(string)
 	prevJob := &model.Job{}
 	err = WithSegment("db-select", c, func() error {
-		return a.DB.Model(&prevJob).Column("job.*", "App").Where("job.id = ?", jid).Select()
+		return a.DB.Model(prevJob).Column("job.*").Relation("App").Where("job.id = ?", jid).Select()
 	})
 	if err != nil {
-		if err.Error() == RecordNotFoundString {
+		if errors.Is(err, pg.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, prevJob)
 		}
 		log.E(l, "Failed to retrieve job.", func(cm log.CM) {
@@ -582,7 +586,7 @@ func (a *Application) ResumeJobHandler(c echo.Context) error {
 		UpdatedAt: time.Now().UnixNano(),
 	}
 	err = WithSegment("db-update", c, func() error {
-		_, err = a.DB.Model(&job).Column("status").Column("updated_at").Returning("*").Update()
+		_, err = a.DB.Model(job).WherePK().Column("status").Column("updated_at").Returning("*").Update()
 		return err
 	})
 	if err != nil {

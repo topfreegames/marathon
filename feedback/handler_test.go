@@ -25,14 +25,14 @@ package feedback
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/topfreegames/marathon/extensions"
+	"github.com/topfreegames/marathon/testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
-	"github.com/topfreegames/marathon/extensions"
-	"github.com/topfreegames/marathon/testing"
 	"github.com/uber-go/zap"
 )
 

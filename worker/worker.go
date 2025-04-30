@@ -34,6 +34,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	goworkers2 "github.com/digitalocean/go-workers2"
 	raven "github.com/getsentry/raven-go"
+	pg "github.com/go-pg/pg/v10"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
@@ -302,12 +303,12 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options gowork
 	job.GetJobInfoAndApp(w.MarathonDB)
 	tableName := GetPushDBTableName(job.App.Name, job.Service)
 	query := fmt.Sprintf("SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname = '%s';", tableName)
-	_, err := w.PushDB.QueryOne(&rownsEstimative, query)
+	_, err := w.PushDB.QueryOne(pg.Scan(&rownsEstimative), query)
 	if err != nil {
 		return err
 	}
 	query = fmt.Sprintf("SELECT max(seq_id) FROM %s;", tableName)
-	_, err = w.PushDB.QueryOne(&maxSeqID, query)
+	_, err = w.PushDB.QueryOne(pg.Scan(&maxSeqID), query)
 	if err != nil {
 		return err
 	}

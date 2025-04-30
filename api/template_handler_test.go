@@ -25,13 +25,13 @@ package api_test
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-pg/pg/v10"
 	"net/http"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
-	"github.com/topfreegames/marathon/api"
 	"github.com/topfreegames/marathon/model"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/uber-go/zap"
@@ -49,7 +49,7 @@ var _ = Describe("Template Handler", func() {
 	var multipleRoute string
 	BeforeEach(func() {
 		app.DB.Exec("DELETE FROM apps;")
-		app.DB.Delete("DELETE FROM templates;")
+		app.DB.Exec("DELETE FROM templates;")
 		app.DB.Exec("DELETE FROM users;")
 		CreateTestUser(app.DB, map[string]interface{}{"email": "test@test.com", "isAdmin": true})
 		CreateTestUser(app.DB, map[string]interface{}{"email": "success@test.com", "isAdmin": true})
@@ -175,7 +175,7 @@ var _ = Describe("Template Handler", func() {
 				dbTemplate := &model.Template{
 					ID: id,
 				}
-				err = app.DB.Select(&dbTemplate)
+				err = app.DB.Model(dbTemplate).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbTemplate.ID).ToNot(BeNil())
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
@@ -239,7 +239,7 @@ var _ = Describe("Template Handler", func() {
 				dbTemplate := &model.Template{
 					ID: id,
 				}
-				err = app.DB.Select(&dbTemplate)
+				err = app.DB.Model(dbTemplate).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbTemplate.ID).ToNot(BeNil())
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
@@ -549,7 +549,7 @@ var _ = Describe("Template Handler", func() {
 				dbTemplate := &model.Template{
 					ID: id,
 				}
-				err = app.DB.Select(&dbTemplate)
+				err = app.DB.Model(dbTemplate).WherePK().Select()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dbTemplate.ID).ToNot(BeNil())
 				Expect(dbTemplate.AppID).To(Equal(existingApp.ID))
@@ -761,9 +761,9 @@ var _ = Describe("Template Handler", func() {
 				dbTemplate := &model.Template{
 					ID: existingTemplate.ID,
 				}
-				err := app.DB.Select(&dbTemplate)
+				err := app.DB.Model(dbTemplate).WherePK().Select()
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal(api.RecordNotFoundString))
+				Expect(err).To(Equal(pg.ErrNoRows))
 			})
 		})
 
