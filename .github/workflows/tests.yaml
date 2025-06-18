@@ -4,27 +4,95 @@ jobs:
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 8585:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      zookeeper:
+        image: wurstmeister/zookeeper
+        ports:
+          - 9930:2181
+      kafka:
+        image: wurstmeister/kafka:0.10.1.0-2
+        ports:
+          - 9940:9092
+        env:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9940
+          KAFKA_CREATE_TOPICS: "consumer:1:1,consumergcm:1:1,consumerapns:1:1"
+          KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+        options: >-
+          --health-cmd "kafka-topics.sh --bootstrap-server localhost:9940 --list || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+      redis:
+        image: redis
+        ports:
+          - 6333:6379
+
     steps:
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.19'
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-      - name: Run tests
-        run: |
-          git clone https://github.com/edenhill/librdkafka.git
-          cd librdkafka
-          ./configure --prefix /usr
-          make
-          sudo make install
-          export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/
-          cd ..
-          make test
-      - name: Upload coverage to Codecov
-        run: bash <(curl -s https://codecov.io/bash)
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.19'
+
+    - name: Install librdkafka
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsasl2-dev
+        LIBRDKAFKA_VERSION=v0.11.6 ./travis.sh
+
+    - name: Wait for services
+      run: |
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in $(seq 1 30); do
+          if PGPASSWORD= marathon_test_user psql -h localhost -p 8585 -U marathon_test_user -d marathon_test -c '\q' 2>/dev/null; then
+            echo "PostgreSQL is ready."
+            break
+          fi
+          echo "Still waiting for PostgreSQL..."
+          sleep 2
+          if [ "$i" -eq 30 ]; then echo "Timeout waiting for PostgreSQL."; exit 1; fi
+        done
+
+        echo "Waiting for Kafka topics to be ready..."
+        TOPICS="consumer consumergcm consumerapns"
+        for topic in $TOPICS; do
+          for i in $(seq 1 30); do
+            if docker run --network host wurstmeister/kafka:0.10.1.0-2 kafka-topics.sh --bootstrap-server localhost:9940 --list 2>/dev/null | grep -q "$topic"; then
+              echo "Kafka topic '$topic' is ready."
+              break
+            fi
+            echo "Still waiting for Kafka topic '$topic'..."
+            sleep 2
+            if [ "$i" -eq 30 ]; then echo "Timeout waiting for Kafka topic '$topic'."; exit 1; fi
+          done
+        done
+      env:
+        PGPASSWORD: ""
+
+    - name: Create test databases
+      run: |
+        make db-test
+
+    - name: Run migrations for test databases
+      run: |
+        go run main.go migrations up -c config/test.yaml -m migrations
+        go run main.go migrations up -c config/test.yaml -m test_migrations
+
+    - name: Run tests
+      run: make test
+
+    - name: Upload coverage to Codecov
+      run: bash <(curl -s https://codecov.io/bash)
