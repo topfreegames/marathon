@@ -1,0 +1,30 @@
+name: Test
+on: push
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.19'
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Run tests
+        run: |
+          git clone https://github.com/edenhill/librdkafka.git
+          cd librdkafka
+          ./configure --prefix /usr
+          make
+          sudo make install
+          export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/
+          cd ..
+          make test
+      - name: Upload coverage to Codecov
+        run: bash <(curl -s https://codecov.io/bash)
