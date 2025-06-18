@@ -1,9 +1,11 @@
 name: Test
 on: push
+
 jobs:
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:13
@@ -31,9 +33,10 @@ jobs:
           KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
         options: >-
           --health-cmd "kafka-topics.sh --bootstrap-server localhost:9940 --list || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 15
+          --health-interval 30s
+          --health-timeout 20s
+          --health-retries 30
+        command: ["/bin/sh", "-c", "start-kafka.sh && tail -f /dev/null"] # Adicionado: Garante que o container permaneça ativo
       redis:
         image: redis
         ports:
