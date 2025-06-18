@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   unit:
     name: Unit tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Go
         uses: actions/setup-go@v5
