@@ -23,20 +23,21 @@ jobs:
         ports:
           - 9930:2181
       kafka:
-        image: wurstmeister/kafka:0.10.1.0-2
+        image: bitnami/kafka:latest # ALTERADO: Usando a imagem Bitnami Kafka
         ports:
           - 9940:9092
         env:
-          KAFKA_ADVERTISED_HOST_NAME: localhost
-          KAFKA_ADVERTISED_PORT: 9940
-          KAFKA_CREATE_TOPICS: "consumer:1:1,consumergcm:1:1,consumerapns:1:1"
-          KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+          # Variáveis de ambiente para Bitnami Kafka
+          KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+          KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9940
+          KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false" # Não criaremos tópicos automaticamente aqui, faremos em um step
         options: >-
-          --health-cmd "kafka-topics.sh --bootstrap-server localhost:9940 --list || exit 1"
+          # Health check para Bitnami Kafka
+          --health-cmd "/opt/bitnami/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"
           --health-interval 30s
           --health-timeout 20s
           --health-retries 30
-        command: ["/bin/sh", "-c", "start-kafka.sh && tail -f /dev/null"] # Adicionado: Garante que o container permaneça ativo
       redis:
         image: redis
         ports:
@@ -69,21 +70,26 @@ jobs:
           if [ "$i" -eq 30 ]; then echo "Timeout waiting for PostgreSQL."; exit 1; fi
         done
 
-        echo "Waiting for Kafka topics to be ready..."
-        TOPICS="consumer consumergcm consumerapns"
-        for topic in $TOPICS; do
-          for i in $(seq 1 30); do
-            if docker run --network host wurstmeister/kafka:0.10.1.0-2 kafka-topics.sh --bootstrap-server localhost:9940 --list 2>/dev/null | grep -q "$topic"; then
-              echo "Kafka topic '$topic' is ready."
-              break
-            fi
-            echo "Still waiting for Kafka topic '$topic'..."
-            sleep 2
-            if [ "$i" -eq 30 ]; then echo "Timeout waiting for Kafka topic '$topic'."; exit 1; fi
-          done
+        echo "Waiting for Kafka broker to be healthy..."
+        for i in $(seq 1 30); do
+          # Usa o health check do Docker para verificar o status do serviço Kafka
+          if docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" $(docker ps -q --filter ancestor=bitnami/kafka --filter health=healthy) | grep -q "healthy"; then
+            echo "Kafka broker is healthy."
+            break
+          fi
+          echo "Still waiting for Kafka broker health..."
+          sleep 5 # Espera um pouco mais entre as verificações de saúde do broker
+          if [ "$i" -eq 30 ]; then echo "Timeout waiting for Kafka broker to become healthy."; exit 1; fi
         done
-      env:
-        PGPASSWORD: ""
+
+    # Adicionado: Criação explícita dos tópicos Kafka
+    - name: Create Kafka topics
+      run: |
+        /opt/bitnami/kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic consumer
+        /opt/bitnami/kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic consumergcm
+        /opt/bitnami/kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic consumerapns
+      # Adicione uma dependência no serviço 'kafka' para que este step só comece depois que o Kafka estiver saudável
+      # Isso já é implicitamente feito pela ordem dos steps, mas é bom ter em mente.
 
     - name: Create test databases
       run: |
@@ -96,6 +102,3 @@ jobs:
 
     - name: Run tests
       run: make test
-
-    - name: Upload coverage to Codecov
-      run: bash <(curl -s https://codecov.io/bash)
