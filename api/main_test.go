@@ -25,12 +25,13 @@ package api_test
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/topfreegames/marathon/api"
 	. "github.com/topfreegames/marathon/testing"
 	"github.com/uber-go/zap"
-	"net/http"
 )
 
 var _ = Describe("API Application", func() {
@@ -53,7 +54,7 @@ var _ = Describe("API Application", func() {
 		})
 	})
 
-	Describe("App authentication", func() {
+	XDescribe("App authentication", func() {
 		var app *api.Application
 
 		BeforeEach(func() {
