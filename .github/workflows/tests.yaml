@@ -26,5 +26,3 @@ jobs:
           export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/
           cd ..
           make test
-      - name: Upload coverage to Codecov
-        run: bash <(curl -s https://codecov.io/bash)
