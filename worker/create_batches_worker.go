@@ -106,7 +106,7 @@ func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.J
 	start := time.Now()
 	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(job.App.Name, job.Service))
 	_, err := b.Workers.PushDB.Query(&users, query, pg.In(*userIds))
-	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), job.Labels(), 1)
+	observeWorkerDuration("get_csv_batch_from_pg", time.Since(start), job.Labels())
 
 	b.checkErr(job, err)
 	return &users
@@ -256,14 +256,14 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 		zap.Int("totalParts", msg.TotalParts),
 	)
 
-	b.Workers.Statsd.Incr(CreateBatchesWorkerStart, msg.Job.Labels(), 1)
+	incrWorkerEvent(CreateBatchesWorkerStart, msg.Job.Labels())
 
 	err = b.Workers.MarathonDB.Model(&msg.Job).Column("job.status").Relation("App").Where("job.id = ?", msg.Job.ID).Select()
 	b.checkErr(&msg.Job, err)
 
 	if msg.Job.Status == stoppedJobStatus {
 		l.Info("stopped job")
-		b.Workers.Statsd.Incr(CreateBatchesWorkerCompleted, msg.Job.Labels(), 1)
+		incrWorkerEvent(CreateBatchesWorkerCompleted, msg.Job.Labels())
 		return nil
 	}
 	l.Info("starting")
@@ -277,7 +277,7 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 	_, buffer, err := b.Workers.S3Client.DownloadChunk(int64(msg.Start), int64(msg.Size), msg.Job.CSVPath)
 	labels := msg.Job.Labels()
 	labels = append(labels, fmt.Sprintf("error:%t", err != nil))
-	b.Workers.Statsd.Timing(GetCsvFromS3Timing, time.Now().Sub(start), labels, 1)
+	observeWorkerDuration(GetCsvFromS3Timing, time.Since(start), labels)
 	b.checkErr(&msg.Job, err)
 
 	ids := b.getIDs(buffer, &msg)
@@ -297,10 +297,10 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 			b.checkErr(&msg.Job, err)
 			//b.updateCompletedAt(time.Now().UnixNano(), &msg.Job)
 			msg.Job.TagError(b.Workers.MarathonDB, nameCreateBatches, "the job has finished without finding any valid user ids")
-			b.Workers.Statsd.Incr(CreateBatchesWorkerError, msg.Job.Labels(), 1)
+			incrWorkerEvent(CreateBatchesWorkerError, msg.Job.Labels())
 		} else {
 			msg.Job.TagSuccess(b.Workers.MarathonDB, nameCreateBatches, "finished")
-			b.Workers.Statsd.Incr(CreateBatchesWorkerCompleted, msg.Job.Labels(), 1)
+			incrWorkerEvent(CreateBatchesWorkerCompleted, msg.Job.Labels())
 		}
 
 		// TODO: schedule a job to run after send all messages. This job will check
@@ -319,7 +319,7 @@ func (b *CreateBatchesWorker) Process(message *goworkers2.Msg) error {
 func (b *CreateBatchesWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameCreateBatches, err.Error())
-		b.Workers.Statsd.Incr(CreateBatchesWorkerError, job.Labels(), 1)
+		incrWorkerEvent(CreateBatchesWorkerError, job.Labels())
 
 		checkErr(b.Logger, err)
 	}

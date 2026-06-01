@@ -24,15 +24,35 @@ package extensions
 
 import (
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/log"
 	"github.com/topfreegames/marathon/messages"
 	"github.com/uber-go/zap"
 )
+
+var (
+	registerKafkaMetricsOnce sync.Once
+
+	kafkaSendMessageReturn = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "marathon_kafka_send_message_return_total",
+			Help: "Kafka async producer message acknowledgements, labelled by error status.",
+		},
+		[]string{"error"},
+	)
+)
+
+// MustRegisterKafkaMetrics registers Kafka producer Prometheus collectors. Safe to call more than once.
+func MustRegisterKafkaMetrics() {
+	registerKafkaMetricsOnce.Do(func() {
+		prometheus.MustRegister(kafkaSendMessageReturn)
+	})
+}
 
 // KafkaProducer is the struct that connects to Kafka
 type KafkaProducer struct {
@@ -43,20 +63,18 @@ type KafkaProducer struct {
 	FlushMaxMessages int
 	FlushFrequency   int // ms
 	Producer         sarama.AsyncProducer
-	Statsd           *statsd.Client
 	MaxMessageBytes  int
 	Retries          int
 }
 
 // NewKafkaProducer creates a new kafka producer
-func NewKafkaProducer(config *viper.Viper, logger zap.Logger, statsd *statsd.Client) (*KafkaProducer, error) {
+func NewKafkaProducer(config *viper.Viper, logger zap.Logger) (*KafkaProducer, error) {
 	l := logger.With(
 		zap.String("source", "KafkaExtension"),
 	)
 	client := &KafkaProducer{
 		Config: config,
 		Logger: l,
-		Statsd: statsd,
 	}
 
 	client.loadConfigurationDefaults()
@@ -105,13 +123,13 @@ func (c *KafkaProducer) connectToKafka() error {
 
 	go func() {
 		for range producer.Successes() {
-			c.Statsd.Incr("send_message_return", []string{"error:false"}, 1)
+			kafkaSendMessageReturn.WithLabelValues("false").Inc()
 		}
 	}()
 
 	go func() {
 		for range producer.Errors() {
-			c.Statsd.Incr("send_message_return", []string{"error:true"}, 1)
+			kafkaSendMessageReturn.WithLabelValues("true").Inc()
 		}
 	}()
 

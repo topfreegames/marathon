@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -77,7 +76,6 @@ var _ = XDescribe("Kafka Extension", func() {
 	var logger zap.Logger
 	var config *viper.Viper
 	var testConsumer *kafka.Consumer
-	var statsdClient *statsd.Client
 
 	BeforeEach(func() {
 		logger = zap.New(
@@ -96,9 +94,6 @@ var _ = XDescribe("Kafka Extension", func() {
 		Expect(err).NotTo(HaveOccurred())
 		err = waitForConsumer(testConsumer)
 		Expect(err).NotTo(HaveOccurred())
-
-		statsdClient, err = statsd.New("localhost:1234")
-		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -108,7 +103,7 @@ var _ = XDescribe("Kafka Extension", func() {
 
 	Describe("Creating new client", func() {
 		It("should return connected client", func() {
-			kafka, err := extensions.NewKafkaProducer(config, logger, statsdClient)
+			kafka, err := extensions.NewKafkaProducer(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
@@ -119,7 +114,7 @@ var _ = XDescribe("Kafka Extension", func() {
 
 	Describe("Send GCM Message", func() {
 		It("should send GCM message", func() {
-			kafka, err := extensions.NewKafkaProducer(config, logger, statsdClient)
+			kafka, err := extensions.NewKafkaProducer(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
@@ -143,7 +138,7 @@ var _ = XDescribe("Kafka Extension", func() {
 
 	Describe("Send APNS Message", func() {
 		It("should send APNS message", func() {
-			kafka, err := extensions.NewKafkaProducer(config, logger, statsdClient)
+			kafka, err := extensions.NewKafkaProducer(config, logger)
 			Expect(err).NotTo(HaveOccurred())
 			defer kafka.Close()
 
