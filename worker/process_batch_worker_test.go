@@ -219,6 +219,55 @@ var _ = Describe("ProcessBatch Worker", func() {
 			}
 		})
 
+		It("routes apns devices with an fcm_token through FCM to the _ios topic, others to apns", func() {
+			appName := strings.Split(app.BundleID, ".")[2]
+			apnsJob := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"service": "apns",
+			})
+
+			fcmToken := "fcm-" + strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			routingUsers := []worker.User{
+				{
+					UserID:   uuid.NewV4().String(),
+					Token:    strings.Replace(uuid.NewV4().String(), "-", "", -1),
+					Locale:   "en",
+					FcmToken: fcmToken,
+				},
+				{
+					UserID: uuid.NewV4().String(),
+					Token:  strings.Replace(uuid.NewV4().String(), "-", "", -1),
+					Locale: "en",
+				},
+			}
+
+			compressedUsers, err := worker.CompressUsers(&routingUsers)
+			Expect(err).NotTo(HaveOccurred())
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": []interface{}{apnsJob.ID, appName, compressedUsers},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			message, err := goworkers2.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			processBatchWorker.Process(message)
+
+			Expect(mockKafkaProducer.GCMMessages).To(HaveLen(1))
+			Expect(mockKafkaProducer.APNSMessages).To(HaveLen(1))
+
+			var gcmMessage messages.GCMMessage
+			err = json.Unmarshal([]byte(mockKafkaProducer.GCMMessages[0]), &gcmMessage)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gcmMessage.To).To(Equal(fcmToken))
+			Expect(mockKafkaProducer.GCMTopics[0]).To(Equal(fmt.Sprintf("%s-ios-c", appName)))
+
+			var apnsMessage messages.APNSMessage
+			err = json.Unmarshal([]byte(mockKafkaProducer.APNSMessages[0]), &apnsMessage)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(apnsMessage.DeviceToken).To(Equal(routingUsers[1].Token))
+			Expect(mockKafkaProducer.APNSTopics[0]).To(Equal(fmt.Sprintf("%s-apns-c", appName)))
+		})
+
 		It("should choose a random template and put it in push metadata when many are passed to the job", func() {
 			appName := strings.Split(app.BundleID, ".")[2]
 

@@ -53,6 +53,9 @@ type User struct {
 	Locale string `json:"locale,omitempty" pg:"locale"`
 	Region string `json:"region,omitempty" pg:"region"`
 	Tz     string `json:"tz,omitempty" pg:"tz"`
+	// FcmToken is the FCM address derived from the APNs token; only present on
+	// migrated <game>_apns tables. Empty -> dispatch falls back to APNs.
+	FcmToken string `json:"fcm_token,omitempty" pg:"fcm_token"`
 	// CreatedAt pg.NullTime `json:"created_at,omitempty" sql:"created_at"`
 	// Fiu       string      `json:"fiu,omitempty" sql:"fiu"`
 	// Adid      string      `json:"adid,omitempty" sql:"adid"`
@@ -191,8 +194,9 @@ type BatchWorkerMessage struct {
 func cleanUpUserInfo(user *User) *User {
 	return &User{
 		// UserID: user.UserID,
-		Token:  user.Token,
-		Locale: user.Locale,
+		Token:    user.Token,
+		Locale:   user.Locale,
+		FcmToken: user.FcmToken,
 	}
 }
 

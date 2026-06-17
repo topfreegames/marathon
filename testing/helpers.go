@@ -50,6 +50,8 @@ import (
 type FakeKafkaProducer struct {
 	APNSMessages []string
 	GCMMessages  []string
+	APNSTopics   []string
+	GCMTopics    []string
 }
 
 // NewFakeKafkaProducer creates a new FakeKafkaProducer
@@ -57,6 +59,8 @@ func NewFakeKafkaProducer() *FakeKafkaProducer {
 	return &FakeKafkaProducer{
 		APNSMessages: []string{},
 		GCMMessages:  []string{},
+		APNSTopics:   []string{},
+		GCMTopics:    []string{},
 	}
 }
 
@@ -83,6 +87,7 @@ func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, mes
 	}
 
 	f.APNSMessages = append(f.APNSMessages, message)
+	f.APNSTopics = append(f.APNSTopics, topic)
 
 	return nil
 }
@@ -112,6 +117,7 @@ func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, mess
 	}
 
 	f.GCMMessages = append(f.GCMMessages, message)
+	f.GCMTopics = append(f.GCMTopics, topic)
 
 	return nil
 }
