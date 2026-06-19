@@ -268,6 +268,73 @@ var _ = Describe("ProcessBatch Worker", func() {
 			Expect(mockKafkaProducer.APNSTopics[0]).To(Equal(fmt.Sprintf("%s-apns-c", appName)))
 		})
 
+		It("emits the routed_process_batch_worker metric tagged with the resolved provider per device", func() {
+			appName := strings.Split(app.BundleID, ".")[2]
+			apnsJob := CreateTestJob(w.MarathonDB, app.ID, template.Name, map[string]interface{}{
+				"context": context,
+				"service": "apns",
+			})
+
+			routingUsers := []worker.User{
+				{
+					UserID:   uuid.NewV4().String(),
+					Token:    strings.Replace(uuid.NewV4().String(), "-", "", -1),
+					Locale:   "en",
+					FcmToken: "fcm-" + strings.Replace(uuid.NewV4().String(), "-", "", -1),
+				},
+				{
+					UserID: uuid.NewV4().String(),
+					Token:  strings.Replace(uuid.NewV4().String(), "-", "", -1),
+					Locale: "en",
+				},
+			}
+
+			compressedUsers, err := worker.CompressUsers(&routingUsers)
+			Expect(err).NotTo(HaveOccurred())
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": []interface{}{apnsJob.ID, appName, compressedUsers},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			message, err := goworkers2.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			lines := captureStatsd(w, func() {
+				processBatchWorker.Process(message)
+			})
+
+			fcmMetric := fmt.Sprintf("marathon.routed_process_batch_worker:1|c|#game:%s,provider:fcm", appName)
+			apnsMetric := fmt.Sprintf("marathon.routed_process_batch_worker:1|c|#game:%s,provider:apns", appName)
+
+			// Exactly one device routed via FCM, exactly one via APNs, and never gcm
+			// on an apns-service job.
+			Expect(countMetric(lines, fcmMetric)).To(Equal(1))
+			Expect(countMetric(lines, apnsMetric)).To(Equal(1))
+			Expect(countMetric(lines, fmt.Sprintf("marathon.routed_process_batch_worker:1|c|#game:%s,provider:gcm", appName))).To(Equal(0))
+		})
+
+		It("tags the routed metric with provider:gcm for gcm-service jobs", func() {
+			appName := strings.Split(app.BundleID, ".")[2]
+
+			compressedUsers, err := worker.CompressUsers(&users)
+			Expect(err).NotTo(HaveOccurred())
+			msgB, err := json.Marshal(map[string][]interface{}{
+				"args": []interface{}{gcmJob.ID, appName, compressedUsers},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			message, err := goworkers2.NewMsg(string(msgB))
+			Expect(err).NotTo(HaveOccurred())
+
+			lines := captureStatsd(w, func() {
+				processBatchWorker.Process(message)
+			})
+
+			gcmMetric := fmt.Sprintf("marathon.routed_process_batch_worker:1|c|#game:%s,provider:gcm", appName)
+			Expect(countMetric(lines, gcmMetric)).To(Equal(len(users)))
+			// A gcm job never produces fcm/apns provider tags.
+			Expect(countMetric(lines, fmt.Sprintf("marathon.routed_process_batch_worker:1|c|#game:%s,provider:fcm", appName))).To(Equal(0))
+			Expect(countMetric(lines, fmt.Sprintf("marathon.routed_process_batch_worker:1|c|#game:%s,provider:apns", appName))).To(Equal(0))
+		})
+
 		It("should choose a random template and put it in push metadata when many are passed to the job", func() {
 			appName := strings.Split(app.BundleID, ".")[2]
 
