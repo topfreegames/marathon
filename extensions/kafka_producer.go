@@ -174,6 +174,34 @@ func (c *KafkaProducer) SendGCMPush(topic, deviceToken string, payload, messageM
 	return nil
 }
 
+//SendFCMPush sends an iOS FCM push to Kafka in pusher's firebase wire shape
+//(top-level notification). Unlike SendGCMPush, the rendered alert lands in the
+//notification block so pusher's buildIOSMessage produces a non-empty aps.alert.
+func (c *KafkaProducer) SendFCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error {
+	msg := messages.NewFCMMessage(
+		deviceToken,
+		payload,
+		messageMetadata,
+		pushMetadata,
+		pushExpiry,
+		templateName,
+	)
+
+	if val, ok := pushMetadata["dryRun"]; ok {
+		if dryRun, _ := val.(bool); dryRun {
+			msg.To = GenerateFakeID(152)
+			msg.DryRun = true
+		}
+	}
+
+	message, err := msg.ToJSON()
+	if err != nil {
+		return err
+	}
+	c.sendPush(messages.NewKafkaMessage(topic, message))
+	return nil
+}
+
 //SendPush notification to Kafka
 func (c *KafkaProducer) sendPush(msg *messages.KafkaMessage) {
 	message := &sarama.ProducerMessage{

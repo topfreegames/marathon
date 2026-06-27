@@ -95,8 +95,15 @@ func (b *ProcessBatchWorker) sendToKafka(service, topic string, msg, messageMeta
 		if err != nil {
 			return err
 		}
+	case "fcm":
+		// FCM-first iOS dispatch: pusher's firebase consumer needs a top-level
+		// notification (not the gcm data-only shape) to render an aps.alert.
+		err := b.Workers.Kafka.SendFCMPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry, templateName)
+		if err != nil {
+			return err
+		}
 	default:
-		panic("service should be in ['apns', 'gcm']")
+		panic("service should be in ['apns', 'gcm', 'fcm']")
 	}
 	return nil
 }
@@ -282,11 +289,12 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 		}
 
 		// FCM-first: an apns-service device carrying an fcm_token dispatches through
-		// FCM (gcm wire shape) to the _ios topic; otherwise APNs. Token presence is
-		// the switch, APNs is the structural fallback — no per-game flag.
+		// FCM to the _ios topic (using the fcm wire shape so pusher renders a
+		// visible aps.alert); otherwise APNs. Token presence is the switch, APNs is
+		// the structural fallback — no per-game flag.
 		sendService, topic, deviceToken, provider := job.Service, apnsTopic, user.Token, job.Service
 		if job.Service == "apns" && user.FcmToken != "" {
-			sendService, topic, deviceToken, provider = "gcm", iosTopic, user.FcmToken, "fcm"
+			sendService, topic, deviceToken, provider = "fcm", iosTopic, user.FcmToken, "fcm"
 		}
 
 		err = b.sendToKafka(sendService, topic, msg, job.Metadata, pushMetadata, deviceToken, job.ExpiresAt, templateName)

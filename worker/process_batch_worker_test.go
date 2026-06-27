@@ -252,14 +252,21 @@ var _ = Describe("ProcessBatch Worker", func() {
 
 			processBatchWorker.Process(message)
 
-			Expect(mockKafkaProducer.GCMMessages).To(HaveLen(1))
+			// The fcm_token device routes through the FCM wire shape (not gcm) to
+			// the _ios topic; the other device falls back to APNs.
+			Expect(mockKafkaProducer.FCMMessages).To(HaveLen(1))
 			Expect(mockKafkaProducer.APNSMessages).To(HaveLen(1))
+			Expect(mockKafkaProducer.GCMMessages).To(HaveLen(0))
 
-			var gcmMessage messages.GCMMessage
-			err = json.Unmarshal([]byte(mockKafkaProducer.GCMMessages[0]), &gcmMessage)
+			var fcmMessage messages.FCMMessage
+			err = json.Unmarshal([]byte(mockKafkaProducer.FCMMessages[0]), &fcmMessage)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(gcmMessage.To).To(Equal(fcmToken))
-			Expect(mockKafkaProducer.GCMTopics[0]).To(Equal(fmt.Sprintf("%s-ios-c", appName)))
+			Expect(fcmMessage.To).To(Equal(fcmToken))
+			// The crux of the fix: the rendered alert must reach pusher as a
+			// TOP-LEVEL notification, so buildIOSMessage produces a visible aps.alert.
+			Expect(fcmMessage.Notification).NotTo(BeNil())
+			Expect(fcmMessage.Notification.Body).To(Equal("Everyone just liked your village!"))
+			Expect(mockKafkaProducer.FCMTopics[0]).To(Equal(fmt.Sprintf("%s-ios-c", appName)))
 
 			var apnsMessage messages.APNSMessage
 			err = json.Unmarshal([]byte(mockKafkaProducer.APNSMessages[0]), &apnsMessage)
