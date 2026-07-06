@@ -20,6 +20,9 @@ const (
 	ProcessBatchWorkerStart     = "starting_process_batch_worker"
 	ProcessBatchWorkerCompleted = "completed_process_batch_worker"
 	ProcessBatchWorkerError     = "error_process_batch_worker"
+	// ProcessBatchWorkerRouted counts dispatches tagged by provider (apns/fcm/gcm)
+	// and game; per-game iOS migration state = fcm / (fcm + apns).
+	ProcessBatchWorkerRouted = "routed_process_batch_worker"
 
 	ResumeJobWorkerStart     = "starting_resume_job_worker"
 	ResumeJobWorkerCompleted = "completed_resume_job_worker"

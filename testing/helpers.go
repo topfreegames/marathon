@@ -50,6 +50,10 @@ import (
 type FakeKafkaProducer struct {
 	APNSMessages []string
 	GCMMessages  []string
+	FCMMessages  []string
+	APNSTopics   []string
+	GCMTopics    []string
+	FCMTopics    []string
 }
 
 // NewFakeKafkaProducer creates a new FakeKafkaProducer
@@ -57,6 +61,10 @@ func NewFakeKafkaProducer() *FakeKafkaProducer {
 	return &FakeKafkaProducer{
 		APNSMessages: []string{},
 		GCMMessages:  []string{},
+		FCMMessages:  []string{},
+		APNSTopics:   []string{},
+		GCMTopics:    []string{},
+		FCMTopics:    []string{},
 	}
 }
 
@@ -83,6 +91,7 @@ func (f *FakeKafkaProducer) SendAPNSPush(topic, deviceToken string, payload, mes
 	}
 
 	f.APNSMessages = append(f.APNSMessages, message)
+	f.APNSTopics = append(f.APNSTopics, topic)
 
 	return nil
 }
@@ -112,6 +121,36 @@ func (f *FakeKafkaProducer) SendGCMPush(topic, deviceToken string, payload, mess
 	}
 
 	f.GCMMessages = append(f.GCMMessages, message)
+	f.GCMTopics = append(f.GCMTopics, topic)
+
+	return nil
+}
+
+// SendFCMPush for testing
+func (f *FakeKafkaProducer) SendFCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error {
+	msg := messages.NewFCMMessage(
+		deviceToken,
+		payload,
+		messageMetadata,
+		pushMetadata,
+		pushExpiry,
+		templateName,
+	)
+
+	if val, ok := pushMetadata["dryRun"]; ok {
+		if dryRun, _ := val.(bool); dryRun {
+			msg.To = extensions.GenerateFakeID(152)
+			msg.DryRun = true
+		}
+	}
+
+	message, err := msg.ToJSON()
+	if err != nil {
+		return err
+	}
+
+	f.FCMMessages = append(f.FCMMessages, message)
+	f.FCMTopics = append(f.FCMTopics, topic)
 
 	return nil
 }

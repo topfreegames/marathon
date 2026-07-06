@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	goworkers2 "github.com/digitalocean/go-workers2"
@@ -43,6 +44,13 @@ import (
 
 const nameCreateBatches = "create_batches_worker"
 const uuidSizeBytes = 36
+
+// fcmTokenColumnCache memoizes, per push table, whether the fcm_token column
+// exists. Process-lifetime cache; see pushTableHasFcmToken.
+var (
+	fcmTokenColumnCache   = map[string]bool{}
+	fcmTokenColumnCacheMu sync.RWMutex
+)
 
 // CreateBatchesWorker is the CreateBatchesWorker struct
 type CreateBatchesWorker struct {
@@ -104,12 +112,48 @@ func (b *CreateBatchesWorker) updateCompletedAt(unixTime int64, job *model.Job) 
 func (b *CreateBatchesWorker) getUserBatchFromPG(userIds *[]string, job *model.Job) *[]User {
 	var users []User
 	start := time.Now()
-	query := fmt.Sprintf("SELECT user_id, token, locale, tz FROM %s WHERE user_id IN (?)", GetPushDBTableName(job.App.Name, job.Service))
+	table := GetPushDBTableName(job.App.Name, job.Service)
+	columns := "user_id, token, locale, tz"
+	// fcm_token only exists on migrated <game>_apns tables. Selecting it on a
+	// table without the column errors, so probe (cached) and add it only when present.
+	if b.pushTableHasFcmToken(table) {
+		columns += ", fcm_token"
+	}
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE user_id IN (?)", columns, table)
 	_, err := b.Workers.PushDB.Query(&users, query, pg.In(*userIds))
 	b.Workers.Statsd.Timing("get_csv_batch_from_pg", time.Now().Sub(start), job.Labels(), 1)
 
 	b.checkErr(job, err)
 	return &users
+}
+
+// pushTableHasFcmToken reports whether the given push table carries the
+// fcm_token column, cached for the process lifetime. Like push-api's AR column
+// cache, a game migrated while marathon is running is not seen until restart —
+// restart-after-migration is part of the per-game rollout.
+func (b *CreateBatchesWorker) pushTableHasFcmToken(table string) bool {
+	fcmTokenColumnCacheMu.RLock()
+	has, ok := fcmTokenColumnCache[table]
+	fcmTokenColumnCacheMu.RUnlock()
+	if ok {
+		return has
+	}
+
+	var exists bool
+	_, err := b.Workers.PushDB.QueryOne(
+		pg.Scan(&exists),
+		"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = ? AND column_name = 'fcm_token')",
+		table,
+	)
+	if err != nil {
+		// Conservative: on probe failure assume no column so dispatch stays on APNs.
+		return false
+	}
+
+	fcmTokenColumnCacheMu.Lock()
+	fcmTokenColumnCache[table] = exists
+	fcmTokenColumnCacheMu.Unlock()
+	return exists
 }
 
 func (b *CreateBatchesWorker) processBatch(ids *[]string, job *model.Job) {

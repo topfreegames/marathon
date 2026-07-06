@@ -95,8 +95,15 @@ func (b *ProcessBatchWorker) sendToKafka(service, topic string, msg, messageMeta
 		if err != nil {
 			return err
 		}
+	case "fcm":
+		// FCM-first iOS dispatch: pusher's firebase consumer needs a top-level
+		// notification (not the gcm data-only shape) to render an aps.alert.
+		err := b.Workers.Kafka.SendFCMPush(topic, deviceToken, msg, messageMetadata, pushMetadata, pushExpiry, templateName)
+		if err != nil {
+			return err
+		}
 	default:
-		panic("service should be in ['apns', 'gcm']")
+		panic("service should be in ['apns', 'gcm', 'fcm']")
 	}
 	return nil
 }
@@ -222,9 +229,15 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 	})
 
 	topicTemplate := b.Workers.Config.GetString("workers.topicTemplate")
-	topic := BuildTopicName(parsed.AppName, job.Service, topicTemplate)
+	apnsTopic := BuildTopicName(parsed.AppName, job.Service, topicTemplate)
+	// FCM-first iOS routing publishes to the _ios topic (service token swapped),
+	// keeping the env-specific template intact. Only relevant for apns jobs.
+	iosTopic := ""
+	if job.Service == "apns" {
+		iosTopic = BuildTopicName(parsed.AppName, "ios", topicTemplate)
+	}
 	log.D(l, "Built topic name successfully.", func(cm log.CM) {
-		cm.Write(zap.String("topic", topic))
+		cm.Write(zap.String("topic", apnsTopic))
 	})
 	for _, user := range parsed.Users {
 		templateName := job.TemplateName
@@ -275,21 +288,31 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 			}
 		}
 
-		err = b.sendToKafka(job.Service, topic, msg, job.Metadata, pushMetadata, user.Token, job.ExpiresAt, templateName)
+		// FCM-first: an apns-service device carrying an fcm_token dispatches through
+		// FCM to the _ios topic (using the fcm wire shape so pusher renders a
+		// visible aps.alert); otherwise APNs. Token presence is the switch, APNs is
+		// the structural fallback — no per-game flag.
+		sendService, topic, deviceToken, provider := job.Service, apnsTopic, user.Token, job.Service
+		if job.Service == "apns" && user.FcmToken != "" {
+			sendService, topic, deviceToken, provider = "fcm", iosTopic, user.FcmToken, "fcm"
+		}
+
+		err = b.sendToKafka(sendService, topic, msg, job.Metadata, pushMetadata, deviceToken, job.ExpiresAt, templateName)
 		if err != nil {
 			batchErrorCounter = batchErrorCounter + 1
 			log.E(l, "Failed to send message to Kafka.", func(cm log.CM) {
 				cm.Write(
-					zap.String("service", job.Service),
+					zap.String("service", sendService),
 					zap.String("topic", topic),
 					zap.Object("msg", msg),
 					zap.Object("metadata", job.Metadata),
-					zap.Object("token", user.Token),
+					zap.Object("token", deviceToken),
 					zap.Object("expiresAt", job.ExpiresAt),
 					zap.Error(err),
 				)
 			})
 		}
+		b.Workers.Statsd.Incr(ProcessBatchWorkerRouted, []string{"game:" + parsed.AppName, "provider:" + provider}, 1)
 	}
 	log.D(l, "Sent push to pusher for batch users.")
 	err = b.updateJobBatchesInfo(parsed.JobID)

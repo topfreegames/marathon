@@ -26,4 +26,7 @@ package interfaces
 type PushProducer interface {
 	SendAPNSPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error
 	SendGCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error
+	// SendFCMPush sends an iOS push through FCM in pusher's firebase wire shape
+	// (top-level notification), used by FCM-first routing on the _ios topic.
+	SendFCMPush(topic, deviceToken string, payload, messageMetadata map[string]interface{}, pushMetadata map[string]interface{}, pushExpiry int64, templateName string) error
 }
