@@ -31,10 +31,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	goworkers2 "github.com/digitalocean/go-workers2"
 	raven "github.com/getsentry/raven-go"
 	pg "github.com/go-pg/pg/v10"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/marathon/extensions"
@@ -53,7 +53,6 @@ type Worker struct {
 	DBPageSize                int
 	S3Client                  interfaces.S3
 	PageProcessingConcurrency int
-	Statsd                    *statsd.Client
 	RedisClient               *redis.Client
 	ConfigPath                string
 	SendgridClient            *extensions.SendgridClient
@@ -89,14 +88,14 @@ func (w *Worker) configure() {
 	w.loadConfigurationDefaults()
 	w.configureSentry()
 	w.configureRedis()
-	w.configureStatsd()
 	w.configureWorkers()
-	w.configureStatsd()
 	w.configurePushDatabase()
 	w.configureMarathonDatabase()
 	w.configureS3Client()
 	w.configureSendgrid()
 	w.configureKafkaProducer()
+	MustRegisterMetrics()
+	extensions.MustRegisterKafkaMetrics()
 }
 
 func (w *Worker) loadConfigurationDefaults() {
@@ -104,10 +103,9 @@ func (w *Worker) loadConfigurationDefaults() {
 	w.Config.SetDefault("workers.redis.database", "0")
 	w.Config.SetDefault("workers.redis.poolSize", "10")
 	w.Config.SetDefault("workers.statsPort", 8081)
+	w.Config.SetDefault("workers.metricsPort", 9090)
 	w.Config.SetDefault("workers.concurrency", 10)
 	w.Config.SetDefault("database.url", "postgres://localhost:5432/marathon?sslmode=disable")
-	w.Config.SetDefault("workers.statsd.host", "127.0.0.1:8125")
-	w.Config.SetDefault("workers.statsd.prefix", "marathon.")
 }
 
 func (w *Worker) configureSendgrid() {
@@ -127,18 +125,6 @@ func (w *Worker) configureMarathonDatabase() {
 	connection, err := extensions.NewPGClient("db", w.Config, w.Logger)
 	checkErr(w.Logger, err)
 	w.MarathonDB = connection.DB
-}
-
-func (w *Worker) configureStatsd() {
-	host := w.Config.GetString("workers.statsd.host")
-	prefix := w.Config.GetString("workers.statsd.prefix")
-
-	client, err := statsd.New(host)
-	if err != nil {
-		return
-	}
-	client.Namespace = prefix
-	w.Statsd = client
 }
 
 func (w *Worker) configureRedis() {
@@ -230,7 +216,7 @@ func (w *Worker) configureSentry() {
 func (w *Worker) configureKafkaProducer() {
 	var kafka *extensions.KafkaProducer
 	var err error
-	kafka, err = extensions.NewKafkaProducer(w.Config, w.Logger, w.Statsd)
+	kafka, err = extensions.NewKafkaProducer(w.Config, w.Logger)
 	checkErr(w.Logger, err)
 	w.Kafka = kafka
 }
@@ -434,9 +420,10 @@ func (w *Worker) ScheduleJobCompletedJob(jobID string, at int64) (string, error)
 // Start starts the worker
 func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
+	metricsPort := w.Config.GetInt("workers.metricsPort")
 	go func() {
-		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
-
+		mux := http.NewServeMux()
+		mux.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
 			_, marathonError := w.MarathonDB.Exec("SELECT 1")
 			_, pushError := w.PushDB.Exec("SELECT 1")
 			pong, redisError := w.RedisClient.Ping().Result()
@@ -456,7 +443,14 @@ func (w *Worker) Start() {
 			}
 			json.NewEncoder(rw).Encode(status)
 		})
-		if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), nil); err != nil {
+		if err := http.ListenAndServe(fmt.Sprint(":", jobsStatsPort), mux); err != nil {
+			panic(err)
+		}
+	}()
+	go func() {
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(fmt.Sprint(":", metricsPort), metricsMux); err != nil {
 			panic(err)
 		}
 	}()
@@ -472,7 +466,7 @@ func (w *Worker) SendControlGroupToRedis(job *model.Job, ids []string) {
 		args = append(args, id)
 	}
 	w.RedisClient.LPush(fmt.Sprintf("%s-CONTROL", hash), args...).Result()
-	w.Statsd.Timing("save_control_group", time.Now().Sub(start), job.Labels(), 1)
+	observeWorkerDuration("save_control_group", time.Since(start), job.Labels())
 }
 
 // GetJob get a job from the db
