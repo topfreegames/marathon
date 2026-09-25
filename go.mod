@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go v0.0.0-20180330214955-e67964b4021a
 	github.com/Shopify/sarama v1.22.1
 	github.com/asaskevich/govalidator v0.0.0-20161001163130-7b3beb6df3c4
-	github.com/aws/aws-sdk-go v1.12.72
+	github.com/aws/aws-sdk-go v1.55.8
 	github.com/confluentinc/confluent-kafka-go v0.11.6
 	github.com/digitalocean/go-workers2 v0.10.4
 	github.com/getsentry/raven-go v0.2.1-0.20190419175539-919484f041ea
@@ -47,7 +47,6 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/garyburd/redigo v1.0.1-0.20161122183206-d7de57ceb51b // indirect
-	github.com/go-ini/ini v1.39.0 // indirect
 	github.com/go-pg/zerochecker v0.2.0 // indirect
 	github.com/go-redis/redis/v8 v8.4.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
@@ -59,7 +58,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
@@ -78,7 +77,6 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a // indirect
 	github.com/sendgrid/rest v2.4.0+incompatible // indirect
-	github.com/smartystreets/goconvey v1.7.2 // indirect
 	github.com/spf13/afero v1.1.2 // indirect
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
