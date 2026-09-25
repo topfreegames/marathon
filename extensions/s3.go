@@ -24,14 +24,18 @@ package extensions
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
@@ -54,21 +58,80 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (interfaces.S3, error) {
 	region := conf.GetString("s3.region")
 	accessKey := conf.GetString("s3.accessKey")
 	secretAccessKey := conf.GetString("s3.secretAccessKey")
-	credentials := credentials.NewStaticCredentials(accessKey, secretAccessKey, "")
-	sess, err := session.NewSession(&aws.Config{
-		Region:      &region,
-		Credentials: credentials,
-	})
+
+	var creds *credentials.Credentials
+	credentialsSource := "default-chain"
+	if accessKey != "" && secretAccessKey != "" {
+		creds = credentials.NewStaticCredentials(accessKey, secretAccessKey, "")
+		credentialsSource = "static"
+	}
+	sess, err := newSession(region, creds)
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("configured s3 extensions", zap.String("region", region))
+	webIdentity := hasWebIdentityEnv()
+	logger.Info("configured s3 extensions",
+		zap.String("region", region),
+		zap.String("credentialsSource", credentialsSource),
+		zap.Bool("webIdentity", webIdentity),
+	)
+	if credentialsSource == "default-chain" && !webIdentity {
+		logger.Warn("s3 using default credential chain without web identity env")
+	}
+	probeIRSA(region, credentialsSource, logger)
 	return &AmazonS3{
 		client:  s3.New(sess),
 		logger:  logger,
 		conf:    conf,
 		session: sess,
 	}, nil
+}
+
+func newSession(region string, creds *credentials.Credentials) (*session.Session, error) {
+	return session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			Region:      aws.String(region),
+			Credentials: creds,
+		},
+		CredentialsProviderOptions: &session.CredentialsProviderOptions{
+			// Refresh early so 300s presigned URLs never outlive the session token.
+			WebIdentityRoleProviderOptions: func(p *stscreds.WebIdentityRoleProvider) {
+				p.ExpiryWindow = 10 * time.Minute
+			},
+		},
+	})
+}
+
+func hasWebIdentityEnv() bool {
+	return os.Getenv("AWS_ROLE_ARN") != "" && os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE") != ""
+}
+
+var irsaProbeOnce sync.Once
+
+func probeIRSA(region, credentialsSource string, logger zap.Logger) {
+	if !hasWebIdentityEnv() {
+		return
+	}
+	irsaProbeOnce.Do(func() {
+		go func() {
+			sess, err := newSession(region, nil)
+			if err != nil {
+				logger.Warn("irsa probe failed", zap.String("stage", "session"), zap.Error(err))
+				return
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			v, err := sess.Config.Credentials.GetWithContext(ctx)
+			if err != nil {
+				logger.Warn("irsa probe failed", zap.String("stage", "credentials"), zap.Error(err))
+				return
+			}
+			logger.Info("irsa probe ok",
+				zap.String("credentialsProvider", v.ProviderName),
+				zap.String("s3CredentialsSource", credentialsSource),
+			)
+		}()
+	})
 }
 
 func getInfo(path string) (string, string, error) {
