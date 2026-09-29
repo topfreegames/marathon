@@ -69,15 +69,11 @@ func NewS3(conf *viper.Viper, logger zap.Logger) (interfaces.S3, error) {
 	if err != nil {
 		return nil, err
 	}
-	webIdentity := hasWebIdentityEnv()
 	logger.Info("configured s3 extensions",
 		zap.String("region", region),
 		zap.String("credentialsSource", credentialsSource),
-		zap.Bool("webIdentity", webIdentity),
+		zap.Bool("webIdentity", hasWebIdentityEnv()),
 	)
-	if credentialsSource == "default-chain" && !webIdentity {
-		logger.Warn("s3 using default credential chain without web identity env")
-	}
 	probeIRSA(region, credentialsSource, logger)
 	return &AmazonS3{
 		client:  s3.New(sess),
