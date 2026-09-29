@@ -25,7 +25,6 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -57,18 +56,7 @@ func (a *Application) GetUploadURL(c echo.Context) error {
 		cm.Write(zap.Duration("duration", time.Now().Sub(start)))
 	})
 	m := make(map[string]interface{})
-	// For some reason we need to unescape it
-	uURL, err := url.QueryUnescape(u)
-	if err != nil {
-		log.E(l, "Failed to unescape presigned URL.", func(cm log.CM) {
-			cm.Write(
-				zap.Error(err),
-				zap.Duration("duration", time.Now().Sub(start)),
-			)
-		})
-		return c.JSON(http.StatusInternalServerError, &Error{Reason: err.Error()})
-	}
-	m["url"] = uURL
+	m["url"] = u
 	log.D(l, "Retrieved upload URL succesfully.", func(cm log.CM) {
 		cm.Write(zap.Object("URLInfo", m))
 	})

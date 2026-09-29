@@ -22,8 +22,8 @@ s3:
   folder: "development/jobs"
   controlGroupFolder: "development/control-groups"
   daysExpiry: 1
-  accessKey: "ACCESS-KEY"
-  secretAccessKey: "SECRET-ACCESS-KEY"
+  accessKey: ""
+  secretAccessKey: ""
 kafka:
   bootstrapServers: localhost:9940
 workers:
