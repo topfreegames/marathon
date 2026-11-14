@@ -19,7 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-FROM golang:1.19-alpine AS build
+FROM golang:1.27.3-alpine AS build
 
 LABEL MAINTAINER="TFG Co <backend@tfgco.com>"
 
@@ -45,10 +45,17 @@ ENV LIBRARY_PATH /usr/local/lib
 ENV LD_LIBRARY_PATH /usr/local/lib
 RUN export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH && make build
 
-RUN mkdir /app
-RUN mv /go/src/github.com/topfreegames/marathon/bin/marathon /app/marathon
-RUN mv /go/src/github.com/topfreegames/marathon/config /app/config
-RUN rm -r /go/src/github.com/topfreegames/marathon
+FROM alpine:3.23
+
+LABEL MAINTAINER="TFG Co <backend@tfgco.com>"
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=build /usr/local/lib/librdkafka.so* /usr/local/lib/
+COPY --from=build /go/src/github.com/topfreegames/marathon/bin/marathon /app/marathon
+COPY --from=build /go/src/github.com/topfreegames/marathon/config /app/config
+
+ENV LD_LIBRARY_PATH /usr/local/lib
 
 WORKDIR /app
 
