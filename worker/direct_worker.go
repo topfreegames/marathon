@@ -127,26 +127,26 @@ func (b *DirectWorker) Process(message *goworkers2.Msg) error {
 
 	job, err := b.Workers.GetJob(msg.JobUUID)
 	checkErr(l, err)
-	b.Workers.Statsd.Incr(DirectWorkerStart, job.Labels(), 1)
+	incrWorkerEvent(DirectWorkerStart, job.Labels())
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
-		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(DirectWorkerCompleted, job.Labels())
 		return nil
 	}
 
 	switch job.Status {
 	case "circuitbreak":
 		log.I(l, "circuit break")
-		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(DirectWorkerCompleted, job.Labels())
 		return nil
 	case "paused":
 		log.I(l, "paused")
-		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(DirectWorkerCompleted, job.Labels())
 		return nil
 	case "stopped":
 		log.I(l, "stopped")
-		b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(DirectWorkerCompleted, job.Labels())
 		return nil
 	default:
 		log.D(l, "valid")
@@ -168,7 +168,7 @@ func (b *DirectWorker) Process(message *goworkers2.Msg) error {
 		l.Error("Error fetching users", zap.Error(err))
 	}
 
-	b.Workers.Statsd.Timing(GetUsersFromDbTiming, time.Now().Sub(start), job.Labels(), 1)
+	observeWorkerDuration(GetUsersFromDbTiming, time.Since(start), job.Labels())
 
 	successfulUsers := len(users)
 
@@ -271,7 +271,7 @@ func (b *DirectWorker) Process(message *goworkers2.Msg) error {
 		_, err = b.Workers.ScheduleJobCompletedJob(job.ID.String(), at)
 	}
 
-	b.Workers.Statsd.Incr(DirectWorkerCompleted, job.Labels(), 1)
+	incrWorkerEvent(DirectWorkerCompleted, job.Labels())
 	l.Info("finished")
 
 	return nil
@@ -280,7 +280,7 @@ func (b *DirectWorker) Process(message *goworkers2.Msg) error {
 func (b *DirectWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameDirectWorker, err.Error())
-		b.Workers.Statsd.Incr(DirectWorkerError, job.Labels(), 1)
+		incrWorkerEvent(DirectWorkerError, job.Labels())
 
 		checkErr(b.Logger, err)
 	}

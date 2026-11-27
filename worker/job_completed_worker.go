@@ -101,7 +101,7 @@ func (b *JobCompletedWorker) Process(message *goworkers2.Msg) error {
 	job, err := b.Workers.GetJob(id)
 	checkErr(l, err)
 
-	b.Workers.Statsd.Incr(JobCompletedWorkerStart, job.Labels(), 1)
+	incrWorkerEvent(JobCompletedWorkerStart, job.Labels())
 
 	job.TagRunning(b.Workers.MarathonDB, nameJobCompleted, "starting")
 
@@ -114,7 +114,7 @@ func (b *JobCompletedWorker) Process(message *goworkers2.Msg) error {
 	b.flushControlGroup(job)
 
 	job.TagSuccess(b.Workers.MarathonDB, nameJobCompleted, "finished")
-	b.Workers.Statsd.Incr(JobCompletedWorkerCompleted, job.Labels(), 1)
+	incrWorkerEvent(JobCompletedWorkerCompleted, job.Labels())
 
 	log.I(l, "finished")
 
@@ -124,7 +124,7 @@ func (b *JobCompletedWorker) Process(message *goworkers2.Msg) error {
 func (b *JobCompletedWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameJobCompleted, err.Error())
-		b.Workers.Statsd.Incr(JobCompletedWorkerError, job.Labels(), 1)
+		incrWorkerEvent(JobCompletedWorkerError, job.Labels())
 
 		checkErr(b.Logger, err)
 	}

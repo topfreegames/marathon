@@ -192,11 +192,11 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 	)
 
 	log.D(l, "Retrieved job successfully.")
-	b.Workers.Statsd.Incr(ProcessBatchWorkerStart, job.Labels(), 1)
+	incrWorkerEvent(ProcessBatchWorkerStart, job.Labels())
 
 	if job.ExpiresAt > 0 && job.ExpiresAt < time.Now().UnixNano() {
 		log.I(l, "expired")
-		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(ProcessBatchWorkerCompleted, job.Labels())
 		return nil
 	}
 
@@ -204,16 +204,16 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 	case "circuitbreak":
 		log.I(l, "circuit break")
 		b.moveJobToPausedQueue(job, message)
-		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(ProcessBatchWorkerCompleted, job.Labels())
 		return nil
 	case "paused":
 		log.I(l, "paused")
 		b.moveJobToPausedQueue(job, message)
-		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(ProcessBatchWorkerCompleted, job.Labels())
 		return nil
 	case "stopped":
 		log.I(l, "stopped")
-		b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
+		incrWorkerEvent(ProcessBatchWorkerCompleted, job.Labels())
 		return nil
 	default:
 		log.D(l, "valid")
@@ -326,7 +326,7 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 		b.checkErr(job, fmt.Errorf("failed to send message to several users, considering batch as failed"))
 	}
 
-	b.Workers.Statsd.Incr(ProcessBatchWorkerCompleted, job.Labels(), 1)
+	incrWorkerEvent(ProcessBatchWorkerCompleted, job.Labels())
 	log.I(l, "finished")
 
 	return nil
@@ -335,7 +335,7 @@ func (b *ProcessBatchWorker) Process(message *goworkers2.Msg) error {
 func (b *ProcessBatchWorker) checkErr(job *model.Job, err error) {
 	if err != nil {
 		job.TagError(b.Workers.MarathonDB, nameProcessBatchWorker, err.Error())
-		b.Workers.Statsd.Incr(ProcessBatchWorkerError, job.Labels(), 1)
+		incrWorkerEvent(ProcessBatchWorkerError, job.Labels())
 
 		checkErr(b.Logger, err)
 	}
