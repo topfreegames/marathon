@@ -316,7 +316,7 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options gowork
 		rownsEstimative = 1
 	}
 
-	//testBatchSize = (200000 * maxSeqID) / rownsEstimative
+	// testBatchSize = (200000 * maxSeqID) / rownsEstimative
 	testBatchSize = 100000
 
 	producer := w.Manager.Producer()
@@ -336,12 +336,23 @@ func (w *Worker) createDirectBatchesJobWithOption(job *model.Job, options gowork
 
 	_, err = w.MarathonDB.Model(job).Set("total_tokens = ?", rownsEstimative).Where("id = ?", job.ID).Update()
 	if err != nil {
+		w.Logger.Error("failed to update total_tokens",
+			zap.Error(err),
+			zap.Uint64("total_tokens", rownsEstimative),
+			zap.String("job_id", job.ID.String()),
+		)
 		return err
 	}
 
 	batches := i / testBatchSize
 	_, err = w.MarathonDB.Model(job).Set("total_batches = ?", batches).Where("id = ?", job.ID).Update()
 	if err != nil {
+		w.Logger.Error("failed to update total_batches",
+			zap.Error(err),
+			zap.Uint64("total_tokens", rownsEstimative),
+			zap.Uint64("batches", batches),
+			zap.String("job_id", job.ID.String()),
+		)
 		return err
 	}
 
@@ -436,7 +447,6 @@ func (w *Worker) Start() {
 	jobsStatsPort := w.Config.GetInt("workers.statsPort")
 	go func() {
 		http.HandleFunc("/stats", func(rw http.ResponseWriter, req *http.Request) {
-
 			_, marathonError := w.MarathonDB.Exec("SELECT 1")
 			_, pushError := w.PushDB.Exec("SELECT 1")
 			pong, redisError := w.RedisClient.Ping().Result()
